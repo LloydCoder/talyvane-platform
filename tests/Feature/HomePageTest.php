@@ -36,6 +36,20 @@ class HomePageTest extends TestCase
         $response->assertSee('MAISON EXAMPLE');
     }
 
+    public function test_blank_public_contact_email_is_not_replaced_with_platform_email(): void
+    {
+        BrandSetting::create([
+            'key' => 'contact_email',
+            'value' => null,
+            'group' => 'branding',
+            'is_public' => true,
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertDontSee('mailto:hello@tinlance.com');
+    }
+
     public function test_homepage_does_not_expose_private_operator_data(): void
     {
         $response = $this->get('/');
