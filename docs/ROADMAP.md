@@ -5,11 +5,15 @@
 - [x] Establish product requirements, architecture, security and compliance baseline.
 - [ ] Legal review of licence history and chain of title.
 - [ ] Verify hosting: PHP, Composer, SSH/terminal, Node build, cron, queues, storage and document root.
-- [ ] Create Laravel application skeleton and CI.
-- [ ] Define design tokens and responsive shell.
+- [x] Create Laravel 13 application skeleton and CI.
+- [x] Define initial design tokens and responsive public/admin shell.
 
 ## Release 1 — Operational foundation
-Premium editorial homepage; configurable content; destination/profile directory; admin authentication and roles; brand/content settings; enquiry inbox; legal pages and market flags; automated tests and staging deployment.
+- [x] Initial public homepage and responsive design system.
+- [x] CLI-only first-owner provisioning, login/logout, role-gated admin dashboard.
+- [x] Database-backed brand name, tagline and contact configuration.
+- [x] CI feature tests for homepage, authentication, role boundaries and branding persistence.
+Remaining: configurable content/CMS; destination/profile directory and management; enquiry inbox; legal pages and market flags; staging deployment and runtime verification.
 
 ## Release 2 — Booking and portals
 Client and companion accounts; manual booking; admin-configurable automatic rules with fail-closed prerequisites; calendar, notifications, cancellation and audit history; consent and verification integration.
