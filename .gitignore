@@ -44,3 +44,7 @@ auth.json
 !/storage/logs/.gitkeep
 !/storage/app/private/.gitkeep
 !/bootstrap/cache/.gitkeep
+
+# Customer-uploaded public brand assets
+/storage/app/public/*
+!/storage/app/public/.gitkeep
