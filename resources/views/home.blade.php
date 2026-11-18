@@ -12,7 +12,7 @@
     <div class="announcement">A new standard for independent agency operations</div>
     <header class="site-header">
         <a class="wordmark" href="{{ route('home') }}" aria-label="Talyvane home">@if (!empty($brand['logo_path']))
-                <img class="wordmark-image" src="{{ \\Illuminate\\Support\\Facades\\Storage::disk('public')->url($brand['logo_path']) }}" alt="{{ $brand['brand_name'] ?? 'Brand logo' }}">
+                <img class="wordmark-image" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($brand['logo_path']) }}" alt="{{ $brand['brand_name'] ?? 'Brand logo' }}">
             @else
                 {{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span>
             @endif</a>
@@ -79,9 +79,20 @@
     </main>
 
     <footer class="site-footer">
-        <a class="wordmark" href="{{ route('home') }}">{{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span></a>
+        <a class="wordmark" href="{{ route('home') }}">
+            @if (!empty($brand['logo_path']))
+                <img class="wordmark-image" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($brand['logo_path']) }}" alt="{{ $brand['brand_name'] ?? 'Brand logo' }}">
+            @else
+                {{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span>
+            @endif
+        </a>
         <p>{{ $brand['tagline'] ?? 'Independent operations. Considered design.' }}</p>
-        <span>© {{ date('Y') }} Talyvane. All rights reserved.</span>
+        <div class="footer-contact">
+            @if (!empty($brand['contact_email'])) <a href="mailto:{{ $brand['contact_email'] }}">{{ $brand['contact_email'] }}</a> @endif
+            @if (!empty($brand['contact_phone'])) <a href="tel:{{ preg_replace('/[^0-9+]/', '', $brand['contact_phone']) }}">{{ $brand['contact_phone'] }}</a> @endif
+            @if (!empty($brand['contact_website'])) <a href="{{ $brand['contact_website'] }}" target="_blank" rel="noopener noreferrer">Website ↗</a> @endif
+        </div>
+        <span>© {{ date('Y') }} {{ $brand['brand_name'] ?? 'Talyvane' }}. All rights reserved.</span>
     </footer>
 </body>
 </html>
