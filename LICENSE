@@ -32,6 +32,12 @@ are permitted only as reasonably necessary for Evaluation Use. No production,
 public-facing, real-user-data or third-party service use is permitted.
 
 3. RESTRICTIONS
+For clarity, this License does not prohibit viewing, caching, forking or
+other acts that GitHub's own Terms of Service expressly permit in connection
+with this public repository. Any such platform permission is limited to the
+scope of GitHub's terms and does not grant production deployment, commercial
+exploitation, redistribution outside the platform permissions, or sublicensing.
+
 Except where applicable law or a separate written agreement permits, you must
 not: (a) use, deploy, host or operate the Software for production or commercial
 purposes; (b) sell, rent, lease, sublicense, publish, distribute or transfer
