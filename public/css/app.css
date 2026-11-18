@@ -116,3 +116,73 @@ h1 em, h2 em { color: var(--gold); font-weight: 400; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+
+/* Administration */
+.admin-body { min-height: 100vh; background: #eeeae1; color: #171c18; }
+.admin-sidebar { position: fixed; inset: 0 auto 0 0; width: 245px; display: flex; flex-direction: column; padding: 36px 26px; background: #111713; color: #eeeae1; border-right: 1px solid rgba(255,255,255,.08); }
+.admin-sidebar .wordmark { font-size: 17px; }
+.sidebar-caption { margin: 70px 0 16px; color: #8f927f; font-size: 8px; letter-spacing: .2em; }
+.sidebar-link { padding: 13px 12px; color: #b7b9ad; font-size: 11px; border-left: 2px solid transparent; }
+.sidebar-link.active { color: #eeeae1; background: rgba(183,164,125,.1); border-left-color: #b7a47d; }
+.sidebar-bottom { display: grid; gap: 13px; margin-top: auto; padding-top: 20px; border-top: 1px solid var(--line); color: #b7b9ad; font-size: 10px; }
+.sidebar-bottom form { margin: 0; }
+.sidebar-bottom button { padding: 0; border: 0; background: transparent; color: var(--gold); font: inherit; cursor: pointer; }
+.admin-main { min-height: 100vh; margin-left: 245px; padding: 0 6%; }
+.admin-topbar { height: 76px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(23,28,24,.14); color: #777d72; font-size: 8px; letter-spacing: .16em; text-transform: uppercase; }
+.admin-page-heading { max-width: 660px; padding: 65px 0 45px; }
+.admin-page-heading.compact { padding-bottom: 30px; }
+.admin-page-heading h1 { margin: 20px 0 17px; color: #171c18; font-size: clamp(48px, 5vw, 68px); }
+.admin-page-heading h1 em { color: #907e5c; }
+.admin-page-heading > p:last-child { max-width: 500px; color: #666d63; font-size: 12px; line-height: 1.8; }
+.admin-card-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; padding-bottom: 70px; }
+.admin-card { min-height: 230px; display: flex; flex-direction: column; align-items: flex-start; padding: 25px; background: #f8f6f0; border: 1px solid rgba(23,28,24,.12); }
+.admin-card > span { color: #927f5b; font-size: 8px; letter-spacing: .16em; }
+.admin-card h2 { margin: 30px 0 10px; font: 26px var(--serif); }
+.admin-card p { color: #687067; font-size: 10px; line-height: 1.8; }
+.admin-card b { margin-top: auto; color: #826f4d; font-size: 9px; font-weight: 500; }
+.admin-card-muted { opacity: .65; }
+.settings-form { max-width: 720px; margin: 0 0 80px; padding: 30px; background: #f8f6f0; border: 1px solid rgba(23,28,24,.12); }
+.settings-section-title { display: flex; gap: 18px; align-items: flex-start; margin: 6px 0 24px; padding-bottom: 20px; border-bottom: 1px solid rgba(23,28,24,.12); }
+.settings-section-title:not(:first-child) { margin-top: 42px; }
+.settings-section-title > span { color: #927f5b; font-size: 9px; letter-spacing: .15em; }
+.settings-section-title h2 { margin: -5px 0 6px; font: 25px var(--serif); }
+.settings-section-title p { margin: 0; color: #777d72; font-size: 10px; }
+.settings-form > label, .admin-auth-card form > label { display: block; margin: 18px 0 8px; color: #545b52; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.settings-form > label span { color: #927f5b; }
+.settings-form input:not([type=checkbox]), .admin-auth-card input:not([type=checkbox]) { width: 100%; min-height: 46px; padding: 0 13px; border: 1px solid rgba(23,28,24,.2); border-radius: 0; outline: none; background: #fffefa; color: #171c18; font: 12px var(--sans); }
+.settings-form input:focus, .admin-auth-card input:focus { border-color: #927f5b; box-shadow: 0 0 0 2px rgba(146,127,91,.13); }
+.settings-actions { display: flex; justify-content: flex-end; margin-top: 34px; padding-top: 24px; border-top: 1px solid rgba(23,28,24,.12); }
+.settings-actions .button { border: 0; cursor: pointer; }
+.form-alert, .form-success { margin: 20px 0; padding: 13px 15px; font-size: 11px; line-height: 1.6; }
+.form-alert { background: #f4e4df; color: #7d3528; border: 1px solid #d6aaa0; }
+.form-success { background: #e5eee5; color: #31563a; border: 1px solid #b6cbb8; }
+.admin-auth-body { min-height: 100vh; display: grid; place-items: center; padding: 28px; background: radial-gradient(ellipse at 50% 25%, #28332b, #111713 70%); }
+.admin-auth-card { width: min(100%, 430px); padding: 48px; background: #eeeae1; color: #171c18; box-shadow: 0 25px 90px rgba(0,0,0,.25); }
+.admin-auth-card .wordmark { display: inline-block; margin-bottom: 55px; color: #171c18; }
+.admin-auth-card h1 { margin: 22px 0 10px; color: #171c18; font-size: 55px; line-height: .95; }
+.admin-auth-card h1 em { color: #927f5b; }
+.admin-muted { margin-bottom: 28px; color: #777d72; font-size: 11px; }
+.admin-auth-card form { display: grid; }
+.admin-auth-card form > label { margin-top: 18px; }
+.remember-row { display: flex !important; align-items: center; gap: 9px; margin: 18px 0 !important; text-transform: none !important; letter-spacing: 0 !important; }
+.remember-row input { accent-color: #927f5b; }
+.admin-submit { width: 100%; justify-content: space-between; border: 0; cursor: pointer; }
+.admin-back { display: inline-block; margin-top: 25px; color: #6e756b; font-size: 10px; }
+@media (max-width: 900px) {
+    .admin-sidebar { width: 205px; padding: 28px 18px; }
+    .admin-main { margin-left: 205px; }
+    .admin-card-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+    .admin-sidebar { position: static; width: 100%; min-height: auto; padding: 20px 7%; }
+    .admin-sidebar .wordmark { margin-bottom: 12px; }
+    .sidebar-caption { margin: 12px 0 6px; }
+    .sidebar-link { display: inline-block; margin-right: 6px; padding: 10px 8px; }
+    .sidebar-bottom { display: flex; justify-content: space-between; margin-top: 12px; padding-top: 12px; }
+    .admin-main { margin-left: 0; padding: 0 7%; }
+    .admin-topbar { height: 58px; font-size: 7px; }
+    .admin-page-heading { padding: 45px 0 28px; }
+    .settings-form { padding: 20px; }
+    .admin-auth-card { padding: 32px 24px; }
+}
