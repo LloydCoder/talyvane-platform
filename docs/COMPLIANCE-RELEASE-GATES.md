@@ -1,0 +1,34 @@
+# Compliance and Safeguarding Release Gates
+
+This checklist is not legal advice. Obtain current advice from qualified counsel and written approvals from relevant hosting and payment providers.
+
+## Jurisdiction mapping
+Separately identify the contracting entity and incorporation country; operator/staff locations; where services are advertised and supplied; client/provider locations; where data is collected/accessed/stored; and where payment accounts or wallet controllers are located. A target market is not proof that the model is lawful or authorised.
+
+## Pre-production evidence
+- Written legal opinion for the exact business model in each target market.
+- Written hosting-provider approval for the actual content and business model.
+- Written payment underwriting approval for each product, purpose and jurisdiction.
+- Documented adult-only eligibility and independent age assurance.
+- Identity/profile ownership verification proportionate to risk.
+- Granular consent for each media item and public distribution.
+- Safeguarding policy, complaint process, incident escalation and appeal.
+- Privacy notice, terms, cancellation/refund terms and retention schedule.
+- Data-controller/processor assessment and cross-border transfer review.
+- Business registration, tax and local operating requirements assessment.
+- Security test, backup restore test and incident-response readiness.
+
+## Safeguarding
+No minors, coercion, trafficking, exploitation or non-consensual material. No publication without verified adult status, identity/profile ownership checks and explicit media consent. Provide pause, removal and future-publication consent withdrawal. Never publish home addresses, private travel plans or real-time location. Incidents require trained human review, documented reasons, restricted access and appeal/correction. No unrestricted cross-customer blacklist. Preserve evidence only when lawful and necessary, with retention controls.
+
+## Payments
+Obtain written card-provider approval; adult-oriented business categories may be restricted. Assess money transmission, virtual asset service, AML, sanctions, consumer protection, tax and reporting obligations for the actual arrangement. Direct-to-wallet does not automatically remove regulatory obligations. Keep crypto disabled until chain/network, token, monitoring, confirmations and legal review are complete. Do not store private keys or represent the platform as custodian.
+
+## Market review tracker
+| Market | Required review areas | Status |
+|---|---|---|
+| Mexico | Exact service model legality, local permits, consumer rules, privacy/transfers, tax and payments/virtual assets | Not reviewed |
+| United Kingdom | Criminal and advertising restrictions, online safety duties where applicable, UK data protection, age assurance, payments and tax | Not reviewed |
+| Philippines | Anti-trafficking/exploitation law, local business rules, privacy, online platform obligations, payments and tax | Not reviewed |
+
+Any unresolved issue concerning adult status, consent, exploitation risk, provider approval, data protection or legal authority is a production no-go for that market.
