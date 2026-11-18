@@ -26,6 +26,7 @@ See COMMERCIAL-LICENSING.md for the intended commercial model.
 - docs/COMPLIANCE-RELEASE-GATES.md
 - docs/ROADMAP.md
 - docs/COMPETITIVE-REFERENCE.md
+- docs/LOCAL-DEVELOPMENT.md
 - docs/decisions/
 
 Planned initial stack: Laravel 13, PHP 8.3–8.5 (the client's PHP 8.4 host is version-compatible), MySQL, Blade, Tailwind CSS and Alpine.js, subject to compatibility verification against the actual hosting environment and supported package versions.
