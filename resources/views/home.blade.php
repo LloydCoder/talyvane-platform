@@ -5,19 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#111513">
     <meta name="description" content="Talyvane brings considered design and disciplined operations to premium agency businesses.">
-    <title>Talyvane — A more considered standard</title>
+    <title>{{ $brand['brand_name'] ?? 'Talyvane' }} — A more considered standard</title>
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
 <body>
     <div class="announcement">A new standard for independent agency operations</div>
     <header class="site-header">
-        <a class="wordmark" href="{{ route('home') }}" aria-label="Talyvane home">TALYVANE<span>®</span></a>
+        <a class="wordmark" href="{{ route('home') }}" aria-label="Talyvane home">{{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span></a>
         <nav class="desktop-nav" aria-label="Main navigation">
             <a href="#platform">The platform</a>
             <a href="#capabilities">Capabilities</a>
             <a href="#approach">Our approach</a>
         </nav>
-        <a class="header-link" href="mailto:hello@tinlance.com">Enquire <span aria-hidden="true">↗</span></a>
+        <a class="header-link" href="mailto:{{ $brand['contact_email'] ?? 'hello@tinlance.com' }}">Enquire <span aria-hidden="true">↗</span></a>
     </header>
 
     <main>
@@ -39,7 +39,7 @@
                     <div class="art-core"></div>
                     <div class="art-caption"><span>01 / 03</span><span>FORM MEETS FUNCTION</span></div>
                 </div>
-                <div class="art-side-label">TALYVANE — PRIVATE BY DESIGN</div>
+                <div class="art-side-label">{{ strtoupper($brand['brand_name'] ?? 'Talyvane') }} — PRIVATE BY DESIGN</div>
             </div>
         </section>
 
@@ -70,13 +70,13 @@
             <p class="eyebrow">INDEPENDENT BY DESIGN</p>
             <h2>Your identity.<br><em>Your operation.</em><br>One connected platform.</h2>
             <p>Distinctive branding, configurable workflows and isolated customer deployments — with a reusable foundation built to evolve.</p>
-            <a class="button button-outline" href="mailto:hello@tinlance.com">Discuss a deployment <span aria-hidden="true">↗</span></a>
+            <a class="button button-outline" href="mailto:{{ $brand['contact_email'] ?? 'hello@tinlance.com' }}">Discuss a deployment <span aria-hidden="true">↗</span></a>
         </section>
     </main>
 
     <footer class="site-footer">
-        <a class="wordmark" href="{{ route('home') }}">TALYVANE<span>®</span></a>
-        <p>Independent operations. Considered design.</p>
+        <a class="wordmark" href="{{ route('home') }}">{{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span></a>
+        <p>{{ $brand['tagline'] ?? 'Independent operations. Considered design.' }}</p>
         <span>© {{ date('Y') }} Talyvane. All rights reserved.</span>
     </footer>
 </body>
