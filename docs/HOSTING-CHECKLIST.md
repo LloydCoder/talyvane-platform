@@ -9,7 +9,7 @@ The client previously reported PHP 8.4+ and MySQL-compatible shared hosting. Thi
 - Web document root can point to the Laravel public directory.
 - Application source, environment file, storage and backups can remain outside public web root.
 - Writable storage and bootstrap/cache directories with least-privilege permissions.
-- HTTPS and secure-cookie support.
+- HTTPS and secure-cookie support; set SESSION_SECURE_COOKIE=true in production.
 - Cron availability for scheduled tasks.
 - Queue worker support or a documented synchronous/database alternative.
 - Upload size/time limits and sufficient private storage.
