@@ -10,6 +10,12 @@ Artisan::command('talyvane:about', function () {
 Artisan::command('talyvane:admin:create {email}', function () {
     $email = strtolower(trim((string) $this->argument('email')));
 
+    if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $this->error('A valid email address is required.');
+
+        return;
+    }
+
     if (User::query()->where('email', $email)->exists()) {
         $this->error('An account with that email already exists.');
 
