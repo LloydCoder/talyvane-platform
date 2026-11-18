@@ -11,7 +11,8 @@
 ## Release 1 — Operational foundation
 - [x] Initial public homepage and responsive design system.
 - [x] CLI-only first-owner provisioning, login/logout, role-gated admin dashboard.
-- [x] Database-backed brand name, tagline and contact configuration.
+- [x] Database-backed brand name, logo upload, tagline and contact configuration.
+- [ ] Enforce MFA and step-up authentication for privileged accounts before production.
 - [x] CI feature tests for homepage, authentication, role boundaries and branding persistence.
 Remaining: configurable content/CMS; destination/profile directory and management; enquiry inbox; legal pages and market flags; staging deployment and runtime verification.
 
