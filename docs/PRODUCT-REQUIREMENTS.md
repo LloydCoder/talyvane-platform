@@ -7,14 +7,17 @@ A premium, responsive white-label agency operations platform that can be indepen
 Public visitor; client; companion/provider; operator; verification/safeguarding reviewer; finance operator; administrator; platform maintainer. Use least privilege. Platform maintainers have no default access to customer business data.
 
 ## Modules
-1. Public site: editorial homepage, configurable pages/navigation, destination and city directory, profile discovery, controlled filters, consented galleries, FAQs, legal pages, SEO and enquiries.
+1. Public site: editorial homepage, configurable pages/navigation, destination and city directory, profile discovery, controlled filters for location, language, experience category and approved non-sensitive attributes, consented galleries, FAQs, legal pages, SEO, city guides, testimonials and enquiries.
 2. Booking: manual and automatic modes configurable by admin; approval rules; request lifecycle; calendar; optional deposits; reminders; cancellation/rescheduling; audit history. Automatic mode fails closed if age/identity assurance, consent, availability, payment or safety prerequisites fail.
-3. Client portal: account, booking history, favourites, membership, receipts, payment status, support, privacy and deletion requests.
-4. Companion portal: onboarding, profile/media submission, availability, request review, verification status, consent records, safety preferences, pause/unpublish and withdrawal workflows.
+3. Client portal: account, booking history, favourites, membership entitlements, receipts, payment status, support, privacy and deletion requests. Membership may unlock private profiles/galleries and priority concierge benefits, with server-side entitlement checks on every request.
+4. Companion portal: application/casting pipeline, onboarding, profile/media submission, availability, request review, verification status, consent records, safety preferences, pause/unpublish and withdrawal workflows.
 5. Verification and safeguarding: independent age/identity assurance; evidence minimisation; restricted evidence vault; explicit media consent; consent versioning/withdrawal; access logs; retention/deletion; human-reviewed incidents; appeal/correction.
 6. CRM and communications: enquiry inbox, assignment, pipeline, attribution, notes, reminders, provider adapters, retries and delivery logs. Do not claim end-to-end encryption if the server can read content.
 7. Payments: adapter architecture; manual payments; optional BTC, USDT and USDC per supported network; card processors only after written underwriting; invoice, immutable instructions, ledger, reconciliation and refund/dispute states. No custody/escrow claim without approval.
 8. Administration: dashboard, roles, brand/CMS, navigation, destinations, booking rules, payment configuration, feature flags, audit logs, reports, integrations, localisation and export controls.
+
+## Discovery and membership controls
+Destination, city and approved locality taxonomies must be managed as structured data. Profile cards may show a coarse availability state, but never private addresses or exact real-time location. Do not implement race/ethnicity/nationality-based profile filters. Membership content must use server-side authorisation and private media delivery; hiding a link is not access control.
 
 ## Dynamic configuration
 Admin can change brand name, logo, favicon, colour tokens, typography, contact details, social links, SEO defaults, navigation, homepage sections, legal links and approved page content. Support draft, preview, publish, rollback and audit history. Payment controls include a global switch and independent switches for crypto, cards, manual methods, assets, networks and processors. Each customer deployment has independent secrets, domains, database, storage and credentials.
