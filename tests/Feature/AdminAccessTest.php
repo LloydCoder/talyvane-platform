@@ -48,6 +48,55 @@ class AdminAccessTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_owner_can_update_public_brand_settings(): void
+    {
+        $owner = User::create([
+            'name' => 'Platform Owner',
+            'email' => 'owner@example.test',
+            'password' => Hash::make('Strong-Testing-Password-934!'),
+            'role' => 'owner',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->put('/admin/branding', [
+                'brand_name' => 'Maison Example',
+                'tagline' => 'A private world, thoughtfully managed.',
+                'contact_email' => 'concierge@example.test',
+                'contact_phone' => '+44 20 0000 0000',
+                'contact_website' => 'https://example.test',
+            ])
+            ->assertRedirect('/admin/branding');
+
+        $this->assertDatabaseHas('brand_settings', [
+            'key' => 'brand_name',
+            'value' => 'Maison Example',
+            'updated_by' => $owner->id,
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('MAISON EXAMPLE')
+            ->assertSee('concierge@example.test');
+    }
+
+    public function test_operator_cannot_update_brand_settings(): void
+    {
+        $operator = User::create([
+            'name' => 'Operations User',
+            'email' => 'operator@example.test',
+            'password' => Hash::make('Strong-Testing-Password-934!'),
+            'role' => 'operator',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($operator)
+            ->put('/admin/branding', [
+                'brand_name' => 'Not Authorised',
+            ])
+            ->assertForbidden();
+    }
+
     public function test_admin_can_sign_in_and_sign_out(): void
     {
         User::create([
