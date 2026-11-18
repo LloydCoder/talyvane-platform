@@ -21,7 +21,9 @@
             <a href="#capabilities">Capabilities</a>
             <a href="#approach">Our approach</a>
         </nav>
-        <a class="header-link" href="mailto:{{ $brand['contact_email'] ?? 'hello@tinlance.com' }}">Enquire <span aria-hidden="true">↗</span></a>
+        @if (!empty($brand['contact_email']))
+            <a class="header-link" href="mailto:{{ $brand['contact_email'] }}">Enquire <span aria-hidden="true">↗</span></a>
+        @endif
     </header>
 
     <main>
@@ -74,7 +76,9 @@
             <p class="eyebrow">INDEPENDENT BY DESIGN</p>
             <h2>Your identity.<br><em>Your operation.</em><br>One connected platform.</h2>
             <p>Distinctive branding, configurable workflows and isolated customer deployments — with a reusable foundation built to evolve.</p>
-            <a class="button button-outline" href="mailto:{{ $brand['contact_email'] ?? 'hello@tinlance.com' }}">Discuss a deployment <span aria-hidden="true">↗</span></a>
+            @if (!empty($brand['contact_email']))
+                <a class="button button-outline" href="mailto:{{ $brand['contact_email'] }}">Discuss a deployment <span aria-hidden="true">↗</span></a>
+            @endif
         </section>
     </main>
 
@@ -86,7 +90,7 @@
                 {{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span>
             @endif
         </a>
-        <p>{{ $brand['tagline'] ?? 'Independent operations. Considered design.' }}</p>
+        <p>{{ $brand['tagline'] ?? '' }}</p>
         <div class="footer-contact">
             @if (!empty($brand['contact_email'])) <a href="mailto:{{ $brand['contact_email'] }}">{{ $brand['contact_email'] }}</a> @endif
             @if (!empty($brand['contact_phone'])) <a href="tel:{{ preg_replace('/[^0-9+]/', '', $brand['contact_phone']) }}">{{ $brand['contact_phone'] }}</a> @endif
