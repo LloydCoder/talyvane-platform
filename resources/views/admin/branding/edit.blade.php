@@ -22,7 +22,7 @@
         <input id="tagline" name="tagline" value="{{ old('tagline', $brand['tagline'] ?? '') }}" maxlength="160">
         <label for="logo">Brand logo</label>
         @if (!empty($brand['logo_path']))
-            <div class="logo-preview"><img src="{{ \\Illuminate\\Support\\Facades\\Storage::disk('public')->url($brand['logo_path']) }}" alt="{{ $brand['brand_name'] ?? 'Current brand logo' }}"></div>
+            <div class="logo-preview"><img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($brand['logo_path']) }}" alt="{{ $brand['brand_name'] ?? 'Current brand logo' }}"></div>
         @endif
         <input id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp">
         <p class="field-help">PNG, JPEG or WebP. Maximum 2 MB and 2,000 × 2,000 pixels. This image is public brand material; never upload identity documents or private media here.</p>
