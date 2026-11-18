@@ -11,7 +11,11 @@
 <body>
     <div class="announcement">A new standard for independent agency operations</div>
     <header class="site-header">
-        <a class="wordmark" href="{{ route('home') }}" aria-label="Talyvane home">{{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span></a>
+        <a class="wordmark" href="{{ route('home') }}" aria-label="Talyvane home">@if (!empty($brand['logo_path']))
+                <img class="wordmark-image" src="{{ \\Illuminate\\Support\\Facades\\Storage::disk('public')->url($brand['logo_path']) }}" alt="{{ $brand['brand_name'] ?? 'Brand logo' }}">
+            @else
+                {{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span>
+            @endif</a>
         <nav class="desktop-nav" aria-label="Main navigation">
             <a href="#platform">The platform</a>
             <a href="#capabilities">Capabilities</a>
