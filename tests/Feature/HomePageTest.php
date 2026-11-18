@@ -12,8 +12,9 @@ class HomePageTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('TALYVANE');
-        $response->assertSee('A more considered standard of agency operations.');
-        $response->assertSee('Explore destinations');
+        $response->assertSeeText('A more considered');
+        $response->assertSee('Discover the platform');
+        $response->assertSee('Coordinate');
     }
 
     public function test_homepage_does_not_expose_private_operator_data(): void
