@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class AdminAccessTest extends TestCase
@@ -78,6 +80,35 @@ class AdminAccessTest extends TestCase
             ->assertOk()
             ->assertSee('MAISON EXAMPLE')
             ->assertSee('concierge@example.test');
+    }
+
+    public function test_owner_can_upload_a_public_brand_logo(): void
+    {
+        Storage::fake('public');
+
+        $owner = User::create([
+            'name' => 'Platform Owner',
+            'email' => 'owner@example.test',
+            'password' => Hash::make('Strong-Testing-Password-934!'),
+            'role' => 'owner',
+            'is_active' => true,
+        ]);
+
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j5WQAAAAASUVORK5CYII=');
+
+        $this->actingAs($owner)
+            ->put('/admin/branding', [
+                'brand_name' => 'Maison Example',
+                'logo' => UploadedFile::fake()->createWithContent('brand.png', $png),
+            ])
+            ->assertRedirect('/admin/branding');
+
+        $logoPath = \App\Models\BrandSetting::query()
+            ->where('key', 'logo_path')
+            ->value('value');
+
+        $this->assertNotEmpty($logoPath);
+        Storage::disk('public')->assertExists($logoPath);
     }
 
     public function test_operator_cannot_update_brand_settings(): void
