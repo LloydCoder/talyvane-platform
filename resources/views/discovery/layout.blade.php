@@ -18,12 +18,12 @@
                 {{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span>
             @endif
         </a>
-        <nav aria-label="Main navigation"><a href="{{ route('destinations.index') }}">Destinations</a><a href="{{ route('companions.index') }}">Profiles</a><a href="{{ route('home') }}">Home</a><a href="{{ route('contact') }}">Contact</a></nav>
+        <nav aria-label="Main navigation"><a href="{{ route('destinations.index') }}">Destinations</a><a href="{{ route('companions.index') }}">Profiles</a><a href="{{ route('home') }}">Home</a><a href="{{ route('contact') }}">Contact</a><a href="{{ route('login') }}">Account</a></nav>
     </header>
     <main class="discovery-main">@yield('content')</main>
     <footer class="discovery-footer">
         <span>© {{ date('Y') }} {{ $brand['brand_name'] ?? 'Talyvane' }}</span>
-        <span>@if (!empty($brand['contact_email'])) <a href="mailto:{{ $brand['contact_email'] }}">{{ $brand['contact_email'] }}</a> · @endif Privacy · Consent · Discretion</span>
+        <span>@if (!empty($brand['contact_email'])) <a href="mailto:{{ $brand['contact_email'] }}">{{ $brand['contact_email'] }}</a> · @endif <a href="{{ route('privacy') }}">Privacy</a> · <a href="{{ route('terms') }}">Terms</a> · Consent · Discretion</span>
     </footer>
 </body>
 </html>
