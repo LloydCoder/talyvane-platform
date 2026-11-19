@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\BrandingController;
 use App\Http\Controllers\Admin\CompanionProfileController;
 use App\Http\Controllers\Admin\DestinationController;
 use App\Http\Controllers\Admin\EnquiryAdminController;
+use App\Http\Controllers\Admin\GlobalizationController;
 use App\Http\Controllers\Admin\PaymentMethodController;
 use App\Http\Controllers\Admin\PaymentSettingsController;
 use App\Http\Controllers\Admin\SitePageController;
@@ -96,6 +97,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::middleware(['auth', 'role:owner,admin', 'admin.mfa'])->group(function (): void {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
         Route::get('/branding', [BrandingController::class, 'edit'])->name('branding.edit');
+        Route::get('/globalization', [GlobalizationController::class, 'edit'])->name('globalization');
+        Route::put('/globalization/defaults', [GlobalizationController::class, 'updateDefaults'])->name('globalization.defaults.update');
+        Route::post('/globalization/currencies', [GlobalizationController::class, 'storeCurrency'])->name('globalization.currencies.store');
+        Route::post('/globalization/markets', [GlobalizationController::class, 'storeMarket'])->name('globalization.markets.store');
         Route::put('/branding', [BrandingController::class, 'update'])->name('branding.update');
         Route::resource('destinations', DestinationController::class)->except(['show', 'destroy']);
         Route::get('/profiles', [CompanionProfileController::class, 'index'])->name('profiles.index');
