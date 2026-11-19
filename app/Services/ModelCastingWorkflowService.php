@@ -12,6 +12,7 @@ use App\Models\ModelTalentImageLicence;
 use App\Models\ModelTalentPortfolioAsset;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -158,7 +159,7 @@ class ModelCastingWorkflowService
                 throw ValidationException::withMessages(['submission' => 'This model already has a submission for the casting call.']);
             }
 
-            if ($lockedCall->submissions()->count() >= $lockedCall->max_submissions) {
+            if ($lockedCall->submissions()->whereIn('status', ['submitted', 'shortlisted', 'selected'])->count() >= $lockedCall->max_submissions) {
                 throw ValidationException::withMessages(['submission' => 'The casting call has reached its submission limit.']);
             }
 
@@ -194,8 +195,15 @@ class ModelCastingWorkflowService
 
             if ($decision === 'selected') {
                 $licence = ModelTalentImageLicence::query()->findOrFail($locked->image_licence_id);
-                if ($licence->status !== 'active' || $licence->ends_on->isPast()) {
-                    throw ValidationException::withMessages(['decision' => 'A model cannot be selected while the required casting licence is inactive or expired.']);
+                $asset = ModelTalentPortfolioAsset::query()->findOrFail($locked->portfolio_asset_id);
+                if ($licence->status !== 'active'
+                    || $licence->ends_on->format('Y-m-d') < $call->shoot_ends_at->format('Y-m-d')
+                    || $licence->starts_on->format('Y-m-d') > $call->shoot_starts_at->format('Y-m-d')
+                    || $asset->status !== 'approved'
+                    || $asset->consent_withdrawn_at !== null
+                    || ! $asset->storage_path
+                    || ! Storage::disk('local')->exists($asset->storage_path)) {
+                    throw ValidationException::withMessages(['decision' => 'A model cannot be selected while the required asset or casting licence is inactive or outside its authorized term.']);
                 }
             }
 
@@ -235,6 +243,10 @@ class ModelCastingWorkflowService
 
     public function invalidateForLicence(ModelTalentImageLicence $licence, ?int $actorId, string $reason): void
     {
+        if (! Schema::hasTable('model_casting_submissions') || ! Schema::hasTable('model_casting_events')) {
+            return;
+        }
+
         $submissions = ModelCastingSubmission::query()
             ->where('image_licence_id', $licence->id)
             ->whereIn('status', ['submitted', 'shortlisted', 'selected'])
@@ -306,6 +318,13 @@ class ModelCastingWorkflowService
         if ($call->status !== 'open'
             || $call->opens_at->isFuture()
             || $call->closes_at->isPast()
+            || ! config('talyvane.model_agency.casting_policy_approved')
+            || $call->casting_policy_version !== (string) config('talyvane.model_agency.casting_policy_version')
+            || ! config('talyvane.model_agency.image_licence_policy_approved')
+            || $licence->licence_policy_version !== (string) config('talyvane.model_agency.image_licence_policy_version')
+            || ! config('talyvane.model_agency.portfolio_consent_approved')
+            || $asset->consent_policy_version !== (string) config('talyvane.model_agency.portfolio_consent_version')
+            || ! config('talyvane.model_agency.representation_terms_approved')
             || $application->status !== 'accepted'
             || $application->adult_eligibility_verified_at === null
             || $application->legal_hold_at !== null
@@ -332,7 +351,11 @@ class ModelCastingWorkflowService
         }
 
         $agreement = $licence->representationAgreement;
-        if (! $agreement || $agreement->status !== 'executed' || $agreement->country_code !== $call->country_code) {
+        if (! $agreement
+            || $agreement->status !== 'executed'
+            || $agreement->country_code !== $call->country_code
+            || ! $agreement->effective_from
+            || $agreement->terms_policy_version !== (string) config('talyvane.model_agency.representation_terms_version')) {
             throw ValidationException::withMessages(['submission' => 'An executed representation agreement for the casting territory is required.']);
         }
     }
