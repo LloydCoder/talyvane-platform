@@ -26,6 +26,7 @@ class SuperAdminRecoveryTest extends TestCase
         Notification::fake();
 
         [$superAdmin, $oldRecoveryKey] = $this->provisionSuperAdmin();
+        $this->actingAs($superAdmin);
 
         $this->artisan('talyvane:super-admin:recover')
             ->expectsQuestion('Current Super Admin password', 'Strong-Root-Password-934!')
@@ -59,6 +60,9 @@ class SuperAdminRecoveryTest extends TestCase
             'event_type' => 'notification_sent',
         ]);
         Notification::assertSentOnDemand(SuperAdminRecoveryNotice::class, 2);
+
+        $this->get('/admin')->assertRedirect('/admin/login');
+        $this->assertGuest();
     }
 
 
