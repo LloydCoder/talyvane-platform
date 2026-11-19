@@ -19,7 +19,7 @@ class ClientFavoriteController extends Controller
     {
         auth()->user()->favoriteProfiles()->detach($profile->id);
 
-        $destination = $profile->publiclyDiscoverable()->exists()
+        $destination = CompanionProfile::query()->publiclyDiscoverable()->whereKey($profile->id)->exists()
             ? redirect()->route('companions.show', $profile->slug)
             : redirect()->route('portal.dashboard');
 
