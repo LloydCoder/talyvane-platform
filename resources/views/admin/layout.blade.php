@@ -35,6 +35,9 @@
         <a class="sidebar-link {{ request()->routeIs('admin.profiles.*') ? 'active' : '' }}" href="{{ route('admin.profiles.index') }}">Profiles</a>
         <a class="sidebar-link {{ request()->routeIs('admin.clients.*') ? 'active' : '' }}" href="{{ route('admin.clients.index') }}">Clients & membership</a>
         <a class="sidebar-link {{ request()->routeIs('admin.enquiries.*') ? 'active' : '' }}" href="{{ route('admin.enquiries.index') }}">Enquiries</a>
+        @if (app(\App\Services\FeatureRegistry::class)->isEnabled('model-agency.applications'))
+            <a class="sidebar-link {{ request()->routeIs('admin.model-applications.*') ? 'active' : '' }}" href="{{ route('admin.model-applications.index') }}">Model applications</a>
+        @endif
         <a class="sidebar-link {{ request()->routeIs('admin.bookings.index') ? 'active' : '' }}" href="{{ route('admin.bookings.index') }}">Booking requests</a>
         <div class="sidebar-bottom">
             <span>{{ auth()->user()->name }}</span>

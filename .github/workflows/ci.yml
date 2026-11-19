@@ -52,4 +52,4 @@ jobs:
           php artisan route:list --except-vendor
           php artisan view:cache
       - name: Run feature tests
-        run: vendor/bin/phpunit
+        run: vendor/bin/phpunit --display-all-issues

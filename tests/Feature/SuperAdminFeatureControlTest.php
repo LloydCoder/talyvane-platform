@@ -130,7 +130,7 @@ class SuperAdminFeatureControlTest extends TestCase
         $code = (new TotpService())->codeForStep($admin->mfa_secret, $step);
 
         $this->actingAs($admin)
-            ->patch('/admin/features/model-agency.applications', [
+            ->patch('/admin/features/model-agency.casting', [
                 'enabled' => true,
                 'reason' => 'Attempt to activate a module before implementation is complete.',
                 'password' => 'Strong-Testing-Password-934!',
@@ -139,12 +139,12 @@ class SuperAdminFeatureControlTest extends TestCase
             ->assertSessionHasErrors('enabled');
 
         $this->assertDatabaseHas('platform_features', [
-            'key' => 'model-agency.applications',
+            'key' => 'model-agency.casting',
             'implementation_status' => 'planned',
             'is_enabled' => false,
         ]);
         $this->assertDatabaseMissing('platform_feature_audit_events', [
-            'feature_key' => 'model-agency.applications',
+            'feature_key' => 'model-agency.casting',
         ]);
 
         $this->patch('/admin/features/cms.pages', [

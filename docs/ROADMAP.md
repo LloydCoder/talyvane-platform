@@ -51,7 +51,18 @@ Remaining: configurable content/CMS; jurisdiction-approved legal documents (curr
 
 ## Release 2 — Booking and portals
 
-The current booking implementation is for companionship workflows. The separate model-agency track remains unimplemented and must not be represented by the companionship booking flow. It requires talent applications, agency review, representation agreements, casting calls, assignments, image usage licences, client briefs, talent availability, usage approvals and settlement records, with independent permissions and audit trails.
+- [x] Create a separate model-agency application domain and public intake route, independent from companionship accounts, profiles, enquiries and bookings.
+- [x] Require explicit adult-eligibility self-attestation and versioned privacy-notice acceptance; do not treat self-attestation as age assurance.
+- [x] Add administrator-only application review with a constrained state machine and append-only application-event records.
+- [x] Gate model-agency application activation on deployment-configured, explicitly approved privacy and adult-eligibility policies plus published CMS pages with slugs `model-applicant-privacy` and `model-adult-eligibility`; defaults remain disabled.
+- [x] Validate portfolio links as HTTPS and never fetch applicant-supplied URLs server-side.
+- [ ] Implement representation agreement issuance, electronic signature, versioning, expiry, withdrawal and termination; acceptance currently does not create a representation relationship.
+- [ ] Implement separate casting calls, client briefs, talent submission/shortlist, assignment states and approvals.
+- [ ] Implement purpose-specific media releases and usage licences with rights holder, channel, territory, term, exclusivity, compensation and withdrawal constraints.
+- [ ] Implement model availability, assignment booking, fees, expenses, commission and settlement ledger.
+- [ ] Implement applicant access/correction/withdrawal/erasure and policy-based retention/deletion workflows. This is a hard activation blocker for `model-agency.applications`.
+
+The current booking implementation is for companionship workflows only. The separate model-agency application intake and administrator review are implemented as an independent domain; they must not be represented by or routed through companionship bookings. Remaining model-agency work includes representation agreements, casting calls, assignments, image usage licences, client briefs, talent availability, usage approvals and settlement records, with independent permissions and audit trails.
 Partially implemented: client and companion account authentication; verified email; manual requests; admin-configurable automatic eligibility; companion opt-in/withdrawal; weekly availability windows; deposit verification attestation; overlap checks; client and companion booking views. Remaining: date-specific availability exceptions, calendar sync, cancellation/rescheduling policies, notifications, tamper-evident audit export/retention, and full companion profile editing.
 
 ## Release 3 — Payments

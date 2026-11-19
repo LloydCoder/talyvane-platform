@@ -23,6 +23,18 @@ Official references:
 ## Sensitive data
 Collect only necessary data for documented purposes. Never expose legal names, identity documents, private addresses, phone numbers or verification evidence publicly. Store verification evidence separately with restricted access, encryption where supported and access audit. Record consent purpose, version, actor, timestamp and withdrawal. Profile publication and automatic-booking opt-in/out are recorded as separate review events. Provider references and external payment transaction references are stored as keyed HMAC digests, not raw identifiers; no identity document is stored in public profile tables. Define retention/deletion schedules. Do not infer age, identity or sensitive traits.
 
+## Model agency applications
+
+- Keep model applicants and their data separate from companion profiles, clients, bookings and companionship CRM records.
+- Collect only necessary contact, location, portfolio-link and experience information; do not collect date of birth, identity documents or applicant photographs in the public application form.
+- Adult eligibility is an applicant self-attestation only, never an age/identity verification result. Do not represent an applicant, publish adult content or assign work until a suitable independent age/identity assurance process and legal review are complete.
+- Require explicit, versioned privacy notice acceptance and a separately approved adult-eligibility policy before enabling intake. Both approvals are deployment configuration gates and default to false; the CMS pages `model-applicant-privacy` and `model-adult-eligibility` must also be published. The same activation evaluator is rerun at the application HTTP boundary.
+- Treat portfolio URLs as untrusted display links: require HTTPS, escape output, open with `noopener noreferrer nofollow`, and never fetch, crawl, preview or resolve them server-side.
+- Restrict application records to agency administrators. Record each state transition with actor, prior/new status, timestamp and reason; prevent application-event updates/deletes through the model boundary. Direct database access remains privileged and must be controlled separately.
+- Keep model-agency application intake disabled until applicant access, correction, withdrawal, erasure and retention execution are implemented; the activation evaluator enforces this hard blocker.
+- Application acceptance is not representation, a contract, a casting confirmation or an image-use licence. Those require separate signed terms and purpose-specific rights records.
+- References: [ICO data minimisation guidance](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/data-minimisation/); [NIST SP 800-63A-4 identity proofing](https://pages.nist.gov/800-63-4/sp800-63a/proofing/); [OWASP SSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html). These inform the engineering boundaries; they do not establish legal compliance or an age-verification implementation.
+
 ## Media
 Validate extension, MIME and file signature; re-encode images/transcode video; strip EXIF/GPS; randomise storage names; keep originals private; enforce limits; scan and quarantine uploads; prevent path traversal and executable uploads. Publish only after adult-status, ownership and explicit publication-consent checks. Provide rapid unpublish and consent withdrawal. Signed URLs cannot prevent screenshots or copying.
 

@@ -15,6 +15,8 @@ use App\Http\Controllers\Admin\PaymentMethodController;
 use App\Http\Controllers\Admin\PaymentSettingsController;
 use App\Http\Controllers\Admin\SitePageController;
 use App\Http\Controllers\Admin\PlatformFeatureController;
+use App\Http\Controllers\Admin\ModelAgencyApplicationAdminController;
+use App\Http\Controllers\ModelAgencyApplicationController;
 use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\ClientFavoriteController;
@@ -49,6 +51,9 @@ Route::get('/pages/{slug}', [PageController::class, 'show'])->middleware('featur
 Route::view('/privacy', 'legal.privacy')->name('privacy');
 Route::view('/terms', 'legal.terms')->name('terms');
 Route::post('/enquiries', [EnquiryController::class, 'store'])->middleware('throttle:5,1')->name('enquiries.store');
+Route::get('/models/apply', [ModelAgencyApplicationController::class, 'create'])->middleware('feature:model-agency.applications')->name('model-agency.apply');
+Route::post('/models/apply', [ModelAgencyApplicationController::class, 'store'])->middleware(['feature:model-agency.applications', 'throttle:5,1'])->name('model-agency.apply.store');
+Route::get('/models/apply/received', [ModelAgencyApplicationController::class, 'received'])->name('model-agency.apply.received');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/register', [PortalAuthController::class, 'registerForm'])->name('register');
@@ -151,6 +156,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/profiles/{profile}/publish', [CompanionProfileController::class, 'publish'])->name('profiles.publish');
         Route::post('/profiles/{profile}/unpublish', [CompanionProfileController::class, 'unpublish'])->name('profiles.unpublish');
         Route::get('/enquiries', [EnquiryAdminController::class, 'index'])->name('enquiries.index');
+        Route::get('/model-applications', [ModelAgencyApplicationAdminController::class, 'index'])->middleware('feature:model-agency.applications')->name('model-applications.index');
+        Route::patch('/model-applications/{application}', [ModelAgencyApplicationAdminController::class, 'update'])->middleware('feature:model-agency.applications')->name('model-applications.update');
         Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
         Route::get('/clients', [ClientManagementController::class, 'index'])->name('clients.index');
         Route::post('/clients/{client}/membership', [ClientManagementController::class, 'assignMembership'])->middleware('feature:memberships')->name('clients.membership');
