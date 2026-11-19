@@ -55,11 +55,19 @@ class CompanionMediaController extends Controller
         abort_unless((int) $profile->user_id === (int) $request->user()->id, 403);
         abort_unless((int) $media->companion_profile_id === (int) $profile->id, 404);
 
-        DB::transaction(function () use ($media): void {
+        $path = DB::transaction(function () use ($media, $request): string {
             $locked = ProfileMedia::query()->lockForUpdate()->findOrFail($media->id);
-            $locked->delete();
-            Storage::disk('local')->delete($locked->storage_path);
+            $locked->forceFill([
+                'status' => 'withdrawn',
+                'reviewed_by' => $request->user()->id,
+                'reviewed_at' => now(),
+                'review_note' => 'Image submission removed by profile owner.',
+            ])->save();
+
+            return $locked->storage_path;
         });
+
+        Storage::disk('local')->delete($path);
 
         return redirect()->route('companion-portal.dashboard')->with('status', 'Image removed from your profile submissions.');
     }
