@@ -75,9 +75,13 @@ class BookingAdminController
 
             if ($validated['status'] === 'confirmed') {
 
-                if (! $profile || $lockedBooking->starts_at->isPast()) {
+                if (
+                    ! $profile
+                    || $lockedBooking->starts_at->isPast()
+                    || ! $profile->destination()->first()?->lockAndCheckOperationalAvailability()
+                ) {
                     throw ValidationException::withMessages([
-                        'status' => 'This profile or booking time is no longer eligible for confirmation.',
+                        'status' => 'This profile, market or booking time is no longer eligible for confirmation.',
                     ]);
                 }
 
