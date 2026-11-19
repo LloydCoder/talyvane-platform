@@ -114,6 +114,7 @@ class ModelAgencyApplicationRightsTest extends TestCase
         $application = $this->application();
         $request = $this->requestCode($application, 'access');
 
+        $this->get('/models/application-support/'.$request->id)->assertForbidden();
         $this->verifyCode($application, $request);
 
         $this->get('/models/application-support/'.$request->id)
@@ -211,6 +212,9 @@ class ModelAgencyApplicationRightsTest extends TestCase
         $this->assertNull($application->phone);
         $this->assertNull($application->portfolio_url);
         $this->assertNull($application->review_note);
+        $this->assertNull($application->adult_eligibility_confirmed_at);
+        $this->assertNull($application->adult_eligibility_policy_accepted_at);
+        $this->assertNull($application->privacy_notice_accepted_at);
         $this->assertSame('completed', $request->fresh()->status);
         $this->assertSame(0, DB::table('model_talent_application_events')->where('application_id', $application->id)->whereNotNull('reason')->count());
         $this->assertDatabaseHas('model_talent_application_events', [
