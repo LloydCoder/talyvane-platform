@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
   actions: write
 
 concurrency:
@@ -86,22 +85,5 @@ jobs:
           git commit -m "build: commit reproducible Composer dependency lockfile"
           git push --force origin HEAD:refs/heads/automation/composer-lockfile
 
-          pr_number="$(gh pr list --head automation/composer-lockfile --base main --json number --jq '.[0].number // empty')"
-          if [ -z "$pr_number" ]; then
-            gh pr create \
-              --base main \
-              --head automation/composer-lockfile \
-              --title "build: commit reproducible Composer dependency lockfile" \
-              --body "## Summary
-          - Commit the resolved Composer dependency graph generated against the PHP 8.3 minimum platform.
-          - Change CI to use deterministic `composer install` and verify actual runtime platform requirements on PHP 8.3, 8.4 and 8.5.
-          - Preserve dependency audit and Composer validation.
-
-          ## Validation
-          - Lockfile generated and audited on PHP 8.4 with Composer platform PHP pinned to 8.3.0.
-          - A separate CI workflow-dispatch run is started for this branch to validate the locked graph across the supported PHP matrix."
-          else
-            gh pr edit "$pr_number" --title "build: commit reproducible Composer dependency lockfile"
-          fi
-
           gh workflow run ci.yml --ref automation/composer-lockfile
+
