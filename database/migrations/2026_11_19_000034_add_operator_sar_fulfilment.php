@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -25,6 +26,21 @@ return new class extends Migration
             $table->text('response_decision_reason')->nullable();
             $table->foreignId('response_delivered_by')->nullable()->constrained('users')->nullOnDelete();
         });
+
+
+        DB::table('model_talent_application_rights_requests')
+            ->where('request_type', 'access')
+            ->whereNull('response_due_at')
+            ->orderBy('id')
+            ->chunkById(100, function ($requests): void {
+                foreach ($requests as $request) {
+                    DB::table('model_talent_application_rights_requests')
+                        ->where('id', $request->id)
+                        ->update([
+                            'response_due_at' => Carbon::parse($request->created_at)->addMonthNoOverflow(),
+                        ]);
+                }
+            });
 
         DB::table('platform_features')
             ->where('key', 'model-agency.applications')
