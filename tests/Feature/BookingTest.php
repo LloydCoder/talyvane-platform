@@ -243,6 +243,7 @@ class BookingTest extends TestCase
             ])->assertRedirect('/admin/bookings');
 
         $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'deposit_status' => 'verified', 'deposit_verified_by' => $admin->id]);
+        $this->assertDatabaseHas('booking_events', ['booking_id' => $booking->id, 'event_type' => 'deposit_verified']);
 
         $this->patch('/admin/bookings/'.$booking->id, ['status' => 'confirmed'])
             ->assertRedirect('/admin/bookings');
