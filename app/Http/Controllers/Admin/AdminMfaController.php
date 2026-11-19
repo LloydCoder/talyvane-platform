@@ -144,18 +144,28 @@ class AdminMfaController
             return null;
         }
 
-        return User::query()
+        $user = User::query()
             ->whereKey($id)
             ->where('is_active', true)
             ->whereIn('role', ['super_admin', 'owner', 'admin'])
             ->whereNotNull('mfa_enabled_at')
             ->first();
+
+        $pendingVersion = filter_var($request->session()->get('pending_admin_mfa_session_version'), FILTER_VALIDATE_INT);
+
+        if (! $user || $pendingVersion === false || $pendingVersion !== (int) $user->admin_session_version) {
+            $request->session()->forget(['pending_admin_mfa_user_id', 'pending_admin_mfa_remember', 'pending_admin_mfa_session_version']);
+
+            return null;
+        }
+
+        return $user;
     }
 
     private function completeLogin(Request $request, User $user): RedirectResponse
     {
         $remember = (bool) $request->session()->pull('pending_admin_mfa_remember', false);
-        $request->session()->forget('pending_admin_mfa_user_id');
+        $request->session()->forget(['pending_admin_mfa_user_id', 'pending_admin_mfa_session_version']);
         Auth::login($user, $remember);
         $request->session()->regenerate();
         $request->session()->put('admin_session_version', (int) $user->admin_session_version);
