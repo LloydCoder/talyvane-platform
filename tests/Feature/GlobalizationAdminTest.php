@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Currency;
+use App\Models\CountryMarket;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
