@@ -59,6 +59,13 @@ return new class extends Migration
 
     public function down(): void
     {
+        DB::table('platform_features')->where('key', 'model-agency.applications')->update([
+            'implementation_status' => 'planned',
+            'is_enabled' => false,
+            'activation_requirements' => json_encode(['model_agency_workflow', 'representation_terms']),
+            'updated_at' => now(),
+        ]);
+
         Schema::dropIfExists('model_talent_application_events');
         Schema::dropIfExists('model_talent_applications');
     }
