@@ -9,6 +9,8 @@ use App\Http\Controllers\Admin\CompanionProfileController;
 use App\Http\Controllers\Admin\DestinationController;
 use App\Http\Controllers\Admin\EnquiryAdminController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\CompanionBookingController;
+use App\Http\Controllers\CompanionPortalController;
 use App\Http\Controllers\DiscoveryController;
 use App\Http\Controllers\EnquiryController;
 use App\Http\Controllers\PortalAuthController;
