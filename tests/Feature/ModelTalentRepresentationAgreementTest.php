@@ -11,10 +11,18 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
+use Tests\Feature\Support\EnablesModelAgencyFeatureRoutes;
 
 class ModelTalentRepresentationAgreementTest extends TestCase
 {
-    use RefreshDatabase;\n    use EnablesModelAgencyFeatureRoutes;\n\n    protected function setUp(): void\n    {\n        parent::setUp();\n        $this->enableModelAgencyFeatureRoutes();\n    }
+    use RefreshDatabase;
+    use EnablesModelAgencyFeatureRoutes;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->enableModelAgencyFeatureRoutes();
+    }
 
     private function application(array $overrides = []): ModelTalentApplication
     {
