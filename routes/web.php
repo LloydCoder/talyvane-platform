@@ -20,7 +20,6 @@ use App\Http\Controllers\Admin\ModelTalentRepresentationAgreementController;
 use App\Http\Controllers\Admin\ModelTalentPortfolioAssetController;
 use App\Http\Controllers\Admin\ModelTalentImageLicenceController;
 use App\Http\Controllers\Admin\ModelCastingAdminController;
-use App\Http\Controllers\Admin\ModelCastingAdminController;
 use App\Http\Controllers\ModelAgencyApplicationController;
 use App\Http\Controllers\ModelAgencyApplicationRightsController;
 use App\Http\Controllers\AccountSecurityController;
