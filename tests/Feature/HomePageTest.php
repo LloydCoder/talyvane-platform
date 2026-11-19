@@ -17,7 +17,7 @@ class HomePageTest extends TestCase
         $response->assertOk();
         $response->assertSee('TALYVANE');
         $response->assertSeeText('A more considered');
-        $response->assertSee('Discover the platform');
+        $response->assertSee('Explore destinations');
         $response->assertSee('Coordinate');
     }
 
