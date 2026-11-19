@@ -663,3 +663,6 @@ Artisan::command('talyvane:companion:create {email}', function () {
 
     $this->info('Companion account created. Deliver the temporary password through a separate secure channel. The companion must verify their email before using the portal.');
 })->purpose('Provision a companion account from a trusted command line');
+
+
+Schedule::command('talyvane:model-agency:apply-retention')->dailyAt('02:30')->withoutOverlapping();
