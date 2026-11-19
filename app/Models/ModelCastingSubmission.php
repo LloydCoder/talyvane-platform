@@ -46,6 +46,11 @@ class ModelCastingSubmission extends Model
         return $this->belongsTo(ModelTalentImageLicence::class, 'image_licence_id');
     }
 
+    public function clientReviews(): \\Illuminate\\Database\\Eloquent\\Relations\\HasMany
+    {
+        return $this->hasMany(ModelCastingClientReview::class, 'submission_id');
+    }
+
     public function assignment(): HasOne
     {
         return $this->hasOne(ModelTalentAssignment::class, 'source_submission_id');
