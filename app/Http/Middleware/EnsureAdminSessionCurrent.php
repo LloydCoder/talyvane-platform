@@ -21,9 +21,9 @@ class EnsureAdminSessionCurrent
             return $next($request);
         }
 
-        $sessionVersion = $request->session()->get('admin_session_version');
+        $sessionVersion = filter_var($request->session()->get('admin_session_version'), FILTER_VALIDATE_INT);
 
-        if ($sessionVersion === null || (int) $sessionVersion !== (int) $user->admin_session_version) {
+        if ($sessionVersion === false || $sessionVersion !== (int) $user->admin_session_version) {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
