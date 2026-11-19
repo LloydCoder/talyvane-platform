@@ -22,6 +22,10 @@ class ModelTalentSettlementService
         return DB::transaction(function () use ($assignment, $actorId, $input): ModelTalentSettlementExpense {
             $lockedAssignment = ModelTalentAssignment::query()->lockForUpdate()->findOrFail($assignment->id);
 
+            if (! filled($input['description'] ?? null) || mb_strlen(trim((string) ($input['description'] ?? ''))) < 10 || mb_strlen(trim((string) ($input['description'] ?? ''))) > 1000) {
+                throw ValidationException::withMessages(['expense' => 'Provide a clear expense description between 10 and 1,000 characters.']);
+            }
+
             if (! in_array($lockedAssignment->status, ['in_progress', 'completed'], true)
                 || ModelTalentSettlement::query()->where('assignment_id', $lockedAssignment->id)->exists()) {
                 throw ValidationException::withMessages(['expense' => 'Expenses can only be submitted before settlement is created and while the assignment is in progress or completed.']);
@@ -191,9 +195,14 @@ class ModelTalentSettlementService
                 'approved_expenses_amount' => $calculation['expenses']->toMajor(),
                 'model_net_amount' => $calculation['net']->toMajor(),
             ] as $field => $expected) {
-                if ((string) $locked->{$field} !== $expected) {
+                if ($this->money((string) $locked->{$field}, $currency)->toMajor() !== $expected) {
                     throw ValidationException::withMessages(['settlement' => 'Settlement amounts no longer match the immutable calculation snapshot. Manual reconciliation is required.']);
                 }
+            }
+
+            if ($this->normalize((string) $locked->commission_percent) !== $this->normalize((string) $assignment->commission_percent)
+                || $locked->calculation_snapshot !== $calculation['snapshot']) {
+                throw ValidationException::withMessages(['settlement' => 'The commission or calculation snapshot changed; manual reconciliation is required.']);
             }
 
             $locked->forceFill([
