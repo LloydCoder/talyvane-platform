@@ -385,6 +385,6 @@ h1 em, h2 em { color: var(--gold); font-weight: 400; }
     .hero{min-height:calc(100svh - 118px);align-items:center;padding-top:clamp(42px,6vh,88px);padding-bottom:clamp(42px,6vh,88px);background:radial-gradient(ellipse at 78% 48%,rgba(183,164,125,.075),transparent 38%)}
     .hero-copy{max-width:620px}
     .hero-copy h1{font-size:clamp(58px,6.2vw,90px)}
-    .hero-art{min-height:min(72vh,760px)}
-    .art-frame{width:min(100%,640px);height:min(72vh,760px)}
+    .hero-art{min-height:min(62vh,760px)}
+    .art-frame{width:min(100%,640px);height:min(62vh,760px)}
 }
