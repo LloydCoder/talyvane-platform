@@ -23,6 +23,7 @@ class ModelTalentImageLicenceService
         array $terms,
     ): ModelTalentImageLicence {
         return DB::transaction(function () use ($asset, $agreement, $actorId, $terms): ModelTalentImageLicence {
+            $this->assertDraftTerms($terms);
             $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($asset->application_id);
             $lockedAsset = ModelTalentPortfolioAsset::query()->lockForUpdate()->findOrFail($asset->id);
             $lockedAgreement = ModelTalentRepresentationAgreement::query()->lockForUpdate()->findOrFail($agreement->id);
@@ -259,8 +260,32 @@ class ModelTalentImageLicenceService
         if (($amount === null) !== ($currency === null)) {
             throw ValidationException::withMessages(['licence' => 'Compensation amount and currency must be supplied together.']);
         }
-        if ($currency !== null && ! Currency::query()->where('code', $currency)->where('is_enabled', true)->exists()) {
-            throw ValidationException::withMessages(['licence' => 'Choose an enabled ISO currency for the agreed compensation.']);
+        if ($amount !== null && (! is_numeric($amount) || (float) $amount <= 0)) {
+            throw ValidationException::withMessages(['licence' => 'Compensation must be a positive decimal amount.']);
+        }
+        if ($currency !== null) {
+            $enabledCurrency = Currency::query()->where('code', $currency)->lockForUpdate()->first();
+            if (! $enabledCurrency || ! $enabledCurrency->is_enabled) {
+                throw ValidationException::withMessages(['licence' => 'Choose an enabled ISO currency for the agreed compensation.']);
+            }
+        }
+    }
+
+    private function assertDraftTerms(array $terms): void
+    {
+        $purposes = ['editorial', 'commercial_campaign', 'e_commerce', 'social_media', 'advertising', 'casting_distribution', 'private_portfolio', 'other'];
+        $channels = ['website', 'print', 'social_media', 'email', 'e_commerce', 'casting_platform', 'out_of_home', 'broadcast'];
+        $requestedChannels = $terms['channels'] ?? [];
+
+        if (! filled($terms['licensee_name'] ?? null)
+            || mb_strlen(trim((string) ($terms['licensee_name'] ?? ''))) > 160
+            || ! in_array($terms['purpose'] ?? null, $purposes, true)
+            || ! is_array($requestedChannels)
+            || $requestedChannels === []
+            || count(array_diff($requestedChannels, $channels)) > 0
+            || ! filled($terms['purpose_details'] ?? null)
+            || mb_strlen(trim((string) ($terms['purpose_details'] ?? ''))) < 20) {
+            throw ValidationException::withMessages(['licence' => 'Provide a licensee, allowed purpose, at least one permitted channel and detailed usage restrictions.']);
         }
     }
 
