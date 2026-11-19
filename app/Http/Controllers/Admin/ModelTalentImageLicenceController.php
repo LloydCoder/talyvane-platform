@@ -31,6 +31,7 @@ class ModelTalentImageLicenceController extends Controller
         'email',
         'e_commerce',
         'casting_platform',
+        'client_review',
         'out_of_home',
         'broadcast',
     ];
