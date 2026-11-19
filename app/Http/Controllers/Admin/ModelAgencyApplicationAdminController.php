@@ -47,7 +47,7 @@ class ModelAgencyApplicationAdminController extends Controller
             ],
         ]);
 
-        DB::transaction(function () use ($request, $application, $validated): bool {
+        DB::transaction(function () use ($request, $application, $validated): void {
             $locked = ModelTalentApplication::query()->lockForUpdate()->findOrFail($application->id);
             $target = $validated['status'];
             $allowed = self::TRANSITIONS[$locked->status] ?? [];
