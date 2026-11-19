@@ -112,7 +112,8 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Document cPanel installation, database setup, environment configuration, permissions and first-run checks.
 - [x] Document release, upgrade, backup, rollback and operations procedures.
 - [x] Commit and validate the generated `composer.lock` through reviewed PR #20; CI installs the locked graph on PHP 8.3, 8.4 and 8.5.
-- [ ] Produce reproducible, tagged release artifacts with production vendor dependencies and compiled frontend assets.
+- [x] Build and verify a reproducible standalone production-package smoke artifact in CI, including locked production dependencies, manifest, checksum and forbidden-file checks.
+- [ ] Produce signed, versioned/tagged customer release artifacts with provenance/attestation, retention policy and release notes; CI smoke artifacts are temporary validation outputs, not production releases.
 - [x] Retire the privileged lockfile-bootstrap workflow after the committed lockfile became mandatory; missing lockfiles now fail normal CI rather than granting automation repository write permissions.
 - [x] Add automated PHP 8.3/8.4/8.5 compatibility and actual extension/platform checks in CI.
 - [ ] Build a secure no-SSH installer and first Super Admin bootstrap, with no arbitrary command execution or public setup backdoor.
