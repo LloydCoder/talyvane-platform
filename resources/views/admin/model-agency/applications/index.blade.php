@@ -92,6 +92,54 @@
                         <p class="field-help">Drafting and recording only. Offers are blocked until the current terms version is explicitly approved. This platform does not provide legal advice, create an electronic signature, or validate contract enforceability. Store executed documents in private storage and retain the required jurisdiction-specific evidence.</p>
                     </section>
                 @endif
+                @if($application->portfolioAssets->isNotEmpty() || ($application->status === 'accepted' && $application->adult_eligibility_verified_at && ! $application->legal_hold_at))
+                    <section class="enquiry-status-form">
+                        <h3>Private model portfolio</h3>
+                        <p class="field-help">Portfolio files are stored privately, sanitized to WebP and never published by this workflow. Approval is for internal agency curation only. Campaign, casting or public use requires a separate purpose-bound image licence.</p>
+                        @foreach($application->portfolioAssets as $asset)
+                            <div class="field-help">
+                                <strong>Asset #{{ $asset->id }} · {{ str_replace('_', ' ', $asset->status) }}</strong>
+                                <p>{{ $asset->width }} × {{ $asset->height }} · {{ number_format($asset->file_size / 1024, 1) }} KiB · Consent policy {{ $asset->consent_policy_version }}</p>
+                                <p>Purpose scope: {{ $asset->consent_scope }}</p>
+                                <p>Source: {{ $asset->source_description }}</p>
+                                @if(in_array($asset->status, ['pending_review','approved'], true) && $asset->storage_path)
+                                    <p><a href="{{ route('admin.model-portfolio-assets.preview', $asset) }}" target="_blank" rel="noopener noreferrer">Open private image preview ↗</a></p>
+                                @endif
+                                @if($asset->status === 'pending_review')
+                                    <form method="POST" action="{{ route('admin.model-portfolio-assets.review', $asset) }}">
+                                        @csrf
+                                        <label>Review note</label><textarea name="review_note" minlength="20" maxlength="2000" required></textarea>
+                                        <button class="button button-dark" name="decision" value="approved" type="submit">Approve for private curation</button>
+                                        <button class="button button-dark" name="decision" value="rejected" type="submit">Reject and remove file</button>
+                                    </form>
+                                @endif
+                                @if(in_array($asset->status, ['pending_review','approved'], true) && ! $asset->consent_withdrawn_at)
+                                    <form method="POST" action="{{ route('admin.model-portfolio-assets.withdraw-consent', $asset) }}">
+                                        @csrf
+                                        <label>Verified withdrawal reason</label><textarea name="reason" minlength="20" maxlength="2000" required></textarea>
+                                        <label>Private withdrawal evidence reference</label><input name="withdrawal_evidence_reference" minlength="20" maxlength="200" placeholder="private/model-consent/withdrawal-evidence.pdf" required>
+                                        <label><input type="checkbox" name="confirm_withdrawal" value="1" required> The model's withdrawal request has been verified and recorded</label>
+                                        <button class="button button-dark" type="submit">Withdraw consent and remove image</button>
+                                    </form>
+                                @endif
+                            </div>
+                        @endforeach
+                        @if($application->status === 'accepted' && $application->adult_eligibility_verified_at && ! $application->legal_hold_at)
+                            <form method="POST" action="{{ route('admin.model-applications.portfolio-assets.store', $application) }}" enctype="multipart/form-data">
+                                @csrf
+                                <label>Sanitized portfolio image (JPEG, PNG or WebP; max 8 MiB)</label><input type="file" name="media" accept="image/jpeg,image/png,image/webp" required>
+                                <label>Source and provenance</label><textarea name="source_description" minlength="20" maxlength="1000" required placeholder="How was this image obtained and who supplied it?"></textarea>
+                                <label>Exact consent scope (internal curation only at this stage)</label><textarea name="consent_scope" minlength="20" maxlength="2000" required placeholder="Specify permitted purposes, channels, territory and limits"></textarea>
+                                <label>Private copyright / image-rights evidence reference</label><input name="rights_evidence_reference" minlength="20" maxlength="200" required placeholder="private/model-rights/evidence-reference.pdf">
+                                <label>Private model consent evidence reference</label><input name="consent_evidence_reference" minlength="20" maxlength="200" required placeholder="private/model-consent/consent-reference.pdf">
+                                <label><input type="checkbox" name="confirm_model_consent" value="1" required> The model's informed, purpose-specific consent is documented and the referenced evidence is held privately</label>
+                                <label><input type="checkbox" name="confirm_image_rights" value="1" required> The agency has verified the right to possess and process this image</label>
+                                <button class="button button-dark" type="submit">Add private portfolio image</button>
+                            </form>
+                        @endif
+                        <p class="field-help">This is an administrator-recorded external evidence workflow, not an electronic signature or identity-verification service. Do not upload images without verified model consent and rights evidence. Consent withdrawal removes the private image file. Public, campaign, social, advertising and client-facing use remain disabled until a separate licence is implemented.</p>
+                    </section>
+                @endif
                 @if(in_array($application->status, ['submitted','reviewing'], true))
                     <form method="POST" action="{{ route('admin.model-applications.update', $application) }}" class="enquiry-status-form">
                         @csrf @method('PATCH')

@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\ModelTalentApplication;
 use App\Models\ModelTalentApplicationEvent;
 use App\Models\ModelTalentRepresentationAgreement;
+use App\Models\ModelTalentPortfolioAsset;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
@@ -60,6 +62,23 @@ class ModelAgencyApplicationLifecycleService
                 throw ValidationException::withMessages([
                     'status' => 'This application has representation-agreement records. An operator must complete a separate documented contract-retention review before erasure can proceed.',
                 ]);
+            }
+
+            if (Schema::hasTable('model_talent_portfolio_assets')) {
+                $hasPrivatePortfolioFiles = ModelTalentPortfolioAsset::query()
+                    ->where('application_id', $locked->id)
+                    ->whereNotNull('storage_path')
+                    ->exists();
+
+                if ($hasPrivatePortfolioFiles) {
+                    throw ValidationException::withMessages([
+                        'status' => 'Private portfolio files must first be withdrawn or rejected and removed. An operator must complete that media-removal step before applicant erasure can proceed.',
+                    ]);
+                }
+
+                DB::table('model_talent_portfolio_assets')
+                    ->where('application_id', $locked->id)
+                    ->delete();
             }
 
             if ($locked->status === 'erased') {

@@ -30,7 +30,7 @@ class ModelAgencyApplicationAdminController extends Controller
         return response()->view('admin.model-agency.applications.index', [
             'approvedMarkets' => CountryMarket::operationallyApproved()->orderBy('name')->get(['country_code', 'name']),
             'applications' => ModelTalentApplication::query()
-                ->with(['reviewer', 'adultEligibilityVerifier', 'representationAgreements'])
+                ->with(['reviewer', 'adultEligibilityVerifier', 'representationAgreements', 'portfolioAssets'])
                 ->latest('submitted_at')
                 ->paginate(20),
         ])->header('Cache-Control', 'no-store, private, max-age=0')
@@ -224,6 +224,8 @@ class ModelAgencyApplicationAdminController extends Controller
                 && Schema::hasColumns('model_talent_applications', ['reference', 'full_name', 'email', 'status', 'legal_hold_at', 'adult_eligibility_verified_at', 'adult_eligibility_verified_by', 'adult_eligibility_verification_method'])
                 && Schema::hasTable('model_talent_representation_agreements')
                 && Schema::hasColumns('model_talent_representation_agreements', ['application_id', 'country_code', 'reference', 'version', 'status', 'terms_snapshot', 'terms_policy_version'])
+                && Schema::hasTable('model_talent_portfolio_assets')
+                && Schema::hasColumns('model_talent_portfolio_assets', ['application_id', 'storage_path', 'sha256', 'status', 'consent_policy_version'])
                 && Schema::hasTable('model_talent_application_events')
                 && Schema::hasColumns('model_talent_application_events', ['application_id', 'actor_type', 'event_type', 'occurred_at']),
             503,
