@@ -28,7 +28,7 @@ Only one draft, outstanding offer or executed agreement may exist per applicatio
 
 Agreement terms, executed-document reference and termination reason are encrypted at rest with APP_KEY. This feature does not upload documents. Operators must store the executed instrument in access-controlled private storage outside the public web root before recording its storage key. Never use a public URL or filesystem path. A future document-management phase must add authenticated private upload/download, malware scanning, access logging, retention/legal-hold enforcement and backup/restore verification.
 
-The register does not publish models, grant image rights, create assignments or authorize image use. Image-use scope is proposed contract text only. Each campaign/purpose still requires a separate informed and revocable usage licence before image publication or use.
+The register does not publish models, grant image rights, create assignments or authorize image use. Applicant erasure is deferred while any agreement record exists until an operator completes a separate documented contract-retention review; this avoids silently deleting or retaining contract evidence without a lawful retention decision. Image-use scope is proposed contract text only. Each campaign/purpose still requires a separate informed and revocable usage licence before image publication or use.
 
 ## Limitations and next phases
 
