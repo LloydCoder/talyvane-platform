@@ -5,7 +5,9 @@ use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\BrandingController;
 use App\Http\Controllers\Admin\CompanionProfileController;
 use App\Http\Controllers\Admin\DestinationController;
+use App\Http\Controllers\Admin\EnquiryAdminController;
 use App\Http\Controllers\DiscoveryController;
+use App\Http\Controllers\EnquiryController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function (\App\Services\BrandSettings $settings) {
@@ -15,7 +17,9 @@ Route::get('/', function (\App\Services\BrandSettings $settings) {
 Route::get('/destinations', [DiscoveryController::class, 'destinations'])->name('destinations.index');
 Route::get('/destinations/{slug}', [DiscoveryController::class, 'destination'])->name('destinations.show');
 Route::get('/companions', [DiscoveryController::class, 'companions'])->name('companions.index');
-Route::get('/companions/{slug}', [DiscoveryController::class, 'companion'])->name('companions.show');\nRoute::get('/contact', [EnquiryController::class, 'create'])->name('contact');\nRoute::post('/enquiries', [EnquiryController::class, 'store'])->middleware('throttle:5,1')->name('enquiries.store');
+Route::get('/companions/{slug}', [DiscoveryController::class, 'companion'])->name('companions.show');
+Route::get('/contact', [EnquiryController::class, 'create'])->name('contact');
+Route::post('/enquiries', [EnquiryController::class, 'store'])->middleware('throttle:5,1')->name('enquiries.store');
 
 Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::middleware('guest')->group(function (): void {
@@ -32,7 +36,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/profiles/create', [CompanionProfileController::class, 'create'])->name('profiles.create');
         Route::post('/profiles', [CompanionProfileController::class, 'store'])->name('profiles.store');
         Route::post('/profiles/{profile}/publish', [CompanionProfileController::class, 'publish'])->name('profiles.publish');
-        Route::post('/profiles/{profile}/unpublish', [CompanionProfileController::class, 'unpublish'])->name('profiles.unpublish');\n        Route::get('/enquiries', [EnquiryAdminController::class, 'index'])->name('enquiries.index');\n        Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
+        Route::post('/profiles/{profile}/unpublish', [CompanionProfileController::class, 'unpublish'])->name('profiles.unpublish');
+        Route::get('/enquiries', [EnquiryAdminController::class, 'index'])->name('enquiries.index');
+        Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
         Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
     });
 });
