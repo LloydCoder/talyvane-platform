@@ -10,7 +10,7 @@ class ModelCastingSubmission extends Model
     protected $fillable = [
         'call_id', 'application_id', 'portfolio_asset_id', 'image_licence_id',
         'reference', 'status', 'submitted_by', 'submitted_at', 'decision_by',
-        'decision_at', 'decision_note', 'invalidated_at', 'invalidation_reason',
+        'decision_at', 'decision_note', 'invalidated_at', 'invalidation_reason', 'withdrawal_evidence_reference',
     ];
 
     protected function casts(): array
@@ -18,6 +18,7 @@ class ModelCastingSubmission extends Model
         return [
             'decision_note' => 'encrypted',
             'invalidation_reason' => 'encrypted',
+            'withdrawal_evidence_reference' => 'encrypted',
             'submitted_at' => 'immutable_datetime',
             'decision_at' => 'immutable_datetime',
             'invalidated_at' => 'immutable_datetime',
