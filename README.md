@@ -31,6 +31,9 @@ See COMMERCIAL-LICENSING.md for the intended commercial model.
 - docs/ROADMAP.md
 - docs/COMPETITIVE-REFERENCE.md
 - docs/LOCAL-DEVELOPMENT.md
+- docs/HOSTING-COMPATIBILITY.md
+- docs/CPANEL-INSTALLATION.md
+- docs/DEPLOYMENT-OPERATIONS.md
 - docs/BOOKING.md
 - docs/PAYMENTS.md
 - docs/decisions/
@@ -47,3 +50,7 @@ Talyvane must not be used to facilitate trafficking, coercion, exploitation, non
 Third-party frameworks, packages, fonts and media retain their own licences. Maintain a dependency inventory and required notices. Intended rights holder: Tinlance Limited, subject to chain-of-title, contributor-assignment and third-party-rights verification.
 
 Talyvane is under development. Feature completeness, security posture, legal compliance, payment support and hosting compatibility must be verified for each release and deployment.
+
+
+## cPanel shared-hosting target
+Talyvane targets compatible cPanel shared-hosting plans with PHP 8.3+, required PHP extensions (including GD WebP), a supported MySQL/MariaDB version, HTTPS, safe private application storage and a document root serving only Laravel's `public/` directory. SSH, Composer, cron, Node.js, Redis and persistent workers are not assumed as runtime requirements. Provider-by-provider compatibility must be verified; cPanel alone does not guarantee compatibility. See the hosting compatibility, installation and deployment operations guides before selecting a host. A secure no-SSH first-install workflow remains a release requirement and is not yet claimed as implemented.
