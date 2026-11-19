@@ -23,6 +23,25 @@ class ModelTalentSettlementExpense extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::updating(function (self $expense): void {
+            $allowed = ['settlement_id', 'status', 'reviewed_by', 'reviewed_at', 'review_note', 'updated_at'];
+            $dirty = array_keys($expense->getDirty());
+
+            if (array_diff($dirty, $allowed) !== []) {
+                throw new RuntimeException('Expense claim terms and evidence are immutable after submission.');
+            }
+
+            if ($expense->isDirty('status')
+                && ((string) $expense->getOriginal('status') !== 'pending'
+                    || ! in_array($expense->status, ['approved', 'rejected'], true))) {
+                throw new RuntimeException('Expense review decisions are final once recorded.');
+            }
+        });
+        static::deleting(fn () => throw new RuntimeException('Expense claims cannot be deleted.'));
+    }
+
     public function assignment(): BelongsTo
     {
         return $this->belongsTo(ModelTalentAssignment::class, 'assignment_id');
