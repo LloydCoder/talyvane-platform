@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLoginController;
+use App\Http\Controllers\Admin\AdminMfaController;
 use App\Http\Controllers\Admin\BookingAdminController;
 use App\Http\Controllers\Admin\BookingSettingsController;
 use App\Http\Controllers\Admin\BrandingController;
