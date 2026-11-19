@@ -68,7 +68,7 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Define and seed a deployment feature registry with stable keys, module ownership, implementation status, dependencies, risk classes and activation prerequisites.
 - [x] Add a distinct `super_admin` principal to privileged authentication, route and MFA gates without silently promoting existing accounts.
 - [x] Add a singleton deployment-control record and transactional CLI bootstrap that provisions at most one Super Admin.
-- [ ] Complete last-Super-Admin protection, recovery governance and the legacy owner/admin least-privilege migration.
+- [x] Restrict deployment-wide branding, globalization, destinations, booking rules, payment configuration, site pages and feature controls to `super_admin`; retain day-to-day agency operations for `owner` and `admin`.\n- [ ] Complete last-Super-Admin protection, recovery governance and the legacy owner/admin least-privilege migration.
 - [ ] Implement membership entitlements and protected-resource authorization; current membership capability is assignment/display only.
 - [x] Build a Super Admin-only read-only feature catalogue showing implementation state, configured/effective state, dependencies, risk and activation prerequisites.
 - [x] Build feature mutation controls with impact preview, prerequisite evaluation, reason capture, password/TOTP step-up and transactional rollback.
