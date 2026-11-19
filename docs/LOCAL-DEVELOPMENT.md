@@ -30,7 +30,7 @@ php artisan storage:link
 php artisan serve
 ```
 
-After the first dependency resolution, commit composer.lock and use composer install for reproducible installs. Do not run composer update as part of a production deployment.
+After the first dependency resolution, commit composer.lock and use composer install for reproducible installs. Do not run composer update as part of a production deployment. CI currently audits and exports the resolved lockfile as an artifact; the lockfile has not yet been committed.
 
 ## Tests
 
@@ -42,6 +42,8 @@ CI currently resolves dependencies, validates Composer metadata and runs PHPUnit
 
 ## First administrator
 There is no public staff registration or web-based setup endpoint. Create the first owner from a trusted terminal using the CLI command. The command prompts for a name and hidden password input; use a unique password of at least 14 characters. Do not place credentials in shell arguments, source control or chat.
+
+Provision companion accounts from a trusted terminal with `php artisan talyvane:companion:create companion@example.com`. Deliver the temporary password through a separate secure channel. The companion must verify their email and then access `/companion-portal`. Link the account to a draft profile in Admin → Profiles.
 
 MFA and step-up authentication are still required before exposing privileged administration to production internet traffic.
 
