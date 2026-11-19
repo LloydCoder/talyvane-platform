@@ -1,13 +1,14 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
 concurrency:
-  group: ci-recovery-v12-${{ github.workflow }}-${{ github.ref }}
+  group: ci-recovery-v13-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
