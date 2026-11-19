@@ -55,7 +55,7 @@
         @if (\Illuminate\Support\Facades\Schema::hasTable('model_talent_assignments') && app(\App\Services\FeatureRegistry::class)->isEnabled('model-agency.assignments'))
             <a class="sidebar-link {{ request()->routeIs('admin.model-assignments.*') ? 'active' : '' }}" href="{{ route('admin.model-assignments.index') }}">Model assignments</a>
         @endif
-        @if (\Illuminate\Support\Facades\Schema::hasTable('model_talent_settlements') && app(\App\Services\FeatureRegistry::class)->isEnabled('model-agency.settlements'))
+        @if (in_array(auth()->user()->role, ['super_admin', 'owner'], true) && \Illuminate\Support\Facades\Schema::hasTable('model_talent_settlements') && app(\App\Services\FeatureRegistry::class)->isEnabled('model-agency.settlements'))
             <a class="sidebar-link {{ request()->routeIs('admin.model-settlements.*') ? 'active' : '' }}" href="{{ route('admin.model-settlements.index') }}">Model settlements</a>
         @endif
         <a class="sidebar-link {{ request()->routeIs('admin.bookings.index') ? 'active' : '' }}" href="{{ route('admin.bookings.index') }}">Booking requests</a>
