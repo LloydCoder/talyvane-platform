@@ -11,6 +11,17 @@
 </head>
 <body class="admin-body">
     <aside class="admin-sidebar">
+        @if (auth()->user()->role === 'finance')
+            <a class="wordmark" href="{{ route('admin.model-settlements.index') }}">
+                @if (!empty($brand['logo_path']))
+                    <img class="wordmark-image" src="{{ asset('storage/' . $brand['logo_path']) }}" alt="{{ $brand['brand_name'] ?? 'Brand logo' }}">
+                @else
+                    {{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span>
+                @endif
+            </a>
+            <p class="sidebar-caption">FINANCE WORKSPACE</p>
+            <a class="sidebar-link {{ request()->routeIs('admin.model-settlements.*') ? 'active' : '' }}" href="{{ route('admin.model-settlements.index') }}">Model settlements</a>
+        @else
         <a class="wordmark" href="{{ route('admin.dashboard') }}">
             @if (!empty($brand['logo_path']))
                 <img class="wordmark-image" src="{{ asset('storage/' . $brand['logo_path']) }}" alt="{{ $brand['brand_name'] ?? 'Brand logo' }}">
@@ -48,6 +59,8 @@
             <a class="sidebar-link {{ request()->routeIs('admin.model-settlements.*') ? 'active' : '' }}" href="{{ route('admin.model-settlements.index') }}">Model settlements</a>
         @endif
         <a class="sidebar-link {{ request()->routeIs('admin.bookings.index') ? 'active' : '' }}" href="{{ route('admin.bookings.index') }}">Booking requests</a>
+
+        @endif
         <div class="sidebar-bottom">
             <span>{{ auth()->user()->name }}</span>
             <form method="POST" action="{{ route('admin.logout') }}">@csrf <button type="submit">Sign out ↗</button></form>
