@@ -21,10 +21,10 @@ class AdminAccessTest extends TestCase
 
     public function test_owner_can_access_admin_dashboard(): void
     {
-        $owner = User::create([
+        $owner = $this->createAdminUser([
             'name' => 'Platform Owner',
             'email' => 'owner@example.test',
-            'password' => Hash::make('Strong-Testing-Password-934!'),
+            'password' => 'Strong-Testing-Password-934!',
             'role' => 'owner',
             'is_active' => true,
         ]);
@@ -52,10 +52,10 @@ class AdminAccessTest extends TestCase
 
     public function test_owner_can_update_public_brand_settings(): void
     {
-        $owner = User::create([
+        $owner = $this->createAdminUser([
             'name' => 'Platform Owner',
             'email' => 'owner@example.test',
-            'password' => Hash::make('Strong-Testing-Password-934!'),
+            'password' => 'Strong-Testing-Password-934!',
             'role' => 'owner',
             'is_active' => true,
         ]);
@@ -86,10 +86,10 @@ class AdminAccessTest extends TestCase
     {
         Storage::fake('public');
 
-        $owner = User::create([
+        $owner = $this->createAdminUser([
             'name' => 'Platform Owner',
             'email' => 'owner@example.test',
-            'password' => Hash::make('Strong-Testing-Password-934!'),
+            'password' => 'Strong-Testing-Password-934!',
             'role' => 'owner',
             'is_active' => true,
         ]);
@@ -130,10 +130,10 @@ class AdminAccessTest extends TestCase
 
     public function test_admin_can_sign_in_and_sign_out(): void
     {
-        User::create([
+        $this->createAdminUser([
             'name' => 'Platform Owner',
             'email' => 'owner@example.test',
-            'password' => Hash::make('Strong-Testing-Password-934!'),
+            'password' => 'Strong-Testing-Password-934!',
             'role' => 'owner',
             'is_active' => true,
         ]);
