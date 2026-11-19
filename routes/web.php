@@ -168,6 +168,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/enquiries', [EnquiryAdminController::class, 'index'])->name('enquiries.index');
         Route::get('/model-applications', [ModelAgencyApplicationAdminController::class, 'index'])->name('model-applications.index');
         Route::patch('/model-applications/{application}', [ModelAgencyApplicationAdminController::class, 'update'])->name('model-applications.update');
+        Route::post('/model-applications/{application}/adult-eligibility', [ModelAgencyApplicationAdminController::class, 'verifyAdultEligibility'])->middleware('throttle:5,1')->name('model-applications.adult-eligibility');
         Route::post('/model-applications/{application}/legal-hold', [ModelAgencyApplicationAdminController::class, 'updateLegalHold'])->name('model-applications.legal-hold');
         Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
         Route::get('/clients', [ClientManagementController::class, 'index'])->name('clients.index');

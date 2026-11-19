@@ -28,7 +28,7 @@ class ModelAgencyApplicationAdminController extends Controller
 
         return response()->view('admin.model-agency.applications.index', [
             'applications' => ModelTalentApplication::query()
-                ->with('reviewer')
+                ->with(['reviewer', 'adultEligibilityVerifier'])
                 ->latest('submitted_at')
                 ->paginate(20),
         ])->header('Cache-Control', 'no-store, private, max-age=0')
@@ -60,6 +60,12 @@ class ModelAgencyApplicationAdminController extends Controller
             $target = $validated['status'];
             $allowed = self::TRANSITIONS[$locked->status] ?? [];
 
+            if ($target === 'accepted' && $locked->adult_eligibility_verified_at === null) {
+                throw ValidationException::withMessages([
+                    'status' => 'Adult eligibility must be verified by an authorized owner or Super Admin before acceptance.',
+                ]);
+            }
+
             if (! in_array($target, $allowed, true)) {
                 throw ValidationException::withMessages([
                     'status' => 'This application has already reached a terminal state or the requested transition is not permitted.',
@@ -90,6 +96,67 @@ class ModelAgencyApplicationAdminController extends Controller
             'status',
             'Application status updated. Acceptance is an invitation to the separate representation process, not a signed representation agreement.',
         );
+    }
+
+
+    public function verifyAdultEligibility(Request $request, ModelTalentApplication $application): RedirectResponse
+    {
+        $this->assertSchemaReady();
+        abort_unless(in_array($request->user()->role, ['super_admin', 'owner'], true), 403);
+
+        abort_unless(
+            config('talyvane.model_agency.adult_eligibility_policy_approved')
+                && filled(config('talyvane.model_agency.adult_eligibility_policy_version')),
+            503,
+            'The current adult-eligibility policy is not approved.',
+        );
+
+        $validated = $request->validate([
+            'identity_matches_applicant' => ['required', 'accepted'],
+            'document_is_valid' => ['required', 'accepted'],
+            'meets_policy_age_threshold' => ['required', 'accepted'],
+            'verification_method' => ['required', Rule::in(['manual_document_inspection'])],
+        ]);
+
+        DB::transaction(function () use ($request, $application, $validated): void {
+            $locked = ModelTalentApplication::query()->lockForUpdate()->findOrFail($application->id);
+            abort_if($locked->status === 'erased', 410);
+
+            if ($locked->status !== 'reviewing') {
+                throw ValidationException::withMessages([
+                    'verification_method' => 'Move the application into review before verifying adult eligibility.',
+                ]);
+            }
+            if ($locked->adult_eligibility_verified_at !== null) {
+                throw ValidationException::withMessages([
+                    'verification_method' => 'Adult eligibility has already been verified. A second verification is not permitted.',
+                ]);
+            }
+            if ($locked->adult_eligibility_policy_version !== config('talyvane.model_agency.adult_eligibility_policy_version')) {
+                throw ValidationException::withMessages([
+                    'verification_method' => 'The applicant accepted an outdated adult-eligibility policy. Re-consent is required before verification.',
+                ]);
+            }
+
+            $locked->forceFill([
+                'adult_eligibility_verified_at' => now(),
+                'adult_eligibility_verified_by' => $request->user()->id,
+                'adult_eligibility_verification_method' => $validated['verification_method'],
+            ])->save();
+
+            ModelTalentApplicationEvent::query()->create([
+                'application_id' => $locked->id,
+                'actor_id' => $request->user()->id,
+                'actor_type' => 'administrator',
+                'event_type' => 'application.adult_eligibility_verified',
+                'from_status' => $locked->status,
+                'to_status' => $locked->status,
+                'reason' => 'Manual document inspection completed against the approved adult-eligibility policy; no document image, number or date of birth retained.',
+                'occurred_at' => now(),
+            ]);
+        });
+
+        return redirect()->route('admin.model-applications.index')->with('status', 'Adult eligibility verification recorded.');
     }
 
     public function updateLegalHold(Request $request, ModelTalentApplication $application): RedirectResponse
@@ -152,7 +219,7 @@ class ModelAgencyApplicationAdminController extends Controller
     {
         abort_unless(
             Schema::hasTable('model_talent_applications')
-                && Schema::hasColumns('model_talent_applications', ['reference', 'full_name', 'email', 'status', 'legal_hold_at'])
+                && Schema::hasColumns('model_talent_applications', ['reference', 'full_name', 'email', 'status', 'legal_hold_at', 'adult_eligibility_verified_at', 'adult_eligibility_verified_by', 'adult_eligibility_verification_method'])
                 && Schema::hasTable('model_talent_application_events')
                 && Schema::hasColumns('model_talent_application_events', ['application_id', 'actor_type', 'event_type', 'occurred_at']),
             503,

@@ -77,3 +77,12 @@ Every transition requires an administrator reason and is committed with an appli
 - [OWASP — SSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html)
 
 These are engineering references, not legal advice, certification or proof that the application performs age verification.
+
+
+## Adult-eligibility verification gate
+
+Applicant self-attestation is intake consent only; it is not proof of age or identity. An application may enter review, but it cannot be accepted until an authorized Owner or Super Admin records a manual verification against the currently approved, version-matched adult-eligibility policy.
+
+The verifier must inspect an original identity document using a method permitted by the approved policy and confirm (1) identity matches the applicant, (2) the document is valid and acceptable, and (3) the applicant meets the applicable age threshold. The platform stores only the verifier, timestamp and method label; it does not collect or retain identity-document images, document numbers, document scans or dates of birth in this workflow. The accepted policy version is already retained on the application. The verification event is audited. The workflow is manual; no AI or unintegrated provider is treated as an age-verification authority.
+
+If the applicant accepted a stale policy version, obtain fresh consent before verification. A later erasure request clears verification metadata from the applicant record while retaining only the minimal non-identifying lifecycle event. Legal review must determine the applicable age threshold, acceptable identity documents, inspection standard and recordkeeping obligations for each enabled market.
