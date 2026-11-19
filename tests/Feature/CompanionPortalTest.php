@@ -41,6 +41,7 @@ class CompanionPortalTest extends TestCase
             'timezone' => 'Europe/London',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket($destination);
 
         return CompanionProfile::create([
             'user_id' => $user->id,
