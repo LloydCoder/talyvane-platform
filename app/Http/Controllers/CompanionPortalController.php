@@ -49,6 +49,9 @@ class CompanionPortalController extends Controller
         DB::transaction(function () use ($profile, $enabled): void {
             $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
             $this->assertOwnership($lockedProfile);
+            if ($enabled && ($lockedProfile->publication_status !== 'published' || ! $lockedProfile->publication_consent_at || $lockedProfile->consent_withdrawn_at)) {
+                throw ValidationException::withMessages(['enabled' => 'Publication consent is no longer active.']);
+            }
             $lockedProfile->forceFill([
                 'accepts_automatic_bookings' => $enabled,
                 'automatic_booking_consent_at' => $enabled ? now() : null,
