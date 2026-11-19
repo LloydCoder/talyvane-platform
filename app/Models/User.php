@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -36,7 +37,7 @@ class User extends Authenticatable implements MustVerifyEmail
         ];
     }
 
-    public function companionProfile(): \\Illuminate\\Database\\Eloquent\\Relations\\HasOne
+    public function companionProfile(): HasOne
     {
         return $this->hasOne(CompanionProfile::class);
     }
