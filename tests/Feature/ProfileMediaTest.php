@@ -146,6 +146,17 @@ class ProfileMediaTest extends TestCase
             'publication_consent_at' => null,
             'consent_withdrawn_at' => now(),
         ])->save();
+        $media->forceFill(['status' => 'withdrawn'])->save();
+
+        $this->get(route('profile-media.show', $media->fresh()))->assertNotFound();
+
+        // A later profile-level re-consent must not revive this image's withdrawn consent.
+        $profile->forceFill([
+            'publication_status' => 'published',
+            'publication_consent_at' => now(),
+            'consent_withdrawn_at' => null,
+            'age_verified_at' => now(),
+        ])->save();
 
         $this->get(route('profile-media.show', $media->fresh()))->assertNotFound();
     }
