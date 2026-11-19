@@ -135,6 +135,19 @@ class BookingController extends Controller
                 'client_note' => $validated['client_note'] ?? null,
                 'confirmed_at' => $canAutoConfirm ? now() : null,
             ]);
+
+            BookingEvent::query()->create([
+                'booking_id' => $booking->id,
+                'actor_id' => auth()->id(),
+                'event_type' => $canAutoConfirm ? 'automatically_confirmed' : 'requested',
+                'from_status' => null,
+                'to_status' => $booking->status,
+                'metadata' => [
+                    'booking_mode' => $booking->booking_mode,
+                    'deposit_status' => $booking->deposit_status,
+                ],
+                'created_at' => now(),
+            ]);
         });
 
         return redirect()->route('portal.dashboard')->with('status', 'Your booking request has been received. The team will confirm the details.');
