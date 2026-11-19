@@ -42,9 +42,9 @@ Applicants open /models/application-support, provide the application reference a
 - Withdrawal transitions the application to withdrawn.
 - Erasure anonymizes contact/profile fields, clears applicant consent timestamps and free-text review/event reasons, replaces the reference, and retains a minimal non-identifying audit record.
 - A legal hold can be placed/released only by Super Admin or Owner with a reason. A hold blocks erasure and automated retention.
-- talyvane:model-agency:apply-retention anonymizes records after the configured retention period. Accepted applications use the accepted retention period; other non-erased statuses use the general application period. The scheduled task runs daily at 02:30 and is protected against overlapping execution.
+- talyvane:model-agency:apply-retention anonymizes records after the configured retention period. Accepted applications use the accepted retention period; other non-erased statuses use the general application period. The clock starts at the latest review/decision timestamp when present, otherwise at submission. The scheduled task runs daily at 02:30 and is protected against overlapping execution.
 
-Retention values are deployment/legal decisions, not product defaults. The scheduler approval flag is an operator attestation, not automatic proof that the host cron is functioning. Monitor the command and host cron. Erasure is anonymization of identifying fields, not deletion of the minimal audit row.
+Retention values are deployment/legal decisions, not product defaults. The scheduler approval flag is an operator attestation, not automatic proof that the host cron is functioning. Monitor the command and host cron. Erasure is anonymization of identifying fields, not deletion of the minimal audit row. The verified data page and administrator application list use no-store/no-cache and no-referrer headers. Rights support and administrator governance remain available even when new intake is disabled.
 
 ## Review state machine
 
