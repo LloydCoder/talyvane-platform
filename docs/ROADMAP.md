@@ -70,7 +70,7 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Add a singleton deployment-control record and transactional CLI bootstrap that provisions at most one Super Admin.
 - [x] Restrict deployment-wide branding, globalization, destinations, booking rules, payment configuration, site pages and feature controls to `super_admin`; retain day-to-day agency operations for `owner` and `admin`.
 - [x] Protect the designated Super Admin against Eloquent-based demotion, deactivation and deletion; prevent a second principal after assignment; add regression tests. (Direct SQL bypass remains outside the application boundary.)
-- [x] Implement CLI-only recovery enrollment and MFA reset: verify two notification addresses, issue a hashed single-use offline key, require current password plus key for recovery, rotate the key, invalidate admin sessions and append audit events.
+- [x] Implement CLI-only recovery enrollment and MFA reset: verify two notification addresses, issue a hashed single-use offline key, require current password plus key for recovery, rotate the key, invalidate authenticated and pending-MFA sessions and append audit events.
 - [x] Provide an enrollment path for existing deployments using current password and TOTP.
 - [x] Provide verified recovery contact and offline-key rotation, notify old and new addresses, and revoke prior admin sessions.
 - [ ] Implement dual-control break-glass recovery for loss of both password and offline key, and legacy owner/admin least-privilege migration.
