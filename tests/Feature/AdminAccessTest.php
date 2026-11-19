@@ -141,8 +141,13 @@ class AdminAccessTest extends TestCase
         $this->post('/admin/login', [
             'email' => 'owner@example.test',
             'password' => 'Strong-Testing-Password-934!',
-        ])->assertRedirect('/admin');
+        '])->assertRedirect('/admin/mfa/challenge');
 
+        $this->assertGuest();
+        $user = User::where('email', 'owner@example.test')->firstOrFail();
+        $step = intdiv(time(), 30);
+        $code = (new \\App\\Services\\TotpService())->codeForStep($user->mfa_secret, $step);
+        $this->post('/admin/mfa/challenge', ['code' => $code])->assertRedirect('/admin');
         $this->assertAuthenticated();
 
         $this->post('/admin/logout')->assertRedirect('/admin/login');
