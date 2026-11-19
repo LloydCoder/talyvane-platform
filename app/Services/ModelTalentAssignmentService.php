@@ -12,10 +12,12 @@ use App\Models\ModelTalentAssignmentEvent;
 use App\Models\ModelTalentImageLicence;
 use App\Models\ModelTalentPortfolioAsset;
 use App\Models\ModelTalentRepresentationAgreement;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 
 class ModelTalentAssignmentService
 {
@@ -363,11 +365,17 @@ class ModelTalentAssignmentService
 
         $snapshot = $agreement->terms_snapshot ?? [];
         $commission = $snapshot['commission_percent'] ?? null;
-        if (! is_numeric($commission) || (float) $commission < 0 || (float) $commission > 100) {
-            throw ValidationException::withMessages(['assignment' => 'The executed representation agreement must contain a valid commission percentage.']);
+        try {
+            $commissionMoney = Money::fromMajor((string) $commission, 'USD', 2);
+        } catch (InvalidArgumentException) {
+            throw ValidationException::withMessages(['assignment' => 'The executed representation agreement must contain a commission percentage with no more than two decimal places.']);
         }
 
-        return number_format((float) $commission, 2, '.', '');
+        if ($commissionMoney->minorUnits() < 0 || $commissionMoney->minorUnits() > 10000) {
+            throw ValidationException::withMessages(['assignment' => 'The executed representation agreement commission percentage must be between 0 and 100%.']);
+        }
+
+        return $commissionMoney->toMajor();
     }
 
     private function assertNoScheduleConflict(int $applicationId, mixed $start, mixed $end, ?int $ignoreId = null): void
