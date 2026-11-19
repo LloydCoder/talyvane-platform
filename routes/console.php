@@ -475,6 +475,18 @@ Artisan::command('talyvane:super-admin:recover', function () {
         return 1;
     }
 
+    $recentFailures = SuperAdminRecoveryEvent::query()
+        ->where('super_admin_user_id', $user->id)
+        ->where('event_type', 'recovery_rejected')
+        ->where('occurred_at', '>=', now()->subMinutes(15))
+        ->count();
+
+    if ($recentFailures >= 5) {
+        $this->error('Super Admin recovery is temporarily locked after five rejected attempts. Wait 15 minutes before retrying.');
+
+        return 1;
+    }
+
     if (config('mail.default') !== 'smtp' || blank(config('mail.mailers.smtp.host'))) {
         $this->error('Super Admin recovery requires configured SMTP delivery so both verified addresses can be notified.');
 
