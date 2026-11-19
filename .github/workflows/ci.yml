@@ -34,13 +34,7 @@ jobs:
           extensions: ctype, curl, dom, fileinfo, filter, gd, hash, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, tokenizer, xml
           coverage: none
       - name: Install reproducible dependencies
-        run: |
-          if [ -f composer.lock ]; then
-            composer install --prefer-dist --no-interaction --no-progress
-          else
-            echo "::warning::composer.lock is not committed yet; using temporary dependency resolution until the lockfile bootstrap PR is merged."
-            composer update --prefer-dist --no-interaction --no-progress
-          fi
+        run: composer install --prefer-dist --no-interaction --no-progress
       - name: Verify actual PHP extension and platform requirements
         run: composer check-platform-reqs
       - name: Audit resolved dependencies
