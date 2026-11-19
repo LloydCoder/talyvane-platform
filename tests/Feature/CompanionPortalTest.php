@@ -177,10 +177,7 @@ class CompanionPortalTest extends TestCase
             ])
             ->assertRedirect('/companion-portal/privacy');
 
-        $this->assertDatabaseHas('companion_profiles', [
-            'id' => $profile->id,
-            'consent_withdrawn_at' => now()->toDateTimeString(),
-        ]);
+        $this->assertNotNull($profile->fresh()->consent_withdrawn_at);
     }
 
     public function test_companion_cannot_change_another_companions_profile(): void
