@@ -38,6 +38,12 @@ class CompanionBookingController extends Controller
                 ]);
             }
 
+            if ($validated['decision'] === 'accept' && ! $profile->destination()->first()?->lockAndCheckOperationalAvailability()) {
+                throw ValidationException::withMessages([
+                    'decision' => 'The destination market is not currently approved for service.',
+                ]);
+            }
+
             if ($validated['decision'] === 'decline') {
                 $lockedBooking->forceFill(['status' => 'declined'])->save();
                 BookingEvent::query()->create([
