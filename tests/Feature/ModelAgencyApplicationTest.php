@@ -14,6 +14,7 @@ class ModelAgencyApplicationTest extends TestCase
 
     private function enableApplications(): void
     {
+        config(['talyvane.model_agency.privacy_notice_version' => 'model-application-privacy-v1', 'talyvane.model_agency.privacy_notice_approved' => true, 'talyvane.model_agency.adult_eligibility_policy_version' => 'adult-eligibility-v1', 'talyvane.model_agency.adult_eligibility_policy_approved' => true]);
         DB::table('platform_features')->where('key', 'model-agency.applications')->update([
             'implementation_status' => 'available',
             'is_enabled' => true,
