@@ -19,7 +19,7 @@
     </dl>
 
     @if($rightsRequest->request_type === 'access')
-        <p class="admin-muted">This self-service view shows the application fields and current status held in this portal. It is not a complete subject access response covering every personal-data record the agency may hold. For a broader access request, contact the controller using the details in the published applicant privacy notice.</p>
+        <p class="admin-muted">Your formal access request has been recorded for operator review. Current statutory response due date: {{ $rightsRequest->response_due_at?->format('d M Y') ?? 'Not available' }}. This initial self-service view shows the application fields and current status; it is not the complete response. The agency will review platform and other relevant records, consider third-party rights and deliver the reviewed response through a secure channel.</p>
     @endif
 
     @if($rightsRequest->request_type === 'correction')
