@@ -9,6 +9,7 @@ class ModelTalentRepresentationAgreement extends Model
 {
     protected $fillable = [
         'application_id',
+        'country_code',
         'reference',
         'version',
         'status',
