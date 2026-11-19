@@ -24,6 +24,7 @@ class ModelTalentImageLicenceService
     ): ModelTalentImageLicence {
         return DB::transaction(function () use ($asset, $agreement, $actorId, $terms): ModelTalentImageLicence {
             $this->assertDraftTerms($terms);
+            $this->assertClientReviewChannel($terms['channels'] ?? []);
             $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($asset->application_id);
             $lockedAsset = ModelTalentPortfolioAsset::query()->lockForUpdate()->findOrFail($asset->id);
             $lockedAgreement = ModelTalentRepresentationAgreement::query()->lockForUpdate()->findOrFail($agreement->id);
@@ -87,6 +88,7 @@ class ModelTalentImageLicenceService
                 'compensation_amount' => $locked->compensation_amount,
                 'currency_code' => $locked->currency_code,
             ];
+            $this->assertClientReviewChannel($terms['channels'] ?? []);
             $this->assertEligible($application, $asset, $agreement, $terms);
             $this->assertNoConflictingLicence($asset, $terms, $locked->id);
 
@@ -277,6 +279,19 @@ class ModelTalentImageLicenceService
             if (! $enabledCurrency || ! $enabledCurrency->is_enabled) {
                 throw ValidationException::withMessages(['licence' => 'Choose an enabled ISO currency for the agreed compensation.']);
             }
+        }
+    }
+
+    private function assertClientReviewChannel(array $channels): void
+    {
+        if (! in_array('client_review', $channels, true)) {
+            return;
+        }
+
+        if (! config('talyvane.model_agency.client_review_policy_approved')
+            || ! filled(config('talyvane.model_agency.client_review_policy_version'))
+            || ! app(FeatureRegistry::class)->isEnabled('model-agency.client-casting')) {
+            throw ValidationException::withMessages(['licence' => 'The client-review image channel requires the separately approved client casting feature and policy.']);
         }
     }
 
