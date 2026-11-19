@@ -19,6 +19,7 @@
             @else
                 <h2>Private client access</h2>
                 <p>Your account is ready for considered arrangements. Membership status and any benefits are confirmed directly by the agency.</p>
+                <a class="text-link" href="{{ route('contact') }}">Speak with the concierge ↗</a>
             @endif
         </div>
         <span class="client-membership-mark" aria-hidden="true">T.</span>
