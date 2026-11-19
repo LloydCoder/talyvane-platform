@@ -144,6 +144,27 @@ class ModelAgencyApplicationTest extends TestCase
             'from_status' => 'submitted',
             'to_status' => 'reviewing',
         ]);
+
+        $this->actingAs($admin)
+            ->patch('/admin/model-applications/'.$application->id, [
+                'status' => 'accepted',
+                'review_note' => 'Accepted to discuss a separate representation agreement.',
+            ])
+            ->assertRedirect('/admin/model-applications');
+
+        $application->refresh();
+        $this->assertSame('accepted', $application->status);
+        $this->assertDatabaseCount('model_talent_application_events', 3);
+
+        $this->actingAs($admin)
+            ->patch('/admin/model-applications/'.$application->id, [
+                'status' => 'declined',
+                'review_note' => 'This terminal transition must be rejected.',
+            ])
+            ->assertSessionHasErrors('status');
+
+        $this->assertSame('accepted', $application->fresh()->status);
+
     }
 
     public function test_application_status_transition_rejects_invalid_states(): void
@@ -244,6 +265,53 @@ class ModelAgencyApplicationTest extends TestCase
         $event = \App\Models\ModelTalentApplicationEvent::query()->firstOrFail();
         $this->expectException(\LogicException::class);
         $event->delete();
+    }
+
+    public function test_portfolio_links_reject_embedded_credentials_and_custom_ports(): void
+    {
+        $this->enableApplications();
+
+        foreach ([
+            'https://applicant:secret@portfolio.example.test/jordan',
+            'https://portfolio.example.test:8443/jordan',
+        ] as $url) {
+            $this->from('/models/apply')->post('/models/apply', [
+                'full_name' => 'Jordan Example',
+                'email' => 'jordan@example.test',
+                'country_code' => 'GB',
+                'city' => 'London',
+                'portfolio_url' => $url,
+                'experience_summary' => 'Commercial modelling experience and editorial portfolio.',
+                'adult_eligibility_confirmed' => '1',
+                'adult_eligibility_policy_version' => 'adult-eligibility-v1',
+                'adult_eligibility_policy_accepted' => '1',
+                'privacy_notice_version' => 'model-application-privacy-v1',
+                'privacy_notice_accepted' => '1',
+            ])->assertSessionHasErrors('portfolio_url');
+        }
+
+        $this->assertDatabaseCount('model_talent_applications', 0);
+    }
+
+    public function test_model_application_audit_events_reject_updates(): void
+    {
+        $this->enableApplications();
+        $this->post('/models/apply', [
+            'full_name' => 'Jordan Example',
+            'email' => 'jordan@example.test',
+            'country_code' => 'GB',
+            'city' => 'London',
+            'experience_summary' => 'Commercial modelling experience and editorial portfolio.',
+            'adult_eligibility_confirmed' => '1',
+            'adult_eligibility_policy_version' => 'adult-eligibility-v1',
+            'adult_eligibility_policy_accepted' => '1',
+            'privacy_notice_version' => 'model-application-privacy-v1',
+            'privacy_notice_accepted' => '1',
+        ])->assertRedirect('/models/apply/received');
+
+        $event = \App\Models\ModelTalentApplicationEvent::query()->firstOrFail();
+        $this->expectException(\LogicException::class);
+        $event->forceFill(['event_type' => 'application.tampered'])->save();
     }
 
     public function test_feature_activation_requires_approved_privacy_and_adult_eligibility_policies(): void
