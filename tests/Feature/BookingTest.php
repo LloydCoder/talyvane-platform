@@ -272,4 +272,49 @@ class BookingTest extends TestCase
         ]);
     }
 
+    public function test_client_can_cancel_pending_booking_request(): void
+    {
+        $client = $this->client();
+        $profile = $this->profile();
+        BookingSetting::create(['booking_mode' => 'manual']);
+        $start = now()->addDays(3);
+        $booking = Booking::create([
+            'reference' => 'CLIENTCANCEL1', 'client_id' => $client->id,
+            'companion_profile_id' => $profile->id, 'destination_id' => $profile->destination_id,
+            'booking_mode' => 'manual', 'status' => 'pending_review', 'deposit_status' => 'pending',
+            'starts_at' => $start, 'ends_at' => $start->copy()->addHour(),
+            'timezone' => 'Europe/London', 'duration_minutes' => 60,
+        ]);
+
+        $this->actingAs($client)
+            ->post('/bookings/'.$booking->id.'/cancel')
+            ->assertRedirect('/portal');
+
+        $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'status' => 'cancelled']);
+        $this->assertDatabaseHas('booking_events', ['booking_id' => $booking->id, 'event_type' => 'client_cancelled']);
+    }
+
+    public function test_confirmed_booking_cancellation_requires_enabled_policy_and_cutoff(): void
+    {
+        $client = $this->client();
+        $profile = $this->profile();
+        BookingSetting::create(['booking_mode' => 'manual', 'client_cancellation_enabled' => false, 'cancellation_cutoff_hours' => 24]);
+        $start = now()->addDays(5);
+        $booking = Booking::create([
+            'reference' => 'CLIENTCANCEL2', 'client_id' => $client->id,
+            'companion_profile_id' => $profile->id, 'destination_id' => $profile->destination_id,
+            'booking_mode' => 'manual', 'status' => 'confirmed', 'deposit_status' => 'verified',
+            'starts_at' => $start, 'ends_at' => $start->copy()->addHour(),
+            'timezone' => 'Europe/London', 'duration_minutes' => 60, 'confirmed_at' => now(),
+        ]);
+
+        $this->actingAs($client)
+            ->from('/portal')
+            ->post('/bookings/'.$booking->id.'/cancel')
+            ->assertRedirect('/portal')
+            ->assertSessionHasErrors('booking');
+
+        $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'status' => 'confirmed']);
+    }
+
 }
