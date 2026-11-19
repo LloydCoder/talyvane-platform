@@ -17,7 +17,7 @@ class BookingAdminController
     {
         return view('admin.bookings.index', [
             'bookings' => Booking::query()
-                ->with(['client', 'profile', 'destination'])
+                ->with(['client', 'profile', 'destination', 'depositVerifier'])
                 ->latest()
                 ->paginate(20),
             'settings' => BookingSetting::current(),
@@ -56,6 +56,17 @@ class BookingAdminController
             $settings = BookingSetting::current();
 
             if ($validated['status'] === 'confirmed') {
+                $profile = \\App\\Models\\CompanionProfile::query()
+                    ->publiclyDiscoverable()
+                    ->lockForUpdate()
+                    ->find($lockedBooking->companion_profile_id);
+
+                if (! $profile || $lockedBooking->starts_at->isPast()) {
+                    throw ValidationException::withMessages([
+                        'status' => 'This profile or booking time is no longer eligible for confirmation.',
+                    ]);
+                }
+
                 if ($settings->auto_requires_verified_deposit && $lockedBooking->deposit_status !== 'verified') {
                     throw ValidationException::withMessages([
                         'status' => 'A verified deposit is required before this booking can be confirmed.',
@@ -65,7 +76,7 @@ class BookingAdminController
                 $conflict = Booking::query()
                     ->where('companion_profile_id', $lockedBooking->companion_profile_id)
                     ->where('id', '!=', $lockedBooking->id)
-                    ->where('status', 'confirmed')
+                    ->whereIn('status', ['confirmed', 'pending_review'])
                     ->where('starts_at', '<', $lockedBooking->ends_at)
                     ->where('ends_at', '>', $lockedBooking->starts_at)
                     ->exists();
