@@ -25,7 +25,7 @@ class PortalAuthController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:100'],
             'email' => ['required', 'email:rfc', 'max:254', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:14', 'max:200', 'confirmed'],
+            'password' => ['required', 'confirmed', Password::min(14)->letters()->numbers()],
             'terms_accepted' => ['required', 'accepted'],
         ]);
 
