@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Models\SuperAdminRecoveryEvent;
 use App\Models\SuperAdminRecoveryGuardian;
 use App\Models\User;
-use App\Notifications\SuperAdminRecoveryEnrollmentNotice;
+use App\Notifications\SuperAdminBreakGlassNotice;
 use App\Notifications\SuperAdminRecoveryNotice;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -111,7 +111,7 @@ class SuperAdminBreakGlassService
                 ]);
             }
 
-            $notice = new SuperAdminRecoveryEnrollmentNotice($occurredAt->toDayDateTimeString());
+            $notice = new SuperAdminBreakGlassNotice('configured', $occurredAt->toDayDateTimeString());
             foreach (array_unique([
                 $superAdmin->email,
                 $control->super_admin_recovery_email,
@@ -293,6 +293,13 @@ class SuperAdminBreakGlassService
                 throw new RuntimeException('The current Super Admin authenticator code is invalid or already used.');
             }
 
+            $guardians = SuperAdminRecoveryGuardian::query()->with('user')->orderBy('slot')->get();
+            $addresses = array_unique(array_filter([
+                $superAdmin->email,
+                $control->super_admin_recovery_email,
+                ...$guardians->pluck('user.email')->all(),
+            ]));
+
             $versionBefore = (int) $superAdmin->admin_session_version;
             $versionAfter = $versionBefore + 1;
 
@@ -303,6 +310,11 @@ class SuperAdminBreakGlassService
                 'admin_session_version' => $versionAfter,
                 'remember_token' => Str::random(60),
             ])->save();
+
+            $notice = new SuperAdminBreakGlassNotice('cleared', now()->toDayDateTimeString());
+            foreach ($addresses as $address) {
+                \Illuminate\Support\Facades\Notification::route('mail', $address)->notify($notice);
+            }
 
             SuperAdminRecoveryEvent::query()->create([
                 'super_admin_user_id' => $superAdminId,
