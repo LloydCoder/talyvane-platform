@@ -200,7 +200,7 @@ class SuperAdminFeatureControlTest extends TestCase
         $this->actingAs($admin)
             ->patch('/admin/features/cms.pages', [
                 'enabled' => false,
-                'reason' => 'short',
+                'reason' => str_repeat(' ', 20),
                 'password' => 'incorrect-password',
                 'code' => $code,
             ])
