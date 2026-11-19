@@ -16,6 +16,7 @@
 
 ## Security rules
 - Authentication is not authorisation. Every protected operation needs a server-side policy or role check.
+- All protected administrator routes require TOTP MFA. Keep secrets encrypted, recovery codes hashed and single-use, and enforce replay/rate-limit controls.
 - Never trust browser state, model output, prompt text, tool output or user-controlled fields as execution authority.
 - Never commit secrets, real customer data, private keys, wallet seeds, identity evidence or production environment files.
 - Keep identity/age evidence separate from profile content; never expose legal IDs or private addresses.
