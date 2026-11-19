@@ -115,17 +115,34 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('/features/{feature}', [PlatformFeatureController::class, 'update'])->middleware('throttle:5,1')->name('features.update');
     });
 
-    Route::middleware(['auth', 'role:super_admin,owner,admin', 'admin.mfa'])->group(function (): void {
-        Route::get('/', AdminDashboardController::class)->name('dashboard');
+    // Deployment-wide configuration is exclusively controlled by the Super Admin.
+    Route::middleware(['auth', 'role:super_admin', 'admin.mfa'])->group(function (): void {
         Route::get('/branding', [BrandingController::class, 'edit'])->name('branding.edit');
+        Route::put('/branding', [BrandingController::class, 'update'])->name('branding.update');
+
         Route::get('/globalization', [GlobalizationController::class, 'edit'])->name('globalization');
         Route::put('/globalization/defaults', [GlobalizationController::class, 'updateDefaults'])->name('globalization.defaults.update');
         Route::post('/globalization/currencies', [GlobalizationController::class, 'storeCurrency'])->name('globalization.currencies.store');
         Route::patch('/globalization/currencies/{currency}/enabled', [GlobalizationController::class, 'toggleCurrency'])->name('globalization.currencies.enabled');
         Route::post('/globalization/markets', [GlobalizationController::class, 'storeMarket'])->name('globalization.markets.store');
         Route::post('/globalization/markets/{market}/review', [GlobalizationController::class, 'reviewMarket'])->name('globalization.markets.review');
-        Route::put('/branding', [BrandingController::class, 'update'])->name('branding.update');
+
         Route::resource('destinations', DestinationController::class)->except(['show', 'destroy']);
+        Route::get('/booking-settings', [BookingSettingsController::class, 'edit'])->name('bookings.settings');
+        Route::put('/booking-settings', [BookingSettingsController::class, 'update'])->name('bookings.settings.update');
+        Route::resource('pages', SitePageController::class)->except(['show', 'destroy']);
+
+        Route::get('/payment-settings', [PaymentSettingsController::class, 'edit'])->middleware('feature:payments.configuration')->name('payment-settings');
+        Route::put('/payment-settings', [PaymentSettingsController::class, 'update'])->middleware('feature:payments.configuration')->name('payment-settings.update');
+        Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->middleware('feature:payments.configuration')->name('payment-methods');
+        Route::post('/payment-methods', [PaymentMethodController::class, 'store'])->middleware('feature:payments.configuration')->name('payment-methods.store');
+        Route::post('/payment-methods/{paymentMethod}/review', [PaymentMethodController::class, 'review'])->middleware('feature:payments.configuration')->name('payment-methods.review');
+        Route::patch('/payment-methods/{paymentMethod}/enabled', [PaymentMethodController::class, 'toggle'])->middleware('feature:payments.configuration')->name('payment-methods.enabled');
+    });
+
+    // Agency owners and administrators retain day-to-day operations, not deployment-wide configuration.
+    Route::middleware(['auth', 'role:super_admin,owner,admin', 'admin.mfa'])->group(function (): void {
+        Route::get('/', AdminDashboardController::class)->name('dashboard');
         Route::get('/profiles', [CompanionProfileController::class, 'index'])->name('profiles.index');
         Route::get('/profiles/create', [CompanionProfileController::class, 'create'])->name('profiles.create');
         Route::post('/profiles', [CompanionProfileController::class, 'store'])->name('profiles.store');
@@ -140,15 +157,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/bookings', [BookingAdminController::class, 'index'])->name('bookings.index');
         Route::patch('/bookings/{booking}', [BookingAdminController::class, 'update'])->name('bookings.update');
         Route::post('/bookings/{booking}/deposit', [BookingAdminController::class, 'verifyDeposit'])->name('bookings.deposit');
-        Route::get('/booking-settings', [BookingSettingsController::class, 'edit'])->name('bookings.settings');
-        Route::resource('pages', SitePageController::class)->except(['show', 'destroy']);
-        Route::get('/payment-settings', [PaymentSettingsController::class, 'edit'])->middleware('feature:payments.configuration')->name('payment-settings');
-        Route::put('/payment-settings', [PaymentSettingsController::class, 'update'])->middleware('feature:payments.configuration')->name('payment-settings.update');
-        Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->middleware('feature:payments.configuration')->name('payment-methods');
-        Route::post('/payment-methods', [PaymentMethodController::class, 'store'])->middleware('feature:payments.configuration')->name('payment-methods.store');
-        Route::post('/payment-methods/{paymentMethod}/review', [PaymentMethodController::class, 'review'])->middleware('feature:payments.configuration')->name('payment-methods.review');
-        Route::patch('/payment-methods/{paymentMethod}/enabled', [PaymentMethodController::class, 'toggle'])->name('payment-methods.enabled');
-        Route::put('/booking-settings', [BookingSettingsController::class, 'update'])->name('bookings.settings.update');
         Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
     });
 });
