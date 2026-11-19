@@ -357,7 +357,7 @@ class ModelTalentAssignmentTest extends TestCase
         try {
             $event->update(['reason' => 'Tampered assignment event.']);
             $this->fail('Assignment event updates must be rejected.');
-        } catch (\\RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             $this->assertSame('Model assignment audit events are append-only.', $exception->getMessage());
         }
     }
