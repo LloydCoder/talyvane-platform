@@ -92,6 +92,10 @@ class ModelTalentSettlementService
             $assignment = ModelTalentAssignment::query()->lockForUpdate()->findOrFail($current->assignment_id);
             $locked = ModelTalentSettlementExpense::query()->lockForUpdate()->findOrFail($expense->id);
 
+            if ($locked->created_by === $actorId) {
+                throw ValidationException::withMessages(['segregation' => 'The expense claimant cannot review their own expense claim.']);
+            }
+
             if (! in_array($decision, ['approved', 'rejected'], true)
                 || $locked->status !== 'pending'
                 || $locked->settlement_id !== null
@@ -172,6 +176,10 @@ class ModelTalentSettlementService
             $assignment = ModelTalentAssignment::query()->lockForUpdate()->findOrFail($current->assignment_id);
             $locked = ModelTalentSettlement::query()->lockForUpdate()->findOrFail($settlement->id);
 
+            if ($locked->created_by === $actorId) {
+                throw ValidationException::withMessages(['segregation' => 'The settlement creator cannot approve their own settlement.']);
+            }
+
             if ($locked->status !== 'draft'
                 || $assignment->status !== 'completed'
                 || $locked->settlement_policy_version !== $this->approvedPolicyVersion()) {
@@ -235,6 +243,10 @@ class ModelTalentSettlementService
             $current = ModelTalentSettlement::query()->findOrFail($settlement->id);
             $assignment = ModelTalentAssignment::query()->lockForUpdate()->findOrFail($current->assignment_id);
             $locked = ModelTalentSettlement::query()->lockForUpdate()->findOrFail($settlement->id);
+
+            if ($locked->approved_by === $actorId) {
+                throw ValidationException::withMessages(['segregation' => 'The settlement approver cannot attest the external payment for the same settlement.']);
+            }
 
             if ($locked->status !== 'approved') {
                 throw ValidationException::withMessages(['payment' => 'Only an approved settlement can have external payment evidence recorded.']);
