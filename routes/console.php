@@ -605,7 +605,7 @@ Artisan::command('talyvane:super-admin:recover', function () {
     return 0;
 })->purpose('Recover the designated Super Admin using the password and one-time offline recovery key');
 
-Artisan::command('talyvane:admin:create {email}', function () {
+Artisan::command('talyvane:admin:create {email} {--role=owner}', function () {
     $email = strtolower(trim((string) $this->argument('email')));
 
     if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -618,6 +618,12 @@ Artisan::command('talyvane:admin:create {email}', function () {
         $this->error('An account with that email already exists.');
 
         return;
+    }
+
+    $role = (string) $this->option('role');
+    if (! in_array($role, ['owner', 'admin', 'finance'], true)) {
+        $this->error('Role must be owner, admin or finance. Super Admin provisioning uses the dedicated bootstrap command.');
+        return 1;
     }
 
     $name = trim((string) $this->ask('Administrator name'));
@@ -634,11 +640,11 @@ Artisan::command('talyvane:admin:create {email}', function () {
         'name' => $name,
         'email' => $email,
         'password' => $password,
-        'role' => 'owner',
+        'role' => $role,
         'is_active' => true,
     ]);
 
-    $this->info('Initial platform owner created. Store the credentials securely and enable MFA before remote administration.');
+    $this->info(ucfirst($role).' account created. Store the credentials securely and enable MFA before remote administration.');
 })->purpose('Create the first platform owner from a trusted command line');
 
 Artisan::command('talyvane:companion:create {email}', function () {
