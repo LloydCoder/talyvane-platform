@@ -215,4 +215,48 @@ class ModelCastingWorkflowTest extends TestCase
             $this->assertArrayHasKey('call', $exception->errors());
         }
     }
+    public function test_revoking_a_casting_distribution_licence_invalidates_live_submissions(): void
+    {
+        $context = $this->context();
+        $workflow = app(ModelCastingWorkflowService::class);
+        $call = $workflow->createDraft($context['admin']->id, $this->callInput());
+        $workflow->publish($call, $context['admin']->id);
+        $submission = $workflow->submit(
+            $call,
+            $context['application'],
+            $context['asset'],
+            $context['licence'],
+            $context['admin']->id,
+        );
+
+        app(ModelTalentImageLicenceService::class)->revoke(
+            $context['licence'],
+            $context['admin']->id,
+            'The model withdrew permission for this casting distribution.',
+        );
+
+        $this->assertSame('invalidated', $submission->fresh()->status);
+        $this->assertNotNull($submission->fresh()->invalidated_at);
+    }
+
+    public function test_cancelled_call_invalidates_existing_submissions(): void
+    {
+        $context = $this->context();
+        $workflow = app(ModelCastingWorkflowService::class);
+        $call = $workflow->createDraft($context['admin']->id, $this->callInput());
+        $workflow->publish($call, $context['admin']->id);
+        $submission = $workflow->submit(
+            $call,
+            $context['application'],
+            $context['asset'],
+            $context['licence'],
+            $context['admin']->id,
+        );
+
+        $workflow->cancel($call, $context['admin']->id, 'The commissioning client cancelled the project and all related submissions.');
+
+        $this->assertSame('invalidated', $submission->fresh()->status);
+        $this->assertSame('cancelled', $call->fresh()->status);
+    }
+
 }
