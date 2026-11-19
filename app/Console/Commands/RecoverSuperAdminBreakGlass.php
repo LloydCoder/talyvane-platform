@@ -59,8 +59,14 @@ class RecoverSuperAdminBreakGlass extends Command
                 ->where('event_type', 'break_glass_rejected')
                 ->where('occurred_at', '>=', $cutoff)
                 ->count();
+            $completedAttempts = SuperAdminRecoveryEvent::query()
+                ->where('super_admin_user_id', $superAdmin->id)
+                ->where('event_type', 'break_glass_completed')
+                ->where('occurred_at', '>=', $cutoff)
+                ->count();
+            $activeOrFailedAttempts = max(0, $startedAttempts - $completedAttempts);
 
-            if (max($startedAttempts, $rejectedAttempts) >= 5) {
+            if (max($activeOrFailedAttempts, $rejectedAttempts) >= 5) {
                 return false;
             }
 
