@@ -92,9 +92,56 @@ If SMTP delivery fails, the transaction is rolled back and the recovery is not c
 
 Authenticated admin sessions and pending MFA challenges carry the current `admin_session_version`. Recovery, recovery enrollment/contact rotation and administrator password changes increment this value and rotate `remember_token`. The middleware rejects sessions whose stored version is missing or stale, including file-based sessions; pending MFA challenges are also discarded if the version changes between password verification and MFA completion.
 
-## Emergency loss of both factors
+## Two-owner break-glass recovery
 
-There is deliberately no public reset link, support override, model-driven approval or unauthenticated database-reset endpoint. If both the password and offline recovery key are lost, the documented CLI recovery path cannot authenticate the operator. A separate deployment-owner identity-proofing and dual-control break-glass procedure is still required before production use. Do not improvise direct SQL changes on a live deployment.
+Configure this before production, while the designated Super Admin still has the current password, MFA and offline recovery key:
+
+\`\`\`bash
+php artisan talyvane:super-admin:configure-break-glass
+\`\`\`
+
+Configuration requires:
+- The designated Super Admin's current password and fresh TOTP.
+- Exactly two different active, email-verified \`owner\` accounts.
+- Each Owner's own password and fresh TOTP.
+- Separate email verification codes sent to both Owner mailboxes, entered within five minutes.
+- Distinct Owner email addresses that differ from both Super Admin notification addresses.
+- Different Owner passwords and different authenticator secrets.
+- A recorded reason and working SMTP delivery.
+
+The setup increments the Super Admin session version, consumes the TOTP steps, stores two guardian assignments and sends security notices to the Super Admin primary/recovery addresses and both guardians. No guardian password, TOTP secret or verification code is stored in the guardian table.
+
+If the two Owner custodians later change, remove the existing assignment with:
+
+\`\`\`bash
+php artisan talyvane:super-admin:clear-break-glass
+\`\`\`
+
+This requires the current Super Admin password and fresh TOTP, records a reason, invalidates administrator sessions and notifies all affected addresses. The recovery path is unavailable until two new guardians are configured.
+
+When both the Super Admin password and offline recovery key are lost, run:
+
+\`\`\`bash
+php artisan talyvane:super-admin:break-glass
+\`\`\`
+
+The command requires both configured Owners to authenticate independently with their own password, fresh TOTP and a one-time email code. It also requires a new strong Super Admin password and a reason. Five rejected break-glass attempts in a rolling 15-minute window temporarily block further attempts.
+
+A successful break-glass operation:
+- Rechecks the designated Super Admin, both guardian assignments and both Owner identities under database row locks.
+- Rechecks each Owner's role, activation, verified email, password, TOTP replay state and distinct authenticator/password requirements.
+- Consumes both Owners' TOTP steps and records the use time.
+- Replaces the Super Admin password, clears the old MFA secret/recovery codes, increments the session version and rotates the remember token.
+- Replaces the lost offline recovery key with a new 64-character key, storing only its hash.
+- Sends security notices to the Super Admin primary/recovery addresses and both Owners.
+- Writes an append-only application audit event with the reason, guardian account IDs and session-version transition.
+- Displays the new offline key once. The Super Admin must sign in and enroll MFA again.
+
+Assigned guardian accounts cannot be demoted, deactivated, deleted, have their email changed or have their MFA enrollment reset through Eloquent while assigned. Clear the assignment first using the controlled command. Direct SQL remains outside these application-level guards and must be restricted operationally.
+
+**Dual-control boundary:** this is strict 2-of-2 recovery: both assigned Owner principals are required; it is not a 2-of-3 quorum. Loss of either guardian prevents break-glass until the Super Admin can authenticate and clear/reconfigure the assignment. Keep both guardians operational and test their access periodically. The application requires two distinct Owner principals with different passwords and authenticator secrets, but software cannot prove that the accounts are controlled by two different human beings. The deployment owner must designate independent custodians, prohibit credential sharing, verify their identities out of band and ensure neither person controls both mailboxes. If both guardian accounts or their common infrastructure are compromised, this recovery path is compromised. Do not claim certification or independent identity proofing from this workflow.
+
+There is deliberately no public reset link, support override, model-driven approval or unauthenticated database-reset endpoint. Do not improvise direct SQL changes on a live deployment.
 
 
 ## Standards references and scope

@@ -86,7 +86,8 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Implement CLI-only recovery enrollment and MFA reset: verify two notification addresses, issue a hashed single-use offline key, require current password plus key for recovery, rotate the key, invalidate authenticated and pending-MFA sessions and append audit events.
 - [x] Provide an enrollment path for existing deployments using current password and TOTP.
 - [x] Provide verified recovery contact and offline-key rotation, notify old and new addresses, and revoke prior admin sessions.
-- [ ] Implement dual-control break-glass recovery for loss of both password and offline key, and legacy owner/admin least-privilege migration.
+- [x] Implement CLI-only two-owner break-glass recovery for loss of both Super Admin password and offline key; require two distinct active verified Owner custodians, separate passwords/TOTP secrets/email codes, transactional revalidation, notifications, audit and session invalidation.
+- [ ] Complete legacy owner/admin least-privilege migration and independent human custodian identity-proofing/operational drills.
 - [ ] Implement membership entitlements and protected-resource authorization; current membership capability is assignment/display only.
 - [x] Build a Super Admin-only read-only feature catalogue showing implementation state, configured/effective state, dependencies, risk and activation prerequisites.
 - [x] Build feature mutation controls with impact preview, prerequisite evaluation, reason capture, password/TOTP step-up and transactional rollback.
