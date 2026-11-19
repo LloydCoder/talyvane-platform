@@ -50,6 +50,18 @@ php artisan talyvane:super-admin:enroll-recovery
 
 The command requires the current password and a fresh TOTP code, verifies the primary and separate recovery email addresses, issues the offline recovery key, records the enrollment and invalidates all previous administrator sessions. It does not reset the existing TOTP authenticator.
 
+## Rotating recovery notification contacts
+
+When the separate recovery mailbox changes, run:
+
+```bash
+php artisan talyvane:super-admin:rotate-recovery-contacts
+```
+
+This requires the current password and a fresh TOTP code. It verifies the primary administrator address and the new recovery address, sends a change notice to the primary, previous recovery and new recovery addresses, rotates the offline recovery key, increments the session version and records the reason. The old recovery address is retained for notification only during the transaction; it is replaced after successful delivery.
+
+The new offline key is displayed once. Store it offline and replace the previous key in the approved secret vault.
+
 ## Recovering a lost authenticator
 
 Use this only when the Super Admin can still provide the current password and the offline deployment recovery key:
