@@ -170,6 +170,8 @@ class AdminMfaController
         $request->session()->regenerate();
         $request->session()->put('admin_session_version', (int) $user->admin_session_version);
 
-        return redirect()->intended(route($user->role === 'finance' ? 'admin.model-settlements.index' : 'admin.dashboard'));
+        $destination = route($user->role === 'finance' ? 'admin.model-settlements.index' : 'admin.dashboard');
+
+        return $user->role === 'finance' ? redirect($destination) : redirect()->intended($destination);
     }
 }
