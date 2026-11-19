@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Booking;
+use App\Models\CountryMarket;
 use App\Models\BookingSetting;
 use App\Models\CompanionAvailabilityRule;
 use App\Models\CompanionProfile;
@@ -42,6 +43,7 @@ class BookingTest extends TestCase
             'timezone' => 'Europe/London',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket($destination);
 
         return CompanionProfile::create([
             'destination_id' => $destination->id,
@@ -53,6 +55,31 @@ class BookingTest extends TestCase
             'accepts_automatic_bookings' => $autoAccept,
             'automatic_booking_consent_at' => $autoAccept ? now() : null,
         ]);
+    }
+
+    public function test_booking_is_blocked_when_the_destination_market_is_pending(): void
+    {
+        $client = $this->client();
+        $profile = $this->profile();
+        \App\Models\CountryMarket::query()->where('country_code', 'GB')->update([
+            'is_enabled' => false,
+            'compliance_status' => 'pending',
+            'compliance_reviewed_at' => null,
+            'compliance_reviewed_by' => null,
+            'compliance_evidence_reference' => null,
+            'compliance_review_summary' => null,
+        ]);
+        BookingSetting::create(['booking_mode' => 'manual']);
+
+        $this->actingAs($client)
+            ->post('/bookings', [
+                'profile_id' => $profile->id,
+                'start_at' => now()->addDays(3)->setTimezone('Europe/London')->format('Y-m-d\\TH:i'),
+                'duration_minutes' => 60,
+            ])
+            ->assertSessionHasErrors('profile_id');
+
+        $this->assertDatabaseCount('bookings', 0);
     }
 
     public function test_manual_booking_creates_a_pending_review_request(): void
@@ -197,6 +224,39 @@ class BookingTest extends TestCase
             ->assertSessionHasErrors('start_at');
 
         $this->assertDatabaseCount('bookings', 1);
+    }
+
+    public function test_admin_cannot_confirm_an_existing_booking_after_market_approval_is_revoked(): void
+    {
+        $client = $this->client();
+        $profile = $this->profile();
+        $admin = $this->createAdminUser(['name' => 'Admin', 'email' => 'admin@example.test', 'role' => 'admin']);
+        $start = now('Europe/London')->addDays(4)->utc();
+        $booking = Booking::create([
+            'reference' => 'MARKETGATE123',
+            'client_id' => $client->id,
+            'companion_profile_id' => $profile->id,
+            'destination_id' => $profile->destination_id,
+            'booking_mode' => 'manual',
+            'status' => 'pending_review',
+            'deposit_status' => 'not_required',
+            'starts_at' => $start,
+            'ends_at' => $start->copy()->addHour(),
+            'timezone' => 'Europe/London',
+            'duration_minutes' => 60,
+        ]);
+        CountryMarket::query()->where('country_code', 'GB')->update([
+            'is_enabled' => false,
+            'compliance_status' => 'rejected',
+        ]);
+
+        $this->actingAs($admin)
+            ->from('/admin/bookings')
+            ->patch('/admin/bookings/'.$booking->id, ['status' => 'confirmed'])
+            ->assertRedirect('/admin/bookings')
+            ->assertSessionHasErrors('status');
+
+        $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'status' => 'pending_review']);
     }
 
     public function test_admin_must_verify_deposit_before_confirmation_when_required(): void

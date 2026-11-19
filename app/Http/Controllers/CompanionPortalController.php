@@ -88,7 +88,7 @@ class CompanionPortalController extends Controller
                 'consent_confirmed' => ['required', 'accepted'],
             ]);
 
-            if ($profile->publication_status !== 'published' || ! $profile->publication_consent_at || $profile->consent_withdrawn_at) {
+            if ($profile->publication_status !== 'published' || ! $profile->publication_consent_at || $profile->consent_withdrawn_at || ! $profile->destination()->operationallyAvailable()->exists()) {
                 throw ValidationException::withMessages([
                     'enabled' => 'The profile must be actively published with current consent before enabling automatic booking.',
                 ]);
@@ -98,8 +98,8 @@ class CompanionPortalController extends Controller
         DB::transaction(function () use ($profile, $enabled): void {
             $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
             $this->assertOwnership($lockedProfile);
-            if ($enabled && ($lockedProfile->publication_status !== 'published' || ! $lockedProfile->publication_consent_at || $lockedProfile->consent_withdrawn_at)) {
-                throw ValidationException::withMessages(['enabled' => 'Publication consent is no longer active.']);
+            if ($enabled && ($lockedProfile->publication_status !== 'published' || ! $lockedProfile->publication_consent_at || $lockedProfile->consent_withdrawn_at || ! $lockedProfile->destination()->first()?->lockAndCheckOperationalAvailability())) {
+                throw ValidationException::withMessages(['enabled' => 'Publication consent or market approval is no longer active.']);
             }
             $lockedProfile->forceFill([
                 'accepts_automatic_bookings' => $enabled,

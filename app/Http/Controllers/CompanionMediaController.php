@@ -17,7 +17,7 @@ class CompanionMediaController extends Controller
     {
         abort_unless((int) $profile->user_id === (int) $request->user()->id, 403);
 
-        if ($profile->publication_status !== 'published' || ! $profile->age_verified_at || ! $profile->publication_consent_at || $profile->consent_withdrawn_at) {
+        if ($profile->publication_status !== 'published' || ! $profile->age_verified_at || ! $profile->publication_consent_at || $profile->consent_withdrawn_at || ! $profile->destination()->operationallyAvailable()->exists()) {
             throw ValidationException::withMessages(['media' => 'An actively published profile with current consent is required before submitting media.']);
         }
 
@@ -39,6 +39,7 @@ class CompanionMediaController extends Controller
                     || ! $lockedProfile->age_verified_at
                     || ! $lockedProfile->publication_consent_at
                     || $lockedProfile->consent_withdrawn_at
+                    || ! $lockedProfile->destination()->first()?->lockAndCheckOperationalAvailability()
                 ) {
                     throw ValidationException::withMessages(['media' => 'Profile publication consent changed while the image was being processed. Please review your profile status and try again.']);
                 }

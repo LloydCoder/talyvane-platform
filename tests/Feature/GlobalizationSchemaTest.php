@@ -19,6 +19,30 @@ class GlobalizationSchemaTest extends TestCase
         $this->assertTrue(Schema::hasTable('globalization_settings'));
         $this->assertTrue(Schema::hasTable('globalization_audit_events'));
         $this->assertTrue(Schema::hasColumn('destinations', 'image_path'));
+        $this->assertTrue(Schema::hasColumn('country_markets', 'compliance_evidence_reference'));
+        $this->assertTrue(Schema::hasColumn('country_markets', 'compliance_review_summary'));
+    }
+
+    public function test_new_destination_registers_its_country_as_pending_and_disabled(): void
+    {
+        $destination = \App\Models\Destination::create([
+            'name' => 'Lisbon',
+            'slug' => 'lisbon',
+            'country_code' => 'PT',
+            'country_name' => 'Portugal',
+            'city_name' => 'Lisbon',
+            'currency_code' => 'EUR',
+            'locale' => 'pt-PT',
+            'timezone' => 'Europe/Lisbon',
+            'is_active' => true,
+        ]);
+
+        $this->assertDatabaseHas('country_markets', [
+            'country_code' => 'PT',
+            'is_enabled' => false,
+            'compliance_status' => 'pending',
+        ]);
+        $this->assertFalse($destination->countryMarket->isOperationallyApproved());
     }
 
     public function test_financial_schema_preserves_currency_precision_and_rate_provenance(): void

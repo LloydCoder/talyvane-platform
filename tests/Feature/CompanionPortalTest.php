@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Booking;
+use App\Models\CountryMarket;
 use App\Models\BookingSetting;
 use App\Models\CompanionProfile;
 use App\Models\Destination;
@@ -41,6 +42,7 @@ class CompanionPortalTest extends TestCase
             'timezone' => 'Europe/London',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket($destination);
 
         return CompanionProfile::create([
             'user_id' => $user->id,
@@ -51,6 +53,45 @@ class CompanionPortalTest extends TestCase
             'age_verified_at' => now(),
             'publication_consent_at' => now(),
         ]);
+    }
+
+    public function test_companion_cannot_accept_booking_after_market_approval_is_revoked(): void
+    {
+        $companion = $this->companion('companion@example.test');
+        $profile = $this->profile($companion);
+        $client = User::create([
+            'name' => 'Client',
+            'email' => 'client@example.test',
+            'password' => 'Strong-Client-Password-934!',
+            'role' => 'client',
+            'is_active' => true,
+        ]);
+        $start = now('Europe/London')->addDays(4)->utc();
+        $booking = Booking::create([
+            'reference' => 'COMPANIONGATE1',
+            'client_id' => $client->id,
+            'companion_profile_id' => $profile->id,
+            'destination_id' => $profile->destination_id,
+            'booking_mode' => 'manual',
+            'status' => 'pending_review',
+            'deposit_status' => 'not_required',
+            'starts_at' => $start,
+            'ends_at' => $start->copy()->addHour(),
+            'timezone' => 'Europe/London',
+            'duration_minutes' => 60,
+        ]);
+        CountryMarket::query()->where('country_code', 'GB')->update([
+            'is_enabled' => false,
+            'compliance_status' => 'rejected',
+        ]);
+
+        $this->actingAs($companion)
+            ->from('/companion-portal')
+            ->patch('/companion-portal/bookings/'.$booking->id, ['decision' => 'accept'])
+            ->assertRedirect('/companion-portal')
+            ->assertSessionHasErrors('decision');
+
+        $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'status' => 'pending_review']);
     }
 
     public function test_companion_can_opt_in_to_automatic_bookings_with_explicit_consent(): void

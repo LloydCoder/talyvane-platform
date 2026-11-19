@@ -7,6 +7,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DestinationController
@@ -32,7 +33,7 @@ class DestinationController
         unset($validated['cover_image'], $validated['remove_cover_image'], $validated['image_rights_confirmed']);
         $validated['image_path'] = $coverImage?->store('destinations', 'public');
 
-        Destination::query()->create($validated);
+        DB::transaction(fn () => Destination::query()->create($validated));
 
         return redirect()->route('admin.destinations.index')->with('status', 'Destination created.');
     }
@@ -57,7 +58,7 @@ class DestinationController
             $validated['image_path'] = null;
         }
 
-        $destination->update($validated);
+        DB::transaction(fn () => $destination->update($validated));
 
         if ($previousImage && $previousImage !== $destination->image_path) {
             Storage::disk('public')->delete($previousImage);
@@ -71,10 +72,10 @@ class DestinationController
         return $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'slug' => ['required', 'alpha_dash', 'max:140', Rule::unique('destinations', 'slug')->ignore($destination?->id)],
-            'country_code' => ['required', 'alpha', 'size:2'],
+            'country_code' => ['required', 'string', 'size:2', 'regex:/^[A-Z]{2}$/'],
             'country_name' => ['required', 'string', 'max:100'],
             'city_name' => ['required', 'string', 'max:100'],
-            'currency_code' => ['required', 'alpha', 'size:3'],
+            'currency_code' => ['required', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
             'locale' => ['required', 'string', 'max:10'],
             'timezone' => ['required', 'timezone'],
             'description' => ['nullable', 'string', 'max:2000'],

@@ -84,7 +84,7 @@ class BookingController extends Controller
                 || ! $lockedProfile->age_verified_at
                 || ! $lockedProfile->publication_consent_at
                 || $lockedProfile->consent_withdrawn_at
-                || ! $lockedProfile->destination()->where('is_active', true)->exists()) {
+                || ! $lockedProfile->destination()->first()?->lockAndCheckOperationalAvailability()) {
                 throw ValidationException::withMessages([
                     'profile_id' => 'This profile is not currently available for booking.',
                 ]);

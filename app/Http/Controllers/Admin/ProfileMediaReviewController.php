@@ -32,7 +32,7 @@ class ProfileMediaReviewController
                     || ! $profile->age_verified_at
                     || ! $profile->publication_consent_at
                     || $profile->consent_withdrawn_at
-                    || ! $profile->destination()->where('is_active', true)->exists()
+                    || ! $profile->destination()->first()?->lockAndCheckOperationalAvailability()
                 ) {
                     throw ValidationException::withMessages(['media' => 'The profile must remain age-verified, active and consented before media can be approved.']);
                 }

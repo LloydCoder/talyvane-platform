@@ -8,6 +8,12 @@ Separately identify the contracting entity and incorporation country; operator/s
 ## Current implementation caveat
 The repository currently contains draft privacy and terms pages, not approved legal documents. The current profile publication workflow records a human reviewer's approved-provider reference and consent version; it does not itself perform age assurance or identity verification. The deposit workflow records a human administrator's independent verification attestation; it does not itself query a blockchain or payment processor. Do not market these workflows as automated verification or payment settlement.
 
+## Enforced country-market gate
+
+The application now treats a market as operational only when it is explicitly enabled, has an `approved` compliance decision, and has a reviewer ID, review timestamp, evidence reference and reviewer summary. New destinations automatically register their country in `pending` and disabled state. Existing destination countries are backfilled as pending during migration. Public destination discovery, companion publication, profile-media approval and booking creation require the operational-market predicate; booking checks it again inside the booking transaction. A pending, rejected, disabled or unregistered market is not serviceable.
+
+The admin review form records an evidence reference and reviewer findings and requires an explicit confirmation that current written local-counsel advice covers the exact model and market, with hosting and payment-provider approvals separately documented. This is an auditable internal control, not a legal opinion, external verification, or proof that the referenced evidence is genuine. A human with authority must inspect and retain the underlying evidence securely before recording approval. Never approve a market based only on this application's form.
+
 ## Pre-production evidence
 - Written legal opinion for the exact business model in each target market.
 - Written hosting-provider approval for the actual content and business model.

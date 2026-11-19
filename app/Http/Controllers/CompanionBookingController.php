@@ -27,7 +27,6 @@ class CompanionBookingController extends Controller
 
         DB::transaction(function () use ($booking, $validated): void {
             $profile = CompanionProfile::query()
-                ->publiclyDiscoverable()
                 ->lockForUpdate()
                 ->find($booking->companion_profile_id);
             $lockedBooking = Booking::query()->lockForUpdate()->findOrFail($booking->id);
@@ -35,6 +34,18 @@ class CompanionBookingController extends Controller
             if (! $profile || $lockedBooking->status !== 'pending_review') {
                 throw ValidationException::withMessages([
                     'decision' => 'This booking is no longer available for a decision.',
+                ]);
+            }
+
+            if ($validated['decision'] === 'accept' && (
+                $profile->publication_status !== 'published'
+                || ! $profile->age_verified_at
+                || ! $profile->publication_consent_at
+                || $profile->consent_withdrawn_at
+                || ! $profile->destination()->first()?->lockAndCheckOperationalAvailability()
+            )) {
+                throw ValidationException::withMessages([
+                    'decision' => 'The destination market is not currently approved for service.',
                 ]);
             }
 

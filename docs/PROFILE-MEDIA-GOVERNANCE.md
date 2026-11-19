@@ -10,6 +10,7 @@
 6. An owner/admin with MFA reviews the private preview and records approve/reject.
 7. Approved media is served through an application route that checks both media approval and the profile's current publication, age-verification and consent state on every request.
 8. Withdrawing profile consent or suspending the profile immediately makes the media route return 404. Media is never placed in the public storage symlink.
+9. The profile's country market must also be explicitly enabled and evidence-approved before media submission, moderation approval or public delivery is permitted.
 
 ## Operational requirements
 

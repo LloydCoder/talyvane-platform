@@ -57,6 +57,7 @@ class DiscoveryTest extends TestCase
             'timezone' => 'Europe/London',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket(Destination::query()->where('slug', 'london')->firstOrFail());
 
         Destination::create([
             'name' => 'Hidden Destination',
@@ -91,6 +92,7 @@ class DiscoveryTest extends TestCase
             'timezone' => 'Europe/London',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket($destination);
 
         $visible = \App\Models\CompanionProfile::create([
             'destination_id' => $destination->id,
@@ -154,6 +156,7 @@ class DiscoveryTest extends TestCase
             'timezone' => 'Europe/London',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket($london);
 
         $manila = Destination::create([
             'name' => 'Manila',
@@ -166,6 +169,7 @@ class DiscoveryTest extends TestCase
             'timezone' => 'Asia/Manila',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket($manila);
 
         foreach ([[$london, 'London Profile'], [$manila, 'Manila Profile']] as [$destination, $name]) {
             \App\Models\CompanionProfile::create([
@@ -192,6 +196,37 @@ class DiscoveryTest extends TestCase
             ->assertSessionHasErrors('destination');
     }
 
+    public function test_public_discovery_hides_destinations_and_profiles_until_market_approval(): void
+    {
+        $destination = Destination::create([
+            'name' => 'Lisbon',
+            'slug' => 'lisbon',
+            'country_code' => 'PT',
+            'country_name' => 'Portugal',
+            'city_name' => 'Lisbon',
+            'currency_code' => 'EUR',
+            'locale' => 'pt-PT',
+            'timezone' => 'Europe/Lisbon',
+            'is_active' => true,
+        ]);
+        \App\Models\CompanionProfile::create([
+            'destination_id' => $destination->id,
+            'display_name' => 'Taylor',
+            'slug' => 'taylor-lisbon',
+            'publication_status' => 'published',
+            'age_verified_at' => now(),
+            'publication_consent_at' => now(),
+        ]);
+
+        $this->get('/destinations')->assertDontSee('Lisbon');
+        $this->get('/companions')->assertDontSee('Taylor');
+
+        $this->approveCountryMarket($destination);
+
+        $this->get('/destinations')->assertSee('Lisbon');
+        $this->get('/companions')->assertSee('Taylor');
+    }
+
     public function test_companion_directory_uses_only_approved_real_profile_images_and_never_stock_portraits(): void
     {
         $destination = Destination::create([
@@ -205,6 +240,7 @@ class DiscoveryTest extends TestCase
             'timezone' => 'Europe/London',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket($destination);
         $companion = User::create([
             'name' => 'Companion Account',
             'email' => 'companion@example.test',
@@ -320,6 +356,7 @@ class DiscoveryTest extends TestCase
             ->assertRedirect('/admin/destinations');
 
         $destination = Destination::query()->where('slug', 'lisbon')->firstOrFail();
+        $this->approveCountryMarket($destination);
         $this->assertNotNull($destination->image_path);
         Storage::disk('public')->assertExists($destination->image_path);
 

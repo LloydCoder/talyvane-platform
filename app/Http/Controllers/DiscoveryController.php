@@ -12,7 +12,7 @@ class DiscoveryController extends Controller
     public function destinations(): View
     {
         $destinations = Destination::query()
-            ->where('is_active', true)
+            ->operationallyAvailable()
             ->orderBy('sort_order')
             ->orderBy('name')
             ->withCount(['companionProfiles' => fn ($query) => $query->publiclyDiscoverable()])
@@ -24,7 +24,7 @@ class DiscoveryController extends Controller
     public function destination(string $slug): View
     {
         $destination = Destination::query()
-            ->where('is_active', true)
+            ->operationallyAvailable()
             ->where('slug', $slug)
             ->withCount(['companionProfiles' => fn ($query) => $query->publiclyDiscoverable()])
             ->firstOrFail();
@@ -47,7 +47,7 @@ class DiscoveryController extends Controller
         ]);
 
         $destinations = Destination::query()
-            ->where('is_active', true)
+            ->operationallyAvailable()
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 

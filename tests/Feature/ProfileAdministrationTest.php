@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Booking;
 use App\Models\Destination;
+use App\Models\CompanionProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -26,7 +27,7 @@ class ProfileAdministrationTest extends TestCase
 
     private function destination(): Destination
     {
-        return Destination::create([
+        $destination = Destination::create([
             'name' => 'London',
             'slug' => 'london',
             'country_code' => 'GB',
@@ -36,6 +37,46 @@ class ProfileAdministrationTest extends TestCase
             'locale' => 'en',
             'timezone' => 'Europe/London',
             'is_active' => true,
+        ]);
+        $this->approveCountryMarket($destination);
+
+        return $destination;
+    }
+
+    public function test_owner_cannot_publish_profile_in_a_pending_market(): void
+    {
+        $owner = $this->owner();
+        config(['talyvane.verification.approved_providers' => ['approved-provider']]);
+        $destination = Destination::create([
+            'name' => 'Lisbon',
+            'slug' => 'lisbon-pending',
+            'country_code' => 'PT',
+            'country_name' => 'Portugal',
+            'city_name' => 'Lisbon',
+            'currency_code' => 'EUR',
+            'locale' => 'pt-PT',
+            'timezone' => 'Europe/Lisbon',
+            'is_active' => true,
+        ]);
+        $profile = CompanionProfile::create([
+            'destination_id' => $destination->id,
+            'display_name' => 'Taylor',
+            'slug' => 'taylor-lisbon',
+            'publication_status' => 'draft',
+        ]);
+
+        $this->actingAs($owner)
+            ->post('/admin/profiles/'.$profile->id.'/publish', [
+                'verification_provider' => 'approved-provider',
+                'verification_reference' => 'verified-reference-12345',
+                'consent_confirmed' => '1',
+                'consent_version' => config('talyvane.privacy.profile_consent_version'),
+            ])
+            ->assertSessionHasErrors('destination');
+
+        $this->assertDatabaseHas('companion_profiles', [
+            'id' => $profile->id,
+            'publication_status' => 'draft',
         ]);
     }
 

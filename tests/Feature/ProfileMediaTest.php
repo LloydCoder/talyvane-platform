@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\CompanionProfile;
+use App\Models\CountryMarket;
 use App\Models\Destination;
 use App\Models\ProfileMedia;
 use App\Models\User;
@@ -38,6 +39,7 @@ class ProfileMediaTest extends TestCase
             'timezone' => 'Europe/London',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket($destination);
 
         $profile = CompanionProfile::create([
             'user_id' => $user->id,
@@ -104,6 +106,40 @@ class ProfileMediaTest extends TestCase
             ->assertForbidden();
 
         $this->assertDatabaseCount('profile_media', 0);
+    }
+
+    public function test_profile_media_cannot_be_approved_after_market_approval_is_revoked(): void
+    {
+        Storage::fake('local');
+        [$companion, $profile] = $this->companionWithProfile();
+        $processed = app(ProfileMediaProcessor::class)->storeSanitized(
+            UploadedFile::fake()->image('portrait.jpg', 800, 1000),
+        );
+        $media = ProfileMedia::create([
+            'companion_profile_id' => $profile->id,
+            'uploaded_by' => $companion->id,
+            'storage_path' => $processed['path'],
+            'mime_type' => 'image/webp',
+            'width' => $processed['width'],
+            'height' => $processed['height'],
+            'file_size' => $processed['size'],
+            'status' => 'pending_review',
+            'rights_confirmed_at' => now(),
+            'consent_version' => 'profile-publication-v1',
+        ]);
+        CountryMarket::query()->where('country_code', 'GB')->update([
+            'is_enabled' => false,
+            'compliance_status' => 'pending',
+        ]);
+        $admin = $this->createAdminUser(['name' => 'Owner', 'email' => 'owner@example.test', 'role' => 'owner']);
+
+        $this->actingAs($admin)
+            ->from('/admin/profiles')
+            ->post('/admin/profile-media/'.$media->id.'/review', ['decision' => 'approved'])
+            ->assertRedirect('/admin/profiles')
+            ->assertSessionHasErrors('media');
+
+        $this->assertDatabaseHas('profile_media', ['id' => $media->id, 'status' => 'pending_review']);
     }
 
     public function test_approved_media_is_served_only_while_profile_consent_remains_active(): void

@@ -73,8 +73,8 @@ class CompanionProfileController
             'review_note' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        if (! $profile->destination()->where('is_active', true)->exists()) {
-            return back()->withErrors(['destination' => 'The destination must be active before publication.']);
+        if (! $profile->destination()->operationallyAvailable()->exists()) {
+            return back()->withErrors(['destination' => 'The destination must be active and its country market approved before publication.']);
         }
 
         $now = now();
@@ -82,8 +82,8 @@ class CompanionProfileController
 
         DB::transaction(function () use ($profile, $validated, $now, $automaticOptIn): void {
             $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
-            if (! $lockedProfile->destination()->where('is_active', true)->exists()) {
-                throw ValidationException::withMessages(['destination' => 'The destination must be active before publication.']);
+            if (! $lockedProfile->destination()->first()?->lockAndCheckOperationalAvailability()) {
+                throw ValidationException::withMessages(['destination' => 'The destination must be active and its country market approved before publication.']);
             }
             $lockedProfile->forceFill([
                 'age_verified_at' => $now,
