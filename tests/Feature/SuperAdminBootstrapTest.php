@@ -75,4 +75,94 @@ class SuperAdminBootstrapTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $owner->id, 'role' => 'owner']);
         $this->assertDatabaseHas('users', ['email' => 'root@example.test', 'role' => 'super_admin']);
     }
+
+    public function test_designated_super_admin_cannot_be_demoted_deactivated_or_deleted(): void
+    {
+        $superAdmin = User::query()->create([
+            'name' => 'Deployment Super Admin',
+            'email' => 'protected-root@example.test',
+            'password' => 'Strong-Root-Password-934!',
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+
+        DB::table('platform_control')->where('id', 1)->update([
+            'super_admin_user_id' => $superAdmin->id,
+        ]);
+
+        try {
+            $superAdmin->forceFill(['role' => 'owner'])->save();
+            $this->fail('The designated Super Admin must not be demoted outside the recovery workflow.');
+        } catch (\LogicException $exception) {
+            $this->assertStringContainsString('designated Super Admin', $exception->getMessage());
+        }
+
+        $superAdmin->refresh();
+
+        try {
+            $superAdmin->forceFill(['is_active' => false])->save();
+            $this->fail('The designated Super Admin must not be deactivated outside the recovery workflow.');
+        } catch (\LogicException $exception) {
+            $this->assertStringContainsString('designated Super Admin', $exception->getMessage());
+        }
+
+        $superAdmin->refresh();
+
+        try {
+            $superAdmin->delete();
+            $this->fail('The designated Super Admin must not be deleted outside the recovery workflow.');
+        } catch (\LogicException $exception) {
+            $this->assertStringContainsString('designated Super Admin', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('users', [
+            'id' => $superAdmin->id,
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $this->assertDatabaseHas('platform_control', [
+            'id' => 1,
+            'super_admin_user_id' => $superAdmin->id,
+        ]);
+    }
+
+    public function test_second_super_admin_cannot_be_created_after_deployment_principal_is_assigned(): void
+    {
+        $first = User::query()->create([
+            'name' => 'Deployment Super Admin',
+            'email' => 'first-root@example.test',
+            'password' => 'Strong-Root-Password-934!',
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+
+        DB::table('platform_control')->where('id', 1)->update([
+            'super_admin_user_id' => $first->id,
+        ]);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Only the designated deployment Super Admin may hold this role.');
+
+        User::query()->create([
+            'name' => 'Second Super Admin',
+            'email' => 'second-root@example.test',
+            'password' => 'Strong-Root-Password-934!',
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+    }
+
+    public function test_user_serialization_does_not_expose_authenticator_secrets_or_recovery_material(): void
+    {
+        $user = $this->createAdminUser([
+            'name' => 'Protected Administrator',
+            'email' => 'protected@example.test',
+        ]);
+
+        $serialized = $user->toArray();
+
+        $this->assertArrayNotHasKey('mfa_secret', $serialized);
+        $this->assertArrayNotHasKey('mfa_recovery_codes', $serialized);
+        $this->assertArrayNotHasKey('mfa_last_used_step', $serialized);
+    }
 }

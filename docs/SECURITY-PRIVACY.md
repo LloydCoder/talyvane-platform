@@ -49,3 +49,10 @@ No production release until authorisation tests, upload security, payment verifi
 - The registry is not a legal approval system and cannot override market, age-assurance, consent, safeguarding, payment integrity or other independent domain policy checks.
 
 - Companion publication-consent withdrawal and media removal remain reachable through a separate authenticated privacy-controls page even when the general companion portal feature is disabled.
+
+
+## Designated deployment Super Admin lifecycle
+
+The singleton `platform_control.super_admin_user_id` is the canonical deployment principal. Eloquent model lifecycle guards prevent the designated user from being demoted, deactivated or deleted and prevent a second Super Admin role assignment after the principal is set. Regression tests cover these operations. This is defense in depth, not a database authorization boundary: direct SQL, bulk query-builder updates and privileged database access can bypass Eloquent events. Restrict production database credentials, audit privileged database access and use a controlled recovery/rotation procedure. The audited recovery/rotation command is not yet implemented; do not treat model guards as a complete account-recovery capability.
+
+MFA secrets, recovery-code hashes and TOTP replay-state fields are excluded from `User` model serialization. Regression tests assert that these fields are absent from serialized user payloads. This reduces accidental exposure through API/resource serialization but does not replace explicit response DTOs and access-control review.
