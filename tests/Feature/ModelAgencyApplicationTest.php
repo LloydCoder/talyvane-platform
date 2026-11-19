@@ -47,6 +47,11 @@ class ModelAgencyApplicationTest extends TestCase
 
         $application = ModelTalentApplication::query()->firstOrFail();
 
+        $this->get('/models/apply/received')
+            ->assertOk()
+            ->assertSee($application->reference)
+            ->assertSee('Keep this reference');
+
         $this->assertSame('submitted', $application->status);
         $this->assertSame('Jordan Example', $application->full_name);
         $this->assertSame('jordan@example.test', $application->email);
