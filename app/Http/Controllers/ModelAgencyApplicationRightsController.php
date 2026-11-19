@@ -359,8 +359,11 @@ class ModelAgencyApplicationRightsController extends Controller
     {
         abort_unless(
             Schema::hasTable('model_talent_applications')
-                && Schema::hasColumn('model_talent_applications', 'legal_hold_at')
-                && Schema::hasTable('model_talent_application_rights_requests'),
+                && Schema::hasColumns('model_talent_applications', ['reference', 'email', 'status', 'legal_hold_at', 'reviewed_at', 'submitted_at'])
+                && Schema::hasTable('model_talent_application_events')
+                && Schema::hasColumns('model_talent_application_events', ['application_id', 'actor_type', 'event_type', 'occurred_at'])
+                && Schema::hasTable('model_talent_application_rights_requests')
+                && Schema::hasColumns('model_talent_application_rights_requests', ['application_id', 'request_type', 'status', 'code_hash', 'attempts', 'expires_at', 'verified_at', 'completed_at']),
             503,
             'Applicant privacy request services are temporarily unavailable.',
         );
