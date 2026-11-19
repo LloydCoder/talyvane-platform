@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\BrandingController;
 use App\Http\Controllers\Admin\CompanionProfileController;
 use App\Http\Controllers\Admin\DestinationController;
 use App\Http\Controllers\Admin\EnquiryAdminController;
+use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\CompanionBookingController;
 use App\Http\Controllers\CompanionPortalController;
