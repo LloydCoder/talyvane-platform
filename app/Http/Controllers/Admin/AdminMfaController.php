@@ -147,7 +147,7 @@ class AdminMfaController
         return User::query()
             ->whereKey($id)
             ->where('is_active', true)
-            ->whereIn('role', ['owner', 'admin'])
+            ->whereIn('role', ['super_admin', 'owner', 'admin'])
             ->whereNotNull('mfa_enabled_at')
             ->first();
     }
