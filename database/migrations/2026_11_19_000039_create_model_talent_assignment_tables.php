@@ -95,7 +95,11 @@ return new class extends Migration
 
     public function down(): void
     {
-        DB::table('platform_features')->where('key', 'model-agency.assignments')->delete();
+        DB::table('platform_features')->where('key', 'model-agency.assignments')->update([
+            'implementation_status' => 'planned',
+            'is_enabled' => false,
+            'updated_at' => now(),
+        ]);
         Schema::dropIfExists('model_talent_assignment_events');
         Schema::dropIfExists('model_talent_assignments');
     }
