@@ -19,13 +19,13 @@ class ProfileMediaReviewController
         ]);
 
         DB::transaction(function () use ($media, $request, $validated): void {
+            $profile = CompanionProfile::query()->lockForUpdate()->findOrFail($media->companion_profile_id);
             $lockedMedia = ProfileMedia::query()->lockForUpdate()->findOrFail($media->id);
             if ($lockedMedia->status !== 'pending_review') {
                 throw ValidationException::withMessages(['media' => 'This media item has already been reviewed.']);
             }
 
             if ($validated['decision'] === 'approved') {
-                $profile = $lockedMedia->profile()->lockForUpdate()->firstOrFail();
                 if (
                     $profile->publication_status !== 'published'
                     || ! $profile->age_verified_at
