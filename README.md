@@ -22,6 +22,8 @@ See COMMERCIAL-LICENSING.md for the intended commercial model.
 ## Architecture and delivery
 - docs/PRODUCT-REQUIREMENTS.md
 - docs/ARCHITECTURE.md
+- docs/TGLS.md (globalization and localization standard)
+- docs/decisions/ADR-0008-globalization.md
 - docs/SECURITY-PRIVACY.md
 - docs/COMPLIANCE-RELEASE-GATES.md
 - docs/ROADMAP.md
@@ -30,6 +32,8 @@ See COMMERCIAL-LICENSING.md for the intended commercial model.
 - docs/BOOKING.md
 - docs/PAYMENTS.md
 - docs/decisions/
+
+Globalization foundations now include deployment-local country-market, currency, exchange-rate and localized-price persistence; decimal-safe money primitives; and administrator configuration for base reporting currency, locale, time zone, currency registration/enablement and country-market registration. This is an architectural and administration foundation, not a complete global rollout: ISO reference-data imports, exchange-rate providers, localized price management, market-policy enforcement, full localization and jurisdictional tax adapters remain planned and must not be represented as complete.
 
 Implemented foundations include public destination/profile discovery, role-separated client and companion authentication, email verification, mandatory administrator TOTP MFA with one-time recovery codes, enquiry intake/CRM, consent-gated profile publication, companion consent controls, manual booking requests and configurable automatic booking eligibility with deposit, weekly availability and overlap gates; disabled-by-default payment configuration for BTC, USDT and USDC receiving addresses. Current application stack: Laravel 13, PHP 8.3–8.5, MySQL, Blade and custom responsive CSS. Composer dependencies are resolved by CI; a committed lockfile is still required before production. The client's PHP 8.4 host is version-compatible, subject to extension and hosting verification.
 
