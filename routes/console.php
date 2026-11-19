@@ -4,6 +4,7 @@ use App\Models\User;
 use App\Models\SuperAdminRecoveryEvent;
 use App\Notifications\SuperAdminEmailVerificationCode;
 use App\Notifications\SuperAdminRecoveryNotice;
+use App\Notifications\SuperAdminRecoveryEnrollmentNotice;
 use App\Services\RecoveryCodeGenerator;
 use App\Services\TotpService;
 use Illuminate\Auth\Events\Registered;
