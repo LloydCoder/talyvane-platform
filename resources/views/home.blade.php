@@ -22,9 +22,7 @@
             <a href="#capabilities">Capabilities</a>
             <a href="#approach">Our approach</a>
         </nav>
-        @if (!empty($brand['contact_email']))
-            <a class="header-link" href="mailto:{{ $brand['contact_email'] }}">Enquire <span aria-hidden="true">↗</span></a>
-        @endif
+        <a class="header-link" href="{{ route('contact') }}">Enquire <span aria-hidden="true">↗</span></a>
     </header>
 
     <main>
@@ -77,9 +75,7 @@
             <p class="eyebrow">INDEPENDENT BY DESIGN</p>
             <h2>Your identity.<br><em>Your operation.</em><br>One connected platform.</h2>
             <p>Distinctive branding, configurable workflows and isolated customer deployments — with a reusable foundation built to evolve.</p>
-            @if (!empty($brand['contact_email']))
-                <a class="button button-outline" href="mailto:{{ $brand['contact_email'] }}">Discuss a deployment <span aria-hidden="true">↗</span></a>
-            @endif
+            <a class="button button-outline" href="{{ route('contact') }}">Make an enquiry <span aria-hidden="true">↗</span></a>
         </section>
     </main>
 
