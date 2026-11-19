@@ -225,6 +225,39 @@ class BookingTest extends TestCase
         $this->assertDatabaseCount('bookings', 1);
     }
 
+    public function test_admin_cannot_confirm_an_existing_booking_after_market_approval_is_revoked(): void
+    {
+        $client = $this->client();
+        $profile = $this->profile();
+        $admin = $this->createAdminUser(['name' => 'Admin', 'email' => 'admin@example.test', 'role' => 'admin']);
+        $start = now('Europe/London')->addDays(4)->utc();
+        $booking = Booking::create([
+            'reference' => 'MARKETGATE123',
+            'client_id' => $client->id,
+            'companion_profile_id' => $profile->id,
+            'destination_id' => $profile->destination_id,
+            'booking_mode' => 'manual',
+            'status' => 'pending_review',
+            'deposit_status' => 'not_required',
+            'starts_at' => $start,
+            'ends_at' => $start->copy()->addHour(),
+            'timezone' => 'Europe/London',
+            'duration_minutes' => 60,
+        ]);
+        \\App\\Models\\CountryMarket::query()->where('country_code', 'GB')->update([
+            'is_enabled' => false,
+            'compliance_status' => 'rejected',
+        ]);
+
+        $this->actingAs($admin)
+            ->from('/admin/bookings')
+            ->patch('/admin/bookings/'.$booking->id, ['status' => 'confirmed'])
+            ->assertRedirect('/admin/bookings')
+            ->assertSessionHasErrors('status');
+
+        $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'status' => 'pending_review']);
+    }
+
     public function test_admin_must_verify_deposit_before_confirmation_when_required(): void
     {
         $client = $this->client();
