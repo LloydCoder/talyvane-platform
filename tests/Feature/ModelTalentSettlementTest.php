@@ -29,6 +29,9 @@ class ModelTalentSettlementTest extends TestCase
         ]);
 
         $admin = $this->createAdminUser(['email' => 'settlement-admin-'.strtolower(bin2hex(random_bytes(4))).'@example.test']);
+        $reviewer = User::query()->create(['name' => 'Independent Finance Reviewer', 'email' => 'settlement-reviewer-'.strtolower(bin2hex(random_bytes(4))).'@example.test', 'password' => 'Strong-Testing-Password-934!', 'role' => 'finance', 'is_active' => true]);
+        $approver = User::query()->create(['name' => 'Independent Settlement Approver', 'email' => 'settlement-approver-'.strtolower(bin2hex(random_bytes(4))).'@example.test', 'password' => 'Strong-Testing-Password-934!', 'role' => 'finance', 'is_active' => true]);
+        $payer = User::query()->create(['name' => 'Independent Payment Attestor', 'email' => 'settlement-payer-'.strtolower(bin2hex(random_bytes(4))).'@example.test', 'password' => 'Strong-Testing-Password-934!', 'role' => 'finance', 'is_active' => true]);
         $verifier = User::query()->create([
             'name' => 'Eligibility Verifier',
             'email' => 'settlement-verifier-'.strtolower(bin2hex(random_bytes(4))).'@example.test',
@@ -210,7 +213,7 @@ class ModelTalentSettlementTest extends TestCase
             'completed_at' => $status === 'completed' ? now()->subDay() : null,
         ]);
 
-        return compact('admin', 'application', 'agreement', 'asset', 'licence', 'call', 'submission', 'assignment');
+        return compact('admin', 'reviewer', 'approver', 'payer', 'application', 'agreement', 'asset', 'licence', 'call', 'submission', 'assignment');
     }
 
     public function test_settlement_snapshots_gross_commission_approved_expenses_and_manual_payment_evidence(): void
@@ -231,8 +234,8 @@ class ModelTalentSettlementTest extends TestCase
             'evidence_reference' => 'private/model-expenses/second-expense-receipt.pdf',
         ]);
 
-        $service->reviewExpense($expenseA, $context['admin']->id, 'approved', 'Receipt reviewed and expense approved.');
-        $service->reviewExpense($expenseB, $context['admin']->id, 'rejected', 'Expense was not authorized under the assignment terms.');
+        $service->reviewExpense($expenseA, $context['reviewer']->id, 'approved', 'Receipt reviewed and expense approved.');
+        $service->reviewExpense($expenseB, $context['reviewer']->id, 'rejected', 'Expense was not authorized under the assignment terms.');
 
         $settlement = $service->createDraft($context['assignment'], $context['admin']->id);
         $this->assertSame('800.0000', $settlement->gross_amount);
@@ -240,10 +243,10 @@ class ModelTalentSettlementTest extends TestCase
         $this->assertSame('25.0000', $settlement->approved_expenses_amount);
         $this->assertSame('705.0000', $settlement->model_net_amount);
 
-        $service->approve($settlement, $context['admin']->id, 'Settlement calculation and approved expense evidence reviewed.');
+        $service->approve($settlement, $context['approver']->id, 'Settlement calculation and approved expense evidence reviewed.');
         $service->recordPayment(
             $settlement,
-            $context['admin']->id,
+            $context['payer']->id,
             'bank_transfer',
             'BANK-TRANSFER-REF-2026-001',
             'private/model-settlements/bank-transfer-proof-2026.pdf',
@@ -317,7 +320,7 @@ class ModelTalentSettlementTest extends TestCase
             $this->assertArrayHasKey('settlement', $exception->errors());
         }
 
-        $service->reviewExpense($expense, $context['admin']->id, 'approved', 'Expense reviewed.');
+        $service->reviewExpense($expense, $context['reviewer']->id, 'approved', 'Expense reviewed.');
         $inProgress = $this->assignment('in_progress');
 
         try {
@@ -421,4 +424,45 @@ class ModelTalentSettlementTest extends TestCase
             'event_type' => 'settlement.reversed',
         ]);
     }
+    public function test_financial_maker_checker_rejects_self_review_self_approval_and_self_payment_attestation(): void
+    {
+        $context = $this->assignment();
+        $service = app(ModelTalentSettlementService::class);
+        $expense = $service->addExpense($context['assignment'], $context['admin']->id, [
+            'description' => 'Transport expense requiring independent review.',
+            'amount' => '25.00',
+            'currency_code' => 'GBP',
+            'evidence_reference' => 'private/model-expenses/maker-checker-receipt.pdf',
+        ]);
+
+        try {
+            $service->reviewExpense($expense, $context['admin']->id, 'approved', 'The submitter must not approve their own expense.');
+            $this->fail('Expense submitters must not review their own claims.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('segregation', $exception->errors());
+        }
+
+        $service->reviewExpense($expense, $context['reviewer']->id, 'approved', 'Independent reviewer approved the expense evidence.');
+        $settlement = $service->createDraft($context['assignment'], $context['admin']->id);
+
+        try {
+            $service->approve($settlement, $context['admin']->id, 'The settlement maker must not approve their own draft.');
+            $this->fail('Settlement creators must not approve their own settlement.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('segregation', $exception->errors());
+        }
+
+        $service->approve($settlement, $context['approver']->id, 'Independent approver reviewed the settlement snapshot.');
+
+        try {
+            $service->recordPayment($settlement, $context['approver']->id, 'bank_transfer', 'BANK-REF-SELF-APPROVED', 'private/model-settlements/self-approved-payment-proof.pdf');
+            $this->fail('Settlement approvers must not attest their own payment.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('segregation', $exception->errors());
+        }
+
+        $service->recordPayment($settlement, $context['payer']->id, 'bank_transfer', 'BANK-REF-INDEPENDENT-PAYER', 'private/model-settlements/independent-payment-proof.pdf');
+        $this->assertSame('paid', $settlement->fresh()->status);
+    }
+
 }
