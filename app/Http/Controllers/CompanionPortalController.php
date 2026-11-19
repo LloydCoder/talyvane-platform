@@ -7,6 +7,7 @@ use App\Models\BookingEvent;
 use App\Models\CompanionAvailabilityRule;
 use App\Models\CompanionProfile;
 use App\Models\ProfilePublicationReview;
+use App\Models\ProfileMedia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -143,7 +144,7 @@ class CompanionPortalController extends Controller
             ])->save();
 
             // Re-consenting to the profile later must never silently revive old image consent.
-            \\App\\Models\\ProfileMedia::query()
+            ProfileMedia::query()
                 ->where('companion_profile_id', $lockedProfile->id)
                 ->whereIn('status', ['pending_review', 'approved'])
                 ->update([
