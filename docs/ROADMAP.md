@@ -23,7 +23,7 @@
 - [x] Companion CLI provisioning, linked profile accounts and verified companion portal.
 - [x] Companion-controlled automatic-booking opt-in and immediate publication-consent withdrawal.
 - [x] Manual booking requests and configurable automatic confirmation with fail-closed eligibility.
-- [x] Admin booking inbox, deposit verification attestation and overlap checks.
+- [x] Admin booking inbox, deposit verification attestation, overlap checks and append-only booking event history.
 - [x] Companion-managed weekly availability windows; automatic confirmation requires a matching local-time window.
 - [x] Payment control centre with global, rail and purpose switches; BTC/USDT/USDC per-network receiving-address configuration; methods disabled until manual configuration review.
 - [ ] Date-specific availability exceptions, calendar sync, booking cancellation/rescheduling policies and notification delivery.
@@ -32,7 +32,7 @@
 Remaining: configurable content/CMS; jurisdiction-approved legal documents (current pages are draft placeholders); market flags; staging deployment and runtime verification; MFA.
 
 ## Release 2 — Booking and portals
-Partially implemented: client and companion account authentication; verified email; manual requests; admin-configurable automatic eligibility; companion opt-in/withdrawal; weekly availability windows; deposit verification attestation; overlap checks; client and companion booking views. Remaining: date-specific availability exceptions, calendar sync, cancellation/rescheduling policies, notifications, booking event audit trail and full companion profile editing.
+Partially implemented: client and companion account authentication; verified email; manual requests; admin-configurable automatic eligibility; companion opt-in/withdrawal; weekly availability windows; deposit verification attestation; overlap checks; client and companion booking views. Remaining: date-specific availability exceptions, calendar sync, cancellation/rescheduling policies, notifications, tamper-evident audit export/retention, and full companion profile editing.
 
 ## Release 3 — Payments
 Payment adapter contract; manual instructions; crypto invoice snapshots and server-side chain verification for approved networks; ledger and reconciliation; card adapters only after written underwriting.
