@@ -25,11 +25,11 @@ class CompanionBookingController extends Controller
         );
 
         DB::transaction(function () use ($booking, $validated): void {
-            $lockedBooking = Booking::query()->lockForUpdate()->findOrFail($booking->id);
             $profile = CompanionProfile::query()
                 ->publiclyDiscoverable()
                 ->lockForUpdate()
-                ->find($lockedBooking->companion_profile_id);
+                ->find($booking->companion_profile_id);
+            $lockedBooking = Booking::query()->lockForUpdate()->findOrFail($booking->id);
 
             if (! $profile || $lockedBooking->status !== 'pending_review') {
                 throw ValidationException::withMessages([
