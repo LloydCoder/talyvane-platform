@@ -54,7 +54,7 @@ class BookingController extends Controller
         $timezone = $profile->destination->timezone;
         $startLocal = CarbonImmutable::createFromFormat('Y-m-d\\TH:i', $validated['start_at'], $timezone);
 
-        if (! $startLocal) {
+        if (! $startLocal || $startLocal->format('Y-m-d\\TH:i') !== $validated['start_at']) {
             throw ValidationException::withMessages([
                 'start_at' => 'Choose a valid local date and time.',
             ]);
@@ -91,7 +91,7 @@ class BookingController extends Controller
 
             $hasConflict = Booking::query()
                 ->where('companion_profile_id', $lockedProfile->id)
-                ->where('status', 'confirmed')
+                ->whereIn('status', ['confirmed', 'pending_review'])
                 ->where('starts_at', '<', $endsAt)
                 ->where('ends_at', '>', $startsAt)
                 ->exists();
