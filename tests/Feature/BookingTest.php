@@ -60,6 +60,14 @@ class BookingTest extends TestCase
     {
         $client = $this->client();
         $profile = $this->profile();
+        \\App\\Models\\CountryMarket::query()->where('country_code', 'GB')->update([
+            'is_enabled' => false,
+            'compliance_status' => 'pending',
+            'compliance_reviewed_at' => null,
+            'compliance_reviewed_by' => null,
+            'compliance_evidence_reference' => null,
+            'compliance_review_summary' => null,
+        ]);
         BookingSetting::create(['booking_mode' => 'manual']);
 
         $this->actingAs($client)
