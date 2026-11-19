@@ -81,6 +81,39 @@ class PlatformFeatureRegistryTest extends TestCase
         $event->delete();
     }
 
+    public function test_disabling_memberships_hides_client_membership_data_and_blocks_assignment(): void
+    {
+        DB::table('platform_features')->where('key', 'memberships')->update(['is_enabled' => false]);
+
+        $client = User::query()->create([
+            'name' => 'Private Client',
+            'email' => 'client@example.test',
+            'password' => 'Strong-Testing-Password-934!',
+            'role' => 'client',
+            'is_active' => true,
+        ]);
+        $client->forceFill(['email_verified_at' => now()])->save();
+
+        $this->actingAs($client)
+            ->get('/portal')
+            ->assertOk()
+            ->assertDontSee('YOUR MEMBERSHIP');
+
+        $admin = $this->createAdminUser([
+            'name' => 'Deployment Super Admin',
+            'email' => 'super-admin@example.test',
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($admin)
+            ->post('/admin/clients/'.$client->id.'/membership', [
+                'tier_name' => 'Platinum',
+                'benefits_summary' => 'Private benefits',
+                'starts_at' => now()->toDateString(),
+            ])
+            ->assertNotFound();
+    }
+
     public function test_only_super_admin_can_view_the_feature_registry(): void
     {
         $owner = $this->createAdminUser([
