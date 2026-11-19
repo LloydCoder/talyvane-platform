@@ -32,7 +32,13 @@ class SuperAdminBootstrapTest extends TestCase
 
         $this->assertSame('super_admin', $user->role);
         $this->assertTrue($user->is_active);
-        $this->assertNull($user->mfa_enabled_at);\n        $this->assertNotNull($user->email_verified_at);\n        $this->assertNotEmpty(DB::table('platform_control')->value('super_admin_recovery_key_hash'));\n        $this->assertSame('recovery@example.test', DB::table('platform_control')->value('super_admin_recovery_email'));\n        $this->assertNotNull(DB::table('platform_control')->value('super_admin_recovery_email_verified_at'));\n        $this->assertDatabaseHas('super_admin_recovery_events', ['super_admin_user_id' => $user->id, 'event_type' => 'bootstrap_recovery_key_issued']);\n        Notification::assertSentOnDemand(SuperAdminEmailVerificationCode::class, null, 2);
+        $this->assertNull($user->mfa_enabled_at);
+        $this->assertNotNull($user->email_verified_at);
+        $this->assertNotEmpty(DB::table('platform_control')->value('super_admin_recovery_key_hash'));
+        $this->assertSame('recovery@example.test', DB::table('platform_control')->value('super_admin_recovery_email'));
+        $this->assertNotNull(DB::table('platform_control')->value('super_admin_recovery_email_verified_at'));
+        $this->assertDatabaseHas('super_admin_recovery_events', ['super_admin_user_id' => $user->id, 'event_type' => 'bootstrap_recovery_key_issued']);
+        Notification::assertSentOnDemand(SuperAdminEmailVerificationCode::class, null, 2);
         $this->assertDatabaseHas('platform_control', [
             'id' => 1,
             'super_admin_user_id' => $user->id,
