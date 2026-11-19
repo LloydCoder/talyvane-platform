@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ModelTalentApplication;
 use App\Models\ModelTalentApplicationEvent;
+use App\Models\ModelTalentRepresentationAgreement;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
