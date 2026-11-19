@@ -55,14 +55,14 @@ Route::post('/enquiries', [EnquiryController::class, 'store'])->middleware('thro
 Route::get('/models/apply', [ModelAgencyApplicationController::class, 'create'])->middleware('feature:model-agency.applications')->name('model-agency.apply');
 Route::post('/models/apply', [ModelAgencyApplicationController::class, 'store'])->middleware(['feature:model-agency.applications', 'throttle:5,1'])->name('model-agency.apply.store');
 Route::get('/models/apply/received', [ModelAgencyApplicationController::class, 'received'])->name('model-agency.apply.received');
-Route::get('/models/application-support', [ModelAgencyApplicationRightsController::class, 'create'])->middleware('feature:model-agency.applications')->name('model-agency.application-support');
-Route::post('/models/application-support', [ModelAgencyApplicationRightsController::class, 'submitRequest'])->middleware(['feature:model-agency.applications', 'throttle:3,1'])->name('model-agency.application-support.submit');
-Route::get('/models/application-support/verify', [ModelAgencyApplicationRightsController::class, 'verifyForm'])->middleware('feature:model-agency.applications')->name('model-agency.application-support.verify');
-Route::post('/models/application-support/verify', [ModelAgencyApplicationRightsController::class, 'verify'])->middleware(['feature:model-agency.applications', 'throttle:5,1'])->name('model-agency.application-support.verify.submit');
-Route::get('/models/application-support/{rightsRequest}', [ModelAgencyApplicationRightsController::class, 'show'])->middleware('feature:model-agency.applications')->name('model-agency.application-support.show');
-Route::patch('/models/application-support/{rightsRequest}', [ModelAgencyApplicationRightsController::class, 'correct'])->middleware('feature:model-agency.applications')->name('model-agency.application-support.correct');
-Route::post('/models/application-support/{rightsRequest}/withdraw', [ModelAgencyApplicationRightsController::class, 'withdraw'])->middleware('feature:model-agency.applications')->name('model-agency.application-support.withdraw');
-Route::post('/models/application-support/{rightsRequest}/erase', [ModelAgencyApplicationRightsController::class, 'erase'])->middleware('feature:model-agency.applications')->name('model-agency.application-support.erase');
+Route::get('/models/application-support', [ModelAgencyApplicationRightsController::class, 'create'])->name('model-agency.application-support');
+Route::post('/models/application-support', [ModelAgencyApplicationRightsController::class, 'submitRequest'])->middleware('throttle:3,1')->name('model-agency.application-support.submit');
+Route::get('/models/application-support/verify', [ModelAgencyApplicationRightsController::class, 'verifyForm'])->name('model-agency.application-support.verify');
+Route::post('/models/application-support/verify', [ModelAgencyApplicationRightsController::class, 'verify'])->middleware('throttle:5,1')->name('model-agency.application-support.verify.submit');
+Route::get('/models/application-support/{rightsRequest}', [ModelAgencyApplicationRightsController::class, 'show'])->name('model-agency.application-support.show');
+Route::patch('/models/application-support/{rightsRequest}', [ModelAgencyApplicationRightsController::class, 'correct'])->name('model-agency.application-support.correct');
+Route::post('/models/application-support/{rightsRequest}/withdraw', [ModelAgencyApplicationRightsController::class, 'withdraw'])->name('model-agency.application-support.withdraw');
+Route::post('/models/application-support/{rightsRequest}/erase', [ModelAgencyApplicationRightsController::class, 'erase'])->name('model-agency.application-support.erase');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/register', [PortalAuthController::class, 'registerForm'])->name('register');
