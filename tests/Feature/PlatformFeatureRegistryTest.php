@@ -36,15 +36,15 @@ class PlatformFeatureRegistryTest extends TestCase
 
     public function test_planned_features_cannot_be_enabled_by_registry_state_alone(): void
     {
-        DB::table('platform_features')->where('key', 'model-agency.applications')->update([
+        DB::table('platform_features')->where('key', 'model-agency.casting')->update([
             'is_enabled' => true,
         ]);
 
-        $this->assertFalse(app(FeatureRegistry::class)->isEnabled('model-agency.applications'));
+        $this->assertFalse(app(FeatureRegistry::class)->isEnabled('model-agency.casting'));
         $this->assertFalse(app(FeatureRegistry::class)->isEnabled('memberships.entitlements'));
         $this->get('/destinations')->assertOk();
         $this->assertDatabaseHas('platform_features', [
-            'key' => 'model-agency.applications',
+            'key' => 'model-agency.casting',
             'implementation_status' => 'planned',
             'is_enabled' => true,
         ]);
