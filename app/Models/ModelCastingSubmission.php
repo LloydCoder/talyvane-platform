@@ -44,4 +44,9 @@ class ModelCastingSubmission extends Model
     {
         return $this->belongsTo(ModelTalentImageLicence::class, 'image_licence_id');
     }
+
+    public function assignment(): \\Illuminate\\Database\\Eloquent\\Relations\\HasOne
+    {
+        return $this->hasOne(ModelTalentAssignment::class, 'source_submission_id');
+    }
 }
