@@ -32,7 +32,7 @@ class AccountSecurityController extends Controller
         }
 
         $destination = match ($request->user()->role) {
-            'owner', 'admin' => route('admin.dashboard'),
+            'super_admin', 'owner', 'admin' => route('admin.dashboard'),
             'companion' => route('companion-portal.dashboard'),
             default => route('portal.dashboard'),
         };
