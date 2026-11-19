@@ -8,6 +8,7 @@
 - Run Composer validation, security advisory auditing and actual runtime platform checks for every supported PHP version.
 - Do not silently regenerate dependencies during a production deployment.
 - Review direct and transitive dependency changes, package licences, abandoned packages, advisories and release notes before merging an update.
+- Pin third-party GitHub Actions to verified commit SHAs and retain the corresponding upstream version in a comment; review action updates like application dependencies.
 
 ## Runtime compatibility
 
