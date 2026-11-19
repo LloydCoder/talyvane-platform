@@ -7,7 +7,7 @@ use App\Models\ModelTalentApplicationEvent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ModelAgencyApplicationController extends Controller
@@ -57,7 +57,8 @@ class ModelAgencyApplicationController extends Controller
             'website' => ['prohibited'],
         ]);
 
-        $application = ModelTalentApplication::query()->create([
+        DB::transaction(function () use ($validated, $privacyNoticeVersion): void {
+            $application = ModelTalentApplication::query()->create([
             'reference' => 'MTA-'.now()->format('Y').'-'.Str::upper(Str::random(10)),
             'full_name' => trim($validated['full_name']),
             'email' => Str::lower(trim($validated['email'])),
@@ -71,15 +72,16 @@ class ModelAgencyApplicationController extends Controller
             'privacy_notice_version' => $privacyNoticeVersion,
             'privacy_notice_accepted_at' => now(),
             'submitted_at' => now(),
-        ]);
+            ]);
 
-        ModelTalentApplicationEvent::query()->create([
-            'application_id' => $application->id,
-            'actor_type' => 'applicant',
-            'event_type' => 'application.submitted',
-            'to_status' => 'submitted',
-            'occurred_at' => now(),
-        ]);
+            ModelTalentApplicationEvent::query()->create([
+                'application_id' => $application->id,
+                'actor_type' => 'applicant',
+                'event_type' => 'application.submitted',
+                'to_status' => 'submitted',
+                'occurred_at' => now(),
+            ]);
+        });
 
         return redirect()->route('model-agency.apply.received');
     }
