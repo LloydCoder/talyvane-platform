@@ -142,11 +142,11 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/bookings/{booking}/deposit', [BookingAdminController::class, 'verifyDeposit'])->name('bookings.deposit');
         Route::get('/booking-settings', [BookingSettingsController::class, 'edit'])->name('bookings.settings');
         Route::resource('pages', SitePageController::class)->except(['show', 'destroy']);
-        Route::get('/payment-settings', [PaymentSettingsController::class, 'edit'])->name('payment-settings');
-        Route::put('/payment-settings', [PaymentSettingsController::class, 'update'])->name('payment-settings.update');
-        Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods');
-        Route::post('/payment-methods', [PaymentMethodController::class, 'store'])->name('payment-methods.store');
-        Route::post('/payment-methods/{paymentMethod}/review', [PaymentMethodController::class, 'review'])->name('payment-methods.review');
+        Route::get('/payment-settings', [PaymentSettingsController::class, 'edit'])->middleware('feature:payments.configuration')->name('payment-settings');
+        Route::put('/payment-settings', [PaymentSettingsController::class, 'update'])->middleware('feature:payments.configuration')->name('payment-settings.update');
+        Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->middleware('feature:payments.configuration')->name('payment-methods');
+        Route::post('/payment-methods', [PaymentMethodController::class, 'store'])->middleware('feature:payments.configuration')->name('payment-methods.store');
+        Route::post('/payment-methods/{paymentMethod}/review', [PaymentMethodController::class, 'review'])->middleware('feature:payments.configuration')->name('payment-methods.review');
         Route::patch('/payment-methods/{paymentMethod}/enabled', [PaymentMethodController::class, 'toggle'])->name('payment-methods.enabled');
         Route::put('/booking-settings', [BookingSettingsController::class, 'update'])->name('bookings.settings.update');
         Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
