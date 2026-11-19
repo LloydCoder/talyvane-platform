@@ -9,13 +9,14 @@ use App\Models\CompanionProfile;
 use App\Models\Destination;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class CompanionPortalTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function companion(string $email): User
+    private function companion(string $email, bool $verified = true): User
     {
         $user = User::create([
             'name' => 'Companion Example',
@@ -24,7 +25,9 @@ class CompanionPortalTest extends TestCase
             'role' => 'companion',
             'is_active' => true,
         ]);
-        $user->forceFill(['email_verified_at' => now()])->save();
+        if ($verified) {
+            $user->forceFill(['email_verified_at' => now()])->save();
+        }
 
         return $user;
     }
@@ -124,6 +127,8 @@ class CompanionPortalTest extends TestCase
         $profile = $this->profile($companion);
         $client = User::create(['name' => 'Client', 'email' => 'client@example.test', 'password' => 'Strong-Client-Password-934!', 'role' => 'client', 'is_active' => true]);
         $start = now()->addDays(3);
+        DB::table('platform_features')->where('key', 'portals.companion')->update(['is_enabled' => false]);
+
         $pendingBooking = Booking::create([
             'reference' => 'WITHDRAW123',
             'client_id' => $client->id,
@@ -143,7 +148,9 @@ class CompanionPortalTest extends TestCase
                 'reason' => 'I no longer consent to public profile publication.',
                 'withdraw_confirmed' => '1',
             ])
-            ->assertRedirect('/companion-portal');
+            ->assertRedirect('/companion-portal/privacy');
+
+        $this->get('/companion-portal/privacy')->assertOk()->assertSee('Your privacy');
 
         $this->assertDatabaseHas('companion_profiles', [
             'id' => $profile->id,
@@ -155,6 +162,22 @@ class CompanionPortalTest extends TestCase
         $this->get('/companions')
             ->assertOk()
             ->assertDontSee('Alex');
+    }
+
+    public function test_unverified_companion_can_withdraw_consent_while_portal_is_disabled(): void
+    {
+        $companion = $this->companion('unverified@example.test', false);
+        $profile = $this->profile($companion);
+        DB::table('platform_features')->where('key', 'portals.companion')->update(['is_enabled' => false]);
+
+        $this->actingAs($companion)
+            ->post('/companion-portal/profiles/'.$profile->id.'/withdraw-consent', [
+                'reason' => 'I withdraw consent and need the privacy control to remain accessible.',
+                'withdraw_confirmed' => '1',
+            ])
+            ->assertRedirect('/companion-portal/privacy');
+
+        $this->assertNotNull($profile->fresh()->consent_withdrawn_at);
     }
 
     public function test_companion_cannot_change_another_companions_profile(): void

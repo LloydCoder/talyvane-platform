@@ -37,7 +37,7 @@ Route::get('/', function (\App\Services\BrandSettings $settings) {
         'brand' => $settings->publicBrand(),
         'pages' => SitePage::query()->where('is_published', true)->orderBy('title')->get(['title', 'slug']),
     ]);
-})->name('home');
+})->middleware('feature:public.discovery')->name('home');
 
 Route::get('/destinations', [DiscoveryController::class, 'destinations'])->middleware('feature:public.discovery')->name('destinations.index');
 Route::get('/destinations/{slug}', [DiscoveryController::class, 'destination'])->middleware('feature:public.discovery')->name('destinations.show');
@@ -77,14 +77,19 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/bookings/{booking}/cancel', [BookingController::class, 'cancel'])->middleware('feature:bookings.companionship')->name('bookings.cancel');
     });
 
+    // Privacy-critical companion controls remain reachable even when the companion portal module is disabled.
+    Route::middleware(['role:companion'])->group(function (): void {
+        Route::get('/companion-portal/privacy', [CompanionPortalController::class, 'privacyStatus'])->name('companion-portal.privacy-status');
+        Route::delete('/companion-portal/profiles/{profile}/media/{media}', [CompanionMediaController::class, 'destroy'])->name('companion-portal.profiles.media.destroy');
+        Route::post('/companion-portal/profiles/{profile}/withdraw-consent', [CompanionPortalController::class, 'withdrawPublicationConsent'])->name('companion-portal.profiles.withdraw-consent');
+    });
+
     Route::middleware(['verified', 'role:companion', 'feature:portals.companion'])->group(function (): void {
         Route::get('/companion-portal', [CompanionPortalController::class, 'index'])->name('companion-portal.dashboard');
         Route::post('/companion-portal/profiles/{profile}/media', [CompanionMediaController::class, 'store'])->middleware('throttle:10,1')->name('companion-portal.profiles.media.store');
-        Route::delete('/companion-portal/profiles/{profile}/media/{media}', [CompanionMediaController::class, 'destroy'])->name('companion-portal.profiles.media.destroy');
         Route::post('/companion-portal/profiles/{profile}/automatic-booking', [CompanionPortalController::class, 'updateAutomaticBooking'])->middleware('feature:bookings.automatic')->name('companion-portal.profiles.automatic-booking');
         Route::post('/companion-portal/profiles/{profile}/availability', [CompanionPortalController::class, 'storeAvailability'])->name('companion-portal.profiles.availability.store');
         Route::delete('/companion-portal/profiles/{profile}/availability/{rule}', [CompanionPortalController::class, 'destroyAvailability'])->name('companion-portal.profiles.availability.destroy');
-        Route::post('/companion-portal/profiles/{profile}/withdraw-consent', [CompanionPortalController::class, 'withdrawPublicationConsent'])->name('companion-portal.profiles.withdraw-consent');
         Route::patch('/companion-portal/bookings/{booking}', [CompanionBookingController::class, 'update'])->name('companion-portal.bookings.update');
     });
 });
@@ -107,6 +112,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
     Route::middleware(['auth', 'role:super_admin', 'admin.mfa'])->group(function (): void {
         Route::get('/features', [PlatformFeatureController::class, 'index'])->name('features.index');
+        Route::patch('/features/{feature}', [PlatformFeatureController::class, 'update'])->middleware('throttle:5,1')->name('features.update');
     });
 
     Route::middleware(['auth', 'role:super_admin,owner,admin', 'admin.mfa'])->group(function (): void {
@@ -130,17 +136,17 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/enquiries', [EnquiryAdminController::class, 'index'])->name('enquiries.index');
         Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
         Route::get('/clients', [ClientManagementController::class, 'index'])->name('clients.index');
-        Route::post('/clients/{client}/membership', [ClientManagementController::class, 'assignMembership'])->name('clients.membership');
+        Route::post('/clients/{client}/membership', [ClientManagementController::class, 'assignMembership'])->middleware('feature:memberships')->name('clients.membership');
         Route::get('/bookings', [BookingAdminController::class, 'index'])->name('bookings.index');
         Route::patch('/bookings/{booking}', [BookingAdminController::class, 'update'])->name('bookings.update');
         Route::post('/bookings/{booking}/deposit', [BookingAdminController::class, 'verifyDeposit'])->name('bookings.deposit');
         Route::get('/booking-settings', [BookingSettingsController::class, 'edit'])->name('bookings.settings');
         Route::resource('pages', SitePageController::class)->except(['show', 'destroy']);
-        Route::get('/payment-settings', [PaymentSettingsController::class, 'edit'])->name('payment-settings');
-        Route::put('/payment-settings', [PaymentSettingsController::class, 'update'])->name('payment-settings.update');
-        Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods');
-        Route::post('/payment-methods', [PaymentMethodController::class, 'store'])->name('payment-methods.store');
-        Route::post('/payment-methods/{paymentMethod}/review', [PaymentMethodController::class, 'review'])->name('payment-methods.review');
+        Route::get('/payment-settings', [PaymentSettingsController::class, 'edit'])->middleware('feature:payments.configuration')->name('payment-settings');
+        Route::put('/payment-settings', [PaymentSettingsController::class, 'update'])->middleware('feature:payments.configuration')->name('payment-settings.update');
+        Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->middleware('feature:payments.configuration')->name('payment-methods');
+        Route::post('/payment-methods', [PaymentMethodController::class, 'store'])->middleware('feature:payments.configuration')->name('payment-methods.store');
+        Route::post('/payment-methods/{paymentMethod}/review', [PaymentMethodController::class, 'review'])->middleware('feature:payments.configuration')->name('payment-methods.review');
         Route::patch('/payment-methods/{paymentMethod}/enabled', [PaymentMethodController::class, 'toggle'])->name('payment-methods.enabled');
         Route::put('/booking-settings', [BookingSettingsController::class, 'update'])->name('bookings.settings.update');
         Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');

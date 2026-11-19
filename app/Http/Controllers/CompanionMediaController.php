@@ -86,6 +86,6 @@ class CompanionMediaController extends Controller
 
         Storage::disk('local')->delete($path);
 
-        return redirect()->route('companion-portal.dashboard')->with('status', 'Image removed from your profile submissions.');
+        return redirect()->route('companion-portal.privacy-status')->with('status', 'Image removed from your profile submissions.');
     }
 }

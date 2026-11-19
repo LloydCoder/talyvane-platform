@@ -35,6 +35,17 @@ class CompanionPortalController extends Controller
     }
 
 
+
+    public function privacyStatus(): View
+    {
+        $profile = CompanionProfile::query()->where('user_id', auth()->id())->first();
+        $media = $profile
+            ? $profile->media()->latest()->get(['id', 'companion_profile_id', 'status', 'created_at'])
+            : collect();
+
+        return view('portal.companion-privacy-status', compact('profile', 'media'));
+    }
+
     public function storeAvailability(Request $request, CompanionProfile $profile): RedirectResponse
     {
         $this->assertOwnership($profile);
@@ -182,7 +193,7 @@ class CompanionPortalController extends Controller
             ]);
         });
 
-        return redirect()->route('companion-portal.dashboard')->with('status', 'Publication consent withdrawn. The profile has been hidden immediately.');
+        return redirect()->route('companion-portal.privacy-status')->with('status', 'Publication consent withdrawn. The profile has been hidden immediately.');
     }
 
     private function assertOwnership(CompanionProfile $profile): void

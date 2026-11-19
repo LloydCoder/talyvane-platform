@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Services\FeatureRegistry;
+use App\Models\User;
 use App\Models\PlatformFeatureAuditEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,7 @@ class PlatformFeatureRegistryTest extends TestCase
         ]);
 
         $this->get('/destinations')->assertNotFound();
+        $this->get('/')->assertNotFound();
     }
 
     public function test_planned_features_cannot_be_enabled_by_registry_state_alone(): void
@@ -39,6 +41,7 @@ class PlatformFeatureRegistryTest extends TestCase
         ]);
 
         $this->assertFalse(app(FeatureRegistry::class)->isEnabled('model-agency.applications'));
+        $this->assertFalse(app(FeatureRegistry::class)->isEnabled('memberships.entitlements'));
         $this->get('/destinations')->assertOk();
         $this->assertDatabaseHas('platform_features', [
             'key' => 'model-agency.applications',
@@ -78,6 +81,70 @@ class PlatformFeatureRegistryTest extends TestCase
 
         $this->expectException(\LogicException::class);
         $event->delete();
+    }
+
+    public function test_disabling_memberships_hides_client_membership_data_and_blocks_assignment(): void
+    {
+        DB::table('platform_features')->where('key', 'memberships')->update(['is_enabled' => false]);
+
+        $client = User::query()->create([
+            'name' => 'Private Client',
+            'email' => 'client@example.test',
+            'password' => 'Strong-Testing-Password-934!',
+            'role' => 'client',
+            'is_active' => true,
+        ]);
+        $client->forceFill(['email_verified_at' => now()])->save();
+
+        $this->actingAs($client)
+            ->get('/portal')
+            ->assertOk()
+            ->assertDontSee('YOUR MEMBERSHIP');
+
+        $admin = $this->createAdminUser([
+            'name' => 'Deployment Super Admin',
+            'email' => 'super-admin@example.test',
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($admin)
+            ->post('/admin/clients/'.$client->id.'/membership', [
+                'tier_name' => 'Platinum',
+                'benefits_summary' => 'Private benefits',
+                'starts_at' => now()->toDateString(),
+            ])
+            ->assertNotFound();
+    }
+
+    public function test_companion_privacy_controls_are_not_disabled_with_the_companion_portal(): void
+    {
+        $router = app('router');
+        $withdrawal = $router->getRoutes()->getByName('companion-portal.profiles.withdraw-consent');
+        $mediaDeletion = $router->getRoutes()->getByName('companion-portal.profiles.media.destroy');
+        $portal = $router->getRoutes()->getByName('companion-portal.dashboard');
+
+        $this->assertNotNull($withdrawal);
+        $this->assertNotNull($mediaDeletion);
+        $this->assertNotNull($portal);
+        $this->assertNotContains('feature:portals.companion', $withdrawal->gatherMiddleware());
+        $this->assertNotContains('verified', $withdrawal->gatherMiddleware());
+        $this->assertNotContains('feature:portals.companion', $mediaDeletion->gatherMiddleware());
+        $this->assertContains('feature:portals.companion', $portal->gatherMiddleware());
+    }
+
+    public function test_disabling_payment_configuration_hides_payment_admin_configuration_routes(): void
+    {
+        DB::table('platform_features')->where('key', 'payments.configuration')->update(['is_enabled' => false]);
+
+        $admin = $this->createAdminUser([
+            'name' => 'Deployment Super Admin',
+            'email' => 'super-admin@example.test',
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/payment-settings')
+            ->assertNotFound();
     }
 
     public function test_only_super_admin_can_view_the_feature_registry(): void
