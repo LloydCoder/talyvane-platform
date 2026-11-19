@@ -10,6 +10,13 @@
                 <div class="booking-admin-head"><div><span class="eyebrow">{{ $booking->reference }} / {{ strtoupper($booking->booking_mode) }}</span><h2>{{ $booking->profile->display_name }} · {{ $booking->destination->name }}</h2><p>{{ $booking->starts_at->timezone($booking->timezone)->format('D, d M Y · H:i') }} local · {{ $booking->duration_minutes }} minutes</p></div><span class="status-pill {{ $booking->status === 'confirmed' ? 'status-active' : 'status-inactive' }}">{{ str_replace('_', ' ', $booking->status) }}</span></div>
                 <p class="booking-client">Client: {{ $booking->client->name }} · <a href="mailto:{{ $booking->client->email }}">{{ $booking->client->email }}</a></p>
                 @if ($booking->client_note)<p class="booking-note">{{ $booking->client_note }}</p>@endif
+                @if ($booking->events->isNotEmpty())
+                    <div class="booking-event-list"><strong>Activity history</strong>
+                        @foreach ($booking->events as $event)
+                            <span>{{ $event->created_at->format('d M Y H:i') }} · {{ str_replace('_', ' ', $event->event_type) }}@if ($event->actor) · {{ $event->actor->name }}@endif</span>
+                        @endforeach
+                    </div>
+                @endif
                 <div class="booking-admin-actions">
                     <div>
                         <strong>Deposit: {{ str_replace('_', ' ', $booking->deposit_status) }}</strong>
