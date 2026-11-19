@@ -125,7 +125,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::post('/mfa/challenge', [AdminMfaController::class, 'verifyChallenge'])->middleware('throttle:5,1')->name('mfa.challenge.verify');
     Route::post('/mfa/recovery', [AdminMfaController::class, 'verifyRecovery'])->middleware('throttle:5,1')->name('mfa.recovery.verify');
 
-    Route::middleware(['auth', 'role:super_admin,owner,admin', 'admin.session-current'])->group(function (): void {
+    Route::middleware(['auth', 'role:super_admin,owner,admin,finance', 'admin.session-current'])->group(function (): void {
         Route::get('/mfa/setup', [AdminMfaController::class, 'setup'])->name('mfa.setup');
         Route::post('/mfa/setup', [AdminMfaController::class, 'confirmSetup'])->middleware('throttle:5,1')->name('mfa.setup.confirm');
         Route::get('/mfa/recovery-codes', [AdminMfaController::class, 'recoveryCodes'])->name('mfa.recovery-codes');
@@ -208,6 +208,24 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/model-assignments/{assignment}/decline', [ModelTalentAssignmentAdminController::class, 'decline'])->middleware(['feature:model-agency.assignments', 'throttle:5,1'])->name('model-assignments.decline');
         Route::post('/model-assignments/{assignment}/cancel', [ModelTalentAssignmentAdminController::class, 'cancel'])->middleware(['feature:model-agency.assignments', 'throttle:5,1'])->name('model-assignments.cancel');
         Route::post('/model-assignments/{assignment}/dispute', [ModelTalentAssignmentAdminController::class, 'dispute'])->middleware(['feature:model-agency.assignments', 'throttle:5,1'])->name('model-assignments.dispute');
+
+
+
+
+
+
+
+
+        Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
+        Route::get('/clients', [ClientManagementController::class, 'index'])->name('clients.index');
+        Route::post('/clients/{client}/membership', [ClientManagementController::class, 'assignMembership'])->middleware('feature:memberships')->name('clients.membership');
+        Route::get('/bookings', [BookingAdminController::class, 'index'])->name('bookings.index');
+        Route::patch('/bookings/{booking}', [BookingAdminController::class, 'update'])->name('bookings.update');
+        Route::post('/bookings/{booking}/deposit', [BookingAdminController::class, 'verifyDeposit'])->name('bookings.deposit');
+    });
+
+    // Finance specialists are isolated to the model settlement workspace.
+    Route::middleware(['auth', 'role:super_admin,owner,finance', 'admin.session-current', 'admin.mfa'])->group(function (): void {
         Route::get('/model-settlements', [ModelTalentSettlementAdminController::class, 'index'])->middleware('feature:model-agency.settlements')->name('model-settlements.index');
         Route::post('/model-assignments/{assignment}/expenses', [ModelTalentSettlementAdminController::class, 'addExpense'])->middleware(['feature:model-agency.settlements', 'throttle:10,1'])->name('model-settlements.expenses.store');
         Route::post('/model-settlement-expenses/{expense}/review', [ModelTalentSettlementAdminController::class, 'reviewExpense'])->middleware(['feature:model-agency.settlements', 'throttle:10,1'])->name('model-settlements.expenses.review');
@@ -216,12 +234,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/model-settlements/{settlement}/payment', [ModelTalentSettlementAdminController::class, 'pay'])->middleware(['feature:model-agency.settlements', 'throttle:5,1'])->name('model-settlements.payment');
         Route::post('/model-settlements/{settlement}/reverse', [ModelTalentSettlementAdminController::class, 'reverse'])->middleware(['feature:model-agency.settlements', 'throttle:5,1'])->name('model-settlements.reverse');
         Route::post('/model-settlements/{settlement}/dispute', [ModelTalentSettlementAdminController::class, 'dispute'])->middleware(['feature:model-agency.settlements', 'throttle:5,1'])->name('model-settlements.dispute');
-        Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
-        Route::get('/clients', [ClientManagementController::class, 'index'])->name('clients.index');
-        Route::post('/clients/{client}/membership', [ClientManagementController::class, 'assignMembership'])->middleware('feature:memberships')->name('clients.membership');
-        Route::get('/bookings', [BookingAdminController::class, 'index'])->name('bookings.index');
-        Route::patch('/bookings/{booking}', [BookingAdminController::class, 'update'])->name('bookings.update');
-        Route::post('/bookings/{booking}/deposit', [BookingAdminController::class, 'verifyDeposit'])->name('bookings.deposit');
-        Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
     });
+
+    Route::post('/logout', [AdminLoginController::class, 'destroy'])
+        ->middleware(['auth', 'role:super_admin,owner,admin,finance'])
+        ->name('logout');
 });

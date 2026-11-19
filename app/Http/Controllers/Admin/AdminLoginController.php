@@ -38,7 +38,7 @@ class AdminLoginController
         $user = User::query()
             ->where('email', $email)
             ->where('is_active', true)
-            ->whereIn('role', ['super_admin', 'owner', 'admin'])
+            ->whereIn('role', ['super_admin', 'owner', 'admin', 'finance'])
             ->first();
 
         if (! $user || ! Hash::check($credentials['password'], $user->password)) {
@@ -68,7 +68,7 @@ class AdminLoginController
             return redirect()->route('admin.mfa.setup');
         }
 
-        return redirect()->intended(route('admin.dashboard'));
+        return redirect()->intended(route($user->role === 'finance' ? 'admin.model-settlements.index' : 'admin.dashboard'));
     }
 
     public function destroy(Request $request): RedirectResponse

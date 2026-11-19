@@ -227,6 +227,34 @@ class AdminAccessTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_finance_specialist_completes_mfa_and_is_redirected_to_the_scoped_workspace(): void
+    {
+        $finance = $this->createAdminUser([
+            'name' => 'Finance Specialist',
+            'email' => 'finance-login@example.test',
+            'password' => 'Strong-Testing-Password-934!',
+            'role' => 'finance',
+            'is_active' => true,
+        ]);
+
+        $this->post('/admin/login', [
+            'email' => 'finance-login@example.test',
+            'password' => 'Strong-Testing-Password-934!',
+        ])->assertRedirect('/admin/mfa/challenge');
+
+        $step = intdiv(time(), 30);
+        $code = (new TotpService())->codeForStep($finance->mfa_secret, $step);
+
+        $this->post('/admin/mfa/challenge', ['code' => $code])
+            ->assertRedirect('/admin/model-settlements');
+
+        $this->assertAuthenticatedAs($finance);
+        $this->get('/admin')->assertForbidden();
+        $this->get('/admin/profiles')->assertForbidden();
+        $this->post('/admin/logout')->assertRedirect('/admin/login');
+        $this->assertGuest();
+    }
+
     public function test_super_admin_can_sign_in_through_the_privileged_mfa_flow(): void
     {
         $superAdmin = $this->createAdminUser([
