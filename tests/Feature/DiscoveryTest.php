@@ -20,9 +20,9 @@ class DiscoveryTest extends TestCase
         $this->get('/')
             ->assertOk()
             ->assertSee('editorial-gallery')
-            ->assertSee('images.pexels.com/photos/26729545')
-            ->assertSee('images.pexels.com/photos/12389384')
-            ->assertSee('images.pexels.com/photos/9143471');
+            ->assertSee('images.unsplash.com/photo-1776763018821')
+            ->assertSee('images.unsplash.com/photo-1776761731066')
+            ->assertSee('images.unsplash.com/photo-1768397003905');
     }
 
     public function test_public_destination_directory_shows_active_destinations(): void
