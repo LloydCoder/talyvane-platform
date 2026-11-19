@@ -54,7 +54,7 @@ Remaining: configurable content/CMS; jurisdiction-approved legal documents (curr
 - [x] Create a separate model-agency application domain and public intake route, independent from companionship accounts, profiles, enquiries and bookings.
 - [x] Require explicit adult-eligibility self-attestation and versioned privacy-notice acceptance; do not treat self-attestation as age assurance.
 - [x] Add administrator-only application review with a constrained state machine and append-only application-event records.
-- [x] Gate model-agency application activation on deployment-configured, explicitly approved privacy and adult-eligibility policies; defaults remain disabled.
+- [x] Gate model-agency application activation on deployment-configured, explicitly approved privacy and adult-eligibility policies plus published CMS pages with slugs `model-applicant-privacy` and `model-adult-eligibility`; defaults remain disabled.
 - [x] Validate portfolio links as HTTPS and never fetch applicant-supplied URLs server-side.
 - [ ] Implement representation agreement issuance, electronic signature, versioning, expiry, withdrawal and termination; acceptance currently does not create a representation relationship.
 - [ ] Implement separate casting calls, client briefs, talent submission/shortlist, assignment states and approvals.
