@@ -14,6 +14,7 @@ use App\Models\ModelTalentPortfolioAsset;
 use App\Models\ModelTalentRepresentationAgreement;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class ModelTalentAssignmentService
@@ -217,8 +218,8 @@ class ModelTalentAssignmentService
                 'status' => 'declined',
                 'acceptance_recorded_by' => $actorId,
                 'accepted_at' => now(),
-                'model_acceptance_evidence_reference' => $evidenceReference,
-                'cancellation_reason' => $reason,
+                'model_decline_evidence_reference' => $evidenceReference,
+                'decline_reason' => $reason,
             ])->save();
 
             $this->event($locked, $actorId, 'assignment.declined', $reason);
@@ -322,6 +323,7 @@ class ModelTalentAssignmentService
             || $asset->status !== 'approved'
             || $asset->consent_withdrawn_at !== null
             || ! $asset->storage_path
+            || ! Storage::disk('local')->exists($asset->storage_path)
             || $licence->status !== 'active'
             || $licence->purpose !== 'casting_distribution'
             || ! in_array('casting_platform', $licence->channels ?? [], true)
@@ -344,8 +346,10 @@ class ModelTalentAssignmentService
             || $agreement->effective_from->format('Y-m-d') > substr($start, 0, 10)
             || ($agreement->effective_until && $agreement->effective_until->format('Y-m-d') < substr($end, 0, 10))
             || $call->country_code !== $licence->country_code
+            || $call->project_purpose !== ($terms['project_purpose'] ?? $call->project_purpose)
             || $call->shoot_starts_at->format('Y-m-d H:i:s') > $start
             || $call->shoot_ends_at->format('Y-m-d H:i:s') < $end
+            || (isset($terms['client_name']) && mb_strtolower(trim((string) $terms['client_name'])) !== mb_strtolower((string) $call->client_name))
             || ! config('talyvane.model_agency.casting_policy_approved')
             || $call->casting_policy_version !== (string) config('talyvane.model_agency.casting_policy_version')) {
             throw ValidationException::withMessages(['assignment' => 'An assignment requires a selected, verified model, current consent, active casting licence, executed representation agreement and valid market.']);
