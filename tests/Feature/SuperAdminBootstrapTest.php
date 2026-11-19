@@ -13,10 +13,18 @@ class SuperAdminBootstrapTest extends TestCase
 
     public function test_cli_bootstrap_creates_the_single_deployment_super_admin(): void
     {
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'smtp.example.test']);
+        Notification::fake();
+        $this->mock(RecoveryCodeGenerator::class, fn ($mock) => $mock->shouldReceive('generate')->twice()->andReturn('111111', '222222'));
+
         $this->artisan('talyvane:super-admin:create', ['email' => 'ROOT@example.test'])
             ->expectsQuestion('Super Admin name', 'Deployment Owner')
             ->expectsQuestion('Password (minimum 14 characters)', 'Strong-Root-Password-934!')
             ->expectsQuestion('Confirm password', 'Strong-Root-Password-934!')
+            ->expectsQuestion('Recovery notification email (must differ from admin email)', 'recovery@example.test')
+            ->expectsQuestion('Verification code sent to root@example.test', '111111')
+            ->expectsQuestion('Verification code sent to recovery@example.test', '222222')
+            ->expectsOutputToContain('Super Admin recovery key (store offline; shown once):')
             ->expectsOutput('Deployment Super Admin created. Sign in and complete mandatory MFA setup before administration.')
             ->assertExitCode(0);
 
@@ -24,7 +32,7 @@ class SuperAdminBootstrapTest extends TestCase
 
         $this->assertSame('super_admin', $user->role);
         $this->assertTrue($user->is_active);
-        $this->assertNull($user->mfa_enabled_at);
+        $this->assertNull($user->mfa_enabled_at);\n        $this->assertNotNull($user->email_verified_at);\n        $this->assertNotEmpty(DB::table('platform_control')->value('super_admin_recovery_key_hash'));\n        $this->assertSame('recovery@example.test', DB::table('platform_control')->value('super_admin_recovery_email'));\n        $this->assertNotNull(DB::table('platform_control')->value('super_admin_recovery_email_verified_at'));\n        $this->assertDatabaseHas('super_admin_recovery_events', ['super_admin_user_id' => $user->id, 'event_type' => 'bootstrap_recovery_key_issued']);\n        Notification::assertSentOnDemand(SuperAdminEmailVerificationCode::class, null, 2);
         $this->assertDatabaseHas('platform_control', [
             'id' => 1,
             'super_admin_user_id' => $user->id,
@@ -66,10 +74,18 @@ class SuperAdminBootstrapTest extends TestCase
             'is_active' => true,
         ]);
 
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'smtp.example.test']);
+        Notification::fake();
+        $this->mock(RecoveryCodeGenerator::class, fn ($mock) => $mock->shouldReceive('generate')->twice()->andReturn('111111', '222222'));
+
         $this->artisan('talyvane:super-admin:create', ['email' => 'root@example.test'])
             ->expectsQuestion('Super Admin name', 'New Deployment Owner')
             ->expectsQuestion('Password (minimum 14 characters)', 'Strong-Root-Password-934!')
             ->expectsQuestion('Confirm password', 'Strong-Root-Password-934!')
+            ->expectsQuestion('Recovery notification email (must differ from admin email)', 'recovery@example.test')
+            ->expectsQuestion('Verification code sent to root@example.test', '111111')
+            ->expectsQuestion('Verification code sent to recovery@example.test', '222222')
+            ->expectsOutputToContain('Super Admin recovery key (store offline; shown once):')
             ->assertExitCode(0);
 
         $this->assertDatabaseHas('users', ['id' => $owner->id, 'role' => 'owner']);
