@@ -173,6 +173,32 @@ class FeatureActivationEvaluator
                 continue;
             }
 
+            if ($requirement === 'model_agency_settlement_schema') {
+                $schemaReady = Schema::hasTable('model_talent_settlements')
+                    && Schema::hasColumns('model_talent_settlements', [
+                        'assignment_id', 'gross_amount', 'commission_amount',
+                        'approved_expenses_amount', 'model_net_amount', 'status',
+                        'settlement_policy_version', 'calculation_snapshot',
+                    ])
+                    && Schema::hasTable('model_talent_settlement_expenses')
+                    && Schema::hasTable('model_talent_settlement_events');
+
+                if (! $schemaReady) {
+                    $blockers[] = 'The model settlement, expense and append-only audit schemas must be available.';
+                }
+
+                continue;
+            }
+
+            if ($requirement === 'model_agency_settlement_policy') {
+                if (! filled(config('talyvane.model_agency.settlement_policy_version'))
+                    || ! config('talyvane.model_agency.settlement_policy_approved')) {
+                    $blockers[] = 'A current, jurisdiction-reviewed model settlement policy version must be configured and explicitly approved.';
+                }
+
+                continue;
+            }
+
             if ($requirement === 'adult_eligibility_verification') {
                 $verificationSchemaReady = Schema::hasTable('model_talent_applications')
                     && Schema::hasColumns('model_talent_applications', [
@@ -244,6 +270,7 @@ class FeatureActivationEvaluator
             'model-agency.usage-rights' => ['Representation agreement register', 'Private portfolio media and consent', 'Purpose-bound image usage licence ledger'],
             'model-agency.casting' => ['Private casting briefs', 'Licensed model submissions', 'Manual shortlist and selection controls'],
             'model-agency.assignments' => ['Model assignment offers and acceptance evidence', 'Assignment confirmation and delivery states', 'Agreed compensation metadata (not settlement)'],
+            'model-agency.settlements' => ['Expense claim review and evidence', 'Decimal-safe commission and net settlement calculation', 'Approval and external payment evidence register'],
             'payments.configuration' => ['Payment method configuration and payment-purpose controls'],
             default => [$feature->module.' module surfaces'],
         };
