@@ -28,3 +28,10 @@ The first commercial release remains deployment-isolated. A future hosted multi-
 
 
 The first least-privilege boundary is implemented: `super_admin` alone may change deployment-wide branding, market/currency configuration, destinations, booking rules, payment configuration, site pages and feature controls. `owner` and `admin` retain agency operations such as profile review, enquiries, client records and booking operations. This is route-level role separation. The designated-principal lifecycle guards are implemented at the Eloquent model boundary and covered by regression tests; direct SQL remains outside that guard. Granular per-action permissions and a separately governed recovery/rotation procedure remain follow-up work.
+
+
+## Recovery and session revocation implementation
+
+The deployment Super Admin now has CLI-only recovery enrollment and MFA reset. Initial provisioning verifies the primary and separate recovery notification addresses, issues a 64-character offline recovery key and stores only its hash. Existing deployments can enroll the same recovery controls using the current password and TOTP. Recovery requires the password plus the single-use offline key, rotates that key, resets TOTP, increments the per-admin session version, rotates the remember token, sends notices to both verified addresses and appends audit events. The session-version middleware protects all authenticated admin route groups, including MFA setup.
+
+This is application-level control, not a guarantee against a database administrator or direct SQL. Loss of both password and offline key remains an operational break-glass case requiring independent identity proofing and dual control.
