@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ModelTalentApplication;
+use Illuminate\Validation\ValidationException;
 
 class ModelAgencyApplicationRetentionService
 {
@@ -36,8 +37,12 @@ class ModelAgencyApplicationRetentionService
             ->orderBy('id')
             ->chunkById(100, function ($applications) use (&$anonymized): void {
                 foreach ($applications as $application) {
-                    $this->lifecycle->anonymize($application, 'system', null, 'application.retained');
-                    $anonymized++;
+                    try {
+                        $this->lifecycle->anonymize($application, 'system', null, 'application.retained');
+                        $anonymized++;
+                    } catch (ValidationException) {
+                        // A legal hold may have been placed after the candidate query; leave the record untouched.
+                    }
                 }
             });
 
