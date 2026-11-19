@@ -42,6 +42,8 @@ jobs:
       - name: Lint PHP source
         run: find app bootstrap config database routes tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Validate routes and compile Blade views
+        env:
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
         run: |
           php artisan route:list --except-vendor
           php artisan view:cache
