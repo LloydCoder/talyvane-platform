@@ -180,5 +180,6 @@ class AdminAccessTest extends TestCase
             ->assertRedirect('/admin');
 
         $this->assertAuthenticatedAs($superAdmin);
+        $this->get('/admin')->assertOk()->assertSee('Platform overview');
     }
 }
