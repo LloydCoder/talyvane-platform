@@ -91,9 +91,10 @@ jobs:
           commit=${GITHUB_SHA}
           php=$(php -r 'echo PHP_VERSION;')
           composer=$(composer --version --no-ansi)
-          dependency_install= composer install --no-dev from committed composer.lock
+          dependency_install=composer install --no-dev from committed composer.lock
           frontend= tracked public assets; no production Node.js build required
           EOF
+          find "$staging/bootstrap/cache" -type f ! -name '.gitkeep' -delete
           mkdir -p dist
           tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -C dist -cf - talyvane | gzip -n > "dist/talyvane-${GITHUB_SHA}.tar.gz"
           sha256sum "dist/talyvane-${GITHUB_SHA}.tar.gz" > "dist/talyvane-${GITHUB_SHA}.tar.gz.sha256"
