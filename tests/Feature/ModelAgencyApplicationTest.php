@@ -26,7 +26,7 @@ class ModelAgencyApplicationTest extends TestCase
     {
         $this->enableApplications();
 
-        $this->get('/models/apply')->assertOk()->assertSee('Model representation application');
+        $this->get('/models/apply')->assertOk()->assertSee('Model representation')->assertSee('application.');
 
         $this->post('/models/apply', [
             'full_name' => 'Jordan Example',
