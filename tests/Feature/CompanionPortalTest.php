@@ -85,6 +85,7 @@ class CompanionPortalTest extends TestCase
         $this->actingAs($companion)
             ->post('/companion-portal/profiles/'.$profile->id.'/withdraw-consent', [
                 'reason' => 'I no longer consent to public profile publication.',
+                'withdraw_confirmed' => '1',
             ])
             ->assertRedirect('/companion-portal');
 
