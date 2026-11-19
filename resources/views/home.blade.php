@@ -7,6 +7,11 @@
     <meta name="description" content="{{ $brand['tagline'] ?? 'Exceptional company, thoughtfully arranged.' }}">
     <title>{{ $brand['brand_name'] ?? 'Talyvane' }} — Exceptional company, thoughtfully arranged</title>
     <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ $brand['brand_name'] ?? 'Talyvane' }} — Exceptional company, thoughtfully arranged">
+    <meta property="og:description" content="{{ $brand['tagline'] ?? 'A global luxury escort and executive companionship agency.' }}">
+    <meta property="og:image" content="{{ config('stock_photography.hero.url') }}">
+    <meta name="twitter:card" content="summary_large_image">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
 <body>
@@ -31,7 +36,7 @@
             <div class="hero-copy">
                 <p class="eyebrow"><span></span> THE ART OF EXCEPTIONAL COMPANY</p>
                 <h1>Exceptional company.<br><em>Thoughtfully</em><br>arranged.</h1>
-                <p class="hero-intro">A global standard of executive companionship for discerning adults. Discover a considered selection of independent companions, explore international destinations and arrange each introduction through attentive, discreet coordination.</p>
+                <p class="hero-intro">A global luxury escort and executive companionship agency for discerning adults. Discover adult-status-reviewed companions, explore international destinations and arrange each introduction through one attentive, discreet point of contact.</p>
                 <div class="hero-actions">
                     <a class="button button-light" href="{{ route('companions.index') }}">Discover companions <span aria-hidden="true">↗</span></a>
                     <a class="text-link" href="{{ route('destinations.index') }}">Explore destinations <span aria-hidden="true">↓</span></a>
@@ -40,7 +45,7 @@
             </div>
             <div class="hero-art" aria-label="Luxury hospitality photography">
                 <div class="art-frame">
-                    <img class="hero-photo" src="{{ config('stock_photography.hero.url') }}" alt="{{ config('stock_photography.hero.alt') }}" fetchpriority="high" loading="eager" decoding="async">
+                    <img class="hero-photo" src="{{ config('stock_photography.hero.url') }}" srcset="{{ str_replace('w=1600', 'w=900', config('stock_photography.hero.url')) }} 900w, {{ config('stock_photography.hero.url') }} 1600w" sizes="(max-width: 900px) 100vw, 50vw" alt="{{ config('stock_photography.hero.alt') }}" fetchpriority="high" loading="eager" decoding="async">
                     <div class="art-image-wash"></div>
                     <div class="art-caption"><span>01 / 04</span><span>A WORLD OF DISTINCTION</span></div>
                 </div>
@@ -67,7 +72,7 @@
             <div class="editorial-gallery-grid">
                 @foreach (config('stock_photography.gallery') as $photo)
                     <figure class="editorial-image {{ $loop->first ? 'editorial-image-tall' : '' }}">
-                        <img src="{{ $photo['url'] }}" alt="{{ $photo['alt'] }}" loading="lazy" decoding="async">
+                        <img src="{{ $photo['url'] }}" srcset="{{ preg_replace('/w=\\d+/', 'w=640', $photo['url']) }} 640w, {{ $photo['url'] }} 1400w" sizes="(max-width: 640px) 100vw, 45vw" alt="{{ $photo['alt'] }}" loading="lazy" decoding="async">
                         <figcaption><span>{{ $photo['number'] }}</span> {{ $photo['caption'] }}</figcaption>
                     </figure>
                 @endforeach
