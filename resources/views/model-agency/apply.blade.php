@@ -20,7 +20,7 @@
         <label for="experience_summary">Experience and areas of interest</label><textarea id="experience_summary" name="experience_summary" rows="6" minlength="20" maxlength="4000" required>{{ old('experience_summary') }}</textarea>
         <input type="hidden" name="privacy_notice_version" value="{{ $privacyNoticeVersion }}">
         <label class="remember-row"><input type="checkbox" name="adult_eligibility_confirmed" value="1" required @checked(old('adult_eligibility_confirmed'))> I confirm that I am at least 18 years old.</label>
-        <label class="remember-row"><input type="checkbox" name="privacy_notice_accepted" value="1" required @checked(old('privacy_notice_accepted'))> I have read and accept the current model-applicant privacy notice.</label>
+        <label class="remember-row"><input type="checkbox" name="privacy_notice_accepted" value="1" required @checked(old('privacy_notice_accepted'))> I have read the <a href="{{ route('pages.show', 'model-applicant-privacy') }}" target="_blank" rel="noopener noreferrer">model-applicant privacy notice</a> and the <a href="{{ route('pages.show', 'model-adult-eligibility') }}" target="_blank" rel="noopener noreferrer">adult eligibility policy</a>.</label>
         <button class="button button-dark admin-submit" type="submit">Submit application ↗</button>
     </form>
 @endsection
