@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Carbon;
 
 class ModelCastingClientAccessAdminController extends Controller
 {
@@ -43,7 +44,7 @@ class ModelCastingClientAccessAdminController extends Controller
             ModelCastingCall::query()->findOrFail($validated['call_id']),
             User::query()->findOrFail($validated['client_user_id']),
             (int) $request->user()->id,
-            now()->parse($validated['expires_at']),
+            Carbon::parse($validated['expires_at']),
             trim($validated['reason']),
         );
 
