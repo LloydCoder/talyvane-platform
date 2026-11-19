@@ -8,7 +8,6 @@ use App\Models\ModelTalentApplicationEvent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -36,8 +35,7 @@ class ModelAgencyApplicationAdminController extends Controller
         $validated = $request->validate([
             'status' => ['required', Rule::in(['reviewing', 'accepted', 'declined'])],
             'review_note' => [
-                Rule::requiredIf(in_array($request->input('status'), ['accepted', 'declined'], true)),
-                'nullable',
+                'required',
                 'string',
                 'min:20',
                 'max:2000',
