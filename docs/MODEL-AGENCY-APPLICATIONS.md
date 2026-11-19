@@ -29,7 +29,7 @@ The application HTTP controllers repeat the same activation evaluation. A databa
 
 The public form collects full name, email, optional telephone, country code, city, optional HTTPS portfolio URL, and experience summary. It records separate timestamps and version identifiers for adult-eligibility policy acceptance and applicant privacy notice acceptance, plus a timestamp for the applicant's 18+ self-attestation.
 
-It deliberately does not collect date of birth, identity documents, applicant photographs or payment information. Portfolio URLs are displayed as external links and are never fetched, crawled, previewed or resolved by the application.
+Applicant names, contact details, city, portfolio URL, experience summary and administrator review notes are encrypted through Laravel encrypted casts using the deployment's APP_KEY. The database columns are non-searchable ciphertext. The operator must back up and tightly control APP_KEY, include it in the protected deployment recovery plan, and use Laravel's supported previous-key rotation process when rotating encryption keys. It deliberately does not collect date of birth, identity documents, applicant photographs or payment information. Portfolio URLs are displayed as external links and are never fetched, crawled, previewed or resolved by the application.
 
 ## Review state machine
 
