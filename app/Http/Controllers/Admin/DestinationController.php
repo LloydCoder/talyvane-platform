@@ -29,7 +29,7 @@ class DestinationController
         $validated['is_active'] = $request->boolean('is_active');
         $validated['sort_order'] = (int) ($validated['sort_order'] ?? 0);
         $coverImage = $validated['cover_image'] ?? null;
-        unset($validated['cover_image']);
+        unset($validated['cover_image'], $validated['remove_cover_image'], $validated['image_rights_confirmed']);
         $validated['image_path'] = $coverImage?->store('destinations', 'public');
 
         Destination::query()->create($validated);
@@ -79,6 +79,7 @@ class DestinationController
             'timezone' => ['required', 'timezone'],
             'description' => ['nullable', 'string', 'max:2000'],
             'cover_image' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120', 'dimensions:min_width=800,min_height=500'],
+            'image_rights_confirmed' => ['required_with:cover_image', 'accepted'],
             'remove_cover_image' => ['sometimes', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
             'is_active' => ['sometimes', 'boolean'],
