@@ -46,13 +46,14 @@ class CompanionPortalController extends Controller
             $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
             $this->assertOwnership($lockedProfile);
 
-            CompanionAvailabilityRule::query()->create([
-                'companion_profile_id' => $lockedProfile->id,
-                'weekday' => $validated['weekday'],
-                'starts_at' => $validated['starts_at'],
-                'ends_at' => $validated['ends_at'],
-                'is_active' => true,
-            ]);
+            CompanionAvailabilityRule::query()->updateOrCreate(
+                [
+                    'companion_profile_id' => $lockedProfile->id,
+                    'weekday' => $validated['weekday'],
+                    'starts_at' => $validated['starts_at'],
+                ],
+                ['ends_at' => $validated['ends_at'], 'is_active' => true],
+            );
         });
 
         return redirect()->route('companion-portal.dashboard')->with('status', 'Availability window saved.');
