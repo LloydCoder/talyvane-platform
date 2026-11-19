@@ -50,6 +50,8 @@ class ModelAgencyApplicationTest extends TestCase
         $this->assertSame('submitted', $application->status);
         $this->assertSame('Jordan Example', $application->full_name);
         $this->assertSame('jordan@example.test', $application->email);
+        $this->assertNotSame('jordan@example.test', DB::table('model_talent_applications')->where('id', $application->id)->value('email'));
+        $this->assertNotSame('Commercial and editorial modelling experience.', DB::table('model_talent_applications')->where('id', $application->id)->value('experience_summary'));
         $this->assertNotNull($application->adult_eligibility_confirmed_at);
         $this->assertNotNull($application->adult_eligibility_policy_accepted_at);
         $this->assertSame('adult-eligibility-v1', $application->adult_eligibility_policy_version);
@@ -132,11 +134,15 @@ class ModelAgencyApplicationTest extends TestCase
             ])
             ->assertRedirect('/admin/model-applications');
 
-        $this->assertDatabaseHas('model_talent_applications', [
-            'id' => $application->id,
-            'status' => 'reviewing',
-            'review_note' => 'Portfolio review initiated.',
-            'reviewed_by' => $admin->id,
+        $application->refresh();
+        $this->assertSame('reviewing', $application->status);
+        $this->assertSame('Portfolio review initiated.', $application->review_note);
+        $this->assertSame($admin->id, $application->reviewed_by);
+        $this->assertDatabaseHas('model_talent_application_events', [
+            'application_id' => $application->id,
+            'actor_id' => $admin->id,
+            'from_status' => 'submitted',
+            'to_status' => 'reviewing',
         ]);
     }
 
