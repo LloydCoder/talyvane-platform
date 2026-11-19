@@ -18,7 +18,7 @@ class CompanionProfileController
     public function index(): View
     {
         return view('admin.profiles.index', [
-            'profiles' => CompanionProfile::query()->with('destination')->latest()->paginate(20),
+            'profiles' => CompanionProfile::query()->with(['destination', 'user'])->latest()->paginate(20),
             'approvedProviders' => config('talyvane.verification.approved_providers', []),
             'consentVersion' => config('talyvane.privacy.profile_consent_version'),
         ]);
