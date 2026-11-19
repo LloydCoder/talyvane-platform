@@ -51,13 +51,13 @@ class AdminAccessTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_owner_can_update_public_brand_settings(): void
+    public function test_super_admin_can_update_public_brand_settings(): void
     {
         $owner = $this->createAdminUser([
             'name' => 'Platform Owner',
             'email' => 'owner@example.test',
             'password' => 'Strong-Testing-Password-934!',
-            'role' => 'owner',
+            'role' => 'super_admin',
             'is_active' => true,
         ]);
 
@@ -83,7 +83,7 @@ class AdminAccessTest extends TestCase
             ->assertSee('concierge@example.test');
     }
 
-    public function test_owner_can_upload_a_public_brand_logo(): void
+    public function test_super_admin_can_upload_a_public_brand_logo(): void
     {
         Storage::fake('public');
 
@@ -91,7 +91,7 @@ class AdminAccessTest extends TestCase
             'name' => 'Platform Owner',
             'email' => 'owner@example.test',
             'password' => 'Strong-Testing-Password-934!',
-            'role' => 'owner',
+            'role' => 'super_admin',
             'is_active' => true,
         ]);
 
@@ -110,6 +110,21 @@ class AdminAccessTest extends TestCase
 
         $this->assertNotEmpty($logoPath);
         Storage::disk('public')->assertExists($logoPath);
+    }
+
+    public function test_owner_cannot_update_deployment_branding(): void
+    {
+        $owner = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'owner@example.test',
+            'password' => 'Strong-Testing-Password-934!',
+            'role' => 'owner',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->put('/admin/branding', ['brand_name' => 'Unauthorized Change'])
+            ->assertForbidden();
     }
 
     public function test_operator_cannot_update_brand_settings(): void
