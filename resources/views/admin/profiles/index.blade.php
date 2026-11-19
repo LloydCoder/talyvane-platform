@@ -16,7 +16,7 @@
             <tbody>
             @forelse ($profiles as $profile)
                 <tr>
-                    <td><strong>{{ $profile->display_name }}</strong><small>/{{ $profile->slug }}</small></td>
+                    <td><strong>{{ $profile->display_name }}</strong><small>/{{ $profile->slug }}</small><small>{{ $profile->user?->email ?? 'No companion account linked' }}</small></td>
                     <td>{{ $profile->destination->name }}</td>
                     <td><span class="status-pill {{ $profile->publication_status === 'published' ? 'status-active' : 'status-inactive' }}">{{ $profile->publication_status }}</span></td>
                     <td>{{ $profile->age_verified_at ? 'Age verified' : 'Not verified' }}<small>{{ $profile->publication_consent_at ? 'Consent recorded' : 'Consent missing' }}</small></td>
