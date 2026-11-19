@@ -139,15 +139,16 @@ class ProfileMediaTest extends TestCase
         $this->get(route('profile-media.show', $media->fresh()))
             ->assertOk()
             ->assertHeader('Content-Type', 'image/webp')
-            ->assertHeader('Cache-Control', 'private, no-store, max-age=0');
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
 
-        $profile->forceFill([
-            'publication_status' => 'suspended',
-            'publication_consent_at' => null,
-            'consent_withdrawn_at' => now(),
-        ])->save();
-        $media->forceFill(['status' => 'withdrawn'])->save();
+        $this->actingAs($companion)
+            ->post('/companion-portal/profiles/'.$profile->id.'/withdraw-consent', [
+                'reason' => 'I withdraw consent for this profile and its images.',
+                'withdraw_confirmed' => '1',
+            ])
+            ->assertRedirect('/companion-portal');
 
+        $this->assertDatabaseHas('profile_media', ['id' => $media->id, 'status' => 'withdrawn']);
         $this->get(route('profile-media.show', $media->fresh()))->assertNotFound();
 
         // A later profile-level re-consent must not revive this image's withdrawn consent.
