@@ -16,7 +16,12 @@ class ModelAgencyApplicationController extends Controller
     {
         $privacyNoticeVersion = config('talyvane.model_agency.privacy_notice_version');
 
-        abort_unless(filled($privacyNoticeVersion), 503, 'Model agency applications are not configured.');
+        if (! filled($privacyNoticeVersion)
+            || ! config('talyvane.model_agency.privacy_notice_approved')
+            || ! config('talyvane.model_agency.adult_eligibility_policy_approved')
+            || ! filled(config('talyvane.model_agency.adult_eligibility_policy_version'))) {
+            abort(503, 'Model agency application safeguards are not configured.');
+        }
 
         return view('model-agency.apply', [
             'privacyNoticeVersion' => $privacyNoticeVersion,
