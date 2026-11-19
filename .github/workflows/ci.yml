@@ -8,7 +8,7 @@ on:
     branches: [main]
 
 concurrency:
-  group: ci-recovery-v13-${{ github.workflow }}-${{ github.ref }}
+  group: ci-recovery-v14-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -16,22 +16,28 @@ permissions:
 
 jobs:
   test:
+    name: PHP ${{ matrix.php-version }} / Laravel feature suite
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.3', '8.4', '8.5']
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: ${{ matrix.php-version }}
           extensions: ctype, curl, dom, fileinfo, filter, gd, hash, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, tokenizer, xml
           coverage: none
       - name: Resolve dependencies
-        run: composer update --prefer-dist --no-interaction
+        run: composer update --prefer-dist --no-interaction --no-progress
       - name: Audit resolved dependencies
         run: composer audit --no-interaction
         env:
           COMPOSER_NO_AUDIT: "0"
       - name: Preserve resolved dependency lockfile
+        if: matrix.php-version == '8.4'
         uses: actions/upload-artifact@v4
         with:
           name: composer-lockfile
