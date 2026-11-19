@@ -32,6 +32,13 @@ class ModelTalentApplication extends Model
     protected function casts(): array
     {
         return [
+            'full_name' => 'encrypted',
+            'email' => 'encrypted',
+            'phone' => 'encrypted',
+            'city' => 'encrypted',
+            'portfolio_url' => 'encrypted',
+            'experience_summary' => 'encrypted',
+            'review_note' => 'encrypted',
             'adult_eligibility_confirmed_at' => 'immutable_datetime',
             'adult_eligibility_policy_accepted_at' => 'immutable_datetime',
             'privacy_notice_accepted_at' => 'immutable_datetime',
