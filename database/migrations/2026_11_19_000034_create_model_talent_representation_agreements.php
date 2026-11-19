@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('application_id')->constrained('model_talent_applications')->restrictOnDelete();
             $table->string('reference', 40)->unique();
+            $table->char('country_code', 2)->index();
             $table->unsignedInteger('version');
             $table->string('status', 20)->default('draft')->index();
             $table->text('terms_snapshot');
