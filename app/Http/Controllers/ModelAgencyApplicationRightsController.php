@@ -17,16 +17,18 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 use Throwable;
 
 class ModelAgencyApplicationRightsController extends Controller
 {
-    public function create(): View
+    public function create(): Response
     {
         $this->assertLifecycleSchemaReady();
 
-        return view('model-agency.application-support');
+        return response()->view('model-agency.application-support')
+            ->header('Cache-Control', 'no-store, private, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Referrer-Policy', 'no-referrer');
     }
 
     public function submitRequest(Request $request, ModelAgencyRightsCodeGenerator $codes): RedirectResponse
@@ -105,11 +107,14 @@ class ModelAgencyApplicationRightsController extends Controller
             ->with('status', 'If the reference and email match an application, a one-time verification code has been sent. Check your inbox.');
     }
 
-    public function verifyForm(): View
+    public function verifyForm(): Response
     {
         $this->assertLifecycleSchemaReady();
 
-        return view('model-agency.application-support-verify');
+        return response()->view('model-agency.application-support-verify')
+            ->header('Cache-Control', 'no-store, private, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Referrer-Policy', 'no-referrer');
     }
 
     public function verify(Request $request): RedirectResponse
