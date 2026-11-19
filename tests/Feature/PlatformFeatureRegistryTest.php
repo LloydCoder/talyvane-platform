@@ -37,6 +37,7 @@ class PlatformFeatureRegistryTest extends TestCase
             'is_enabled' => true,
         ]);
 
+        $this->assertFalse(app(FeatureRegistry::class)->isEnabled('model-agency.applications'));
         $this->get('/destinations')->assertOk();
         $this->assertDatabaseHas('platform_features', [
             'key' => 'model-agency.applications',
