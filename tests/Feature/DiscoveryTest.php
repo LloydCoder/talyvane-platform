@@ -15,6 +15,22 @@ class DiscoveryTest extends TestCase
 {
     use RefreshDatabase;
 
+
+    public function test_stock_photography_uses_only_reviewed_unsplash_cdn_sources(): void
+    {
+        $urls = array_merge(
+            [config('stock_photography.hero.url')],
+            array_column(config('stock_photography.gallery'), 'url'),
+            config('stock_photography.destination_fallbacks'),
+        );
+
+        $this->assertNotEmpty($urls);
+
+        foreach ($urls as $url) {
+            $this->assertStringStartsWith('https://images.unsplash.com/', $url);
+        }
+    }
+
     public function test_homepage_renders_curated_hospitality_photography(): void
     {
         $this->get('/')
