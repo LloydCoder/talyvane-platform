@@ -12,12 +12,12 @@ return new class extends Migration
         Schema::create('model_talent_applications', function (Blueprint $table): void {
             $table->id();
             $table->string('reference', 32)->unique();
-            $table->string('full_name', 120);
-            $table->string('email', 254)->index();
-            $table->string('phone', 32)->nullable();
+            $table->text('full_name');
+            $table->text('email');
+            $table->text('phone')->nullable();
             $table->char('country_code', 2)->index();
-            $table->string('city', 100);
-            $table->string('portfolio_url', 2048)->nullable();
+            $table->text('city');
+            $table->text('portfolio_url')->nullable();
             $table->text('experience_summary');
             $table->string('status', 24)->default('submitted')->index();
             $table->timestamp('adult_eligibility_confirmed_at');
@@ -41,7 +41,7 @@ return new class extends Migration
             $table->string('event_type', 48);
             $table->string('from_status', 24)->nullable();
             $table->string('to_status', 24)->nullable();
-            $table->string('reason', 500)->nullable();
+            $table->text('reason')->nullable();
             $table->timestamp('occurred_at')->useCurrent();
             $table->index(['application_id', 'occurred_at']);
         });
