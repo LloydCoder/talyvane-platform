@@ -71,7 +71,7 @@ class ModelAgencyApplicationRightsController extends Controller
                     new ModelAgencyRightsVerificationCode(
                         $code,
                         $validated['request_type'],
-                        now()->addMinutes(10)->toIso8601String(),
+                        $rightsRequest->expires_at->toIso8601String(),
                     ),
                 );
             } catch (Throwable) {
