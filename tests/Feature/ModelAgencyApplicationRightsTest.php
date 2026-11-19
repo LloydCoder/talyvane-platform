@@ -238,6 +238,8 @@ class ModelAgencyApplicationRightsTest extends TestCase
         $this->assertNull($application->adult_eligibility_confirmed_at);
         $this->assertNull($application->adult_eligibility_policy_accepted_at);
         $this->assertNull($application->privacy_notice_accepted_at);
+        $this->assertNull($application->submitted_at);
+        $this->assertNull($application->reviewed_at);
         $this->assertSame('completed', $request->fresh()->status);
         $this->assertSame(0, DB::table('model_talent_application_events')->where('application_id', $application->id)->whereNotNull('reason')->count());
         $this->assertDatabaseHas('model_talent_application_events', [
