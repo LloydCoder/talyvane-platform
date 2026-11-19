@@ -2,44 +2,43 @@
 
 /*
 |--------------------------------------------------------------------------
-| Curated stock photography
+| Curated Unsplash photography
 |--------------------------------------------------------------------------
 |
-| These are illustrative editorial images, not companion profile images and
-| not a claim that a photograph depicts the destination beside it. Replace
-| destination fallbacks with location-specific, cleared photography when an
-| operator supplies it.
+| Images are illustrative hospitality and destination atmosphere. They are
+| not companion profile images and do not claim to depict a named destination.
+| Keep source-page provenance in docs/IMAGE-LICENSING.md.
 |
 */
 
 return [
     'hero' => [
-        'url' => 'https://images.pexels.com/photos/26729545/pexels-photo-26729545.jpeg?auto=compress&cs=tinysrgb&w=1600',
-        'alt' => 'An elegant contemporary hotel lounge with warm architectural lighting',
+        'url' => 'https://images.unsplash.com/photo-1776763018821-8feeaeeee0a5?auto=format&fit=crop&w=1600&q=80',
+        'alt' => 'A softly lit hotel suite lounge with elegant seating and a writing desk',
     ],
     'gallery' => [
         [
-            'url' => 'https://images.pexels.com/photos/12389384/pexels-photo-12389384.jpeg?auto=compress&cs=tinysrgb&w=1400',
-            'alt' => 'Aerial view of a tropical resort with an infinity pool and ocean',
+            'url' => 'https://images.unsplash.com/photo-1776761731066-c89caa8d25e6?auto=format&fit=crop&w=1400&q=80',
+            'alt' => 'Aerial view of a landscaped luxury resort and swimming pool',
             'caption' => 'A sense of escape',
             'number' => '01',
         ],
         [
-            'url' => 'https://images.pexels.com/photos/6774097/pexels-photo-6774097.jpeg?auto=compress&cs=tinysrgb&w=1200',
-            'alt' => 'A tranquil infinity pool overlooking the sea',
-            'caption' => 'Space to unwind',
+            'url' => 'https://images.unsplash.com/photo-1681912609128-3a05a7bdce64?auto=format&fit=crop&w=1200&q=80',
+            'alt' => 'A city skyline at night with lights reflecting across the water',
+            'caption' => 'Cities after dark',
             'number' => '02',
         ],
         [
-            'url' => 'https://images.pexels.com/photos/9143471/pexels-photo-9143471.jpeg?auto=compress&cs=tinysrgb&w=1200',
-            'alt' => 'An elegant restaurant interior with warm lighting and refined furnishings',
+            'url' => 'https://images.unsplash.com/photo-1768397003905-a202ea6325f5?auto=format&fit=crop&w=1200&q=80',
+            'alt' => 'An elegant private dining room with a round table and refined furnishings',
             'caption' => 'The art of detail',
             'number' => '03',
         ],
     ],
     'destination_fallbacks' => [
-        'https://images.pexels.com/photos/9164056/pexels-photo-9164056.jpeg?auto=compress&cs=tinysrgb&w=1200',
-        'https://images.pexels.com/photos/12389384/pexels-photo-12389384.jpeg?auto=compress&cs=tinysrgb&w=1200',
-        'https://images.pexels.com/photos/26729545/pexels-photo-26729545.jpeg?auto=compress&cs=tinysrgb&w=1200',
+        'https://images.unsplash.com/photo-1681912609128-3a05a7bdce64?auto=format&fit=crop&w=1200&q=80',
+        'https://images.unsplash.com/photo-1776761731066-c89caa8d25e6?auto=format&fit=crop&w=1200&q=80',
+        'https://images.unsplash.com/photo-1776763018821-8feeaeeee0a5?auto=format&fit=crop&w=1200&q=80',
     ],
 ];
