@@ -67,25 +67,21 @@ class ConfigureSuperAdminBreakGlass extends Command
             return self::FAILURE;
         }
 
-        $emails = [
-            strtolower(trim((string) $this->ask('Recovery guardian 1 email'))),
-            strtolower(trim((string) $this->ask('Recovery guardian 2 email'))),
-        ];
-
-        if (! filter_var($emails[0], FILTER_VALIDATE_EMAIL)
-            || ! filter_var($emails[1], FILTER_VALIDATE_EMAIL)
-            || hash_equals($emails[0], $emails[1])
-            || hash_equals(strtolower($superAdmin->email), $emails[0])
-            || hash_equals(strtolower($superAdmin->email), $emails[1])
-            || hash_equals(strtolower($control->super_admin_recovery_email), $emails[0])
-            || hash_equals(strtolower($control->super_admin_recovery_email), $emails[1])) {
-            $this->error('Two distinct, verified Owner addresses separate from both Super Admin notification addresses are required.');
-
-            return self::FAILURE;
-        }
-
         $guardians = [];
-        foreach ($emails as $index => $email) {
+        $emails = [];
+
+        foreach ([1, 2] as $slot) {
+            $email = strtolower(trim((string) $this->ask('Recovery guardian '.$slot.' email')));
+
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)
+                || in_array($email, $emails, true)
+                || hash_equals(strtolower($superAdmin->email), $email)
+                || hash_equals(strtolower($control->super_admin_recovery_email), $email)) {
+                $this->error('Two distinct, verified Owner addresses separate from both Super Admin notification addresses are required.');
+
+                return self::FAILURE;
+            }
+
             $guardian = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
 
             if (! $guardian
@@ -99,8 +95,8 @@ class ConfigureSuperAdminBreakGlass extends Command
                 return self::FAILURE;
             }
 
-            $password = (string) $this->secret('Guardian '.($index + 1).' password');
-            $totpCode = (string) $this->secret('Guardian '.($index + 1).' authenticator code');
+            $password = (string) $this->secret('Guardian '.$slot.' password');
+            $totpCode = (string) $this->secret('Guardian '.$slot.' authenticator code');
 
             if (! Hash::check($password, $guardian->password)
                 || $totp->verify($guardian->mfa_secret, $totpCode, $guardian->mfa_last_used_step) === null) {
@@ -111,6 +107,7 @@ class ConfigureSuperAdminBreakGlass extends Command
                 return self::FAILURE;
             }
 
+            $emails[] = $email;
             $guardians[] = [
                 'user_id' => $guardian->id,
                 'email' => $guardian->email,
