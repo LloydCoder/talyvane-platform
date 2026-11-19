@@ -62,7 +62,7 @@ Remaining: configurable content/CMS; jurisdiction-approved legal documents (curr
 - [ ] Implement model availability, assignment booking, fees, expenses, commission and settlement ledger.
 - [ ] Implement applicant self-service access/correction/withdrawal and policy-based retention/deletion workflows.
 
-The current booking implementation is for companionship workflows. The separate model-agency track remains unimplemented and must not be represented by the companionship booking flow. It requires talent applications, agency review, representation agreements, casting calls, assignments, image usage licences, client briefs, talent availability, usage approvals and settlement records, with independent permissions and audit trails.
+The current booking implementation is for companionship workflows only. The separate model-agency application intake and administrator review are implemented as an independent domain; they must not be represented by or routed through companionship bookings. Remaining model-agency work includes representation agreements, casting calls, assignments, image usage licences, client briefs, talent availability, usage approvals and settlement records, with independent permissions and audit trails.
 Partially implemented: client and companion account authentication; verified email; manual requests; admin-configurable automatic eligibility; companion opt-in/withdrawal; weekly availability windows; deposit verification attestation; overlap checks; client and companion booking views. Remaining: date-specific availability exceptions, calendar sync, cancellation/rescheduling policies, notifications, tamper-evident audit export/retention, and full companion profile editing.
 
 ## Release 3 — Payments
