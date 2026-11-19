@@ -15,7 +15,7 @@ class ProfileMediaProcessor
      *
      * @return array{path:string,width:int,height:int,size:int}
      */
-    public function storeSanitized(UploadedFile $file): array
+    public function storeSanitized(UploadedFile $file, string $directory = 'profile-media'): array
     {
         if (! extension_loaded('gd') || ! function_exists('imagewebp')) {
             throw ValidationException::withMessages([
@@ -49,7 +49,11 @@ class ProfileMediaProcessor
             throw new RuntimeException('The image could not be safely re-encoded.');
         }
 
-        $path = 'profile-media/'.bin2hex(random_bytes(24)).'.webp';
+        if (! preg_match('/^[a-z0-9-]{3,40}$/', $directory)) {
+            throw new RuntimeException('The private media directory is invalid.');
+        }
+
+        $path = $directory.'/'.bin2hex(random_bytes(24)).'.webp';
         if (! Storage::disk('local')->put($path, $sanitized)) {
             throw new RuntimeException('The sanitized image could not be stored privately.');
         }
@@ -59,6 +63,7 @@ class ProfileMediaProcessor
             'width' => $width,
             'height' => $height,
             'size' => strlen($sanitized),
+            'sha256' => hash('sha256', $sanitized),
         ];
     }
 }
