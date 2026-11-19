@@ -45,7 +45,7 @@ Route::get('/companions', [DiscoveryController::class, 'companions'])->middlewar
 Route::get('/companions/{slug}', [DiscoveryController::class, 'companion'])->middleware('feature:public.discovery')->name('companions.show');
 Route::get('/profile-media/{media}', [ProfileMediaController::class, 'show'])->middleware('feature:public.discovery')->name('profile-media.show');
 Route::get('/contact', [EnquiryController::class, 'create'])->name('contact');
-Route::get('/pages/{slug}', [PageController::class, 'show'])->name('pages.show');
+Route::get('/pages/{slug}', [PageController::class, 'show'])->middleware('feature:cms.pages')->name('pages.show');
 Route::view('/privacy', 'legal.privacy')->name('privacy');
 Route::view('/terms', 'legal.terms')->name('terms');
 Route::post('/enquiries', [EnquiryController::class, 'store'])->middleware('throttle:5,1')->name('enquiries.store');
