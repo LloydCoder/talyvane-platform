@@ -94,7 +94,13 @@ class ModelAgencyApplicationLifecycleService
                     'status' => 'completed',
                     'code_hash' => '',
                     'completed_at' => now(),
-                    'response_status' => 'cancelled',
+                    'updated_at' => now(),
+                ]);
+
+            DB::table('model_talent_application_rights_requests')
+                ->where('application_id', $locked->id)
+                ->update([
+                    'response_status' => DB::raw("CASE WHEN response_status IN ('pending', 'prepared') THEN 'cancelled' ELSE response_status END"),
                     'response_due_at' => null,
                     'response_extended_at' => null,
                     'response_extension_reason' => null,
@@ -102,9 +108,6 @@ class ModelAgencyApplicationLifecycleService
                     'response_content' => null,
                     'response_sha256' => null,
                     'response_decision_reason' => null,
-                    'response_responded_at' => null,
-                    'response_delivery_method' => null,
-                    'response_delivery_reference_hash' => null,
                     'updated_at' => now(),
                 ]);
 
