@@ -48,7 +48,7 @@ class DestinationController
         $validated['is_active'] = $request->boolean('is_active');
         $validated['sort_order'] = (int) ($validated['sort_order'] ?? 0);
         $coverImage = $validated['cover_image'] ?? null;
-        unset($validated['cover_image']);
+        unset($validated['cover_image'], $validated['remove_cover_image'], $validated['image_rights_confirmed']);
 
         $previousImage = $destination->image_path;
         if ($coverImage) {
