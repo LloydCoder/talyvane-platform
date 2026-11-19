@@ -59,4 +59,4 @@ Applicant erasure is deferred while any portfolio asset still has a private stor
 - No public image delivery, casting publication, usage licensing, assignments, bookings or settlements.
 - No automated identity or copyright verification.
 - A later private document-management phase must implement secure evidence upload/download, malware scanning, access logs, retention and deletion.
-- A later image-licence phase must implement per-purpose, per-territory, per-channel and time-bounded licences with explicit model consent and withdrawal propagation.
+- The private purpose-bound licence ledger is implemented in [Model Image Licensing](MODEL-IMAGE-LICENSING.md). A later delivery phase must implement consent-aware client/public/CDN access, expiry, takedown and usage monitoring.
