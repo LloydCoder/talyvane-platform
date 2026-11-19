@@ -50,7 +50,8 @@ class ModelAgencyApplicationTest extends TestCase
         $this->get('/models/apply/received')
             ->assertOk()
             ->assertSee($application->reference)
-            ->assertSee('Keep this reference');
+            ->assertSee('Keep this reference')
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
 
         $this->assertSame('submitted', $application->status);
         $this->assertSame('Jordan Example', $application->full_name);
