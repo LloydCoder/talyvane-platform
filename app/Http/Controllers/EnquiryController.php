@@ -30,7 +30,7 @@ class EnquiryController extends Controller
             'phone' => ['nullable', 'string', 'max:40'],
             'subject' => ['required', 'string', 'max:160'],
             'message' => ['required', 'string', 'min:10', 'max:5000'],
-            'destination_id' => ['nullable', 'integer', 'exists:destinations,id'],
+            'destination_id' => ['nullable', 'integer', Rule::exists('destinations', 'id')->where('is_active', true)],
             'privacy_acknowledged' => ['required', 'accepted'],
             'website' => ['nullable', 'max:0'],
         ]);
