@@ -163,7 +163,7 @@ class ClientExperienceTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.clients.index'))
             ->assertOk()
-            ->assertSee('Clients &')
+            ->assertSee('membership.')
             ->assertSee('Taylor Client')
             ->assertSee('Assign or update membership');
     }
