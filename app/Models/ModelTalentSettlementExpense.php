@@ -27,17 +27,23 @@ class ModelTalentSettlementExpense extends Model
     protected static function booted(): void
     {
         static::updating(function (self $expense): void {
-            $allowed = ['settlement_id', 'status', 'reviewed_by', 'reviewed_at', 'review_note', 'updated_at'];
+            $from = (string) $expense->getOriginal('status');
+            $to = (string) $expense->status;
             $dirty = array_keys($expense->getDirty());
+
+            if ($from === 'pending' && in_array($to, ['approved', 'rejected'], true)) {
+                $allowed = ['status', 'reviewed_by', 'reviewed_at', 'review_note', 'updated_at'];
+            } elseif ($from === $to) {
+                $allowed = ['settlement_id', 'updated_at'];
+                if ($expense->isDirty('settlement_id') && $expense->getOriginal('settlement_id') !== null) {
+                    throw new RuntimeException('An expense claim can only be attached to one settlement.');
+                }
+            } else {
+                throw new RuntimeException('Expense review decisions are final once recorded.');
+            }
 
             if (array_diff($dirty, $allowed) !== []) {
                 throw new RuntimeException('Expense claim terms and evidence are immutable after submission.');
-            }
-
-            if ($expense->isDirty('status')
-                && ((string) $expense->getOriginal('status') !== 'pending'
-                    || ! in_array($expense->status, ['approved', 'rejected'], true))) {
-                throw new RuntimeException('Expense review decisions are final once recorded.');
             }
         });
         static::deleting(fn () => throw new RuntimeException('Expense claims cannot be deleted.'));
