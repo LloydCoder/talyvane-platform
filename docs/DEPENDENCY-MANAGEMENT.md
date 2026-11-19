@@ -16,11 +16,9 @@ The Composer configuration pins `config.platform.php` to `8.3.0`. This makes dep
 
 The repository currently requires PHP 8.3+, Laravel 13, and GD. The CI matrix is the compatibility contract for the versions tested by this project; it is not a guarantee for untested PHP releases or hosting-provider configurations.
 
-## Lockfile bootstrap
+## Lockfile recovery
 
-The committed `composer.lock` is the authoritative dependency graph. CI and release builds use `composer install`; CI no longer runs `composer update`. The `Bootstrap Composer lockfile` workflow is retained only as a recovery path if the lockfile is absent from `main`. It is restricted to pushes or manual dispatches on `main`, resolves and audits dependencies on PHP 8.4 while targeting PHP 8.3.0, publishes a bot-owned branch and dispatches the CI matrix against that branch.
-
-The bootstrap workflow does not run for pull requests and does not merge its own pull request. A maintainer must review the generated dependency diff and wait for all PHP matrix jobs to pass before merging. When the lockfile exists on `main`, the bootstrap workflow exits without writing another branch.
+The repository's committed `composer.lock` is mandatory. The former automatic lockfile-bootstrap workflow has been retired: it required repository-content and Actions write permissions to repair a condition that must instead be fixed through a normal reviewed change. If the lockfile is missing, CI fails at `composer install`; restore or regenerate it on a dedicated branch, review the complete dependency graph, and merge only after the standard PHP matrix passes. No workflow is permitted to create or push dependency changes automatically.
 
 ## Routine dependency updates
 

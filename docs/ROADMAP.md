@@ -47,7 +47,7 @@
 - [ ] Date-specific availability exceptions, calendar sync, client rescheduling and notification delivery.
 - [ ] Blockchain transaction watchers, immutable invoice snapshots, confirmations/reconciliation, refunds and approved card processor adapters.
 - [x] CI feature tests for homepage, authentication, role boundaries and branding persistence.
-Remaining: configurable content/CMS; jurisdiction-approved legal documents (current pages are draft placeholders); market flags; staging deployment and runtime verification; MFA.
+Remaining: approved jurisdiction-specific legal documents (current privacy and terms pages are draft placeholders); ISO reference-data imports; full market-policy, pricing and localization workflows; real age/identity assurance; staging deployment and runtime verification. The CMS foundation and administrator MFA are implemented, but content approval and production legal review remain separate release gates.
 
 ## Release 2 — Booking and portals
 
@@ -113,7 +113,7 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Document release, upgrade, backup, rollback and operations procedures.
 - [x] Commit and validate the generated `composer.lock` through reviewed PR #20; CI installs the locked graph on PHP 8.3, 8.4 and 8.5.
 - [ ] Produce reproducible, tagged release artifacts with production vendor dependencies and compiled frontend assets.
-- [x] Add a main-branch-only, reviewed lockfile-bootstrap workflow that targets PHP 8.3.0, publishes a bot-owned branch and dispatches the full CI matrix; the reviewed PR is opened separately and is never auto-merged.
+- [x] Retire the privileged lockfile-bootstrap workflow after the committed lockfile became mandatory; missing lockfiles now fail normal CI rather than granting automation repository write permissions.
 - [x] Add automated PHP 8.3/8.4/8.5 compatibility and actual extension/platform checks in CI.
 - [ ] Build a secure no-SSH installer and first Super Admin bootstrap, with no arbitrary command execution or public setup backdoor.
 - [ ] Add preflight diagnostics for PHP web/CLI mismatch, extensions, GD WebP, database, writable paths, HTTPS, document-root exposure and hosting limits.
