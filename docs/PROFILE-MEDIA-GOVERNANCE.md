@@ -18,7 +18,7 @@
 - Use HTTPS, CSRF protection, authenticated companion accounts, email verification, MFA-protected administration and upload throttling.
 - The upload path is randomized and does not include user-provided filenames.
 - Public delivery uses `Cache-Control: private, no-store` so a profile suspension is not undermined by intermediary caching.
-- Backups and retention must be configured to match the deployment's lawful retention policy. Deleting a media record deletes its active private file; backup copies follow the documented backup lifecycle.
+- Backups and retention must be configured to match the deployment's lawful retention policy. Withdrawing or removing an image marks its record as withdrawn and deletes its active private file; backup copies follow the documented backup lifecycle.
 
 ## Governance limitations
 
