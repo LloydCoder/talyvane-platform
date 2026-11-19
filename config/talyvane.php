@@ -25,6 +25,8 @@ return [
         'representation_terms_approved' => filter_var(env('MODEL_AGENCY_REPRESENTATION_TERMS_APPROVED', false), FILTER_VALIDATE_BOOL),
         'portfolio_consent_version' => env('MODEL_AGENCY_PORTFOLIO_CONSENT_VERSION'),
         'portfolio_consent_approved' => filter_var(env('MODEL_AGENCY_PORTFOLIO_CONSENT_APPROVED', false), FILTER_VALIDATE_BOOL),
+        'image_licence_policy_version' => env('MODEL_AGENCY_IMAGE_LICENCE_POLICY_VERSION'),
+        'image_licence_policy_approved' => filter_var(env('MODEL_AGENCY_IMAGE_LICENCE_POLICY_APPROVED', false), FILTER_VALIDATE_BOOL),
         'retention' => [
             'application_days' => env('MODEL_AGENCY_APPLICATION_RETENTION_DAYS'),
             'accepted_days' => env('MODEL_AGENCY_ACCEPTED_RETENTION_DAYS'),
