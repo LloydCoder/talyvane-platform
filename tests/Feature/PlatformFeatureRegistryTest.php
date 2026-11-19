@@ -30,6 +30,7 @@ class PlatformFeatureRegistryTest extends TestCase
         ]);
 
         $this->get('/destinations')->assertNotFound();
+        $this->get('/')->assertNotFound();
     }
 
     public function test_planned_features_cannot_be_enabled_by_registry_state_alone(): void
