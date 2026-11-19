@@ -23,7 +23,7 @@
                         <select id="status-{{ $application->id }}" name="status" required>
                             @if($application->status === 'submitted')<option value="reviewing">Begin review</option><option value="declined">Decline</option>@else<option value="accepted">Accept for representation discussion</option><option value="declined">Decline</option>@endif
                         </select>
-                        <label for="note-{{ $application->id }}">Reason / next steps (required for accept or decline)</label>
+                        <label for="note-{{ $application->id }}">Reason / next steps (required for every transition)</label>
                         <textarea id="note-{{ $application->id }}" name="review_note" rows="2" maxlength="2000" placeholder="At least 20 characters for a decision"></textarea>
                         <button class="button button-dark" type="submit">Save review ↗</button>
                     </form>
