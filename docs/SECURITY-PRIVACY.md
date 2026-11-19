@@ -84,3 +84,16 @@ MFA secrets, recovery-code hashes and TOTP replay-state fields are excluded from
 Super Admin provisioning and recovery require two separately verified notification addresses and a one-time offline deployment recovery key. Recovery is CLI-only and requires the current password plus that offline key. Existing deployments can enroll recovery credentials with current password plus TOTP, and verified recovery contacts/key can be rotated with current password plus TOTP. A successful recovery clears TOTP material, rotates the key, increments the admin session version, rotates the remember token, notifies both verified addresses and records an append-only recovery event. Admin routes reject sessions with missing or stale security versions, and pending MFA challenges are invalidated if the version changes before MFA completion. The detailed operator runbook is [SUPER-ADMIN-RECOVERY.md](SUPER-ADMIN-RECOVERY.md).
 
 The recovery audit model blocks Eloquent updates/deletes, but direct SQL can bypass application events. This is not a database-level tamper-proof log. Production database credentials and backups must be restricted. Loss of both the password and offline key still requires separately governed deployment-owner identity proofing and dual-control break-glass handling; no public override exists.
+
+
+## Financial maker-checker authorization
+
+The settlement service enforces independent actors for financial state transitions within the locked database transaction:
+
+- An expense claimant cannot approve or reject their own expense claim.
+- A settlement draft creator cannot approve that draft.
+- A settlement approver cannot attest to the external payment for that settlement.
+- The restrictions apply to Owner and Super Admin accounts as well as Finance specialists; privileged oversight does not create a self-approval exception.
+- Rejected attempts do not mutate the expense or settlement. Successful decisions retain the actor identifiers and append-only event records.
+
+These controls are application-level authorization. They do not verify external bank transfers, prevent privileged direct database writes, or replace independent bank/payment-provider dual authorization. Operators must independently reconcile external payment evidence and restrict database credentials.
