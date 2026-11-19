@@ -249,6 +249,10 @@ class BookingTest extends TestCase
             ->assertRedirect('/admin/bookings');
 
         $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'status' => 'confirmed']);
+
+        BookingSetting::query()->firstOrFail()->update(['client_cancellation_enabled' => true]);
+        $this->post('/bookings/'.$booking->id.'/cancel')->assertRedirect('/portal');
+        $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'status' => 'cancelled']);
     }
 
     public function test_automatic_booking_does_not_confirm_without_a_matching_availability_window(): void
