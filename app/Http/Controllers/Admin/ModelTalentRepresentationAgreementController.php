@@ -17,7 +17,7 @@ class ModelTalentRepresentationAgreementController extends Controller
     {
         $this->assertSchemaReady();
         $validated = $request->validate([
-            'territory' => ['required', 'string', 'min:2', 'max:120'],
+            'country_code' => ['required', 'string', 'size:2', 'regex:/^[A-Z]{2}$/'],
             'representation_scope' => ['required', 'string', 'min:20', 'max:3000'],
             'exclusivity' => ['required', 'in:exclusive,non_exclusive'],
             'commission_percent' => ['required', 'numeric', 'min:0', 'max:100'],
@@ -30,7 +30,7 @@ class ModelTalentRepresentationAgreementController extends Controller
         ]);
 
         $service->createDraft($application, (int) $request->user()->id, [
-            'territory' => trim($validated['territory']),
+            'country_code' => $validated['country_code'],
             'representation_scope' => trim($validated['representation_scope']),
             'exclusivity' => $validated['exclusivity'],
             'commission_percent' => number_format((float) $validated['commission_percent'], 2, '.', ''),
