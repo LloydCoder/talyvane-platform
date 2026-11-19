@@ -47,7 +47,7 @@
 - [ ] Date-specific availability exceptions, calendar sync, client rescheduling and notification delivery.
 - [ ] Blockchain transaction watchers, immutable invoice snapshots, confirmations/reconciliation, refunds and approved card processor adapters.
 - [x] CI feature tests for homepage, authentication, role boundaries and branding persistence.
-Remaining: configurable content/CMS; jurisdiction-approved legal documents (current pages are draft placeholders); market flags; staging deployment and runtime verification; MFA.
+Remaining: approved jurisdiction-specific legal documents (current privacy and terms pages are draft placeholders); ISO reference-data imports; full market-policy, pricing and localization workflows; real age/identity assurance; staging deployment and runtime verification. The CMS foundation and administrator MFA are implemented, but content approval and production legal review remain separate release gates.
 
 ## Release 2 — Booking and portals
 
