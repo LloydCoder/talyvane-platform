@@ -41,7 +41,7 @@
                         <button class="button button-dark" type="submit">{{ $application->legal_hold_at ? 'Release legal hold' : 'Place legal hold' }}</button>
                     </form>
                 @endif
-                @if($usageRightsEnabled && $application->status === 'accepted' && $application->adult_eligibility_verified_at && ! $application->legal_hold_at)
+                @if($application->status === 'accepted' && $application->adult_eligibility_verified_at && ! $application->legal_hold_at)
                     <section class="enquiry-status-form">
                         <h3>Representation agreement</h3>
                         @forelse($application->representationAgreements as $agreement)
