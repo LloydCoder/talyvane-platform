@@ -148,6 +148,151 @@ Artisan::command('talyvane:super-admin:create {email}', function () {
     return 0;
 })->purpose('Provision the single deployment Super Admin and verify both notification addresses');
 
+Artisan::command('talyvane:super-admin:enroll-recovery', function () {
+    $control = DB::table('platform_control')->where('id', 1)->first();
+    $user = $control?->super_admin_user_id ? User::query()->find($control->super_admin_user_id) : null;
+
+    if (! $user || ! $user->is_active || $user->role !== 'super_admin' || ! $user->mfa_enabled_at || ! $user->mfa_secret) {
+        $this->error('Recovery enrollment requires the active designated Super Admin with MFA already enabled.');
+
+        return 1;
+    }
+
+    if (! empty($control->super_admin_recovery_key_hash)
+        && ! empty($control->super_admin_recovery_email_verified_at)
+        && ! empty($control->super_admin_recovery_email)) {
+        $this->error('Super Admin recovery credentials are already enrolled. Use the recovery command if access is lost.');
+
+        return 1;
+    }
+
+    if (config('mail.default') !== 'smtp' || blank(config('mail.mailers.smtp.host'))) {
+        $this->error('Configure working SMTP delivery before enrolling Super Admin recovery credentials.');
+
+        return 1;
+    }
+
+    $password = (string) $this->secret('Current Super Admin password');
+    $totpCode = (string) $this->secret('Current authenticator code');
+
+    if (! Hash::check($password, $user->password)) {
+        $this->error('The supplied recovery enrollment credentials could not be verified.');
+
+        return 1;
+    }
+
+    $totp = app(TotpService::class);
+    $verifiedStep = $totp->verify($user->mfa_secret, $totpCode, $user->mfa_last_used_step);
+
+    if ($verifiedStep === null) {
+        $this->error('The supplied recovery enrollment credentials could not be verified.');
+
+        return 1;
+    }
+
+    $recoveryEmail = strtolower(trim((string) $this->ask('Recovery notification email (must differ from admin email)')));
+
+    if (! filter_var($recoveryEmail, FILTER_VALIDATE_EMAIL) || hash_equals(strtolower($user->email), $recoveryEmail)) {
+        $this->error('A distinct, valid recovery notification email address is required.');
+
+        return 1;
+    }
+
+    $codeGenerator = app(RecoveryCodeGenerator::class);
+    $primaryCode = $codeGenerator->generate();
+    $recoveryCode = $codeGenerator->generate();
+    $verificationStartedAt = time();
+
+    Notification::route('mail', $user->email)->notify(new SuperAdminEmailVerificationCode($primaryCode, 'primary administrator email'));
+    Notification::route('mail', $recoveryEmail)->notify(new SuperAdminEmailVerificationCode($recoveryCode, 'recovery notification email'));
+
+    $enteredPrimaryCode = (string) $this->secret('Verification code sent to '.$user->email);
+    $enteredRecoveryCode = (string) $this->secret('Verification code sent to '.$recoveryEmail);
+
+    if (time() - $verificationStartedAt > 300
+        || ! hash_equals($primaryCode, $enteredPrimaryCode)
+        || ! hash_equals($recoveryCode, $enteredRecoveryCode)) {
+        $this->error('Notification address verification failed or expired. No recovery credentials were enrolled.');
+
+        return 1;
+    }
+
+    $recoveryKey = Str::random(64);
+    $occurredAt = now();
+
+    try {
+        DB::transaction(function () use ($user, $password, $totpCode, $recoveryEmail, $recoveryKey, $occurredAt, $totp): void {
+            $lockedControl = DB::table('platform_control')->where('id', 1)->lockForUpdate()->first();
+            $lockedUser = User::query()->lockForUpdate()->find($user->id);
+
+            if (! $lockedControl
+                || ! $lockedUser
+                || (int) $lockedControl->super_admin_user_id !== (int) $lockedUser->id
+                || ! Hash::check($password, $lockedUser->password)) {
+                throw new \\RuntimeException('Super Admin recovery enrollment state changed.');
+            }
+
+            $step = $totp->verify($lockedUser->mfa_secret, $totpCode, $lockedUser->mfa_last_used_step);
+
+            if ($step === null) {
+                throw new \\RuntimeException('The authenticator code was already used or expired.');
+            }
+
+            $versionBefore = (int) $lockedUser->admin_session_version;
+            $versionAfter = $versionBefore + 1;
+
+            $lockedUser->forceFill([
+                'email_verified_at' => $occurredAt,
+                'mfa_last_used_step' => $step,
+                'admin_session_version' => $versionAfter,
+                'remember_token' => Str::random(60),
+            ])->save();
+
+            DB::table('platform_control')->where('id', 1)->update([
+                'super_admin_recovery_key_hash' => Hash::make($recoveryKey),
+                'super_admin_recovery_key_rotated_at' => $occurredAt,
+                'super_admin_recovery_email' => $recoveryEmail,
+                'super_admin_recovery_email_verified_at' => $occurredAt,
+                'updated_at' => $occurredAt,
+            ]);
+
+            $notice = new SuperAdminRecoveryNotice($occurredAt->toDayDateTimeString());
+            Notification::route('mail', $lockedUser->email)->notify($notice);
+            Notification::route('mail', $recoveryEmail)->notify($notice);
+
+            SuperAdminRecoveryEvent::query()->create([
+                'super_admin_user_id' => $lockedUser->id,
+                'event_type' => 'recovery_credentials_enrolled',
+                'reason' => 'Existing deployment Super Admin enrolled recovery credentials using password and current MFA',
+                'session_version_before' => $versionBefore,
+                'session_version_after' => $versionAfter,
+                'metadata' => ['verified_notification_addresses' => 2, 'source' => 'trusted_cli'],
+                'occurred_at' => $occurredAt,
+            ]);
+
+            SuperAdminRecoveryEvent::query()->create([
+                'super_admin_user_id' => $lockedUser->id,
+                'event_type' => 'notification_sent',
+                'reason' => null,
+                'session_version_before' => $versionBefore,
+                'session_version_after' => $versionAfter,
+                'metadata' => ['notification_addresses_sent' => 2],
+                'occurred_at' => $occurredAt,
+            ]);
+        });
+    } catch (Throwable $exception) {
+        report($exception);
+        $this->error('Recovery enrollment was not committed. Verify database and SMTP availability, then retry.');
+
+        return 1;
+    }
+
+    $this->line('Super Admin recovery key (store offline; shown once): '.$recoveryKey);
+    $this->info('Recovery credentials enrolled. All prior administrator sessions were invalidated.');
+
+    return 0;
+})->purpose('Enroll verified recovery contacts and a one-time offline key for an existing Super Admin');
+
 Artisan::command('talyvane:super-admin:recover', function () {
     $control = DB::table('platform_control')->where('id', 1)->first();
     $user = $control?->super_admin_user_id ? User::query()->find($control->super_admin_user_id) : null;
