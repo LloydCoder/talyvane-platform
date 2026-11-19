@@ -12,7 +12,7 @@ For operator-supplied destination imagery, the operator must confirm that it has
 
 ## Approved starter photography — Unsplash
 
-The following images are listed as free to use under the Unsplash License. The Unsplash License permits commercial use and does not require attribution, although photographer credit is included here as a courtesy. The selected assets are hospitality interiors, a resort landscape and a cityscape; they are not used to depict people or imply endorsement.
+The following images are listed as free to use under the Unsplash License. The Unsplash License permits commercial use and does not require attribution, although photographer credit is included here as a courtesy. The selected assets are hospitality interiors, a resort landscape, a cityscape and a private aircraft cabin; they are not used to depict people or imply endorsement.
 
 | Use | Photographer | Unsplash source | CDN asset |
 |---|---|---|---|
@@ -20,6 +20,9 @@ The following images are listed as free to use under the Unsplash License. The U
 | Homepage gallery — resort and pool | Antonio Araujo | https://unsplash.com/photos/luxury-resort-with-infinity-pool-and-lounge-chairs-on-hillside-AFd25jow7mw | https://images.unsplash.com/photo-1776761731066-c89caa8d25e6 |
 | Homepage gallery — city skyline | Henry Lai | https://unsplash.com/photos/a-city-skyline-at-night-with-lights-reflecting-off-the-water-cjVFcnp9_fU | https://images.unsplash.com/photo-1681912609128-3a05a7bdce64 |
 | Homepage gallery — private dining room | Andy Wang | https://unsplash.com/photos/elegant-dining-room-with-a-round-table-and-chairs-DKxbjOa4hd0 | https://images.unsplash.com/photo-1768397003905-a202ea6325f5 |
+| Homepage gallery — private aircraft cabin | Andy Wang | https://unsplash.com/photos/luxurious-interior-of-a-private-jet-with-comfortable-seating-ogUyaf8JWA4 | https://images.unsplash.com/photo-1768346564233-d71f37bd19b6 |
+
+The additional aircraft-cabin image was reviewed from its Unsplash source page and visually inspected. It contains no people; no obvious third-party logo or identifiable brand mark was observed in the selected crop. Photographer credit is included as a courtesy, not as a claim of endorsement.
 
 ## Rejected source — Pexels
 
