@@ -55,14 +55,14 @@ class ModelAgencyApplicationRightsController extends Controller
 
                 ModelTalentApplicationRightsRequest::query()
                     ->where('application_id', $application->id)
-                    ->where('status', 'pending')
+                    ->whereIn('status', ['pending', 'verified'])
                     ->update([
                         'status' => 'superseded',
                         'code_hash' => '',
                         'updated_at' => now(),
                     ]);
 
-                return ModelTalentApplicationRightsRequest::query()->create([
+                $created = ModelTalentApplicationRightsRequest::query()->create([
                     'application_id' => $lockedApplication->id,
                     'request_type' => $validated['request_type'],
                     'status' => 'pending',
@@ -70,6 +70,17 @@ class ModelAgencyApplicationRightsController extends Controller
                     'attempts' => 0,
                     'expires_at' => now()->addMinutes(10),
                 ]);
+
+                ModelTalentApplicationEvent::query()->create([
+                    'application_id' => $lockedApplication->id,
+                    'actor_type' => 'applicant',
+                    'event_type' => 'application.privacy_request_'.$validated['request_type'],
+                    'from_status' => $lockedApplication->status,
+                    'to_status' => $lockedApplication->status,
+                    'occurred_at' => now(),
+                ]);
+
+                return $created;
             });
 
             try {
@@ -191,6 +202,22 @@ class ModelAgencyApplicationRightsController extends Controller
         ])->header('Cache-Control', 'no-store, private, max-age=0')
             ->header('Pragma', 'no-cache')
             ->header('Referrer-Policy', 'no-referrer');
+    }
+
+    public function finish(Request $request, ModelTalentApplicationRightsRequest $rightsRequest): RedirectResponse
+    {
+        $this->assertVerified($request, $rightsRequest);
+
+        $rightsRequest->forceFill([
+            'status' => 'completed',
+            'code_hash' => '',
+            'completed_at' => now(),
+        ])->save();
+
+        $request->session()->forget('verified_model_application_rights_request_id');
+
+        return redirect()->route('model-agency.application-support.verify')
+            ->with('status', 'Your private applicant session has been closed.');
     }
 
     public function correct(Request $request, ModelTalentApplicationRightsRequest $rightsRequest): RedirectResponse
