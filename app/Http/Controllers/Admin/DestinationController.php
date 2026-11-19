@@ -32,7 +32,7 @@ class DestinationController
         unset($validated['cover_image'], $validated['remove_cover_image'], $validated['image_rights_confirmed']);
         $validated['image_path'] = $coverImage?->store('destinations', 'public');
 
-        Destination::query()->create($validated);
+        DB::transaction(fn () => Destination::query()->create($validated));
 
         return redirect()->route('admin.destinations.index')->with('status', 'Destination created.');
     }
