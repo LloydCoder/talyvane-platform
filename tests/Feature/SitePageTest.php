@@ -39,9 +39,9 @@ class SitePageTest extends TestCase
         $this->get('/pages/internal-draft')->assertNotFound();
     }
 
-    public function test_admin_can_create_and_publish_a_site_page(): void
+    public function test_super_admin_can_create_and_publish_a_site_page(): void
     {
-        $admin = $this->createAdminUser();
+        $admin = $this->createAdminUser(['role' => 'super_admin']);
 
         $this->actingAs($admin)
             ->post('/admin/pages', [
