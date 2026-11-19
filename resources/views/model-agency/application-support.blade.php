@@ -3,7 +3,7 @@
 @section('content')
     <p class="eyebrow">APPLICANT PRIVACY</p>
     <h1>Manage your<br><em>application.</em></h1>
-    <p class="admin-muted">Request access, correction, withdrawal or erasure of a model-agency application. We will send a one-time code to the email address recorded on the application.</p>
+    <p class="admin-muted">Request access, correction, withdrawal or erasure of a model-agency application. We will send a one-time code to the email address recorded on the application. If you no longer control that inbox or cannot receive the code, use the contact details in the model-applicant privacy notice.</p>
     @if (session('status'))<div class="form-alert" role="status">{{ session('status') }}</div>@endif
     @if ($errors->any())<div class="form-alert" role="alert"><ul>@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
     <form method="POST" action="{{ route('model-agency.application-support.submit') }}">
