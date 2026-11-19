@@ -21,16 +21,14 @@ return new class extends Migration
             ->get();
 
         foreach ($destinations as $destination) {
-            DB::table('country_markets')->updateOrInsert(
-                ['country_code' => $destination->country_code],
-                [
-                    'name' => $destination->country_name,
-                    'is_enabled' => false,
-                    'compliance_status' => 'pending',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-            );
+            DB::table('country_markets')->insertOrIgnore([
+                'country_code' => $destination->country_code,
+                'name' => $destination->country_name,
+                'is_enabled' => false,
+                'compliance_status' => 'pending',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
     }
 
