@@ -66,7 +66,7 @@ A milestone is not complete because screens exist. Each release requires tests, 
 ## Super Admin control plane (approved architecture; implementation pending)
 
 - [ ] Define and seed the feature registry with stable keys, module ownership, dependencies, risk classes and activation prerequisites.
-- [ ] Establish the deployment Super Admin principal and one-time secure bootstrap; review and migrate existing owner/admin role semantics.
+- [x] Add a distinct `super_admin` principal to privileged authentication, route and MFA gates without silently promoting existing accounts.\n- [x] Add a singleton deployment-control record and transactional CLI bootstrap that provisions at most one Super Admin.\n- [ ] Complete last-Super-Admin protection, recovery governance and the legacy owner/admin least-privilege migration.
 - [ ] Build the searchable admin feature catalogue with status, blockers, configuration, impact preview and audit history.
 - [ ] Centralize server-side feature enforcement across routes, policies, application services, scheduled jobs and integrations.
 - [ ] Implement MFA/step-up, reason capture, atomic configuration changes and append-only audit events for high-impact actions.
