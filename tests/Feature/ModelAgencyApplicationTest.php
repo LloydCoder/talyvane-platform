@@ -7,6 +7,7 @@ use App\Models\SitePage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ModelAgencyApplicationTest extends TestCase
