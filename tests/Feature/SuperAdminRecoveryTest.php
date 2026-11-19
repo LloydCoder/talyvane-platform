@@ -106,6 +106,66 @@ class SuperAdminRecoveryTest extends TestCase
         $this->assertNull($superAdmin->fresh()->mfa_enabled_at);
     }
 
+
+    public function test_existing_super_admin_can_enroll_two_verified_recovery_addresses_with_password_and_current_mfa(): void
+    {
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'smtp.example.test']);
+        Notification::fake();
+        $this->mock(RecoveryCodeGenerator::class, fn ($mock) => $mock->shouldReceive('generate')->twice()->andReturn('111111', '222222'));
+
+        $superAdmin = User::query()->create([
+            'name' => 'Legacy Deployment Super Admin',
+            'email' => 'legacy-root@example.test',
+            'password' => 'Strong-Root-Password-934!',
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $secret = 'JBSWY3DPEHPK3PXP';
+        $step = intdiv(time(), 30);
+        $superAdmin->forceFill([
+            'mfa_secret' => $secret,
+            'mfa_enabled_at' => now(),
+            'mfa_last_used_step' => $step - 1,
+            'admin_session_version' => 4,
+            'remember_token' => 'legacy-remember-token',
+        ])->save();
+
+        DB::table('platform_control')->where('id', 1)->update([
+            'super_admin_user_id' => $superAdmin->id,
+        ]);
+
+        $code = (new TotpService())->codeForStep($secret, $step);
+
+        $this->artisan('talyvane:super-admin:enroll-recovery')
+            ->expectsQuestion('Current Super Admin password', 'Strong-Root-Password-934!')
+            ->expectsQuestion('Current authenticator code', $code)
+            ->expectsQuestion('Recovery notification email (must differ from admin email)', 'recovery@example.test')
+            ->expectsQuestion('Verification code sent to legacy-root@example.test', '111111')
+            ->expectsQuestion('Verification code sent to recovery@example.test', '222222')
+            ->expectsOutputToContain('Super Admin recovery key (store offline; shown once):')
+            ->expectsOutput('Recovery credentials enrolled. All prior administrator sessions were invalidated.')
+            ->assertExitCode(0);
+
+        $superAdmin->refresh();
+        $control = DB::table('platform_control')->where('id', 1)->first();
+
+        $this->assertNotNull($superAdmin->email_verified_at);
+        $this->assertSame(5, $superAdmin->admin_session_version);
+        $this->assertSame($step, $superAdmin->mfa_last_used_step);
+        $this->assertNotSame('legacy-remember-token', $superAdmin->remember_token);
+        $this->assertSame('recovery@example.test', $control->super_admin_recovery_email);
+        $this->assertNotEmpty($control->super_admin_recovery_key_hash);
+        $this->assertNotNull($control->super_admin_recovery_email_verified_at);
+        $this->assertDatabaseHas('super_admin_recovery_events', [
+            'super_admin_user_id' => $superAdmin->id,
+            'event_type' => 'recovery_credentials_enrolled',
+            'session_version_before' => 4,
+            'session_version_after' => 5,
+        ]);
+        Notification::assertSentOnDemand(SuperAdminEmailVerificationCode::class, 2);
+        Notification::assertSentOnDemand(SuperAdminRecoveryEnrollmentNotice::class, 2);
+    }
+
     private function provisionSuperAdmin(): array
     {
         $recoveryKey = 'offline-recovery-key-0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ';
