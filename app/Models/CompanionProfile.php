@@ -38,6 +38,11 @@ class CompanionProfile extends Model
         ];
     }
 
+    public function favoritedBy(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'client_favorites', 'companion_profile_id', 'client_id')->withTimestamps();
+    }
+
     public function media(): HasMany
     {
         return $this->hasMany(ProfileMedia::class, 'companion_profile_id');
