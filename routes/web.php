@@ -77,14 +77,18 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/bookings/{booking}/cancel', [BookingController::class, 'cancel'])->middleware('feature:bookings.companionship')->name('bookings.cancel');
     });
 
+    // Privacy-critical companion controls remain reachable even when the companion portal module is disabled.
+    Route::middleware(['verified', 'role:companion'])->group(function (): void {
+        Route::delete('/companion-portal/profiles/{profile}/media/{media}', [CompanionMediaController::class, 'destroy'])->name('companion-portal.profiles.media.destroy');
+        Route::post('/companion-portal/profiles/{profile}/withdraw-consent', [CompanionPortalController::class, 'withdrawPublicationConsent'])->name('companion-portal.profiles.withdraw-consent');
+    });
+
     Route::middleware(['verified', 'role:companion', 'feature:portals.companion'])->group(function (): void {
         Route::get('/companion-portal', [CompanionPortalController::class, 'index'])->name('companion-portal.dashboard');
         Route::post('/companion-portal/profiles/{profile}/media', [CompanionMediaController::class, 'store'])->middleware('throttle:10,1')->name('companion-portal.profiles.media.store');
-        Route::delete('/companion-portal/profiles/{profile}/media/{media}', [CompanionMediaController::class, 'destroy'])->name('companion-portal.profiles.media.destroy');
         Route::post('/companion-portal/profiles/{profile}/automatic-booking', [CompanionPortalController::class, 'updateAutomaticBooking'])->middleware('feature:bookings.automatic')->name('companion-portal.profiles.automatic-booking');
         Route::post('/companion-portal/profiles/{profile}/availability', [CompanionPortalController::class, 'storeAvailability'])->name('companion-portal.profiles.availability.store');
         Route::delete('/companion-portal/profiles/{profile}/availability/{rule}', [CompanionPortalController::class, 'destroyAvailability'])->name('companion-portal.profiles.availability.destroy');
-        Route::post('/companion-portal/profiles/{profile}/withdraw-consent', [CompanionPortalController::class, 'withdrawPublicationConsent'])->name('companion-portal.profiles.withdraw-consent');
         Route::patch('/companion-portal/bookings/{booking}', [CompanionBookingController::class, 'update'])->name('companion-portal.bookings.update');
     });
 });
