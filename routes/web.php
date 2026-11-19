@@ -11,6 +11,7 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\DiscoveryController;
 use App\Http\Controllers\EnquiryController;
 use App\Http\Controllers\PortalAuthController;
+use App\Http\Controllers\PortalDashboardController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
 
