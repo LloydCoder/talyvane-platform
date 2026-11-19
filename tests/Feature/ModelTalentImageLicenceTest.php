@@ -178,6 +178,33 @@ class ModelTalentImageLicenceTest extends TestCase
 
         return compact('admin', 'application', 'agreement', 'asset');
     }
+    public function test_overlapping_active_licence_conflicts_are_blocked_for_same_purpose_and_channels(): void
+    {
+        $context = $this->makeApprovedAssetAndAgreement();
+        $this->activeLicence($context);
+
+        try {
+            app(ModelTalentImageLicenceService::class)->createDraft(
+                $context['asset'],
+                $context['agreement'],
+                $context['admin']->id,
+                [
+                    'licensee_name' => 'Another Campaign Ltd',
+                    'purpose' => 'commercial_campaign',
+                    'channels' => ['website'],
+                    'purpose_details' => 'A conflicting campaign use for the same image and territory.',
+                    'country_code' => 'GB',
+                    'starts_on' => now()->addDays(5)->toDateString(),
+                    'ends_on' => now()->addDays(25)->toDateString(),
+                    'exclusivity' => false,
+                ],
+            );
+            $this->fail('An overlapping active licence for the same purpose and channel must be blocked.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('licence', $exception->errors());
+        }
+    }
+
 }
     public function test_withdrawing_portfolio_consent_revokes_active_licences(): void
     {
