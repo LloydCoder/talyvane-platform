@@ -38,6 +38,11 @@ class Booking extends Model
         ];
     }
 
+    public function events(): HasMany
+    {
+        return $this->hasMany(BookingEvent::class)->orderBy('created_at');
+    }
+
     public function client(): BelongsTo
     {
         return $this->belongsTo(User::class, 'client_id');
