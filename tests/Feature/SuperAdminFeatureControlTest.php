@@ -146,6 +146,15 @@ class SuperAdminFeatureControlTest extends TestCase
         $this->assertDatabaseMissing('platform_feature_audit_events', [
             'feature_key' => 'model-agency.applications',
         ]);
+
+        $this->patch('/admin/features/cms.pages', [
+            'enabled' => false,
+            'reason' => 'Attempt a second action using the already consumed authenticator code.',
+            'password' => 'Strong-Testing-Password-934!',
+            'code' => $code,
+        ])->assertSessionHasErrors('code');
+
+        $this->assertDatabaseHas('platform_features', ['key' => 'cms.pages', 'is_enabled' => true]);
     }
 
     public function test_feature_activation_is_blocked_without_an_operationally_approved_market(): void
