@@ -30,19 +30,20 @@ jobs:
           php-version: ${{ matrix.php-version }}
           extensions: ctype, curl, dom, fileinfo, filter, gd, hash, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, tokenizer, xml
           coverage: none
-      - name: Resolve dependencies
-        run: composer update --prefer-dist --no-interaction --no-progress
+      - name: Install reproducible dependencies
+        run: |
+          if [ -f composer.lock ]; then
+            composer install --prefer-dist --no-interaction --no-progress
+          else
+            echo "::warning::composer.lock is not committed yet; using temporary dependency resolution until the lockfile bootstrap PR is merged."
+            composer update --prefer-dist --no-interaction --no-progress
+          fi
+      - name: Verify actual PHP extension and platform requirements
+        run: composer check-platform-reqs
       - name: Audit resolved dependencies
         run: composer audit --no-interaction
         env:
           COMPOSER_NO_AUDIT: "0"
-      - name: Preserve resolved dependency lockfile
-        if: matrix.php-version == '8.4'
-        uses: actions/upload-artifact@v4
-        with:
-          name: composer-lockfile
-          path: composer.lock
-          if-no-files-found: error
       - name: Validate Composer configuration
         run: composer validate --no-check-publish
       - name: Lint PHP source
