@@ -59,3 +59,17 @@ Payment adapter contract; manual instructions; crypto invoice snapshots and serv
 Installation wizard; versioned updates and migration tooling; backup/restore; deployment entitlement; customer deployment records; reseller documentation and support boundaries.
 
 A milestone is not complete because screens exist. Each release requires tests, security review, accessibility checks, privacy review, deployment verification and operator documentation. Production is blocked pending jurisdiction, hosting and payment approvals.
+
+
+## Super Admin control plane (approved architecture; implementation pending)
+
+- [ ] Define and seed the feature registry with stable keys, module ownership, dependencies, risk classes and activation prerequisites.
+- [ ] Establish the deployment Super Admin principal and one-time secure bootstrap; review and migrate existing owner/admin role semantics.
+- [ ] Build the searchable admin feature catalogue with status, blockers, configuration, impact preview and audit history.
+- [ ] Centralize server-side feature enforcement across routes, policies, application services, scheduled jobs and integrations.
+- [ ] Implement MFA/step-up, reason capture, atomic configuration changes and append-only audit events for high-impact actions.
+- [ ] Add secret set/rotate/clear workflows backed by environment or dedicated secret storage; never reveal stored values.
+- [ ] Add dependency and eligibility validation for market, payment, verification and communication activation.
+- [ ] Add emergency disable for optional features and safe re-enable workflow.
+- [ ] Test authorization boundaries, last-Super-Admin protection, audit integrity and attempts to bypass feature gates.
+- [ ] Keep hard safeguards outside the feature registry and verify they cannot be disabled by Super Admin settings.
