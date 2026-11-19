@@ -63,6 +63,7 @@ return new class extends Migration
         DB::table('platform_features')->where('key', 'model-agency.applications')->update([
             'implementation_status' => 'planned',
             'is_enabled' => false,
+            'dependencies' => json_encode([]),
             'activation_requirements' => json_encode(['model_agency_workflow', 'representation_terms']),
             'updated_at' => now(),
         ]);
