@@ -113,6 +113,8 @@ class ModelAgencyApplicationAdminController extends Controller
             $locked = ModelTalentApplication::query()->lockForUpdate()->findOrFail($application->id);
             $placing = (bool) $validated['enabled'];
 
+            abort_if($locked->status === 'erased', 410, 'Erased application records cannot be placed on legal hold.');
+
             if ($placing && $locked->legal_hold_at !== null) {
                 throw ValidationException::withMessages(['enabled' => 'A legal hold is already active.']);
             }
