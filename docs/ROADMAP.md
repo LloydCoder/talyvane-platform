@@ -59,3 +59,31 @@ Payment adapter contract; manual instructions; crypto invoice snapshots and serv
 Installation wizard; versioned updates and migration tooling; backup/restore; deployment entitlement; customer deployment records; reseller documentation and support boundaries.
 
 A milestone is not complete because screens exist. Each release requires tests, security review, accessibility checks, privacy review, deployment verification and operator documentation. Production is blocked pending jurisdiction, hosting and payment approvals.
+
+
+## Super Admin control plane (approved architecture; implementation pending)
+
+- [ ] Define and seed the feature registry with stable keys, module ownership, dependencies, risk classes and activation prerequisites.
+- [ ] Establish the deployment Super Admin principal and one-time secure bootstrap; review and migrate existing owner/admin role semantics.
+- [ ] Build the searchable admin feature catalogue with status, blockers, configuration, impact preview and audit history.
+- [ ] Centralize server-side feature enforcement across routes, policies, application services, scheduled jobs and integrations.
+- [ ] Implement MFA/step-up, reason capture, atomic configuration changes and append-only audit events for high-impact actions.
+- [ ] Add secret set/rotate/clear workflows backed by environment or dedicated secret storage; never reveal stored values.
+- [ ] Add dependency and eligibility validation for market, payment, verification and communication activation.
+- [ ] Add emergency disable for optional features and safe re-enable workflow.
+- [ ] Test authorization boundaries, last-Super-Admin protection, audit integrity and attempts to bypass feature gates.
+- [ ] Keep hard safeguards outside the feature registry and verify they cannot be disabled by Super Admin settings.
+
+
+## cPanel shared-hosting compatibility and deployment documentation
+- [x] Define PHP 8.3+ shared-hosting runtime baseline and required extensions, including GD WebP.
+- [x] Define safe document-root and private application-storage requirements.
+- [x] Document cPanel installation, database setup, environment configuration, permissions and first-run checks.
+- [x] Document release, upgrade, backup, rollback and operations procedures.
+- [ ] Commit and validate composer.lock; produce reproducible, tagged release artifacts with production vendor dependencies and compiled frontend assets.
+- [ ] Add automated PHP compatibility and extension checks for the supported PHP matrix.
+- [ ] Build a secure no-SSH installer and first Super Admin bootstrap, with no arbitrary command execution or public setup backdoor.
+- [ ] Add preflight diagnostics for PHP web/CLI mismatch, extensions, GD WebP, database, writable paths, HTTPS, document-root exposure and hosting limits.
+- [ ] Test supported cPanel/Apache/LiteSpeed configurations and document provider-specific exceptions.
+- [ ] Add deployment smoke tests, restore drills and a per-installation compatibility report.
+- [ ] Verify the current application can run with file cache/session and sync queue without Redis or persistent workers; disable scheduler-dependent features when cron is unavailable.

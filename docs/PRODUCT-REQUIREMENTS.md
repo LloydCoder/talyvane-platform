@@ -45,3 +45,49 @@ No custody/escrow; no private-key handling; no automated age inference; no publi
 
 ## Acceptance
 A feature is not complete until permission boundaries, validation, failure states, audit events, tests, accessibility, privacy impact and operational documentation are addressed. TGLS acceptance criteria are defined in docs/TGLS.md.
+
+
+## Super Admin control plane
+
+Each standalone customer deployment has one highest-privilege **Super Admin** role, provisioned through a secure installation/CLI bootstrap process. The Super Admin has comprehensive control over all configurable business and platform functionality within that deployment, including:
+
+- Enable, disable, configure and phase-rollout of eligible modules and features.
+- Website visibility, CMS, brand identity, navigation, SEO and public content.
+- Client and companion registration, portal capabilities, onboarding and account controls.
+- Booking modes, availability rules, workflows, cancellation policies and notifications.
+- Payment rails, assets, networks, processors, receiving instructions and payment-purpose controls.
+- Communication channels, inbox routing, templates, service hours and provider connections.
+- Country/market, city, currency, locale, language and time-zone configuration.
+- Memberships, pricing, promotions, CRM, reports, exports and operational workflows.
+- Staff accounts, role assignments, permissions, security policies and integration settings.
+- Maintenance mode, feature rollout, deployment diagnostics and approved operational controls.
+
+The administration interface must expose a searchable module/feature catalogue with status, dependencies, eligibility, configuration, impact summary and audit history. A Super Admin can disable an eligible module immediately; enabling a module requires its dependencies, required configuration, provider approval and applicable market/legal gates to be satisfied. Feature switches must be enforced server-side in routes, policies, jobs, APIs and domain services; hiding navigation or UI elements is not enforcement.
+
+### Authority and non-overridable safeguards
+
+Super Admin authority is comprehensive over business configuration, but it is not permission to bypass mandatory security or legal controls. The following constraints are enforced by application code and policy services, not by editable feature flags:
+
+- Adult-only access, independent age assurance and informed, revocable consent requirements.
+- Jurisdictional approval and market eligibility; unknown, expired, suspended or unapproved markets fail closed.
+- Anti-trafficking, anti-coercion, anti-exploitation and non-consensual-content prohibitions.
+- Authentication, authorization, MFA, session protection, audit integrity and privacy boundaries.
+- Companion autonomy and explicit opt-in requirements for automatic booking and publication.
+- Payment verification, transaction integrity, no-custody boundaries and provider restrictions.
+- Data minimization, evidence access restrictions, retention/deletion duties and incident escalation.
+
+The Super Admin may configure stricter controls, suspend a market, disable a feature, or suspend an account. They cannot mark an unverified person as verified, fabricate consent, bypass a market approval, suppress a safeguarding incident, alter historical payment evidence, erase audit history or grant themselves access to secrets/private keys through the UI.
+
+### Privileged action controls
+
+- Require MFA and step-up reauthentication for high-impact changes, including enabling markets, enabling payment rails, changing verification rules, changing privileged roles, exporting sensitive data and modifying retention.
+- Require an explicit reason for high-impact changes; display the expected impact and affected modules before confirmation.
+- Record actor, timestamp, action, target, before/after state, reason, request correlation ID and policy/configuration version in append-only audit events.
+- Never store plaintext integration secrets in ordinary settings or return existing secrets to the browser. Support set/rotate/clear workflows with masked status.
+- Prevent the last active Super Admin from being disabled or demoted without a safe successor and recovery path.
+- Support emergency disable of risky features; re-enablement must satisfy the normal prerequisites and step-up controls.
+- No support engineer, vendor, platform maintainer or tenant administrator receives implicit access to another deployment's customer data.
+
+### Multi-agency product boundary
+
+The initial commercial release remains one isolated installation per licensed agency. Each installation has its own Super Admin and independent data, secrets, storage, domain and configuration. A future centrally hosted SaaS may add a separate platform-operator control plane for deployment lifecycle and licensing; it must not silently inherit tenant Super Admin access or expose tenant business data. Tenant Super Admin permissions and platform-operator permissions are separate security principals and authorization domains.
