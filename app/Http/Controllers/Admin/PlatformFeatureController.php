@@ -112,7 +112,7 @@ class PlatformFeatureController
         });
 
         if ($outcome['blockers'] !== []) {
-            return back()->withErrors(['enabled' => $outcome['blockers']]);
+            return back()->withErrors(['enabled' => implode(' ', $outcome['blockers'])]);
         }
 
         if (! $outcome['changed']) {
