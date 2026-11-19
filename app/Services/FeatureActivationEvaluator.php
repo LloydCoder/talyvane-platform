@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CountryMarket;
 use App\Models\PlatformFeature;
+use App\Models\SitePage;
 use Illuminate\Support\Facades\Schema;
 
 class FeatureActivationEvaluator
@@ -52,7 +53,8 @@ class FeatureActivationEvaluator
 
             if ($requirement === 'applicant_privacy_notice') {
                 if (! filled(config('talyvane.model_agency.privacy_notice_version'))
-                    || ! config('talyvane.model_agency.privacy_notice_approved')) {
+                    || ! config('talyvane.model_agency.privacy_notice_approved')
+                    || ! SitePage::query()->where('slug', 'model-applicant-privacy')->where('is_published', true)->exists()) {
                     $blockers[] = 'A legally reviewed and versioned model-applicant privacy notice must be configured and explicitly approved.';
                 }
 
@@ -61,7 +63,8 @@ class FeatureActivationEvaluator
 
             if ($requirement === 'adult_eligibility_policy') {
                 if (! filled(config('talyvane.model_agency.adult_eligibility_policy_version'))
-                    || ! config('talyvane.model_agency.adult_eligibility_policy_approved')) {
+                    || ! config('talyvane.model_agency.adult_eligibility_policy_approved')
+                    || ! SitePage::query()->where('slug', 'model-adult-eligibility')->where('is_published', true)->exists()) {
                     $blockers[] = 'A legally reviewed, versioned adult-eligibility policy must be configured and explicitly approved.';
                 }
 
