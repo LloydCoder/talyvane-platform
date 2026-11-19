@@ -39,7 +39,7 @@ class CompanionMediaController extends Controller
                     || ! $lockedProfile->age_verified_at
                     || ! $lockedProfile->publication_consent_at
                     || $lockedProfile->consent_withdrawn_at
-                    || ! $lockedProfile->destination()->operationallyAvailable()->exists()
+                    || ! $lockedProfile->destination()->first()?->lockAndCheckOperationalAvailability()
                 ) {
                     throw ValidationException::withMessages(['media' => 'Profile publication consent changed while the image was being processed. Please review your profile status and try again.']);
                 }
