@@ -18,6 +18,11 @@
         @endif
         @auth
             @if (auth()->user()->role === 'client' && auth()->user()->hasVerifiedEmail())
+                @if (auth()->user()->favoriteProfiles()->where('companion_profiles.id', $profile->id)->exists())
+                    <form method="POST" action="{{ route('client.favorites.destroy', $profile) }}">@csrf @method('DELETE')<button class="text-link" type="submit">Remove from private shortlist</button></form>
+                @else
+                    <form method="POST" action="{{ route('client.favorites.store', $profile) }}">@csrf<button class="text-link" type="submit">Save to private shortlist ♡</button></form>
+                @endif
                 <a class="button button-dark" href="{{ route('bookings.create', $profile->slug) }}">Request a booking ↗</a>
             @endif
         @else
