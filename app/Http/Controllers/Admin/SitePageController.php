@@ -57,6 +57,8 @@ class SitePageController
 
     private function validatePage(Request $request, ?SitePage $page = null): array
     {
+        $request->merge(['slug' => Str::slug((string) $request->input('slug'))]);
+
         return $request->validate([
             'title' => ['required', 'string', 'min:2', 'max:120'],
             'slug' => ['required', 'string', 'min:2', 'max:140', Rule::unique('site_pages', 'slug')->ignore($page?->id)],
