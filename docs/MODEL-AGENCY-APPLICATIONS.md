@@ -37,7 +37,7 @@ Applicant names, contact details, city, portfolio URL, experience summary and ad
 
 The application receipt displays the generated application reference once in a private, no-store response; applicants must keep it. Applicants open /models/application-support, provide that reference and the recorded email address, and choose access, correction, withdrawal or erasure. The response is deliberately generic whether or not the reference/email pair matches. A matching address receives an eight-digit code stored only as a password hash; it expires after 10 minutes and locks after five failed attempts. Successful verification creates a 30-minute session scoped to one rights request. A new code supersedes prior pending/verified requests, and applicants can explicitly close the private session. The private applicant data page sends no-store/no-cache headers and a no-referrer policy. Email cannot be changed through this flow.
 
-- Access displays the applicant's stored application data in the verified session.
+- Access currently displays the submitted application fields and current status in the verified session. It is deliberately labelled as a self-service view, not a complete subject-access response for all records the agency may hold; broader access requests must use the controller contact in the published privacy notice.
 - Correction updates only name, phone, city, HTTPS portfolio URL and experience summary; email changes require a separately verified process.
 - Withdrawal transitions the application to withdrawn.
 - Erasure anonymizes contact/profile fields, clears applicant consent timestamps and free-text review/event reasons, replaces the reference, and retains a minimal non-identifying audit record.
@@ -59,6 +59,7 @@ Every transition requires an administrator reason and is committed with an appli
 ## Outstanding launch requirements
 
 - Independently review retention periods and test the production scheduler before activation.
+- Implement full operator-led subject-access request fulfilment: reasonable searches across agency systems, supplementary information, third-party review/redaction, response deadlines, secure downloadable copy and a documented decision/audit trail. The current self-service view is intentionally limited to the application record.
 - Independent age/identity assurance appropriate to the legal markets and intended work.
 - A separately verified applicant email-change and account-recovery process; the current rights workflow intentionally cannot change the registered email.
 - Legal review and sign-off of the configured retention periods and successful production cron execution.
@@ -70,6 +71,7 @@ Every transition requires an administrator reason and is committed with an appli
 
 - [ICO — Storage limitation](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/storage-limitation/)
 - [ICO — Recruitment and selection](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/employment/recruitment-and-selection/)
+- [ICO — A guide to subject access](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/subject-access-requests/a-guide-to-subject-access/)
 - [ICO — Data minimisation](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/data-minimisation/)
 - [NIST SP 800-63A-4 — Identity proofing](https://pages.nist.gov/800-63-4/sp800-63a/proofing/)
 - [OWASP — SSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html)
