@@ -62,17 +62,17 @@ jobs:
           from pathlib import Path
 
           path = Path('.github/workflows/ci.yml')
-          content = path.read_text()
-          import re
-
-          path = Path('.github/workflows/ci.yml')
-          content = path.read_text()
-          pattern = r"      - name: Install reproducible dependencies\\n        run: \\|\\n(?:          .*\\n)+"
-          replacement = "      - name: Install reproducible dependencies\\n        run: composer install --prefer-dist --no-interaction --no-progress\\n"
-          updated, count = re.subn(pattern, replacement, content, count=1)
-          if count != 1:
-              raise SystemExit('Expected temporary Composer fallback block was not found; refusing to rewrite CI unexpectedly.')
-          path.write_text(updated)
+          lines = path.read_text().splitlines()
+          start = lines.index('      - name: Install reproducible dependencies')
+          end = next(
+              index for index in range(start + 1, len(lines))
+              if lines[index].startswith('      - name: ')
+          )
+          lines[start:end] = [
+              '      - name: Install reproducible dependencies',
+              '        run: composer install --prefer-dist --no-interaction --no-progress',
+          ]
+          path.write_text('\\n'.join(lines) + '\\n')
           PY
 
       - name: Commit and publish the lockfile proposal
