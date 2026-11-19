@@ -98,7 +98,7 @@
                 @elseif($settlement->status === 'approved')
                     <form method="POST" action="{{ route('admin.model-settlements.payment', $settlement) }}" class="admin-form-grid">
                         @csrf
-                        <label>External method<select name="payment_method" required><option value="bank_transfer">Bank transfer</option><option value="cash">Cash</option><option value="crypto_external">External crypto transfer (not verified)</option><option value="other_external">Other external</option></select></label>
+                        <label>External method<select name="payment_method" required><option value="bank_transfer">Bank transfer</option><option value="cash">Cash</option><option value="other_external">Other external</option></select></label>
                         <label>External payment reference<input name="payment_reference" minlength="4" maxlength="200" required></label>
                         <label class="full-width">Private payment evidence reference<input name="payment_evidence_reference" minlength="20" maxlength="200" placeholder="private/model-settlements/payment-proof.pdf" required></label>
                         <div class="full-width"><button class="button button-dark" type="submit">Record external payment</button></div>
