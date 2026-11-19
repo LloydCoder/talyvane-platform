@@ -72,6 +72,7 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Protect the designated Super Admin against Eloquent-based demotion, deactivation and deletion; prevent a second principal after assignment; add regression tests. (Direct SQL bypass remains outside the application boundary.)
 - [x] Implement CLI-only recovery enrollment and MFA reset: verify two notification addresses, issue a hashed single-use offline key, require current password plus key for recovery, rotate the key, invalidate admin sessions and append audit events.
 - [x] Provide an enrollment path for existing deployments using current password and TOTP.
+- [x] Provide verified recovery contact and offline-key rotation, notify old and new addresses, and revoke prior admin sessions.
 - [ ] Implement dual-control break-glass recovery for loss of both password and offline key, and legacy owner/admin least-privilege migration.
 - [ ] Implement membership entitlements and protected-resource authorization; current membership capability is assignment/display only.
 - [x] Build a Super Admin-only read-only feature catalogue showing implementation state, configured/effective state, dependencies, risk and activation prerequisites.
