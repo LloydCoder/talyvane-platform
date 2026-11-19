@@ -75,4 +75,9 @@ class ModelTalentApplication extends Model
     {
         return $this->hasMany(ModelTalentRepresentationAgreement::class, 'application_id')->latest('version');
     }
+
+    public function portfolioAssets(): HasMany
+    {
+        return $this->hasMany(ModelTalentPortfolioAsset::class, 'application_id')->latest();
+    }
 }
