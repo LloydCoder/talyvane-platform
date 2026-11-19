@@ -127,8 +127,11 @@ class ModelCastingAdminController extends Controller
     public function withdraw(Request $request, ModelCastingSubmission $submission, ModelCastingWorkflowService $workflow): RedirectResponse
     {
         $this->assertSchemaReady();
-        $validated = $request->validate(['reason' => ['required', 'string', 'min:20', 'max:1500']]);
-        $workflow->withdraw($submission, (int) $request->user()->id, trim($validated['reason']));
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:20', 'max:1500'],
+            'withdrawal_evidence_reference' => ['required', 'string', 'min:20', 'max:200', 'regex:/^private\\/model-consent\\/[A-Za-z0-9][A-Za-z0-9._\\/-]{10,180}$/', 'not_regex:/\\.\\./'],
+        ]);
+        $workflow->withdraw($submission, (int) $request->user()->id, trim($validated['reason']), $validated['withdrawal_evidence_reference']);
 
         return back()->with('status', 'Casting submission withdrawal recorded.');
     }
