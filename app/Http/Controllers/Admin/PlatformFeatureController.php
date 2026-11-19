@@ -43,6 +43,12 @@ class PlatformFeatureController
             'code' => ['required', 'digits:6'],
         ]);
 
+        if (mb_strlen(trim($validated['reason'])) < 20) {
+            throw ValidationException::withMessages([
+                'reason' => 'Provide at least 20 non-whitespace characters explaining the operational reason.',
+            ]);
+        }
+
         $desiredState = (bool) $validated['enabled'];
         $outcome = DB::transaction(function () use ($request, $feature, $evaluator, $totp, $validated, $desiredState): array {
             $actor = User::query()->lockForUpdate()->findOrFail($request->user()->id);
