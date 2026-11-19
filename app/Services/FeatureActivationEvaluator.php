@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CountryMarket;
 use App\Models\PlatformFeature;
+use Illuminate\Support\Facades\Schema;
 
 class FeatureActivationEvaluator
 {
