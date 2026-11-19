@@ -60,7 +60,7 @@ Remaining: configurable content/CMS; jurisdiction-approved legal documents (curr
 - [ ] Implement separate casting calls, client briefs, talent submission/shortlist, assignment states and approvals.
 - [ ] Implement purpose-specific media releases and usage licences with rights holder, channel, territory, term, exclusivity, compensation and withdrawal constraints.
 - [ ] Implement model availability, assignment booking, fees, expenses, commission and settlement ledger.
-- [ ] Implement applicant self-service access/correction/withdrawal and policy-based retention/deletion workflows.
+- [ ] Implement applicant access/correction/withdrawal/erasure and policy-based retention/deletion workflows. This is a hard activation blocker for `model-agency.applications`.
 
 The current booking implementation is for companionship workflows only. The separate model-agency application intake and administrator review are implemented as an independent domain; they must not be represented by or routed through companionship bookings. Remaining model-agency work includes representation agreements, casting calls, assignments, image usage licences, client briefs, talent availability, usage approvals and settlement records, with independent permissions and audit trails.
 Partially implemented: client and companion account authentication; verified email; manual requests; admin-configurable automatic eligibility; companion opt-in/withdrawal; weekly availability windows; deposit verification attestation; overlap checks; client and companion booking views. Remaining: date-specific availability exceptions, calendar sync, cancellation/rescheduling policies, notifications, tamper-evident audit export/retention, and full companion profile editing.
