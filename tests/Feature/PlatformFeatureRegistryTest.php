@@ -127,6 +127,7 @@ class PlatformFeatureRegistryTest extends TestCase
         $this->assertNotNull($mediaDeletion);
         $this->assertNotNull($portal);
         $this->assertNotContains('feature:portals.companion', $withdrawal->gatherMiddleware());
+        $this->assertNotContains('verified', $withdrawal->gatherMiddleware());
         $this->assertNotContains('feature:portals.companion', $mediaDeletion->gatherMiddleware());
         $this->assertContains('feature:portals.companion', $portal->gatherMiddleware());
     }
