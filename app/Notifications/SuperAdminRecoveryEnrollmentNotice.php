@@ -20,10 +20,10 @@ class SuperAdminRecoveryEnrollmentNotice extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Talyvane Super Admin recovery credentials enrolled')
+            ->subject('Talyvane Super Admin recovery configuration updated')
             ->greeting('Super Admin security notice')
-            ->line('Verified Super Admin recovery credentials were enrolled at '.$this->occurredAt.'.')
-            ->line('A new offline recovery key was issued. It is not included in this email.')
+            ->line('A privileged Super Admin recovery configuration change was completed at '.$this->occurredAt.'.')
+            ->line('No passwords, authenticator secrets, recovery keys or verification codes are included in this email.')
             ->line('All previous administrator sessions were invalidated.')
             ->line('If you did not authorize this enrollment, contact your hosting operator immediately and preserve this notice.')
             ->action('Open administrator sign-in', url('/admin/login'));
