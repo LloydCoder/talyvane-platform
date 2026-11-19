@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\ModelAgencyApplicationRetentionService;
 use Illuminate\Console\Command;
+use RuntimeException;
 
 class ApplyModelAgencyApplicationRetention extends Command
 {
