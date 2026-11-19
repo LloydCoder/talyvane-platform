@@ -21,6 +21,14 @@ class HomePageTest extends TestCase
         $response->assertSee('Coordinate');
     }
 
+    public function test_default_public_brand_does_not_leak_platform_contact_details(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertDontSee('hello@tinlance.com')
+            ->assertDontSee('tinlance.com');
+    }
+
     public function test_homepage_uses_public_brand_settings(): void
     {
         BrandSetting::create([
