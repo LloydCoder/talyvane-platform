@@ -15,7 +15,7 @@
             <article class="companion-profile-card">
                 <div>
                     <strong>{{ $media->profile->display_name }} · {{ $media->profile->destination->name }}</strong>
-                    <p><a class=\"table-action\" href=\"{{ route('admin.profile-media.preview', $media) }}\" target=\"_blank\" rel=\"noopener noreferrer\">Review image ↗</a></p>
+                    <p><a class="table-action" href="{{ route('admin.profile-media.preview', $media) }}" target="_blank" rel="noopener noreferrer">Review image ↗</a></p>
                     <p>{{ $media->width }} × {{ $media->height }} · {{ number_format($media->file_size / 1024, 1) }} KB · submitted {{ $media->created_at->diffForHumans() }}</p>
                     <p>Rights and publication consent recorded · {{ $media->consent_version }}</p>
                 </div>
