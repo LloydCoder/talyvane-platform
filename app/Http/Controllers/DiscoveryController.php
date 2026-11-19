@@ -71,7 +71,7 @@ class DiscoveryController extends Controller
     {
         $profile = CompanionProfile::query()
             ->publiclyDiscoverable()
-            ->with('destination')
+            ->with(['destination', 'media' => fn ($query) => $query->where('status', 'approved')->latest()])
             ->where('slug', $slug)
             ->firstOrFail();
 
