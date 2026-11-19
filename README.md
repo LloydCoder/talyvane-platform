@@ -2,7 +2,7 @@
 
 **A white-label luxury agency operations platform for independently branded commercial deployments.**
 
-Talyvane is being developed for premium agency operations: public discovery, profiles, booking workflows, client and companion portals, memberships, configurable payments, CRM, verification, privacy controls and administration.
+Talyvane is being developed for two distinct premium agency verticals: (1) adult luxury escort and elite companionship, activated only in legally approved markets; and (2) model agency representation, including applications, portfolios, casting, assignments and image usage rights. They may share core infrastructure but retain separate services, contracts, consent scopes, booking types, compliance gates and financial workflows. The platform also provides public discovery, client and talent portals, memberships, configurable payments, CRM, verification, privacy controls and administration.
 
 ## Product principles
 - White-label by design: independently branded customer deployments.
