@@ -13,8 +13,13 @@
 - [x] CLI-only first-owner provisioning, login/logout, role-gated admin dashboard.
 - [x] Database-backed brand name, logo upload, tagline and contact configuration.
 - [ ] Enforce MFA and step-up authentication for privileged accounts before production.
+- [x] Destination administration with market/currency/locale/timezone configuration.
+- [x] Public destination and companion profile discovery with active-destination filters.
+- [x] Public profile visibility gated by verified-adult status and non-withdrawn publication consent.
+- [x] Audited profile publication review with approved-provider allowlist, hashed provider reference and explicit consent version.
+- [ ] Integrate and verify a real age-assurance provider; current publication workflow is reviewer-recorded and must not be represented as automated verification.
 - [x] CI feature tests for homepage, authentication, role boundaries and branding persistence.
-Remaining: configurable content/CMS; destination/profile directory and management; enquiry inbox; legal pages and market flags; staging deployment and runtime verification.
+Remaining: configurable content/CMS; enquiry inbox; legal pages and market flags; staging deployment and runtime verification; MFA.
 
 ## Release 2 — Booking and portals
 Client and companion accounts; manual booking; admin-configurable automatic rules with fail-closed prerequisites; calendar, notifications, cancellation and audit history; consent and verification integration.
