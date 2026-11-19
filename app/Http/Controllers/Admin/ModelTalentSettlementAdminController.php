@@ -21,7 +21,7 @@ class ModelTalentSettlementAdminController extends Controller
         return response()->view('admin.model-agency.settlements.index', [
             'assignments' => ModelTalentAssignment::query()
                 ->whereIn('status', ['in_progress', 'completed'])
-                ->with('application')
+                ->with(['application', 'settlementExpenses', 'settlement'])
                 ->latest('updated_at')
                 ->limit(100)
                 ->get(),
