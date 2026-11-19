@@ -25,7 +25,10 @@ use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function (\App\Services\BrandSettings $settings) {
-    return view('home', ['brand' => $settings->publicBrand()]);
+    return view('home', [
+        'brand' => $settings->publicBrand(),
+        'pages' => SitePage::query()->where('is_published', true)->orderBy('title')->get(['title', 'slug']),
+    ]);
 })->name('home');
 
 Route::get('/destinations', [DiscoveryController::class, 'destinations'])->name('destinations.index');
