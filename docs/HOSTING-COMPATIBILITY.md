@@ -32,7 +32,7 @@ Core functionality must not require:
 - WebSockets, Laravel Octane, Horizon or a permanently running queue worker.
 - SSH, Composer or Git installed on the production host (these are optional deployment conveniences, not runtime requirements).
 
-Use MySQL-compatible persistence, Laravel file cache/session options where appropriate, database-backed records, synchronous execution for low-volume critical paths, and cron-triggered work for deferred tasks where cron is available. The application must not claim background work is running when the host cannot execute it. Avoid long-running HTTP requests and use bounded polling for live chat rather than requiring WebSockets.
+Use MySQL-compatible persistence, Laravel file cache/session options where appropriate, database-backed records, synchronous execution for low-volume critical paths, and cron-triggered work for deferred tasks where cron is available. Dependency versions are fixed by the committed `composer.lock`; production release artifacts must be built with `composer install --no-dev` and must never resolve new versions on the hosting account. See [DEPENDENCY-MANAGEMENT.md](DEPENDENCY-MANAGEMENT.md). The application must not claim background work is running when the host cannot execute it. Avoid long-running HTTP requests and use bounded polling for live chat rather than requiring WebSockets.
 
 Email delivery depends on a configured SMTP provider and outbound network policy. Blockchain watchers, external verification, Telegram, exchange-rate feeds, calendar sync and other integrations require their own provider credentials, outbound access and policy approvals; they are optional adapters and must remain disabled until configured and approved.
 

@@ -94,8 +94,9 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Define safe document-root and private application-storage requirements.
 - [x] Document cPanel installation, database setup, environment configuration, permissions and first-run checks.
 - [x] Document release, upgrade, backup, rollback and operations procedures.
-- [ ] Commit and validate composer.lock; produce reproducible, tagged release artifacts with production vendor dependencies and compiled frontend assets.
-- [ ] Add automated PHP compatibility and extension checks for the supported PHP matrix.
+- [ ] Merge and validate the generated `composer.lock` through the reviewed bootstrap PR; produce reproducible, tagged release artifacts with production vendor dependencies and compiled frontend assets.
+- [x] Add a main-branch-only, reviewed lockfile-bootstrap workflow that targets PHP 8.3.0, publishes a bot-owned branch and dispatches the full CI matrix; the reviewed PR is opened separately and is never auto-merged.
+- [x] Add automated PHP 8.3/8.4/8.5 compatibility and actual extension/platform checks in CI.
 - [ ] Build a secure no-SSH installer and first Super Admin bootstrap, with no arbitrary command execution or public setup backdoor.
 - [ ] Add preflight diagnostics for PHP web/CLI mismatch, extensions, GD WebP, database, writable paths, HTTPS, document-root exposure and hosting limits.
 - [ ] Test supported cPanel/Apache/LiteSpeed configurations and document provider-specific exceptions.

@@ -1,0 +1,89 @@
+name: Bootstrap Composer lockfile
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: composer-lockfile-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+
+      - id: guard
+        name: Check whether a committed lockfile is still needed
+        run: |
+          if [ -f composer.lock ]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure PHP and Composer runtime
+        if: steps.guard.outputs.needed == 'true'
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, tokenizer, xml
+          coverage: none
+
+      - name: Prepare bot-owned lockfile branch
+        if: steps.guard.outputs.needed == 'true'
+        run: |
+          git fetch origin main
+          git checkout -B automation/composer-lockfile origin/main
+
+      - name: Resolve and validate dependencies against the minimum PHP version
+        if: steps.guard.outputs.needed == 'true'
+        run: |
+          composer update --prefer-dist --no-interaction --no-progress
+          composer validate --no-check-publish
+          composer audit --no-interaction
+          composer check-platform-reqs
+
+      - name: Require deterministic Composer installation in CI
+        if: steps.guard.outputs.needed == 'true'
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/ci.yml')
+          lines = path.read_text().splitlines()
+          start = lines.index('      - name: Install reproducible dependencies')
+          end = next(
+              index for index in range(start + 1, len(lines))
+              if lines[index].startswith('      - name: ')
+          )
+          lines[start:end] = [
+              '      - name: Install reproducible dependencies',
+              '        run: composer install --prefer-dist --no-interaction --no-progress',
+          ]
+          path.write_text('\n'.join(lines) + '\n')
+          PY
+
+      - name: Commit and publish the lockfile proposal
+        if: steps.guard.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add composer.lock .github/workflows/ci.yml
+          git commit -m "build: commit reproducible Composer dependency lockfile"
+          git push --force origin HEAD:refs/heads/automation/composer-lockfile
+
+          gh workflow run ci.yml --ref automation/composer-lockfile
+
