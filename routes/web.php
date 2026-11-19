@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\ModelAgencyApplicationAdminController;
 use App\Http\Controllers\Admin\ModelTalentRepresentationAgreementController;
 use App\Http\Controllers\Admin\ModelTalentPortfolioAssetController;
 use App\Http\Controllers\Admin\ModelTalentImageLicenceController;
+use App\Http\Controllers\Admin\ModelCastingAdminController;
 use App\Http\Controllers\ModelAgencyApplicationController;
 use App\Http\Controllers\ModelAgencyApplicationRightsController;
 use App\Http\Controllers\AccountSecurityController;
@@ -173,17 +174,28 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('/model-applications/{application}', [ModelAgencyApplicationAdminController::class, 'update'])->name('model-applications.update');
         Route::post('/model-applications/{application}/adult-eligibility', [ModelAgencyApplicationAdminController::class, 'verifyAdultEligibility'])->middleware('throttle:5,1')->name('model-applications.adult-eligibility');
         Route::post('/model-applications/{application}/legal-hold', [ModelAgencyApplicationAdminController::class, 'updateLegalHold'])->name('model-applications.legal-hold');
-        Route::post('/model-applications/{application}/agreements', [ModelTalentRepresentationAgreementController::class, 'store'])->middleware('throttle:10,1')->name('model-applications.agreements.store');
-        Route::post('/model-representation-agreements/{agreement}/offer', [ModelTalentRepresentationAgreementController::class, 'offer'])->middleware('throttle:10,1')->name('model-representation-agreements.offer');
-        Route::post('/model-representation-agreements/{agreement}/execute', [ModelTalentRepresentationAgreementController::class, 'execute'])->middleware('throttle:5,1')->name('model-representation-agreements.execute');
+        Route::post('/model-applications/{application}/agreements', [ModelTalentRepresentationAgreementController::class, 'store'])->middleware(['feature:model-agency.usage-rights', 'throttle:10,1'])->name('model-applications.agreements.store');
+        Route::post('/model-representation-agreements/{agreement}/offer', [ModelTalentRepresentationAgreementController::class, 'offer'])->middleware(['feature:model-agency.usage-rights', 'throttle:10,1'])->name('model-representation-agreements.offer');
+        Route::post('/model-representation-agreements/{agreement}/execute', [ModelTalentRepresentationAgreementController::class, 'execute'])->middleware(['feature:model-agency.usage-rights', 'throttle:5,1'])->name('model-representation-agreements.execute');
         Route::post('/model-representation-agreements/{agreement}/terminate', [ModelTalentRepresentationAgreementController::class, 'terminate'])->middleware('throttle:5,1')->name('model-representation-agreements.terminate');
-        Route::post('/model-applications/{application}/portfolio-assets', [ModelTalentPortfolioAssetController::class, 'store'])->middleware('throttle:10,1')->name('model-applications.portfolio-assets.store');
-        Route::get('/model-portfolio-assets/{asset}/preview', [ModelTalentPortfolioAssetController::class, 'preview'])->name('model-portfolio-assets.preview');
-        Route::post('/model-portfolio-assets/{asset}/review', [ModelTalentPortfolioAssetController::class, 'review'])->middleware('throttle:10,1')->name('model-portfolio-assets.review');
+
+        Route::post('/model-applications/{application}/portfolio-assets', [ModelTalentPortfolioAssetController::class, 'store'])->middleware(['feature:model-agency.usage-rights', 'throttle:10,1'])->name('model-applications.portfolio-assets.store');
+        Route::get('/model-portfolio-assets/{asset}/preview', [ModelTalentPortfolioAssetController::class, 'preview'])->middleware('feature:model-agency.usage-rights')->name('model-portfolio-assets.preview');
+        Route::post('/model-portfolio-assets/{asset}/review', [ModelTalentPortfolioAssetController::class, 'review'])->middleware(['feature:model-agency.usage-rights', 'throttle:10,1'])->name('model-portfolio-assets.review');
         Route::post('/model-portfolio-assets/{asset}/withdraw-consent', [ModelTalentPortfolioAssetController::class, 'withdrawConsent'])->middleware('throttle:5,1')->name('model-portfolio-assets.withdraw-consent');
-        Route::post('/model-portfolio-assets/{asset}/licences', [ModelTalentImageLicenceController::class, 'store'])->middleware('throttle:10,1')->name('model-portfolio-assets.licences.store');
-        Route::post('/model-image-licences/{licence}/activate', [ModelTalentImageLicenceController::class, 'activate'])->middleware('throttle:5,1')->name('model-image-licences.activate');
+
+        Route::post('/model-portfolio-assets/{asset}/licences', [ModelTalentImageLicenceController::class, 'store'])->middleware(['feature:model-agency.usage-rights', 'throttle:10,1'])->name('model-portfolio-assets.licences.store');
+        Route::post('/model-image-licences/{licence}/activate', [ModelTalentImageLicenceController::class, 'activate'])->middleware(['feature:model-agency.usage-rights', 'throttle:5,1'])->name('model-image-licences.activate');
         Route::post('/model-image-licences/{licence}/revoke', [ModelTalentImageLicenceController::class, 'revoke'])->middleware('throttle:5,1')->name('model-image-licences.revoke');
+
+        Route::get('/model-castings', [ModelCastingAdminController::class, 'index'])->middleware('feature:model-agency.casting')->name('model-castings.index');
+        Route::post('/model-castings', [ModelCastingAdminController::class, 'store'])->middleware(['feature:model-agency.casting', 'throttle:10,1'])->name('model-castings.store');
+        Route::post('/model-castings/{call}/publish', [ModelCastingAdminController::class, 'publish'])->middleware(['feature:model-agency.casting', 'throttle:5,1'])->name('model-castings.publish');
+        Route::post('/model-castings/{call}/close', [ModelCastingAdminController::class, 'close'])->middleware('throttle:5,1')->name('model-castings.close');
+        Route::post('/model-castings/{call}/cancel', [ModelCastingAdminController::class, 'cancel'])->middleware('throttle:5,1')->name('model-castings.cancel');
+        Route::post('/model-castings/{call}/submissions', [ModelCastingAdminController::class, 'submit'])->middleware(['feature:model-agency.casting', 'throttle:10,1'])->name('model-castings.submissions.store');
+        Route::post('/model-casting-submissions/{submission}/decision', [ModelCastingAdminController::class, 'decide'])->middleware(['feature:model-agency.casting', 'throttle:10,1'])->name('model-casting-submissions.decision');
+        Route::post('/model-casting-submissions/{submission}/withdraw', [ModelCastingAdminController::class, 'withdraw'])->middleware('throttle:5,1')->name('model-casting-submissions.withdraw');
         Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
         Route::get('/clients', [ClientManagementController::class, 'index'])->name('clients.index');
         Route::post('/clients/{client}/membership', [ClientManagementController::class, 'assignMembership'])->middleware('feature:memberships')->name('clients.membership');

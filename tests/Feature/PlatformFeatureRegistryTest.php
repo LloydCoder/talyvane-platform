@@ -34,7 +34,7 @@ class PlatformFeatureRegistryTest extends TestCase
         $this->get('/')->assertNotFound();
     }
 
-    public function test_planned_features_cannot_be_enabled_by_registry_state_alone(): void
+    public function test_available_model_agency_features_cannot_be_enabled_before_dependencies_are_enabled(): void
     {
         DB::table('platform_features')->where('key', 'model-agency.casting')->update([
             'is_enabled' => true,
@@ -45,7 +45,7 @@ class PlatformFeatureRegistryTest extends TestCase
         $this->get('/destinations')->assertOk();
         $this->assertDatabaseHas('platform_features', [
             'key' => 'model-agency.casting',
-            'implementation_status' => 'planned',
+            'implementation_status' => 'available',
             'is_enabled' => true,
         ]);
     }

@@ -64,7 +64,7 @@ Every transition requires an administrator reason and is committed with an appli
 - A separately verified applicant email-change and account-recovery process; the current rights workflow intentionally cannot change the registered email.
 - Legal review and sign-off of the configured retention periods and successful production cron execution.
 - Secure document and image submission only if later required, with private storage, scanning, consent and rights provenance.
-- Casting, assignment approvals, purpose-bound image usage licences, model bookings and settlements. Private executed-document upload/download and access audit are also outstanding.
+- Assignment approvals, model bookings and settlements. Internal casting briefs and licensed model submission tracking are documented in [Private Model Casting Workflow](MODEL-CASTING-WORKFLOW.md); they do not create assignments or expose images to clients. Private executed-document upload/download and access audit are also outstanding.
 - Production legal review, privacy review and safeguarding sign-off.
 
 ## Engineering references

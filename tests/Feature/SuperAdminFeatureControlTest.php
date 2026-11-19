@@ -119,7 +119,7 @@ class SuperAdminFeatureControlTest extends TestCase
         $this->assertSame(1, PlatformFeatureAuditEvent::query()->where('feature_key', 'cms.pages')->count());
     }
 
-    public function test_planned_feature_cannot_be_enabled_even_by_super_admin(): void
+    public function test_available_feature_cannot_be_enabled_without_its_activation_prerequisites_even_by_super_admin(): void
     {
         $admin = $this->createAdminUser([
             'name' => 'Deployment Super Admin',
@@ -140,7 +140,7 @@ class SuperAdminFeatureControlTest extends TestCase
 
         $this->assertDatabaseHas('platform_features', [
             'key' => 'model-agency.casting',
-            'implementation_status' => 'planned',
+            'implementation_status' => 'available',
             'is_enabled' => false,
         ]);
         $this->assertDatabaseMissing('platform_feature_audit_events', [
