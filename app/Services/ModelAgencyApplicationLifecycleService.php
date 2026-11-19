@@ -79,6 +79,8 @@ class ModelAgencyApplicationLifecycleService
                 'adult_eligibility_confirmed_at' => null,
                 'adult_eligibility_policy_accepted_at' => null,
                 'privacy_notice_accepted_at' => null,
+                'submitted_at' => null,
+                'reviewed_at' => null,
                 'review_note' => null,
                 'legal_hold_at' => null,
                 'legal_hold_by' => null,
