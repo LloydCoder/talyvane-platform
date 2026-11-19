@@ -7,6 +7,7 @@ use App\Models\SuperAdminRecoveryEvent;
 use App\Notifications\SuperAdminRecoveryNotice;
 use App\Notifications\SuperAdminEmailVerificationCode;
 use App\Notifications\SuperAdminRecoveryEnrollmentNotice;
+use App\Notifications\SuperAdminRecoveryContactsRotatedNotice;
 use App\Services\RecoveryCodeGenerator;
 use App\Services\TotpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -167,6 +168,49 @@ class SuperAdminRecoveryTest extends TestCase
         Notification::assertSentOnDemand(SuperAdminRecoveryEnrollmentNotice::class, 2);
     }
 
+
+
+    public function test_super_admin_can_rotate_verified_recovery_contact_and_offline_key_with_password_and_mfa(): void
+    {
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'smtp.example.test']);
+        Notification::fake();
+        $this->mock(RecoveryCodeGenerator::class, fn ($mock) => $mock->shouldReceive('generate')->twice()->andReturn('333333', '444444'));
+
+        [$superAdmin, $oldRecoveryKey] = $this->provisionSuperAdmin();
+        $secret = $superAdmin->mfa_secret;
+        $step = intdiv(time(), 30);
+        $superAdmin->forceFill(['mfa_last_used_step' => $step - 1])->save();
+        $code = (new TotpService())->codeForStep($secret, $step);
+
+        $this->artisan('talyvane:super-admin:rotate-recovery-contacts')
+            ->expectsQuestion('Current Super Admin password', 'Strong-Root-Password-934!')
+            ->expectsQuestion('Current authenticator code', $code)
+            ->expectsQuestion('New recovery notification email (must differ from both current addresses)', 'new-recovery@example.test')
+            ->expectsQuestion('Verification code sent to root@example.test', '333333')
+            ->expectsQuestion('Verification code sent to new-recovery@example.test', '444444')
+            ->expectsQuestion('Reason for recovery contact rotation (minimum 20 characters)', 'Recovery mailbox changed after controlled owner request')
+            ->expectsOutputToContain('Super Admin recovery key (store offline; shown once):')
+            ->expectsOutput('Recovery notification address rotated; offline recovery key replaced and all prior administrator sessions invalidated.')
+            ->assertExitCode(0);
+
+        $superAdmin->refresh();
+        $control = DB::table('platform_control')->where('id', 1)->first();
+
+        $this->assertSame('new-recovery@example.test', $control->super_admin_recovery_email);
+        $this->assertNotNull($control->super_admin_recovery_email_verified_at);
+        $this->assertFalse(Hash::check($oldRecoveryKey, $control->super_admin_recovery_key_hash));
+        $this->assertSame(8, $superAdmin->admin_session_version);
+        $this->assertSame($step, $superAdmin->mfa_last_used_step);
+        $this->assertNotSame('old-remember-token', $superAdmin->remember_token);
+        $this->assertDatabaseHas('super_admin_recovery_events', [
+            'super_admin_user_id' => $superAdmin->id,
+            'event_type' => 'recovery_contacts_rotated',
+            'session_version_before' => 7,
+            'session_version_after' => 8,
+        ]);
+        Notification::assertSentOnDemand(SuperAdminEmailVerificationCode::class, 2);
+        Notification::assertSentOnDemand(SuperAdminRecoveryContactsRotatedNotice::class, 3);
+    }
 
     public function test_super_admin_recovery_audit_events_are_append_only_at_the_eloquent_boundary(): void
     {
