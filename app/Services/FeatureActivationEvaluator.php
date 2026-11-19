@@ -45,7 +45,16 @@ class FeatureActivationEvaluator
             }
 
             if ($requirement === 'applicant_data_lifecycle') {
-                $blockers[] = 'Applicant access, correction, withdrawal, erasure and retention execution are not implemented.';
+                $rightsTableReady = Schema::hasTable('model_talent_application_rights_requests');
+                $applicationDays = (int) config('talyvane.model_agency.retention.application_days');
+                $acceptedDays = (int) config('talyvane.model_agency.retention.accepted_days');
+                $retentionApproved = config('talyvane.model_agency.retention.schedule_approved');
+                $smtpReady = config('mail.default') === 'smtp' && filled(config('mail.mailers.smtp.host'));
+
+                if (! $rightsTableReady || $applicationDays < 1 || $acceptedDays < 1 || ! $retentionApproved || ! $smtpReady) {
+                    $blockers[] = 'Applicant rights verification, approved retention periods, scheduled retention execution and SMTP delivery must all be configured.';
+                }
+
                 continue;
             }
 
