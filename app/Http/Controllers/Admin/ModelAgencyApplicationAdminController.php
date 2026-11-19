@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ModelTalentApplication;
+use App\Models\CountryMarket;
 use App\Models\ModelTalentApplicationEvent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -27,6 +28,7 @@ class ModelAgencyApplicationAdminController extends Controller
         $this->assertSchemaReady();
 
         return response()->view('admin.model-agency.applications.index', [
+            'approvedMarkets' => CountryMarket::operationallyApproved()->orderBy('name')->get(['country_code', 'name']),
             'applications' => ModelTalentApplication::query()
                 ->with(['reviewer', 'adultEligibilityVerifier', 'representationAgreements'])
                 ->latest('submitted_at')
