@@ -37,6 +37,9 @@
         <a class="sidebar-link {{ request()->routeIs('admin.enquiries.*') ? 'active' : '' }}" href="{{ route('admin.enquiries.index') }}">Enquiries</a>
         @if (\Illuminate\Support\Facades\Schema::hasTable('model_talent_applications'))
             <a class="sidebar-link {{ request()->routeIs('admin.model-applications.*') ? 'active' : '' }}" href="{{ route('admin.model-applications.index') }}">Model applications</a>
+            @if(in_array(auth()->user()->role, ['super_admin', 'owner'], true) && \\Illuminate\\Support\\Facades\\Schema::hasColumn('model_talent_application_rights_requests', 'response_status'))
+                <a class="sidebar-link {{ request()->routeIs('admin.model-applicant-sar.*') ? 'active' : '' }}" href="{{ route('admin.model-applicant-sar.index') }}">Applicant SAR</a>
+            @endif
         @endif
         <a class="sidebar-link {{ request()->routeIs('admin.bookings.index') ? 'active' : '' }}" href="{{ route('admin.bookings.index') }}">Booking requests</a>
         <div class="sidebar-bottom">
