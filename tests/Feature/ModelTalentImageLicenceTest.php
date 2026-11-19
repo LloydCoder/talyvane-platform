@@ -205,7 +205,7 @@ class ModelTalentImageLicenceTest extends TestCase
         }
     }
 
-}
+
     public function test_withdrawing_portfolio_consent_revokes_active_licences(): void
     {
         $context = $this->makeApprovedAssetAndAgreement();
@@ -274,4 +274,4 @@ class ModelTalentImageLicenceTest extends TestCase
             $this->assertArrayHasKey('licence', $exception->errors());
         }
     }
-
+}
