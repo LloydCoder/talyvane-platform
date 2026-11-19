@@ -248,3 +248,6 @@ h1 em, h2 em { color: var(--gold); font-weight: 400; }
 
 
 .booking-event-list{display:grid;gap:6px;margin-top:15px;padding:12px;background:#f1eee6;border:1px solid rgba(23,28,24,.08)}.booking-event-list strong{font:17px var(--serif)}.booking-event-list span{color:#687067;font-size:9px}
+
+
+.mfa-secret{padding:14px;background:#171c18;color:#eeeae1;font:13px monospace;letter-spacing:.12em;overflow-wrap:anywhere}.mfa-uri{width:100%;margin:8px 0 15px;padding:10px;border:1px solid rgba(23,28,24,.2);background:#fffefa;color:#545b52;font:9px monospace;overflow-wrap:anywhere}.mfa-recovery{margin-top:22px;padding-top:18px;border-top:1px solid rgba(23,28,24,.15)}.mfa-recovery summary{color:#826f4d;font-size:10px;cursor:pointer}.mfa-recovery form{display:grid;gap:10px;margin-top:12px}.mfa-recovery input{min-height:42px;padding:10px;border:1px solid rgba(23,28,24,.2);background:#fffefa;font:12px var(--sans)}.mfa-recovery button{justify-self:start;border:0;background:transparent;color:#826f4d;cursor:pointer}.mfa-recovery-codes{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:18px;background:#f8f6f0;list-style:none;font:12px monospace}.mfa-recovery-codes li{padding:8px;border-bottom:1px solid rgba(23,28,24,.1)}
