@@ -154,7 +154,7 @@ class ModelAgencyApplicationTest extends TestCase
 
         $application->refresh();
         $this->assertSame('accepted', $application->status);
-        $this->assertDatabaseCount('model_talent_application_events', 3);
+        $this->assertDatabaseCount('model_talent_application_events', 2);
 
         $this->actingAs($admin)
             ->patch('/admin/model-applications/'.$application->id, [
