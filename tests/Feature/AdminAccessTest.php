@@ -146,7 +146,7 @@ class AdminAccessTest extends TestCase
         $this->assertGuest();
         $user = User::where('email', 'owner@example.test')->firstOrFail();
         $step = intdiv(time(), 30);
-        $code = (new \\App\\Services\\TotpService())->codeForStep($user->mfa_secret, $step);
+        $code = (new TotpService())->codeForStep($user->mfa_secret, $step);
         $this->post('/admin/mfa/challenge', ['code' => $code])->assertRedirect('/admin');
         $this->assertAuthenticated();
 
