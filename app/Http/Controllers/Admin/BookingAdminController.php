@@ -19,7 +19,7 @@ class BookingAdminController
     {
         return view('admin.bookings.index', [
             'bookings' => Booking::query()
-                ->with(['client', 'profile', 'destination', 'depositVerifier'])
+                ->with(['client', 'profile', 'destination', 'depositVerifier', 'events.actor'])
                 ->latest()
                 ->paginate(20),
             'settings' => BookingSetting::current(),
