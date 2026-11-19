@@ -103,8 +103,19 @@ class BookingController extends Controller
             }
 
             $depositStatus = $settings->auto_requires_verified_deposit ? 'pending' : 'not_required';
+            $localStart = $startsAt->timezone($timezone);
+            $localEnd = $endsAt->timezone($timezone);
+            $availabilityMatches = $localStart->toDateString() === $localEnd->toDateString()
+                && $lockedProfile->availabilityRules()
+                    ->where('is_active', true)
+                    ->where('weekday', $localStart->dayOfWeek)
+                    ->where('starts_at', '<=', $localStart->format('H:i:s'))
+                    ->where('ends_at', '>=', $localEnd->format('H:i:s'))
+                    ->exists();
+
             $canAutoConfirm = $settings->booking_mode === 'automatic'
                 && $settings->auto_confirm_enabled
+                && $availabilityMatches
                 && $lockedProfile->accepts_automatic_bookings
                 && $lockedProfile->automatic_booking_consent_at !== null
                 && ! $settings->auto_requires_verified_deposit;
