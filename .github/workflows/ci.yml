@@ -39,5 +39,11 @@ jobs:
           if-no-files-found: error
       - name: Validate Composer configuration
         run: composer validate --no-check-publish
+      - name: Lint PHP source
+        run: find app bootstrap config database routes tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Validate routes and compile Blade views
+        run: |
+          php artisan route:list --except-vendor
+          php artisan view:cache
       - name: Run feature tests
         run: vendor/bin/phpunit
