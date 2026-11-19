@@ -3,7 +3,11 @@
     "name": "tinlance/talyvane-platform",
     "type": "project",
     "description": "A white-label luxury agency operations platform.",
-    "keywords": ["laravel", "white-label", "agency-platform"],
+    "keywords": [
+        "laravel",
+        "white-label",
+        "agency-platform"
+    ],
     "license": "LicenseRef-Talyvane-Commercial",
     "require": {
         "php": "^8.3",
@@ -42,6 +46,9 @@
         "sort-packages": true,
         "allow-plugins": {
             "php-http/discovery": true
+        },
+        "platform": {
+            "php": "8.3.0"
         }
     },
     "minimum-stability": "stable",
