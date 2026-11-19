@@ -51,7 +51,7 @@
                     <p>Agreed gross: {{ $assignment->compensation_amount }} {{ $assignment->currency_code }} · Expense cap: {{ $assignment->expense_cap_amount ?? 'Not set' }} · Commission: {{ $assignment->commission_percent }}%</p>
                 @endif
 
-                @if(in_array($assignment->status, ['in_progress','completed'], true) && $assignment->settlementExpenses->whereNull('settlement_id')->count() >= 0 && $assignment->settlement === null)
+                @if(in_array($assignment->status, ['in_progress','completed'], true) && $assignment->settlement === null && $assignment->expense_cap_amount !== null)
                     <details class="admin-details">
                         <summary>Submit expense claim</summary>
                         <form method="POST" action="{{ route('admin.model-settlements.expenses.store', $assignment) }}" class="admin-form-grid">
