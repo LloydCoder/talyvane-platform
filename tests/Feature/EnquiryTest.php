@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Destination;
 use App\Models\Enquiry;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -63,7 +64,7 @@ class EnquiryTest extends TestCase
 
     public function test_enquiry_cannot_reference_an_inactive_destination(): void
     {
-        $destination = \\App\\Models\\Destination::create([
+        $destination = Destination::create([
             'name' => 'Hidden City',
             'slug' => 'hidden-city',
             'country_code' => 'GB',
