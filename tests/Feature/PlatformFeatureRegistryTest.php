@@ -53,6 +53,32 @@ class PlatformFeatureRegistryTest extends TestCase
         $this->assertFalse(app(FeatureRegistry::class)->isEnabled('bookings.automatic'));
     }
 
+    public function test_feature_audit_events_reject_updates(): void
+    {
+        $event = PlatformFeatureAuditEvent::query()->create([
+            'feature_key' => 'public.discovery',
+            'action' => 'test.created',
+            'reason' => 'Verify append-only model protection.',
+            'created_at' => now(),
+        ]);
+
+        $this->expectException(\\LogicException::class);
+        $event->update(['reason' => 'Tampered reason']);
+    }
+
+    public function test_feature_audit_events_reject_deletion(): void
+    {
+        $event = PlatformFeatureAuditEvent::query()->create([
+            'feature_key' => 'public.discovery',
+            'action' => 'test.created',
+            'reason' => 'Verify append-only model protection.',
+            'created_at' => now(),
+        ]);
+
+        $this->expectException(\\LogicException::class);
+        $event->delete();
+    }
+
     public function test_only_super_admin_can_view_the_feature_registry(): void
     {
         $owner = $this->createAdminUser([
