@@ -21,5 +21,10 @@ return [
         'privacy_notice_approved' => filter_var(env('MODEL_AGENCY_PRIVACY_NOTICE_APPROVED', false), FILTER_VALIDATE_BOOL),
         'adult_eligibility_policy_version' => env('MODEL_AGENCY_ADULT_ELIGIBILITY_POLICY_VERSION'),
         'adult_eligibility_policy_approved' => filter_var(env('MODEL_AGENCY_ADULT_ELIGIBILITY_POLICY_APPROVED', false), FILTER_VALIDATE_BOOL),
+        'retention' => [
+            'application_days' => env('MODEL_AGENCY_APPLICATION_RETENTION_DAYS'),
+            'accepted_days' => env('MODEL_AGENCY_ACCEPTED_RETENTION_DAYS'),
+            'schedule_approved' => filter_var(env('MODEL_AGENCY_RETENTION_SCHEDULE_APPROVED', false), FILTER_VALIDATE_BOOL),
+        ],
     ],
 ];
