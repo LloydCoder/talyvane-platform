@@ -6,6 +6,7 @@ use App\Models\SuperAdminRecoveryEvent;
 use App\Models\SuperAdminRecoveryGuardian;
 use App\Models\User;
 use App\Notifications\SuperAdminBreakGlassNotice;
+use App\Notifications\SuperAdminRecoveryEnrollmentNotice;
 use App\Notifications\SuperAdminRecoveryNotice;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -130,7 +131,7 @@ class SuperAdminBreakGlassService
                 ]);
             }
 
-            $notice = new SuperAdminBreakGlassNotice('configured', $occurredAt->toDayDateTimeString());
+            $notice = new SuperAdminRecoveryEnrollmentNotice($occurredAt->toDayDateTimeString());
             foreach (array_unique([
                 $superAdmin->email,
                 $control->super_admin_recovery_email,
