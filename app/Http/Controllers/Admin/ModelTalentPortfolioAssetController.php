@@ -109,7 +109,8 @@ class ModelTalentPortfolioAssetController extends Controller
     private function assertSchemaReady(): void
     {
         abort_unless(
-            Schema::hasTable('model_talent_portfolio_assets')
+            Schema::hasTable('model_talent_image_licences')
+                && Schema::hasTable('model_talent_portfolio_assets')
                 && Schema::hasColumns('model_talent_portfolio_assets', [
                     'application_id', 'storage_path', 'sha256', 'status',
                     'consent_policy_version', 'consent_withdrawn_at',

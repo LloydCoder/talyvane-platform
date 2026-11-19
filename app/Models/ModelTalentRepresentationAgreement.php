@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ModelTalentRepresentationAgreement extends Model
 {
@@ -60,5 +61,10 @@ class ModelTalentRepresentationAgreement extends Model
     public function executor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'executed_by');
+    }
+
+    public function imageLicences(): HasMany
+    {
+        return $this->hasMany(ModelTalentImageLicence::class, 'representation_agreement_id')->latest();
     }
 }

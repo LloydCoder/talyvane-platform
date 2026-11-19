@@ -71,8 +71,9 @@ class ModelTalentPortfolioAssetService
     public function review(ModelTalentPortfolioAsset $asset, int $actorId, string $decision, string $note): void
     {
         DB::transaction(function () use ($asset, $actorId, $decision, $note): void {
+            $current = ModelTalentPortfolioAsset::query()->findOrFail($asset->id);
+            $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($current->application_id);
             $locked = ModelTalentPortfolioAsset::query()->lockForUpdate()->findOrFail($asset->id);
-            $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($locked->application_id);
 
             if (! in_array($decision, ['approved', 'rejected'], true)) {
                 throw ValidationException::withMessages(['decision' => 'Choose an allowed review decision.']);
@@ -125,8 +126,9 @@ class ModelTalentPortfolioAssetService
         string $evidenceReference,
     ): void {
         DB::transaction(function () use ($asset, $actorId, $reason, $evidenceReference): void {
+            $current = ModelTalentPortfolioAsset::query()->findOrFail($asset->id);
+            $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($current->application_id);
             $locked = ModelTalentPortfolioAsset::query()->lockForUpdate()->findOrFail($asset->id);
-            $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($locked->application_id);
 
             if ($locked->status === 'withdrawn' || $locked->consent_withdrawn_at !== null) {
                 throw ValidationException::withMessages(['reason' => 'Consent has already been withdrawn for this asset.']);
@@ -147,6 +149,7 @@ class ModelTalentPortfolioAssetService
             ])->save();
 
             $this->event($application, $actorId, 'application.portfolio_consent_withdrawn', 'Consent withdrawal was recorded; the private image file was removed and cannot be previewed or used.');
+            app(ModelTalentImageLicenceService::class)->revokeForAsset($locked, $actorId, 'Portfolio image consent was withdrawn.');
         });
     }
 

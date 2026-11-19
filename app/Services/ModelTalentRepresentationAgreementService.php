@@ -53,8 +53,9 @@ class ModelTalentRepresentationAgreementService
     public function offer(ModelTalentRepresentationAgreement $agreement, int $actorId): void
     {
         DB::transaction(function () use ($agreement, $actorId): void {
+            $current = ModelTalentRepresentationAgreement::query()->findOrFail($agreement->id);
+            $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($current->application_id);
             $locked = ModelTalentRepresentationAgreement::query()->lockForUpdate()->findOrFail($agreement->id);
-            $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($locked->application_id);
             $this->assertEligible($application, (string) ($locked->country_code ?? ''));
 
             if ($locked->status !== 'draft') {
@@ -79,8 +80,9 @@ class ModelTalentRepresentationAgreementService
         ?string $effectiveUntil,
     ): void {
         DB::transaction(function () use ($agreement, $actorId, $documentReference, $effectiveFrom, $effectiveUntil): void {
+            $current = ModelTalentRepresentationAgreement::query()->findOrFail($agreement->id);
+            $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($current->application_id);
             $locked = ModelTalentRepresentationAgreement::query()->lockForUpdate()->findOrFail($agreement->id);
-            $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($locked->application_id);
             $this->assertEligible($application, (string) ($locked->country_code ?? ''));
 
             if ($locked->status !== 'offered') {
@@ -107,8 +109,9 @@ class ModelTalentRepresentationAgreementService
     public function terminate(ModelTalentRepresentationAgreement $agreement, int $actorId, string $reason): void
     {
         DB::transaction(function () use ($agreement, $actorId, $reason): void {
+            $current = ModelTalentRepresentationAgreement::query()->findOrFail($agreement->id);
+            $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($current->application_id);
             $locked = ModelTalentRepresentationAgreement::query()->lockForUpdate()->findOrFail($agreement->id);
-            $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($locked->application_id);
 
             if ($locked->status !== 'executed') {
                 throw ValidationException::withMessages(['agreement' => 'Only an executed agreement can be terminated.']);
@@ -122,6 +125,7 @@ class ModelTalentRepresentationAgreementService
             ])->save();
 
             $this->event($application, $actorId, 'application.representation_agreement_terminated', 'Terminated agreement '.$locked->reference.'. '.$reason);
+            app(ModelTalentImageLicenceService::class)->revokeForAgreement($locked, $actorId, 'The representation agreement was terminated. '.$reason);
         });
     }
 

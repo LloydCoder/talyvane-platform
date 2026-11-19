@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ModelTalentPortfolioAsset extends Model
 {
@@ -60,5 +61,10 @@ class ModelTalentPortfolioAsset extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function imageLicences(): HasMany
+    {
+        return $this->hasMany(ModelTalentImageLicence::class, 'portfolio_asset_id')->latest();
     }
 }

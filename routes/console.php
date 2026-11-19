@@ -7,6 +7,7 @@ use App\Notifications\SuperAdminRecoveryNotice;
 use App\Notifications\SuperAdminRecoveryEnrollmentNotice;
 use App\Notifications\SuperAdminRecoveryContactsRotatedNotice;
 use App\Services\RecoveryCodeGenerator;
+use App\Services\ModelTalentImageLicenceService;
 use App\Services\TotpService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Artisan;
@@ -15,6 +16,13 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schedule;
+
+Artisan::command('talyvane:model-agency:expire-image-licences', function () {
+    $expired = app(ModelTalentImageLicenceService::class)->expireDue();
+    $this->info('Expired '.$expired.' model image licence(s).');
+
+    return 0;
+})->purpose('Expire model image licences after their recorded end date');
 
 Artisan::command('talyvane:about', function () {
     $this->comment('Talyvane platform foundation');
@@ -665,6 +673,8 @@ Artisan::command('talyvane:companion:create {email}', function () {
     $this->info('Companion account created. Deliver the temporary password through a separate secure channel. The companion must verify their email before using the portal.');
 })->purpose('Provision a companion account from a trusted command line');
 
+
+Schedule::command('talyvane:model-agency:expire-image-licences')->dailyAt('03:00')->withoutOverlapping();
 
 if ((int) config('talyvane.model_agency.retention.application_days') > 0
     && (int) config('talyvane.model_agency.retention.accepted_days') > 0
