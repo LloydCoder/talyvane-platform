@@ -140,6 +140,11 @@ class ModelAgencyApplicationRightsTest extends TestCase
             ->assertSee('jordan@example.test')
             ->assertSee('Commercial and editorial modelling experience.')
             ->assertHeader('Cache-Control', 'no-store, private, max-age=0');
+
+        $this->post('/models/application-support/'.$request->id.'/finish')
+            ->assertRedirect('/models/application-support/verify');
+
+        $this->get('/models/application-support/'.$request->id)->assertForbidden();
     }
 
     public function test_access_request_does_not_disclose_whether_reference_or_email_exists(): void
