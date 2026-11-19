@@ -33,6 +33,11 @@ class SuperAdminBreakGlassService
             throw new RuntimeException('Exactly two distinct recovery guardians are required.');
         }
 
+        $guardianEmails = array_map(static fn (array $guardian): string => strtolower($guardian['email']), $guardians);
+        if (count(array_unique($guardianEmails)) !== 2) {
+            throw new RuntimeException('Recovery guardian notification addresses must be distinct.');
+        }
+
         DB::transaction(function () use ($superAdminId, $superAdminPassword, $superAdminTotp, $guardians, $reason, $verificationStartedAt): void {
             if (time() - $verificationStartedAt > 300) {
                 throw new RuntimeException('Guardian email verification expired. Restart break-glass configuration.');
@@ -47,6 +52,9 @@ class SuperAdminBreakGlassService
                 || $superAdmin->role !== 'super_admin'
                 || ! $superAdmin->is_active
                 || ! $superAdmin->email_verified_at
+                || blank($control->super_admin_recovery_email)
+                || ! $control->super_admin_recovery_email_verified_at
+                || blank($control->super_admin_recovery_key_hash)
                 || ! $superAdmin->mfa_enabled_at
                 || ! $superAdmin->mfa_secret
                 || blank($control->super_admin_recovery_key_hash)
@@ -74,6 +82,8 @@ class SuperAdminBreakGlassService
                 $user = $lockedUsers->get((int) $guardian['user_id']);
 
                 if (! $user
+                    || hash_equals(strtolower($superAdmin->email), strtolower($user->email))
+                    || hash_equals(strtolower($control->super_admin_recovery_email), strtolower($user->email))
                     || $user->role !== 'owner'
                     || ! $user->is_active
                     || ! $user->email_verified_at
