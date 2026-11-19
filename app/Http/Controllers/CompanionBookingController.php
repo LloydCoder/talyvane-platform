@@ -39,6 +39,15 @@ class CompanionBookingController extends Controller
 
             if ($validated['decision'] === 'decline') {
                 $lockedBooking->forceFill(['status' => 'declined'])->save();
+                BookingEvent::query()->create([
+                    'booking_id' => $lockedBooking->id,
+                    'actor_id' => auth()->id(),
+                    'event_type' => 'companion_declined',
+                    'from_status' => 'pending_review',
+                    'to_status' => 'declined',
+                    'metadata' => [],
+                    'created_at' => now(),
+                ]);
 
                 return;
             }
@@ -68,6 +77,15 @@ class CompanionBookingController extends Controller
                 'status' => 'confirmed',
                 'confirmed_at' => now(),
             ])->save();
+            BookingEvent::query()->create([
+                'booking_id' => $lockedBooking->id,
+                'actor_id' => auth()->id(),
+                'event_type' => 'companion_accepted',
+                'from_status' => 'pending_review',
+                'to_status' => 'confirmed',
+                'metadata' => [],
+                'created_at' => now(),
+            ]);
         });
 
         return redirect()->route('companion-portal.dashboard')->with('status', 'Booking decision saved.');
