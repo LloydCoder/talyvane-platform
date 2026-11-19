@@ -44,6 +44,11 @@ class FeatureActivationEvaluator
                 continue;
             }
 
+            if ($requirement === 'applicant_data_lifecycle') {
+                $blockers[] = 'Applicant access, correction, withdrawal, erasure and retention execution are not implemented.';
+                continue;
+            }
+
             if ($requirement === 'model_agency_workflow') {
                 if (! Schema::hasTable('model_talent_applications') || ! Schema::hasTable('model_talent_application_events')) {
                     $blockers[] = 'The separate model-agency application and audit workflow is not installed.';
