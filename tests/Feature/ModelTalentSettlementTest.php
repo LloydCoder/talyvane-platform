@@ -23,16 +23,16 @@ class ModelTalentSettlementTest extends TestCase
 
     private function assignment(string $status = 'completed'): array
     {
-        $admin = $this->createAdminUser();
+        $admin = $this->createAdminUser(['email' => 'settlement-admin-'.strtolower(bin2hex(random_bytes(4))).'@example.test']);
         $verifier = User::query()->create([
             'name' => 'Eligibility Verifier',
-            'email' => 'settlement-verifier@example.test',
+            'email' => 'settlement-verifier-'.strtolower(bin2hex(random_bytes(4))).'@example.test',
             'password' => 'Strong-Testing-Password-934!',
             'role' => 'owner',
             'is_active' => true,
         ]);
 
-        CountryMarket::query()->create([
+        CountryMarket::query()->firstOrCreate(['country_code' => 'GB'], [
             'country_code' => 'GB',
             'name' => 'United Kingdom',
             'is_enabled' => true,
@@ -43,7 +43,7 @@ class ModelTalentSettlementTest extends TestCase
             'compliance_review_summary' => 'Test fixture only.',
             'market_policy' => ['test_fixture' => true],
         ]);
-        Currency::query()->create([
+        Currency::query()->firstOrCreate(['code' => 'GBP'], [
             'code' => 'GBP',
             'numeric_code' => '826',
             'name' => 'Pound Sterling',
