@@ -50,6 +50,8 @@
 Remaining: configurable content/CMS; jurisdiction-approved legal documents (current pages are draft placeholders); market flags; staging deployment and runtime verification; MFA.
 
 ## Release 2 — Booking and portals
+
+The current booking implementation is for companionship workflows. The separate model-agency track remains unimplemented and must not be represented by the companionship booking flow. It requires talent applications, agency review, representation agreements, casting calls, assignments, image usage licences, client briefs, talent availability, usage approvals and settlement records, with independent permissions and audit trails.
 Partially implemented: client and companion account authentication; verified email; manual requests; admin-configurable automatic eligibility; companion opt-in/withdrawal; weekly availability windows; deposit verification attestation; overlap checks; client and companion booking views. Remaining: date-specific availability exceptions, calendar sync, cancellation/rescheduling policies, notifications, tamper-evident audit export/retention, and full companion profile editing.
 
 ## Release 3 — Payments
