@@ -8,6 +8,7 @@ use App\Models\CompanionAvailabilityRule;
 use App\Models\CompanionProfile;
 use App\Models\ProfilePublicationReview;
 use App\Models\ProfileMedia;
+use App\Models\ProfileMedia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
