@@ -10,7 +10,7 @@ This is an engineering baseline, not a certification or legal opinion. Use OWASP
 - Reauthentication for privileged actions; prevent IDOR with resource-scoped queries.
 
 ## Sensitive data
-Collect only necessary data for documented purposes. Never expose legal names, identity documents, private addresses, phone numbers or verification evidence publicly. Store verification evidence separately with restricted access, encryption where supported and access audit. Record consent purpose, version, actor, timestamp and withdrawal. Define retention/deletion schedules. Do not infer age, identity or sensitive traits.
+Collect only necessary data for documented purposes. Never expose legal names, identity documents, private addresses, phone numbers or verification evidence publicly. Store verification evidence separately with restricted access, encryption where supported and access audit. Record consent purpose, version, actor, timestamp and withdrawal. Profile publication and automatic-booking opt-in/out are recorded as separate review events. Provider references and external payment transaction references are stored as keyed HMAC digests, not raw identifiers; no identity document is stored in public profile tables. Define retention/deletion schedules. Do not infer age, identity or sensitive traits.
 
 ## Media
 Validate extension, MIME and file signature; re-encode images/transcode video; strip EXIF/GPS; randomise storage names; keep originals private; enforce limits; scan and quarantine uploads; prevent path traversal and executable uploads. Publish only after adult-status, ownership and explicit publication-consent checks. Provide rapid unpublish and consent withdrawal. Signed URLs cannot prevent screenshots or copying.
@@ -22,7 +22,7 @@ Never collect seed phrases/private keys. Validate public addresses, network and 
 Validate trust-boundary inputs; parameterised queries; output encoding; CSRF; restrictive CORS; CSP/security headers; rate limits; SSRF protections on URL importers; explicit DTOs; dependency scanning; no debug mode or stack traces in production.
 
 ## Audit and response
-Audit privileged configuration, evidence access, booking decisions, payment changes, refunds, exports, suspensions and consent changes. Keep sensitive payloads out of logs. Define incident triage, containment, evidence preservation, notification assessment and recovery.
+Audit privileged configuration, profile publication, companion consent changes, booking decisions, deposit verification, refunds, exports and suspensions. Booking and consent audit events should be retained under a documented schedule; the current application has initial profile-review records but not yet a complete immutable event ledger. Keep sensitive payloads out of logs. Define incident triage, containment, evidence preservation, notification assessment and recovery.
 
 ## Release gates
 No production release until authorisation tests, upload security, payment verification, privacy controls, backup restore, dependency audit, secret scan, vulnerability review and jurisdictional sign-off pass.
