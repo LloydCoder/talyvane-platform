@@ -16,9 +16,13 @@ class HomePageTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('TALYVANE');
-        $response->assertSeeText('A more considered');
+        $response->assertSeeText('Exceptional company.');
+        $response->assertSeeText('executive companionship');
+        $response->assertSeeText('adults aged 18 and over');
         $response->assertSee('Explore destinations');
-        $response->assertSee('Coordinate');
+        $response->assertSee('Personal coordination');
+        $response->assertSee('Discretion by design');
+        $response->assertSee('Discover companions');
     }
 
     public function test_default_public_brand_does_not_leak_platform_contact_details(): void
