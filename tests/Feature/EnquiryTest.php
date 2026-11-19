@@ -94,7 +94,7 @@ class EnquiryTest extends TestCase
 
     public function test_admin_can_update_enquiry_status(): void
     {
-        $admin = User::create([
+        $admin = $this->createAdminUser([
             'name' => 'Platform Admin',
             'email' => 'admin@example.test',
             'password' => Hash::make('Strong-Testing-Password-934!'),
