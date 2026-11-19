@@ -71,10 +71,10 @@ class DestinationController
         return $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'slug' => ['required', 'alpha_dash', 'max:140', Rule::unique('destinations', 'slug')->ignore($destination?->id)],
-            'country_code' => ['required', 'alpha', 'size:2'],
+            'country_code' => ['required', 'string', 'size:2', 'regex:/^[A-Z]{2}$/'],
             'country_name' => ['required', 'string', 'max:100'],
             'city_name' => ['required', 'string', 'max:100'],
-            'currency_code' => ['required', 'alpha', 'size:3'],
+            'currency_code' => ['required', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
             'locale' => ['required', 'string', 'max:10'],
             'timezone' => ['required', 'timezone'],
             'description' => ['nullable', 'string', 'max:2000'],
