@@ -26,7 +26,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
         Route::get('/branding', [BrandingController::class, 'edit'])->name('branding.edit');
         Route::put('/branding', [BrandingController::class, 'update'])->name('branding.update');
-        Route::resource('destinations', DestinationController::class)->except(['show', 'destroy']);
+        Route::resource('destinations', DestinationController::class)->except(['show', 'destroy']);\n        Route::get('/profiles', [CompanionProfileController::class, 'index'])->name('profiles.index');\n        Route::get('/profiles/create', [CompanionProfileController::class, 'create'])->name('profiles.create');\n        Route::post('/profiles', [CompanionProfileController::class, 'store'])->name('profiles.store');\n        Route::post('/profiles/{profile}/publish', [CompanionProfileController::class, 'publish'])->name('profiles.publish');\n        Route::post('/profiles/{profile}/unpublish', [CompanionProfileController::class, 'unpublish'])->name('profiles.unpublish');
         Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
     });
 });
