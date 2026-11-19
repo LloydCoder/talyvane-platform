@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('portal.layout')
 
 @section('title', 'Private casting review')
 
