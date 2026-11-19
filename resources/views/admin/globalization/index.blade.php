@@ -35,7 +35,13 @@
                 <thead><tr><th>Currency</th><th>Code</th><th>Precision</th><th>Enabled</th></tr></thead>
                 <tbody>
                 @forelse ($currencies as $currency)
-                    <tr><td><strong>{{ $currency->name }}</strong><small>{{ $currency->symbol }}</small></td><td>{{ $currency->code }}</td><td>{{ $currency->minor_unit }}</td><td>{{ $currency->is_enabled ? 'Yes' : 'No' }}</td></tr>
+                    <tr><td><strong>{{ $currency->name }}</strong><small>{{ $currency->symbol }}</small></td><td>{{ $currency->code }}</td><td>{{ $currency->minor_unit }}</td><td>
+                        <form method="POST" action="{{ route('admin.globalization.currencies.enabled', $currency) }}">
+                            @csrf @method('PATCH')
+                            <input type="hidden" name="is_enabled" value="{{ $currency->is_enabled ? '0' : '1' }}">
+                            <button class="table-action" type="submit">{{ $currency->is_enabled ? 'Disable' : 'Enable' }}</button>
+                        </form>
+                    </td></tr>
                 @empty
                     <tr><td colspan="4" class="empty-table">No currency reference records have been imported yet.</td></tr>
                 @endforelse
