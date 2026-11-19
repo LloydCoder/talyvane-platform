@@ -3,6 +3,7 @@
 @section('robots', 'noindex,nofollow')
 @section('content')
     <article class="profile-detail">
+        @if (session('status'))<div class="form-success" role="status">{{ session('status') }}</div>@endif
         <p class="eyebrow">VERIFIED ADULT PROFILE / {{ $profile->destination->name }}</p>
         <h1>{{ $profile->display_name }}<br><em>by Talyvane.</em></h1>
         @if ($profile->media->where('status', 'approved')->isNotEmpty())
