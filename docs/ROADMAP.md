@@ -93,7 +93,7 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Provide verified recovery contact and offline-key rotation, notify old and new addresses, and revoke prior admin sessions.
 - [x] Implement CLI-only two-owner break-glass recovery for loss of both Super Admin password and offline key; require two distinct active verified Owner custodians, separate passwords/TOTP secrets/email codes, transactional revalidation, notifications, audit and session invalidation.
 - [x] Add a dedicated finance role with MFA/session-version enforcement and an isolated model-settlement route/workspace boundary; general administrators cannot access the finance workspace.
-- [ ] Add independent maker-checker enforcement for expense review, settlement approval and payment attestation; owner/Super Admin oversight exceptions must be explicitly governed and audited.
+- [x] Enforce independent maker-checker controls for expense review, settlement approval and payment attestation in the domain service; no owner/Super Admin self-approval exception is provided.
 - [ ] Add dedicated verifier and safeguarding specialist roles with purpose-limited evidence access.
 - [ ] Complete legacy owner/admin least-privilege migration and independent human custodian identity-proofing/operational drills.
 - [ ] Implement membership entitlements and protected-resource authorization; current membership capability is assignment/display only.
