@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Booking;
+use App\Models\CountryMarket;
 use App\Models\BookingSetting;
 use App\Models\CompanionProfile;
 use App\Models\Destination;
@@ -66,7 +67,7 @@ class CompanionPortalTest extends TestCase
             'is_active' => true,
         ]);
         $start = now('Europe/London')->addDays(4)->utc();
-        $booking = \\App\\Models\\Booking::create([
+        $booking = Booking::create([
             'reference' => 'COMPANIONGATE1',
             'client_id' => $client->id,
             'companion_profile_id' => $profile->id,
@@ -79,7 +80,7 @@ class CompanionPortalTest extends TestCase
             'timezone' => 'Europe/London',
             'duration_minutes' => 60,
         ]);
-        \\App\\Models\\CountryMarket::query()->where('country_code', 'GB')->update([
+        CountryMarket::query()->where('country_code', 'GB')->update([
             'is_enabled' => false,
             'compliance_status' => 'rejected',
         ]);
