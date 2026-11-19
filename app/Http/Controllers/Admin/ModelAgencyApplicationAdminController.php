@@ -26,6 +26,7 @@ class ModelAgencyApplicationAdminController extends Controller
     public function index(FeatureActivationEvaluator $evaluator): View
     {
         $this->assertFeatureReady($evaluator);
+
         return view('admin.model-agency.applications.index', [
             'applications' => ModelTalentApplication::query()
                 ->with('reviewer')
@@ -34,20 +35,27 @@ class ModelAgencyApplicationAdminController extends Controller
         ]);
     }
 
-    public function update(Request $request, ModelTalentApplication $application, FeatureActivationEvaluator $evaluator): RedirectResponse
-    {
+    public function update(
+        Request $request,
+        ModelTalentApplication $application,
+        FeatureActivationEvaluator $evaluator,
+    ): RedirectResponse {
         $this->assertFeatureReady($evaluator);
+
         $validated = $request->validate([
             'status' => ['required', Rule::in(['reviewing', 'accepted', 'declined'])],
-            'review_note' => [
-                'required',
-                'string',
-                'min:20',
-                'max:2000',
-            ],
+            'review_note' => ['required', 'string', 'min:20', 'max:2000'],
         ]);
 
-        DB::transaction(function () use ($request, $application, $validated): void {
+        $note = trim($validated['review_note']);
+
+        if (mb_strlen($note) < 20) {
+            throw ValidationException::withMessages([
+                'review_note' => 'Provide at least 20 non-whitespace characters explaining this decision.',
+            ]);
+        }
+
+        DB::transaction(function () use ($request, $application, $validated, $note): void {
             $locked = ModelTalentApplication::query()->lockForUpdate()->findOrFail($application->id);
             $target = $validated['status'];
             $allowed = self::TRANSITIONS[$locked->status] ?? [];
@@ -59,7 +67,6 @@ class ModelAgencyApplicationAdminController extends Controller
             }
 
             $from = $locked->status;
-            $note = isset($validated['review_note']) ? trim($validated['review_note']) : null;
             $locked->forceFill([
                 'status' => $target,
                 'reviewed_by' => $request->user()->id,
@@ -84,11 +91,11 @@ class ModelAgencyApplicationAdminController extends Controller
             'Application status updated. Acceptance is an invitation to the separate representation process, not a signed representation agreement.',
         );
     }
+
     private function assertFeatureReady(FeatureActivationEvaluator $evaluator): void
     {
         $feature = PlatformFeature::query()->findOrFail('model-agency.applications');
 
         abort_if($evaluator->blockers($feature) !== [], 503, 'Model agency application safeguards are not configured.');
     }
-
 }
