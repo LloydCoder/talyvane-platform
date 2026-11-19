@@ -63,21 +63,16 @@ jobs:
 
           path = Path('.github/workflows/ci.yml')
           content = path.read_text()
-          old = """      - name: Install reproducible dependencies
-                run: |
-                  if [ -f composer.lock ]; then
-                    composer install --prefer-dist --no-interaction --no-progress
-                  else
-                    echo "::warning::composer.lock is not committed yet; using temporary dependency resolution until the lockfile bootstrap PR is merged."
-                    composer update --prefer-dist --no-interaction --no-progress
-                  fi
-          """
-          new = """      - name: Install reproducible dependencies
-                run: composer install --prefer-dist --no-interaction --no-progress
-          """
-          if old not in content:
+          import re
+
+          path = Path('.github/workflows/ci.yml')
+          content = path.read_text()
+          pattern = r"      - name: Install reproducible dependencies\\n        run: \\|\\n(?:          .*\\n)+"
+          replacement = "      - name: Install reproducible dependencies\\n        run: composer install --prefer-dist --no-interaction --no-progress\\n"
+          updated, count = re.subn(pattern, replacement, content, count=1)
+          if count != 1:
               raise SystemExit('Expected temporary Composer fallback block was not found; refusing to rewrite CI unexpectedly.')
-          path.write_text(content.replace(old, new, 1))
+          path.write_text(updated)
           PY
 
       - name: Commit and publish the lockfile proposal
