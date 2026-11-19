@@ -16,7 +16,7 @@
             <label for="destination_id">Destination (optional)</label><select id="destination_id" name="destination_id"><option value="">Not specified</option>@foreach ($destinations as $destination)<option value="{{ $destination->id }}" @selected(old('destination_id') == $destination->id)>{{ $destination->name }}</option>@endforeach</select>
             <label for="subject">Subject</label><input id="subject" name="subject" required maxlength="160" value="{{ old('subject') }}">
             <label for="message">Message</label><textarea id="message" name="message" rows="6" minlength="10" maxlength="5000" required>{{ old('message') }}</textarea>
-            <label class="privacy-check"><input type="checkbox" name="privacy_acknowledged" value="1" required @checked(old('privacy_acknowledged'))> I acknowledge the privacy notice and agree that the team may use these details to respond to this enquiry.</label>
+            <label class="privacy-check"><input type="checkbox" name="privacy_acknowledged" value="1" required @checked(old('privacy_acknowledged'))> I acknowledge the <a href="{{ route('privacy') }}">privacy notice</a> and agree that the team may use these details to respond to this enquiry.</label>
             <p class="field-help">Do not submit identity documents, payment credentials, private addresses or sensitive personal information through this form.</p>
             <button class="button button-dark" type="submit">Send enquiry ↗</button>
         </form>
