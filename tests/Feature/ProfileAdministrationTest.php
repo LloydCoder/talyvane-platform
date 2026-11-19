@@ -64,6 +64,7 @@ class ProfileAdministrationTest extends TestCase
 
     public function test_profile_publication_requires_provider_verification_reference_and_explicit_consent(): void
     {
+        config(['talyvane.verification.approved_providers' => ['approved-provider']]);
         $owner = $this->owner();
         $destination = $this->destination();
         $profile = \App\Models\CompanionProfile::create([
