@@ -107,6 +107,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
     Route::middleware(['auth', 'role:super_admin', 'admin.mfa'])->group(function (): void {
         Route::get('/features', [PlatformFeatureController::class, 'index'])->name('features.index');
+        Route::patch('/features/{feature}', [PlatformFeatureController::class, 'update'])->middleware('throttle:5,1')->name('features.update');
     });
 
     Route::middleware(['auth', 'role:super_admin,owner,admin', 'admin.mfa'])->group(function (): void {
