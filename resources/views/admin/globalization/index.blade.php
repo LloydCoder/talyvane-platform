@@ -65,12 +65,12 @@
         <div class="settings-section-title"><span>03</span><div><h2>Country and territory markets</h2><p>New markets always begin in pending compliance state. Do not treat technical configuration as legal approval.</p></div></div>
         <div class="admin-table-wrap">
             <table class="admin-table">
-                <thead><tr><th>Market</th><th>Default currency</th><th>Status</th><th>Enabled</th></tr></thead>
+                <thead><tr><th>Market</th><th>Default currency</th><th>Compliance</th><th>Enabled</th><th>Review action</th></tr></thead>
                 <tbody>
                 @forelse ($markets as $market)
-                    <tr><td><strong>{{ $market->name }}</strong><small>{{ $market->country_code }}{{ $market->alpha3_code ? ' / '.$market->alpha3_code : '' }}</small></td><td>{{ $market->default_currency_code ?? '—' }}</td><td>{{ str($market->compliance_status)->headline() }}</td><td>{{ $market->is_enabled ? 'Yes' : 'No' }}</td></tr>
+                    <tr><td><strong>{{ $market->name }}</strong><small>{{ $market->country_code }}{{ $market->alpha3_code ? ' / '.$market->alpha3_code : '' }}</small></td><td>{{ $market->default_currency_code ?? '—' }}</td><td><strong>{{ str($market->compliance_status)->headline() }}</strong><small>{{ $market->compliance_reviewed_at?->format('d M Y') ?? 'Not reviewed' }}</small></td><td>{{ $market->is_enabled ? 'Yes' : 'No' }}</td><td><details class="market-review-details"><summary>Record review</summary><form method="POST" action="{{ route('admin.globalization.markets.review', $market) }}">@csrf<label>Decision</label><select name="decision" required><option value="approved">Approve</option><option value="rejected">Reject</option></select><label>Evidence reference</label><input name="evidence_reference" required minlength="8" maxlength="255" placeholder="Counsel memo / secure document reference"><label>Reviewer findings</label><textarea name="review_summary" required minlength="20" maxlength="2000" rows="4" placeholder="Summarize the jurisdiction-specific review and scope"></textarea><label class="remember-row"><input type="checkbox" name="enable_market" value="1"> Enable market after approval</label><label class="remember-row"><input type="checkbox" name="review_confirmed" value="1" required> I confirm that the evidence is genuine, current and relates to this exact operating model and market</label><button class="button button-dark" type="submit">Record decision ↗</button></form></details></td></tr>
                 @empty
-                    <tr><td colspan="4" class="empty-table">No country market records configured.</td></tr>
+                    <tr><td colspan="5" class="empty-table">No country market records configured.</td></tr>
                 @endforelse
                 </tbody>
             </table>
