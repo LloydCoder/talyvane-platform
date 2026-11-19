@@ -52,7 +52,7 @@ class SuperAdminRecoveryTest extends TestCase
             'super_admin_user_id' => $superAdmin->id,
             'event_type' => 'notification_sent',
         ]);
-        Notification::assertSentOnDemand(SuperAdminRecoveryNotice::class, null, 2);
+        Notification::assertSentOnDemand(SuperAdminRecoveryNotice::class, 2);
     }
 
     public function test_super_admin_recovery_rejects_invalid_credentials_without_mutating_security_state(): void
