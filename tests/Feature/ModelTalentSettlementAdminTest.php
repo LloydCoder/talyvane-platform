@@ -25,13 +25,22 @@ class ModelTalentSettlementAdminTest extends TestCase
         ]);
     }
 
-    public function test_settlement_register_is_restricted_and_disabled_by_default(): void
+    public function test_settlement_register_is_disabled_by_default_and_available_to_the_owner_when_enabled(): void
     {
-        $admin = $this->createAdminUser();
-        $this->actingAs($admin)->get('/admin/model-settlements')->assertNotFound();
+        $owner = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'settlement-owner@example.test',
+            'role' => 'owner',
+            'is_active' => true,
+        ]);
+        $this->actingAs($owner)->get('/admin/model-settlements')->assertNotFound();
 
         $this->enableSettlementFeature();
-        $this->actingAs($admin)->get('/admin/model-settlements')->assertForbidden();
+        $this->actingAs($owner)
+            ->get('/admin/model-settlements')
+            ->assertOk()
+            ->assertSee('Expense and settlement ledger')
+            ->assertSee('No settlements have been calculated.');
     }
 
     public function test_client_cannot_access_the_model_settlement_register_even_when_enabled(): void
