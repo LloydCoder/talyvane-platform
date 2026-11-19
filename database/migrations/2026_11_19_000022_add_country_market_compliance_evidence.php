@@ -21,8 +21,13 @@ return new class extends Migration
             ->get();
 
         foreach ($destinations as $destination) {
+            $countryCode = strtoupper($destination->country_code);
+            DB::table('destinations')
+                ->where('country_code', $destination->country_code)
+                ->update(['country_code' => $countryCode]);
+
             DB::table('country_markets')->insertOrIgnore([
-                'country_code' => $destination->country_code,
+                'country_code' => $countryCode,
                 'name' => $destination->country_name,
                 'is_enabled' => false,
                 'compliance_status' => 'pending',
