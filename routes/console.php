@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
-use Throwable;
 
 Artisan::command('talyvane:about', function () {
     $this->comment('Talyvane platform foundation');
