@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ModelAgencyApplicationRightsTest extends TestCase
@@ -108,6 +109,18 @@ class ModelAgencyApplicationRightsTest extends TestCase
         ])->assertRedirect('/models/application-support/'.$request->id);
     }
 
+
+
+    public function test_applicant_privacy_support_fails_closed_when_rights_request_schema_is_incomplete(): void
+    {
+        $this->enableLifecycle();
+
+        Schema::table('model_talent_application_rights_requests', function ($table): void {
+            $table->dropColumn('expires_at');
+        });
+
+        $this->get('/models/application-support')->assertStatus(503);
+    }
 
     public function test_applicant_rights_services_remain_available_after_new_intake_is_disabled(): void
     {
