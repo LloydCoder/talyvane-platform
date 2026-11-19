@@ -27,10 +27,9 @@ See COMMERCIAL-LICENSING.md for the intended commercial model.
 - docs/ROADMAP.md
 - docs/COMPETITIVE-REFERENCE.md
 - docs/LOCAL-DEVELOPMENT.md
-- docs/COMPETITIVE-REFERENCE.md
 - docs/decisions/
 
-Current application stack: Laravel 13, PHP 8.3–8.5, MySQL, Blade and custom responsive CSS. Composer dependencies are resolved by CI; a committed lockfile is still required before production. The client's PHP 8.4 host is version-compatible, subject to extension and hosting verification.
+Implemented foundations include public destination/profile discovery, role-separated client and companion authentication, email verification, enquiry intake/CRM, consent-gated profile publication, companion consent controls, manual booking requests and configurable automatic booking eligibility with deposit and overlap gates. Current application stack: Laravel 13, PHP 8.3–8.5, MySQL, Blade and custom responsive CSS. Composer dependencies are resolved by CI; a committed lockfile is still required before production. The client's PHP 8.4 host is version-compatible, subject to extension and hosting verification.
 
 ## Safeguarding
 Talyvane must not be used to facilitate trafficking, coercion, exploitation, non-consensual content or any activity involving minors. No production deployment should proceed without verified adult-only access controls, documented informed consent, lawful operating arrangements, privacy safeguards, appropriate payment/provider approval and independent legal review for each relevant jurisdiction.
