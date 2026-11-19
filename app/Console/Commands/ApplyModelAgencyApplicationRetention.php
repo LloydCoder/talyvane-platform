@@ -13,7 +13,13 @@ class ApplyModelAgencyApplicationRetention extends Command
 
     public function handle(ModelAgencyApplicationRetentionService $retention): int
     {
-        $count = $retention->apply();
+        try {
+            $count = $retention->apply();
+        } catch (RuntimeException $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
 
         $this->info('Anonymized '.$count.' expired model-agency application record(s).');
 
