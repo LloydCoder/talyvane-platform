@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 class ModelTalentRepresentationAgreementTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase;\n    use EnablesModelAgencyFeatureRoutes;\n\n    protected function setUp(): void\n    {\n        parent::setUp();\n        $this->enableModelAgencyFeatureRoutes();\n    }
 
     private function application(array $overrides = []): ModelTalentApplication
     {
