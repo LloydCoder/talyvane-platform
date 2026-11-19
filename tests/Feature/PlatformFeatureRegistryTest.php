@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Services\FeatureRegistry;
+use App\Models\User;
 use App\Models\PlatformFeatureAuditEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
