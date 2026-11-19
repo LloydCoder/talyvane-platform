@@ -135,7 +135,7 @@ class ModelTalentRepresentationAgreementService
             ]);
         }
 
-        $market = CountryMarket::query()->where('country_code', $countryCode)->first();
+        $market = CountryMarket::query()->where('country_code', $countryCode)->lockForUpdate()->first();
         if (! $market || ! $market->isOperationallyApproved()) {
             throw ValidationException::withMessages([
                 'agreement' => 'The agreement territory must be an enabled market with current compliance approval and evidence.',
