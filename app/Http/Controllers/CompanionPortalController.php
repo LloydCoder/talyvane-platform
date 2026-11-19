@@ -74,6 +74,7 @@ class CompanionPortalController extends Controller
 
         $validated = $request->validate([
             'reason' => ['required', 'string', 'min:5', 'max:500'],
+            'withdraw_confirmed' => ['required', 'accepted'],
         ]);
 
         DB::transaction(function () use ($profile, $validated): void {
@@ -85,6 +86,10 @@ class CompanionPortalController extends Controller
                 'accepts_automatic_bookings' => false,
                 'automatic_booking_consent_at' => null,
             ])->save();
+
+            Booking::query()->where('companion_profile_id', $profile->id)
+                ->where('status', 'pending_review')
+                ->update(['status' => 'cancelled', 'cancelled_at' => now()]);
 
             ProfilePublicationReview::query()->create([
                 'companion_profile_id' => $profile->id,
