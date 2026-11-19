@@ -2,6 +2,7 @@
 @section('title', 'Model agency applications')
 @section('section', 'MODEL AGENCY')
 @section('content')
+    @php($usageRightsEnabled = app(\App\Services\FeatureRegistry::class)->isEnabled('model-agency.usage-rights'))
     <div class="admin-page-heading compact"><p class="eyebrow">TALENT REPRESENTATION</p><h1>Model agency<br><em>applications.</em></h1><p>Review talent applications separately from companionship profiles. Acceptance only advances an applicant to a separate representation process; it does not execute a contract.</p></div>
     <div class="admin-list-toolbar"><span>{{ $applications->total() }} applications</span><span>Personal data — restricted access</span></div>
     <div class="enquiry-list">
@@ -40,18 +41,18 @@
                         <button class="button button-dark" type="submit">{{ $application->legal_hold_at ? 'Release legal hold' : 'Place legal hold' }}</button>
                     </form>
                 @endif
-                @if($application->status === 'accepted' && $application->adult_eligibility_verified_at && ! $application->legal_hold_at)
+                @if($usageRightsEnabled && $application->status === 'accepted' && $application->adult_eligibility_verified_at && ! $application->legal_hold_at)
                     <section class="enquiry-status-form">
                         <h3>Representation agreement</h3>
                         @forelse($application->representationAgreements as $agreement)
                             <div class="field-help">
                                 <strong>{{ $agreement->reference }} · v{{ $agreement->version }} · {{ str_replace('_', ' ', $agreement->status) }}</strong>
                                 <p>Terms policy: {{ $agreement->terms_policy_version }} · Scope: {{ $agreement->terms_snapshot['representation_scope'] ?? 'Not available' }}</p>
-                                @if($agreement->status === 'draft')
+                                @if($usageRightsEnabled && $agreement->status === 'draft')
                                     <form method="POST" action="{{ route('admin.model-representation-agreements.offer', $agreement) }}">@csrf
                                         <button class="button button-dark" type="submit">Issue offer</button>
                                     </form>
-                                @elseif($agreement->status === 'offered')
+                                @elseif($usageRightsEnabled && $agreement->status === 'offered')
                                     <form method="POST" action="{{ route('admin.model-representation-agreements.execute', $agreement) }}">
                                         @csrf
                                         <label>Private executed document storage reference</label>
@@ -73,7 +74,7 @@
                         @empty
                             <p class="field-help">No representation agreement exists. Acceptance alone does not create an agency relationship.</p>
                         @endforelse
-                        @if(! $application->representationAgreements->contains(fn ($agreement) => in_array($agreement->status, ['draft','offered','executed'], true)))
+                        @if($usageRightsEnabled && ! $application->representationAgreements->contains(fn ($agreement) => in_array($agreement->status, ['draft','offered','executed'], true)))
                             <form method="POST" action="{{ route('admin.model-applications.agreements.store', $application) }}">
                                 @csrf
                                 <label>Approved territory</label><select name="country_code" required><option value="">Choose an approved market</option>@foreach($approvedMarkets as $market)<option value="{{ $market->country_code }}">{{ $market->name }} ({{ $market->country_code }})</option>@endforeach</select>
@@ -102,10 +103,10 @@
                                 <p>{{ $asset->width }} × {{ $asset->height }} · {{ number_format($asset->file_size / 1024, 1) }} KiB · Consent policy {{ $asset->consent_policy_version }}</p>
                                 <p>Purpose scope: {{ $asset->consent_scope }}</p>
                                 <p>Source: {{ $asset->source_description }}</p>
-                                @if(in_array($asset->status, ['pending_review','approved'], true) && $asset->storage_path)
+                                @if($usageRightsEnabled && in_array($asset->status, ['pending_review','approved'], true) && $asset->storage_path)
                                     <p><a href="{{ route('admin.model-portfolio-assets.preview', $asset) }}" target="_blank" rel="noopener noreferrer">Open private image preview ↗</a></p>
                                 @endif
-                                @if($asset->status === 'pending_review')
+                                @if($usageRightsEnabled && $asset->status === 'pending_review')
                                     <form method="POST" action="{{ route('admin.model-portfolio-assets.review', $asset) }}">
                                         @csrf
                                         <label>Review note</label><textarea name="review_note" minlength="20" maxlength="2000" required></textarea>
@@ -132,7 +133,7 @@
                                             @if($licence->compensation_amount !== null)
                                                 <p>Agreed compensation: {{ $licence->compensation_amount }} {{ $licence->currency_code }}</p>
                                             @endif
-                                            @if($licence->status === 'draft')
+                                            @if($usageRightsEnabled && $licence->status === 'draft')
                                                 <form method="POST" action="{{ route('admin.model-image-licences.activate', $licence) }}">
                                                     @csrf
                                                     <label>Private externally executed licence document reference</label><input name="execution_evidence_reference" minlength="20" maxlength="200" required placeholder="private/model-licences/signed-licence.pdf">
@@ -151,7 +152,7 @@
                                             @endif
                                         </div>
                                     @endforeach
-                                    @if($asset->status === 'approved' && ! $asset->consent_withdrawn_at)
+                                    @if($usageRightsEnabled && $asset->status === 'approved' && ! $asset->consent_withdrawn_at)
                                         @php($executedAgreements = $application->representationAgreements->where('status', 'executed')->where('country_code', $application->country_code))
                                         @if($executedAgreements->isNotEmpty())
                                             <form method="POST" action="{{ route('admin.model-portfolio-assets.licences.store', $asset) }}">
