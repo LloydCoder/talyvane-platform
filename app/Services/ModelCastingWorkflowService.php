@@ -10,6 +10,7 @@ use App\Models\ModelCastingSubmission;
 use App\Models\ModelTalentApplication;
 use App\Models\ModelTalentImageLicence;
 use App\Models\ModelTalentPortfolioAsset;
+use App\Models\ModelTalentRepresentationAgreement;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
@@ -196,7 +197,7 @@ class ModelCastingWorkflowService
             if (in_array($decision, ['shortlisted', 'selected'], true)) {
                 $licence = ModelTalentImageLicence::query()->lockForUpdate()->findOrFail($locked->image_licence_id);
                 $asset = ModelTalentPortfolioAsset::query()->lockForUpdate()->findOrFail($locked->portfolio_asset_id);
-                $agreement = $licence->representationAgreement;
+                $agreement = ModelTalentRepresentationAgreement::query()->lockForUpdate()->find($licence->representation_agreement_id);
 
                 if ($application->status !== 'accepted'
                     || $application->adult_eligibility_verified_at === null
@@ -209,16 +210,22 @@ class ModelCastingWorkflowService
                     || $licence->ends_on->format('Y-m-d') < $call->shoot_ends_at->format('Y-m-d')
                     || $asset->status !== 'approved'
                     || $asset->consent_withdrawn_at !== null
+                    || ! config('talyvane.model_agency.portfolio_consent_approved')
+                    || $asset->consent_policy_version !== (string) config('talyvane.model_agency.portfolio_consent_version')
+                    || ! config('talyvane.model_agency.representation_terms_approved')
                     || ! $asset->storage_path
                     || ! Storage::disk('local')->exists($asset->storage_path)
                     || ! $agreement
+                    || $agreement->application_id !== $application->id
                     || $agreement->status !== 'executed'
+                    || $agreement->terms_policy_version !== (string) config('talyvane.model_agency.representation_terms_version')
                     || $agreement->country_code !== $call->country_code
                     || ! CountryMarket::query()->where('country_code', $call->country_code)->lockForUpdate()->first()?->isOperationallyApproved()
                     || ! config('talyvane.model_agency.casting_policy_approved')
                     || $call->casting_policy_version !== (string) config('talyvane.model_agency.casting_policy_version')
                     || ! config('talyvane.model_agency.image_licence_policy_approved')
-                    || $licence->licence_policy_version !== (string) config('talyvane.model_agency.image_licence_policy_version')) {
+                    || $licence->licence_policy_version !== (string) config('talyvane.model_agency.image_licence_policy_version')
+                    || $licence->model_consent_evidence_reference === null) {
                     throw ValidationException::withMessages(['decision' => 'Shortlisting or selection requires a currently eligible model, approved asset, approved market and active casting licence.']);
                 }
             }
@@ -366,7 +373,7 @@ class ModelCastingWorkflowService
             throw ValidationException::withMessages(['submission' => 'The casting market is no longer enabled and compliance-approved.']);
         }
 
-        $agreement = $licence->representationAgreement;
+        $agreement = ModelTalentRepresentationAgreement::query()->lockForUpdate()->find($licence->representation_agreement_id);
         if (! $agreement
             || $agreement->status !== 'executed'
             || $agreement->country_code !== $call->country_code
