@@ -252,6 +252,24 @@ class ModelTalentSettlementTest extends TestCase
         ]);
     }
 
+    public function test_commission_rounding_is_half_up_to_the_currency_minor_unit(): void
+    {
+        $context = $this->assignment();
+        $context['assignment']->forceFill([
+            'compensation_amount' => '100.05',
+            'expense_cap_amount' => null,
+        ])->save();
+
+        $settlement = app(ModelTalentSettlementService::class)->createDraft(
+            $context['assignment'],
+            $context['admin']->id,
+        );
+
+        $this->assertSame('15.0100', $settlement->commission_amount);
+        $this->assertSame('85.0400', $settlement->model_net_amount);
+        $this->assertSame('half_up_to_currency_minor_unit', $settlement->calculation_snapshot['rounding']);
+    }
+
     public function test_settlement_cannot_be_created_with_pending_expenses_or_before_assignment_completion(): void
     {
         $context = $this->assignment();
