@@ -51,4 +51,37 @@ class ModelTalentSettlementAdminTest extends TestCase
 
         $this->actingAs($client)->get('/admin/model-settlements')->assertForbidden();
     }
+    public function test_finance_role_can_access_settlement_ledger_without_agency_or_platform_access(): void
+    {
+        $this->enableSettlementFeature();
+        $finance = $this->createAdminUser([
+            'name' => 'Finance Specialist',
+            'email' => 'finance-specialist@example.test',
+            'role' => 'finance',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($finance)
+            ->get('/admin/model-settlements')
+            ->assertOk()
+            ->assertSee('Expense and settlement ledger');
+
+        $this->get('/admin')->assertForbidden();
+        $this->get('/admin/model-assignments')->assertForbidden();
+        $this->get('/admin/branding')->assertForbidden();
+    }
+
+    public function test_general_administrator_cannot_access_finance_ledger(): void
+    {
+        $this->enableSettlementFeature();
+        $admin = $this->createAdminUser([
+            'name' => 'Operations Administrator',
+            'email' => 'operations-admin@example.test',
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)->get('/admin/model-settlements')->assertForbidden();
+    }
+
 }
