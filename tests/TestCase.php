@@ -3,6 +3,7 @@
 namespace Tests;
 
 use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable as UserContract;
 use App\Models\Destination;
 use App\Models\CountryMarket;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
