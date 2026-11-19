@@ -22,7 +22,7 @@ Never collect seed phrases/private keys. Validate public addresses, network and 
 Validate trust-boundary inputs; parameterised queries; output encoding; CSRF; restrictive CORS; CSP/security headers; rate limits; SSRF protections on URL importers; explicit DTOs; dependency scanning; no debug mode or stack traces in production.
 
 ## Audit and response
-Audit privileged configuration, profile publication, companion consent changes, booking decisions, deposit verification, refunds, exports and suspensions. Booking and consent audit events should be retained under a documented schedule; the current application has initial profile-review records but not yet a complete immutable event ledger. Keep sensitive payloads out of logs. Define incident triage, containment, evidence preservation, notification assessment and recovery.
+Audit privileged configuration, profile publication, companion consent changes, booking requests, booking decisions, deposit verification, refunds, exports and suspensions. The application now records append-only booking events and profile-review records; production still needs a documented retention schedule, tamper-evident export/backup strategy and a complete audit coverage review. Keep sensitive payloads out of logs. Define incident triage, containment, evidence preservation, notification assessment and recovery.
 
 ## Release gates
 No production release until authorisation tests, upload security, payment verification, privacy controls, backup restore, dependency audit, secret scan, vulnerability review and jurisdictional sign-off pass.
