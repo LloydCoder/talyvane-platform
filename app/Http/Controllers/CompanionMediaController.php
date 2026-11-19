@@ -55,8 +55,10 @@ class CompanionMediaController extends Controller
         abort_unless((int) $profile->user_id === (int) $request->user()->id, 403);
         abort_unless((int) $media->companion_profile_id === (int) $profile->id, 404);
 
-        $path = DB::transaction(function () use ($media, $request): string {
+        $path = DB::transaction(function () use ($profile, $media, $request): string {
+            CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
             $locked = ProfileMedia::query()->lockForUpdate()->findOrFail($media->id);
+            abort_unless((int) $locked->companion_profile_id === (int) $profile->id, 404);
             $locked->forceFill([
                 'status' => 'withdrawn',
                 'reviewed_by' => $request->user()->id,
