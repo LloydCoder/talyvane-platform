@@ -148,7 +148,9 @@ class CompanionPortalTest extends TestCase
                 'reason' => 'I no longer consent to public profile publication.',
                 'withdraw_confirmed' => '1',
             ])
-            ->assertRedirect('/companion-portal');
+            ->assertRedirect('/companion-portal/privacy');
+
+        $this->get('/companion-portal/privacy')->assertOk()->assertSee('Your privacy');
 
         $this->assertDatabaseHas('companion_profiles', [
             'id' => $profile->id,
