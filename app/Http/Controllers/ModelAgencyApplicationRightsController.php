@@ -176,13 +176,15 @@ class ModelAgencyApplicationRightsController extends Controller
         return redirect()->route('model-agency.application-support.show', $rightsRequest);
     }
 
-    public function show(Request $request, ModelTalentApplicationRightsRequest $rightsRequest): View
+    public function show(Request $request, ModelTalentApplicationRightsRequest $rightsRequest): \\Illuminate\\Http\\Response
     {
         $this->assertVerified($request, $rightsRequest);
 
-        return view('model-agency.application-support-manage', [
+        return response()->view('model-agency.application-support-manage', [
             'rightsRequest' => $rightsRequest->load('application'),
-        ]);
+        ])->header('Cache-Control', 'no-store, private, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Referrer-Policy', 'no-referrer');
     }
 
     public function correct(Request $request, ModelTalentApplicationRightsRequest $rightsRequest): RedirectResponse
