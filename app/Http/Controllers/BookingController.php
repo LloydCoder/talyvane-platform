@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\BookingEvent;
 use App\Models\BookingSetting;
 use App\Models\CompanionProfile;
+use App\Services\FeatureRegistry;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
