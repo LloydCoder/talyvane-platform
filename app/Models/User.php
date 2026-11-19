@@ -34,6 +34,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'mfa_secret',
         'mfa_recovery_codes',
         'mfa_last_used_step',
+        'admin_session_version',
     ];
 
     protected static function booted(): void
@@ -113,6 +114,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'mfa_enabled_at' => 'immutable_datetime',
             'mfa_recovery_codes' => 'array',
             'mfa_last_used_step' => 'integer',
+            'admin_session_version' => 'integer',
         ];
     }
 
