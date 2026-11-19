@@ -53,8 +53,9 @@ class ModelTalentRepresentationAgreementService
     public function offer(ModelTalentRepresentationAgreement $agreement, int $actorId): void
     {
         DB::transaction(function () use ($agreement, $actorId): void {
+            $current = ModelTalentRepresentationAgreement::query()->findOrFail($agreement->id);
+            $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($current->application_id);
             $locked = ModelTalentRepresentationAgreement::query()->lockForUpdate()->findOrFail($agreement->id);
-            $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($locked->application_id);
             $this->assertEligible($application, (string) ($locked->country_code ?? ''));
 
             if ($locked->status !== 'draft') {
