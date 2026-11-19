@@ -161,6 +161,7 @@ class ModelAgencyApplicationRightsController extends Controller
             ]);
         }
 
+        $request->session()->regenerate();
         $request->session()->put('verified_model_application_rights_request_id', $rightsRequest->id);
 
         return redirect()->route('model-agency.application-support.show', $rightsRequest);
@@ -248,13 +249,15 @@ class ModelAgencyApplicationRightsController extends Controller
         $this->assertVerified($request, $rightsRequest);
         abort_unless($rightsRequest->request_type === 'withdrawal', 404);
 
-        $lifecycle->withdraw($rightsRequest->application);
+        DB::transaction(function () use ($lifecycle, $rightsRequest): void {
+            $lifecycle->withdraw($rightsRequest->application);
 
-        $rightsRequest->forceFill([
-            'status' => 'completed',
-            'code_hash' => '',
-            'completed_at' => now(),
-        ])->save();
+            $rightsRequest->forceFill([
+                'status' => 'completed',
+                'code_hash' => '',
+                'completed_at' => now(),
+            ])->save();
+        });
 
         $request->session()->forget('verified_model_application_rights_request_id');
 
@@ -271,11 +274,22 @@ class ModelAgencyApplicationRightsController extends Controller
         abort_unless($rightsRequest->request_type === 'erasure', 404);
 
         if ($rightsRequest->application->legal_hold_at !== null) {
-            $rightsRequest->forceFill([
+            DB::transaction(function () use ($rightsRequest): void {
+                ModelTalentApplicationEvent::query()->create([
+                    'application_id' => $rightsRequest->application_id,
+                    'actor_type' => 'applicant',
+                    'event_type' => 'application.erasure_deferred',
+                    'from_status' => $rightsRequest->application->status,
+                    'to_status' => $rightsRequest->application->status,
+                    'occurred_at' => now(),
+                ]);
+
+                $rightsRequest->forceFill([
                 'status' => 'rejected',
                 'code_hash' => '',
-                'completed_at' => now(),
-            ])->save();
+                    'completed_at' => now(),
+                ])->save();
+            });
 
             $request->session()->forget('verified_model_application_rights_request_id');
 
@@ -293,11 +307,13 @@ class ModelAgencyApplicationRightsController extends Controller
 
     private function assertVerified(Request $request, ModelTalentApplicationRightsRequest $rightsRequest): void
     {
-        abort_unless(
-            (int) $request->session()->get('verified_model_application_rights_request_id') === $rightsRequest->id
-                && $rightsRequest->status === 'verified'
-                && $rightsRequest->expires_at->isFuture(),
-            403,
-        );
+        $valid = (int) $request->session()->get('verified_model_application_rights_request_id') === $rightsRequest->id
+            && $rightsRequest->status === 'verified'
+            && $rightsRequest->expires_at->isFuture();
+
+        if (! $valid) {
+            $request->session()->forget('verified_model_application_rights_request_id');
+            abort(403);
+        }
     }
 }
