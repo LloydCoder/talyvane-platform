@@ -49,6 +49,19 @@ final readonly class Money
         return new self($minorUnits, $currency, $minorUnitPrecision);
     }
 
+    public static function fromMinor(int $minorUnits, string $currency, int $minorUnitPrecision): self
+    {
+        if (! preg_match('/^[A-Z]{3}$/D', $currency)) {
+            throw new InvalidArgumentException('Currency code must use the three-letter uppercase ISO 4217 format.');
+        }
+
+        if ($minorUnitPrecision < 0 || $minorUnitPrecision > 3) {
+            throw new InvalidArgumentException('Currency precision must be between zero and three minor-unit digits.');
+        }
+
+        return new self($minorUnits, $currency, $minorUnitPrecision);
+    }
+
     public function minorUnits(): int
     {
         return $this->minorUnits;

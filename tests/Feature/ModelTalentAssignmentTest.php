@@ -279,6 +279,28 @@ class ModelTalentAssignmentTest extends TestCase
         }
     }
 
+    public function test_assignment_rejects_commission_precision_that_would_require_rounding(): void
+    {
+        $context = $this->context();
+        $context['agreement']->forceFill([
+            'terms_snapshot' => [
+                'representation_scope' => 'Commercial and editorial model representation.',
+                'commission_percent' => '15.555',
+            ],
+        ])->save();
+
+        try {
+            app(ModelTalentAssignmentService::class)->createDraft(
+                $context['submission'],
+                $context['admin']->id,
+                $this->assignmentTerms(),
+            );
+            $this->fail('Commission percentages with unsupported precision must not be rounded silently.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('assignment', $exception->errors());
+        }
+    }
+
     public function test_assignment_activation_and_offer_fail_closed_when_policy_approval_is_withdrawn(): void
     {
         $context = $this->context();

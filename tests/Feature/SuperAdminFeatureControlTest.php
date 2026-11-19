@@ -157,6 +157,36 @@ class SuperAdminFeatureControlTest extends TestCase
         $this->assertDatabaseHas('platform_features', ['key' => 'cms.pages', 'is_enabled' => true]);
     }
 
+    public function test_model_settlement_feature_cannot_be_enabled_without_assignment_dependencies_and_policy_approval(): void
+    {
+        $admin = $this->createAdminUser([
+            'name' => 'Deployment Super Admin',
+            'email' => 'super-admin@example.test',
+            'role' => 'super_admin',
+        ]);
+        $step = intdiv(time(), 30);
+        $code = (new TotpService())->codeForStep($admin->mfa_secret, $step);
+
+        $this->actingAs($admin)
+            ->patch('/admin/features/model-agency.settlements', [
+                'enabled' => true,
+                'reason' => 'Attempt to activate model settlements before finance policy and prerequisites are approved.',
+                'password' => 'Strong-Testing-Password-934!',
+                'code' => $code,
+            ])
+            ->assertSessionHasErrors('enabled');
+
+        $this->assertDatabaseHas('platform_features', [
+            'key' => 'model-agency.settlements',
+            'implementation_status' => 'available',
+            'is_enabled' => false,
+        ]);
+        $this->assertDatabaseMissing('platform_feature_audit_events', [
+            'feature_key' => 'model-agency.settlements',
+            'action' => 'feature.enabled',
+        ]);
+    }
+
     public function test_feature_activation_is_blocked_without_an_operationally_approved_market(): void
     {
         $admin = $this->createAdminUser([
