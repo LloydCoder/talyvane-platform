@@ -225,10 +225,7 @@ class ModelTalentImageLicenceService
             || $agreement->terms_policy_version !== (string) config('talyvane.model_agency.representation_terms_version')
             || ! $asset->storage_path
             || ! Storage::disk('local')->exists($asset->storage_path)
-            || ! config('talyvane.model_agency.portfolio_consent_approved')
-            || $asset->consent_policy_version !== (string) config('talyvane.model_agency.portfolio_consent_version')
-            || ! config('talyvane.model_agency.representation_terms_approved')
-            || $agreement->terms_policy_version !== (string) config('talyvane.model_agency.representation_terms_version')
+            || $agreement->effective_from === null
             || $agreement->status !== 'executed') {
             throw ValidationException::withMessages([
                 'licence' => 'Image licences require an accepted and verified applicant, an approved private asset with current consent, and an executed representation agreement.',
