@@ -47,3 +47,5 @@ No production release until authorisation tests, upload security, payment verifi
 - Activation fails closed for unimplemented features, disabled dependencies and unknown or unsatisfied prerequisites. Market activation requires at least one fully evidenced operationally approved market.
 - Disabling optional features is available as an emergency control. Re-enabling runs the activation evaluator again.
 - The registry is not a legal approval system and cannot override market, age-assurance, consent, safeguarding, payment integrity or other independent domain policy checks.
+
+- Companion publication-consent withdrawal and media removal remain reachable through a separate authenticated privacy-controls page even when the general companion portal feature is disabled.
