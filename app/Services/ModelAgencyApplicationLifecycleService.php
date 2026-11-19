@@ -94,6 +94,17 @@ class ModelAgencyApplicationLifecycleService
                     'status' => 'completed',
                     'code_hash' => '',
                     'completed_at' => now(),
+                    'response_status' => 'cancelled',
+                    'response_due_at' => null,
+                    'response_extended_at' => null,
+                    'response_extension_reason' => null,
+                    'response_review_checklist' => null,
+                    'response_content' => null,
+                    'response_sha256' => null,
+                    'response_decision_reason' => null,
+                    'response_responded_at' => null,
+                    'response_delivery_method' => null,
+                    'response_delivery_reference_hash' => null,
                     'updated_at' => now(),
                 ]);
 
