@@ -39,6 +39,31 @@ class ModelTalentSettlement extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::updating(function (self $settlement): void {
+            $from = (string) $settlement->getOriginal('status');
+            $to = (string) $settlement->status;
+            $allowedTransitions = [
+                'draft' => ['approved'],
+                'approved' => ['paid', 'disputed'],
+                'paid' => ['reversed', 'disputed'],
+            ];
+            $allowedFields = [
+                'approved' => ['status', 'approved_by', 'approved_at', 'updated_at'],
+                'paid' => ['status', 'payment_method', 'payment_reference', 'payment_evidence_reference', 'paid_by', 'paid_at', 'updated_at'],
+                'reversed' => ['status', 'reversed_by', 'reversed_at', 'reversal_reason', 'reversal_evidence_reference', 'updated_at'],
+                'disputed' => ['status', 'disputed_by', 'disputed_at', 'dispute_reason', 'updated_at'],
+            ];
+
+            if (! in_array($to, $allowedTransitions[$from] ?? [], true)
+                || array_diff(array_keys($settlement->getDirty()), $allowedFields[$to] ?? []) !== []) {
+                throw new RuntimeException('Settlement financial snapshots are immutable; use a governed state transition.');
+            }
+        });
+        static::deleting(fn () => throw new RuntimeException('Settlement records cannot be deleted.'));
+    }
+
     public function assignment(): BelongsTo
     {
         return $this->belongsTo(ModelTalentAssignment::class, 'assignment_id');
