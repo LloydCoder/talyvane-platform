@@ -73,6 +73,8 @@ class ModelAgencyApplicationLifecycleService
                 'experience_summary' => 'Personal data erased under the approved lifecycle process.',
                 'status' => 'erased',
                 'adult_eligibility_confirmed_at' => null,
+                'adult_eligibility_policy_accepted_at' => null,
+                'privacy_notice_accepted_at' => null,
                 'review_note' => null,
                 'legal_hold_at' => null,
                 'legal_hold_by' => null,
