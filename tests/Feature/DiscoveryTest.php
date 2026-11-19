@@ -57,6 +57,7 @@ class DiscoveryTest extends TestCase
             'timezone' => 'Europe/London',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket(Destination::query()->where('slug', 'london')->firstOrFail());
 
         Destination::create([
             'name' => 'Hidden Destination',
@@ -154,6 +155,7 @@ class DiscoveryTest extends TestCase
             'timezone' => 'Europe/London',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket($london);
 
         $manila = Destination::create([
             'name' => 'Manila',
@@ -166,6 +168,7 @@ class DiscoveryTest extends TestCase
             'timezone' => 'Asia/Manila',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket($manila);
 
         foreach ([[$london, 'London Profile'], [$manila, 'Manila Profile']] as [$destination, $name]) {
             \App\Models\CompanionProfile::create([
@@ -205,6 +208,7 @@ class DiscoveryTest extends TestCase
             'timezone' => 'Europe/London',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket($destination);
         $companion = User::create([
             'name' => 'Companion Account',
             'email' => 'companion@example.test',
@@ -320,6 +324,7 @@ class DiscoveryTest extends TestCase
             ->assertRedirect('/admin/destinations');
 
         $destination = Destination::query()->where('slug', 'lisbon')->firstOrFail();
+        $this->approveCountryMarket($destination);
         $this->assertNotNull($destination->image_path);
         Storage::disk('public')->assertExists($destination->image_path);
 
