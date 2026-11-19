@@ -364,6 +364,33 @@ class ModelAgencyApplicationRightsTest extends TestCase
         $this->assertSame(5, $request->fresh()->attempts);
     }
 
+
+    public function test_retention_rechecks_current_status_and_review_date_under_lock_before_anonymizing(): void
+    {
+        $this->enableLifecycle();
+        $application = $this->application('declined', [
+            'submitted_at' => now()->subDays(120),
+            'reviewed_at' => now()->subDays(120),
+        ]);
+
+        // Simulate a concurrent administrator decision after the retention candidate query.
+        $application->forceFill([
+            'status' => 'accepted',
+            'reviewed_at' => now(),
+        ])->save();
+
+        $retention = app(\App\Services\ModelAgencyApplicationRetentionService::class);
+        $anonymized = $retention->anonymizeIfDue(
+            $application->id,
+            now()->subDays(90),
+            now()->subDays(365),
+        );
+
+        $this->assertFalse($anonymized);
+        $this->assertSame('accepted', $application->fresh()->status);
+        $this->assertSame('Jordan Example', $application->fresh()->full_name);
+    }
+
     public function test_retention_command_anonymizes_expired_applications_and_preserves_legal_holds(): void
     {
         $this->enableLifecycle();
