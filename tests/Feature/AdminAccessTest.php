@@ -20,6 +20,44 @@ class AdminAccessTest extends TestCase
             ->assertRedirect('/admin/login');
     }
 
+    public function test_owner_and_admin_retain_operations_but_cannot_access_deployment_configuration(): void
+    {
+        foreach (['owner', 'admin'] as $role) {
+            $user = $this->createAdminUser([
+                'name' => ucfirst($role).' Account',
+                'email' => $role.'-access@example.test',
+                'password' => 'Strong-Testing-Password-934!',
+                'role' => $role,
+                'is_active' => true,
+            ]);
+
+            $this->actingAs($user)
+                ->get('/admin')
+                ->assertOk()
+                ->assertDontSee('Brand & identity')
+                ->assertDontSee('Global markets & currency')
+                ->assertDontSee('Payment settings')
+                ->assertDontSee('Site pages');
+
+            $this->get('/admin/profiles')->assertOk();
+            $this->get('/admin/bookings')->assertOk();
+            $this->get('/admin/clients')->assertOk();
+            $this->get('/admin/enquiries')->assertOk();
+
+            foreach ([
+                '/admin/branding',
+                '/admin/globalization',
+                '/admin/destinations',
+                '/admin/booking-settings',
+                '/admin/pages',
+                '/admin/payment-settings',
+                '/admin/payment-methods',
+            ] as $path) {
+                $this->get($path)->assertForbidden();
+            }
+        }
+    }
+
     public function test_owner_can_access_admin_dashboard(): void
     {
         $owner = $this->createAdminUser([
