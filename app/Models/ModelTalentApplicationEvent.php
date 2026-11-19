@@ -22,7 +22,10 @@ class ModelTalentApplicationEvent extends Model
 
     protected function casts(): array
     {
-        return ['reason' => 'encrypted', 'occurred_at' => 'immutable_datetime'];
+        return [
+            'reason' => 'encrypted',
+            'occurred_at' => 'immutable_datetime',
+        ];
     }
 
     protected static function booted(): void
@@ -30,5 +33,4 @@ class ModelTalentApplicationEvent extends Model
         static::updating(fn () => throw new LogicException('Model application events are append-only.'));
         static::deleting(fn () => throw new LogicException('Model application events are append-only.'));
     }
-
 }
