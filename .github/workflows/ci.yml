@@ -53,3 +53,67 @@ jobs:
           php artisan view:cache
       - name: Run feature tests
         run: vendor/bin/phpunit --display-all-issues
+
+  package:
+    name: Standalone release package smoke build
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.3'
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, tokenizer, xml
+          coverage: none
+      - name: Install production dependencies from the committed lockfile
+        run: composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+        env:
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      - name: Verify production platform requirements and dependency advisories
+        run: |
+          composer check-platform-reqs --no-dev
+          composer audit --no-dev --no-interaction
+      - name: Assemble standalone release package
+        env:
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+        run: |
+          set -euo pipefail
+          staging="dist/talyvane"
+          mkdir -p "$staging"
+          for path in app artisan bootstrap config database docs public resources routes storage vendor composer.json composer.lock .env.example README.md LICENSE COMMERCIAL-LICENSING.md; do
+            test -e "$path"
+            cp -a "$path" "$staging/"
+          done
+          cat > "$staging/RELEASE-MANIFEST.txt" <<EOF
+          commit=${GITHUB_SHA}
+          php=$(php -r 'echo PHP_VERSION;')
+          composer=$(composer --version --no-ansi)
+          dependency_install= composer install --no-dev from committed composer.lock
+          frontend= tracked public assets; no production Node.js build required
+          EOF
+          mkdir -p dist
+          tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -C dist -cf - talyvane | gzip -n > "dist/talyvane-${GITHUB_SHA}.tar.gz"
+          sha256sum "dist/talyvane-${GITHUB_SHA}.tar.gz" > "dist/talyvane-${GITHUB_SHA}.tar.gz.sha256"
+          archive="dist/talyvane-${GITHUB_SHA}.tar.gz"
+          tar -tzf "$archive" > dist/package-contents.txt
+          grep -q '^talyvane/vendor/autoload.php$' dist/package-contents.txt
+          grep -q '^talyvane/.env.example$' dist/package-contents.txt
+          if grep -E '(^|/)\.env$|(^|/)\.git/|^talyvane/tests/|^talyvane/storage/(logs|app/private)/[^.]|^talyvane/bootstrap/cache/[^.]' dist/package-contents.txt; then
+            echo "Release package contains a forbidden environment, test, private-storage or runtime-cache path."
+            exit 1
+          fi
+          test ! -e "$staging/.env"
+          test -f "$staging/vendor/autoload.php"
+      - name: Upload verified standalone package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: talyvane-standalone-package-${{ github.sha }}
+          path: |
+            dist/talyvane-${{ github.sha }}.tar.gz
+            dist/talyvane-${{ github.sha }}.tar.gz.sha256
+            dist/package-contents.txt
+          if-no-files-found: error
+          retention-days: 14
