@@ -9,6 +9,10 @@
             <article class="portal-booking-card">
                 <div><span class="eyebrow">{{ $booking->reference }} / {{ strtoupper(str_replace('_', ' ', $booking->status)) }}</span><h3>{{ $booking->profile->display_name }}</h3><p>{{ $booking->destination->name }} · {{ $booking->starts_at->timezone($booking->timezone)->format('D, d M Y · H:i') }} local</p></div>
                 <span class="status-pill {{ $booking->status === 'confirmed' ? 'status-active' : 'status-inactive' }}">{{ str_replace('_', ' ', $booking->status) }}</span>
+                @if ($booking->status === 'pending_review' || ($booking->status === 'confirmed' && $settings->client_cancellation_enabled && $booking->starts_at->isAfter(now()->addHours($settings->cancellation_cutoff_hours))))
+                    <form method="POST" action="{{ route('bookings.cancel', $booking) }}">@csrf<button class="text-link" type="submit">Cancel request</button></form>
+                @endif
+
             </article>
         @empty
             <div class="portal-placeholder"><strong>No booking requests yet</strong><p>When you request a booking, its reference and status will appear here.</p></div>
