@@ -75,7 +75,7 @@ class PaymentConfigurationTest extends TestCase
             'name' => 'Platform Admin',
             'email' => 'admin@example.test',
             'password' => 'Strong-Admin-Password-934!',
-            'role' => 'admin',
+            'role' => 'super_admin',
             'is_active' => true,
         ]);
 
@@ -103,7 +103,7 @@ class PaymentConfigurationTest extends TestCase
             'name' => 'Platform Admin',
             'email' => 'admin@example.test',
             'password' => 'Strong-Admin-Password-934!',
-            'role' => 'admin',
+            'role' => 'super_admin',
             'is_active' => true,
         ]);
 
@@ -125,7 +125,7 @@ class PaymentConfigurationTest extends TestCase
             'name' => 'Platform Admin',
             'email' => 'admin@example.test',
             'password' => 'Strong-Admin-Password-934!',
-            'role' => 'admin',
+            'role' => 'super_admin',
             'is_active' => true,
         ]);
         PaymentSetting::create([
