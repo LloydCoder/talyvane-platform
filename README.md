@@ -25,6 +25,7 @@ See COMMERCIAL-LICENSING.md for the intended commercial model.
 - docs/TGLS.md (globalization and localization standard)
 - docs/IMAGE-LICENSING.md (stock image provenance, licensing and media policy)
 - docs/decisions/ADR-0008-globalization.md
+- docs/decisions/ADR-0009-super-admin-control-plane.md
 - docs/SECURITY-PRIVACY.md
 - docs/COMPLIANCE-RELEASE-GATES.md
 - docs/ROADMAP.md
