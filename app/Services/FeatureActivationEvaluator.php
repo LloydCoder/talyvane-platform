@@ -47,7 +47,8 @@ class FeatureActivationEvaluator
             if ($requirement === 'applicant_data_lifecycle') {
                 $applicationSchemaReady = Schema::hasTable('model_talent_applications')
                     && Schema::hasColumns('model_talent_applications', ['legal_hold_at', 'reviewed_at', 'submitted_at']);
-                $rightsTableReady = Schema::hasTable('model_talent_application_rights_requests');
+                $rightsTableReady = Schema::hasTable('model_talent_application_rights_requests')
+                    && Schema::hasColumns('model_talent_application_rights_requests', ['application_id', 'request_type', 'status', 'code_hash', 'attempts', 'expires_at', 'verified_at', 'completed_at']);
                 $applicationDays = (int) config('talyvane.model_agency.retention.application_days');
                 $acceptedDays = (int) config('talyvane.model_agency.retention.accepted_days');
                 $retentionApproved = config('talyvane.model_agency.retention.schedule_approved');
@@ -73,7 +74,8 @@ class FeatureActivationEvaluator
                         'reviewed_at',
                         'legal_hold_at',
                         'submitted_at',
-                    ]);
+                    ])
+                    && Schema::hasColumns('model_talent_application_events', ['application_id', 'actor_type', 'event_type', 'occurred_at']);
 
                 if (! $schemaReady) {
                     $blockers[] = 'The separate model-agency application, legal-hold and audit schema is incomplete.';
