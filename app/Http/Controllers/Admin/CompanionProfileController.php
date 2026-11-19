@@ -77,7 +77,11 @@ class CompanionProfileController
         $automaticOptIn = isset($validated['automatic_booking_opt_in']);
 
         DB::transaction(function () use ($profile, $validated, $now, $automaticOptIn): void {
-            $profile->forceFill([
+            $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
+            if (! $lockedProfile->destination()->where('is_active', true)->exists()) {
+                throw \\Illuminate\\Validation\\ValidationException::withMessages(['destination' => 'The destination must be active before publication.']);
+            }
+            $lockedProfile->forceFill([
                 'age_verified_at' => $now,
                 'publication_consent_at' => $now,
                 'consent_withdrawn_at' => null,
@@ -88,7 +92,7 @@ class CompanionProfileController
             ])->save();
 
             ProfilePublicationReview::query()->create([
-                'companion_profile_id' => $profile->id,
+                'companion_profile_id' => $lockedProfile->id,
                 'reviewer_id' => auth()->id(),
                 'verification_provider' => $validated['verification_provider'],
                 'verification_reference_hash' => hash_hmac('sha256', $validated['verification_reference'], (string) config('app.key')),
@@ -110,13 +114,18 @@ class CompanionProfileController
         ]);
 
         DB::transaction(function () use ($profile, $validated): void {
-            $profile->forceFill([
+            $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
+            $lockedProfile->forceFill([
                 'publication_status' => 'suspended',
                 'published_at' => null,
             ])->save();
 
+            \\App\\Models\\Booking::query()->where('companion_profile_id', $lockedProfile->id)
+                ->where('status', 'pending_review')
+                ->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+
             ProfilePublicationReview::query()->create([
-                'companion_profile_id' => $profile->id,
+                'companion_profile_id' => $lockedProfile->id,
                 'reviewer_id' => auth()->id(),
                 'verification_provider' => 'administrative-action',
                 'verification_reference_hash' => null,
