@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Booking;
 use App\Models\Destination;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -128,4 +129,50 @@ class ProfileAdministrationTest extends TestCase
             'publication_status' => 'draft',
         ]);
     }
+    public function test_admin_unpublishing_profile_cancels_pending_booking_requests(): void
+    {
+        $owner = $this->owner();
+        $destination = $this->destination();
+        $profile = \App\Models\CompanionProfile::create([
+            'destination_id' => $destination->id,
+            'display_name' => 'Alex',
+            'slug' => 'alex-london',
+            'publication_status' => 'published',
+            'age_verified_at' => now(),
+            'publication_consent_at' => now(),
+        ]);
+        $client = User::create([
+            'name' => 'Client',
+            'email' => 'client@example.test',
+            'password' => 'Strong-Client-Password-934!',
+            'role' => 'client',
+            'is_active' => true,
+        ]);
+        $start = now()->addDays(3);
+        $booking = Booking::create([
+            'reference' => 'UNPUBLISH123',
+            'client_id' => $client->id,
+            'companion_profile_id' => $profile->id,
+            'destination_id' => $destination->id,
+            'booking_mode' => 'manual',
+            'status' => 'pending_review',
+            'deposit_status' => 'pending',
+            'starts_at' => $start,
+            'ends_at' => $start->copy()->addHour(),
+            'timezone' => 'Europe/London',
+            'duration_minutes' => 60,
+        ]);
+
+        $this->actingAs($owner)
+            ->post('/admin/profiles/'.$profile->id.'/unpublish', [
+                'reason' => 'Administrative safeguarding review.',
+            ])
+            ->assertRedirect('/admin/profiles');
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'status' => 'cancelled',
+        ]);
+    }
+
 }
