@@ -112,6 +112,7 @@ class GlobalizationAdminTest extends TestCase
             'action' => 'country_market.compliance_reviewed',
             'subject_key' => 'GB',
         ]);
+        $this->assertTrue($market->fresh()->isOperationallyApproved());
     }
 
     public function test_admin_can_set_reporting_currency_and_it_is_marked_in_registry(): void
