@@ -14,7 +14,8 @@
 - [x] Add typed globalization domain models and a decimal-string Money value object with ISO-code shape and 0/2/3 precision handling.
 - [x] Add feature tests for decimal-safe money conversion and globalization schema.
 - [ ] Import and version the complete ISO 3166-1 and ISO 4217 reference datasets; current schema is intentionally empty until a vetted dataset/importer is delivered.
-- [ ] Build admin workflows for currency enablement, base reporting currency, country policy, locale/timezone and market-specific prices.
+- [x] Add admin workflows for deployment base currency/locale/time zone, currency registration and currency enable/disable, plus country-market registration that defaults to pending compliance.
+- [ ] Complete currency editing/reference-data validation, market policy review and approval workflows, market-specific price management and audited change history.
 - [ ] Implement exchange-rate provider adapters, rate freshness policy, immutable quote snapshots and deterministic rounding.
 - [ ] Integrate fail-closed market policy checks into discovery, booking, membership and payment boundaries.
 - [ ] Add localization preferences, translation fallback, locale-aware formatting and time-zone rendering across customer and admin interfaces.
