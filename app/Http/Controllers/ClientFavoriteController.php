@@ -19,6 +19,10 @@ class ClientFavoriteController extends Controller
     {
         auth()->user()->favoriteProfiles()->detach($profile->id);
 
-        return redirect()->route('companions.show', $profile->slug)->with('status', 'Companion removed from your private shortlist.');
+        $destination = $profile->publiclyDiscoverable()->exists()
+            ? redirect()->route('companions.show', $profile->slug)
+            : redirect()->route('portal.dashboard');
+
+        return $destination->with('status', 'Companion removed from your private shortlist.');
     }
 }
