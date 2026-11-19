@@ -25,7 +25,7 @@ class GlobalizationSchemaTest extends TestCase
 
     public function test_new_destination_registers_its_country_as_pending_and_disabled(): void
     {
-        $destination = \\App\\Models\\Destination::create([
+        $destination = \App\Models\Destination::create([
             'name' => 'Lisbon',
             'slug' => 'lisbon',
             'country_code' => 'PT',
