@@ -24,6 +24,8 @@ class BookingSettingsController
             'auto_requires_verified_deposit' => ['sometimes', 'boolean'],
             'minimum_notice_hours' => ['required', 'integer', 'min:0', 'max:720'],
             'maximum_advance_days' => ['required', 'integer', 'min:1', 'max:365'],
+            'client_cancellation_enabled' => ['sometimes', 'boolean'],
+            'cancellation_cutoff_hours' => ['required', 'integer', 'min:0', 'max:720'],
         ]);
 
         $settings = BookingSetting::current();
@@ -33,6 +35,8 @@ class BookingSettingsController
             'auto_requires_verified_deposit' => $request->boolean('auto_requires_verified_deposit'),
             'minimum_notice_hours' => $validated['minimum_notice_hours'],
             'maximum_advance_days' => $validated['maximum_advance_days'],
+            'client_cancellation_enabled' => $request->boolean('client_cancellation_enabled'),
+            'cancellation_cutoff_hours' => $validated['cancellation_cutoff_hours'],
             'updated_by' => auth()->id(),
         ]);
 
