@@ -85,6 +85,10 @@ class ModelTalentImageLicenceTest extends TestCase
         config([
             'talyvane.model_agency.image_licence_policy_version' => 'image-licence-policy-v1',
             'talyvane.model_agency.image_licence_policy_approved' => true,
+            'talyvane.model_agency.portfolio_consent_version' => 'model-portfolio-consent-v1',
+            'talyvane.model_agency.portfolio_consent_approved' => true,
+            'talyvane.model_agency.representation_terms_version' => 'representation-terms-v1',
+            'talyvane.model_agency.representation_terms_approved' => true,
         ]);
         \Illuminate\Support\Facades\Storage::fake('local');
         $admin = $this->createAdminUser();
