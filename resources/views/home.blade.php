@@ -25,6 +25,9 @@
         <nav class="desktop-nav" aria-label="Main navigation">
             <a href="{{ route('destinations.index') }}">Destinations</a>
             <a href="{{ route('companions.index') }}">Companions</a>
+            @if (app(\App\Services\FeatureRegistry::class)->isEnabled('model-agency.applications'))
+                <a href="{{ route('model-agency.apply') }}">Model representation</a>
+            @endif
             <a href="#capabilities">The experience</a>
             <a href="#approach">Our standards</a>
         </nav>
