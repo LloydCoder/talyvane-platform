@@ -31,6 +31,7 @@ Route::get('/destinations/{slug}', [DiscoveryController::class, 'destination'])-
 Route::get('/companions', [DiscoveryController::class, 'companions'])->name('companions.index');
 Route::get('/companions/{slug}', [DiscoveryController::class, 'companion'])->name('companions.show');
 Route::get('/contact', [EnquiryController::class, 'create'])->name('contact');
+Route::get('/pages/{slug}', [PageController::class, 'show'])->name('pages.show');
 Route::view('/privacy', 'legal.privacy')->name('privacy');
 Route::view('/terms', 'legal.terms')->name('terms');
 Route::post('/enquiries', [EnquiryController::class, 'store'])->middleware('throttle:5,1')->name('enquiries.store');
@@ -101,6 +102,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('/bookings/{booking}', [BookingAdminController::class, 'update'])->name('bookings.update');
         Route::post('/bookings/{booking}/deposit', [BookingAdminController::class, 'verifyDeposit'])->name('bookings.deposit');
         Route::get('/booking-settings', [BookingSettingsController::class, 'edit'])->name('bookings.settings');
+        Route::resource('pages', SitePageController::class)->except(['show', 'destroy']);
         Route::get('/payment-settings', [PaymentSettingsController::class, 'edit'])->name('payment-settings');
         Route::put('/payment-settings', [PaymentSettingsController::class, 'update'])->name('payment-settings.update');
         Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods');
