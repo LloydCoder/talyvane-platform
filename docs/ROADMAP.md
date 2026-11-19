@@ -28,7 +28,8 @@
 - [x] Companion-managed weekly availability windows; automatic confirmation requires a matching local-time window.
 - [x] Payment control centre with global, rail and purpose switches; BTC/USDT/USDC per-network receiving-address configuration; methods disabled until manual configuration review.
 - [x] Plain-text CMS pages with draft/publish controls, SEO metadata and safe escaped public rendering.
-- [ ] Date-specific availability exceptions, calendar sync, booking cancellation/rescheduling policies and notification delivery.
+- [x] Client booking cancellation with admin-configurable enable switch and cutoff; pending requests may be withdrawn.
+- [ ] Date-specific availability exceptions, calendar sync, client rescheduling and notification delivery.
 - [ ] Blockchain transaction watchers, immutable invoice snapshots, confirmations/reconciliation, refunds and approved card processor adapters.
 - [x] CI feature tests for homepage, authentication, role boundaries and branding persistence.
 Remaining: configurable content/CMS; jurisdiction-approved legal documents (current pages are draft placeholders); market flags; staging deployment and runtime verification; MFA.
