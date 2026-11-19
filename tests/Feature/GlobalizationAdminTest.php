@@ -11,9 +11,9 @@ class GlobalizationAdminTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_can_view_globalization_configuration(): void
+    public function test_super_admin_can_view_globalization_configuration(): void
     {
-        $admin = $this->createAdminUser();
+        $admin = $this->createAdminUser(['role' => 'super_admin']);
 
         $this->actingAs($admin)
             ->get(route('admin.globalization'))
@@ -21,9 +21,9 @@ class GlobalizationAdminTest extends TestCase
             ->assertSee('Global markets');
     }
 
-    public function test_admin_can_register_currency_metadata(): void
+    public function test_super_admin_can_register_currency_metadata(): void
     {
-        $admin = $this->createAdminUser();
+        $admin = $this->createAdminUser(['role' => 'super_admin']);
 
         $this->actingAs($admin)
             ->post(route('admin.globalization.currencies.store'), [
@@ -47,9 +47,9 @@ class GlobalizationAdminTest extends TestCase
         ]);
     }
 
-    public function test_new_country_markets_are_created_pending_compliance_review(): void
+    public function test_super_admin_creates_new_country_markets_pending_compliance_review(): void
     {
-        $admin = $this->createAdminUser();
+        $admin = $this->createAdminUser(['role' => 'super_admin']);
 
         $this->actingAs($admin)
             ->post(route('admin.globalization.markets.store'), [
@@ -73,9 +73,9 @@ class GlobalizationAdminTest extends TestCase
         ]);
     }
 
-    public function test_market_approval_requires_evidence_and_is_recorded_in_the_audit_log(): void
+    public function test_super_admin_market_approval_requires_evidence_and_is_recorded_in_the_audit_log(): void
     {
-        $admin = $this->createAdminUser();
+        $admin = $this->createAdminUser(['role' => 'super_admin']);
         $market = CountryMarket::query()->create([
             'country_code' => 'GB',
             'name' => 'United Kingdom',
@@ -115,9 +115,9 @@ class GlobalizationAdminTest extends TestCase
         $this->assertTrue($market->fresh()->isOperationallyApproved());
     }
 
-    public function test_admin_can_set_reporting_currency_and_it_is_marked_in_registry(): void
+    public function test_super_admin_can_set_reporting_currency_and_it_is_marked_in_registry(): void
     {
-        $admin = $this->createAdminUser();
+        $admin = $this->createAdminUser(['role' => 'super_admin']);
         Currency::query()->create([
             'code' => 'USD',
             'name' => 'US Dollar',
@@ -141,9 +141,9 @@ class GlobalizationAdminTest extends TestCase
         ]);
     }
 
-    public function test_admin_cannot_disable_the_active_reporting_currency(): void
+    public function test_super_admin_cannot_disable_the_active_reporting_currency(): void
     {
-        $admin = $this->createAdminUser();
+        $admin = $this->createAdminUser(['role' => 'super_admin']);
         Currency::query()->create([
             'code' => 'USD',
             'name' => 'US Dollar',
@@ -164,9 +164,9 @@ class GlobalizationAdminTest extends TestCase
         $this->assertDatabaseHas('currencies', ['code' => 'USD', 'is_enabled' => true]);
     }
 
-    public function test_base_currency_must_be_registered_and_enabled(): void
+    public function test_super_admin_base_currency_must_be_registered_and_enabled(): void
     {
-        $admin = $this->createAdminUser();
+        $admin = $this->createAdminUser(['role' => 'super_admin']);
         Currency::query()->create([
             'code' => 'USD',
             'name' => 'US Dollar',
