@@ -173,6 +173,7 @@ class ProfileAdministrationTest extends TestCase
             'id' => $booking->id,
             'status' => 'cancelled',
         ]);
+        $this->assertDatabaseHas('booking_events', ['booking_id' => $booking->id, 'event_type' => 'profile_unpublished']);
     }
 
 }
