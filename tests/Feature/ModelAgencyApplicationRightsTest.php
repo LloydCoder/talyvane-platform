@@ -365,6 +365,22 @@ class ModelAgencyApplicationRightsTest extends TestCase
     }
 
 
+
+    public function test_retention_command_refuses_to_anonymize_when_operator_schedule_approval_is_withdrawn(): void
+    {
+        $this->enableLifecycle();
+        $application = $this->application('declined', ['submitted_at' => now()->subDays(120)]);
+
+        config(['talyvane.model_agency.retention.schedule_approved' => false]);
+
+        $this->artisan('talyvane:model-agency:apply-retention')
+            ->expectsOutput('Model agency retention execution is disabled because the operator has not approved the retention schedule.')
+            ->assertExitCode(1);
+
+        $this->assertSame('declined', $application->fresh()->status);
+        $this->assertSame('Jordan Example', $application->fresh()->full_name);
+    }
+
     public function test_retention_rechecks_current_status_and_review_date_under_lock_before_anonymizing(): void
     {
         $this->enableLifecycle();
