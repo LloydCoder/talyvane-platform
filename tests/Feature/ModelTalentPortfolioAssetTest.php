@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 class ModelTalentPortfolioAssetTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase;\n    use EnablesModelAgencyFeatureRoutes;\n\n    protected function setUp(): void\n    {\n        parent::setUp();\n        $this->enableModelAgencyFeatureRoutes();\n    }
 
     private function configurePortfolioPolicy(): void
     {
