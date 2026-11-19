@@ -116,7 +116,14 @@ php artisan optimize
 
 Only run `key:generate` during first installation when no key exists. For upgrades, back up first, review release notes and run the documented migration command. Do not run destructive migration reset/fresh commands on production.
 
-After configuring the environment and applying migrations, provision the deployment's single Super Admin from a trusted terminal:\n\n```bash\nphp artisan migrate --force\nphp artisan talyvane:super-admin:create admin@example.com\n```\n\nThe command prompts interactively for the account name and a strong password, records the unique Super Admin principal in the deployment control row, and refuses a second bootstrap. Sign in immediately and complete mandatory TOTP MFA. Do not place passwords in shell arguments, deployment logs or tickets. Preserve a separately controlled recovery procedure. Never create a public route that executes arbitrary Artisan commands.
+After configuring the environment and applying migrations, provision the deployment's single Super Admin from a trusted terminal:
+
+```bash
+php artisan migrate --force
+php artisan talyvane:super-admin:create admin@example.com
+```
+
+The command prompts interactively for the account name and a strong password, records the unique Super Admin principal in the deployment control row, and refuses a second bootstrap. Sign in immediately and complete mandatory TOTP MFA. Do not place passwords in shell arguments, deployment logs or tickets. Preserve a separately controlled recovery procedure. Never create a public route that executes arbitrary Artisan commands.
 
 ### Without SSH/Composer
 
