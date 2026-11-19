@@ -4,7 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use RuntimeException;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use RuntimeException;
 
 class ModelTalentSettlement extends Model
 {
