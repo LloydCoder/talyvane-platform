@@ -9,6 +9,21 @@
             <article class="companion-profile-card">
                 <div><span class="eyebrow">{{ $profile->destination->name }} / {{ strtoupper($profile->publication_status) }}</span><h3>{{ $profile->display_name }}</h3><p>Publication consent: {{ $profile->consent_withdrawn_at ? 'Withdrawn' : ($profile->publication_consent_at ? 'Active' : 'Not recorded') }}</p></div>
                 @if ($profile->publication_status === 'published' && !$profile->consent_withdrawn_at)
+                    <div class="availability-panel">
+                        <strong>Weekly availability · {{ $profile->destination->timezone }}</strong>
+                        @forelse ($profile->availabilityRules as $rule)
+                            <div class="availability-row"><span>{{ $weekdays[$rule->weekday] }} · {{ substr($rule->starts_at, 0, 5) }}–{{ substr($rule->ends_at, 0, 5) }}</span><form method="POST" action="{{ route('companion-portal.profiles.availability.destroy', [$profile, $rule]) }}">@csrf @method('DELETE')<button type="submit">Remove</button></form></div>
+                        @empty
+                            <p>No weekly availability windows configured. Automatic booking remains disabled until a matching window exists.</p>
+                        @endforelse
+                        <form method="POST" action="{{ route('companion-portal.profiles.availability.store', $profile) }}" class="availability-form">
+                            @csrf
+                            <label>Day</label><select name="weekday" required>@foreach ($weekdays as $day => $label)<option value="{{ $day }}">{{ $label }}</option>@endforeach</select>
+                            <label>From</label><input type="time" name="starts_at" required>
+                            <label>Until</label><input type="time" name="ends_at" required>
+                            <button class="button button-dark" type="submit">Add window</button>
+                        </form>
+                    </div>
                     <div class="companion-controls">
                         @if ($profile->accepts_automatic_bookings)
                             <form method="POST" action="{{ route('companion-portal.profiles.automatic-booking', $profile) }}">@csrf<input type="hidden" name="enabled" value="0"><button class="text-link" type="submit">Disable automatic booking</button></form>
