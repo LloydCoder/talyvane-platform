@@ -23,6 +23,7 @@ See COMMERCIAL-LICENSING.md for the intended commercial model.
 - docs/PRODUCT-REQUIREMENTS.md
 - docs/ARCHITECTURE.md
 - docs/TGLS.md (globalization and localization standard)
+- docs/IMAGE-LICENSING.md (stock image provenance, licensing and media policy)
 - docs/decisions/ADR-0008-globalization.md
 - docs/SECURITY-PRIVACY.md
 - docs/COMPLIANCE-RELEASE-GATES.md
@@ -32,6 +33,8 @@ See COMMERCIAL-LICENSING.md for the intended commercial model.
 - docs/BOOKING.md
 - docs/PAYMENTS.md
 - docs/decisions/
+
+The public homepage and destination discovery now use a curated Pexels hospitality photography set. Destination cover images can be uploaded and replaced in the admin area with type, size, dimension and rights-declaration checks. Stock fallbacks are explicitly labelled as illustrative, never as location-specific evidence. Companion profile photographs are deliberately not populated from stock images; they must come from the actual profile owner with documented consent. See docs/IMAGE-LICENSING.md.
 
 Globalization foundations now include deployment-local country-market, currency, exchange-rate and localized-price persistence; decimal-safe money primitives; and administrator configuration for base reporting currency, locale, time zone, currency registration/enablement and country-market registration. This is an architectural and administration foundation, not a complete global rollout: ISO reference-data imports, exchange-rate providers, localized price management, market-policy enforcement, full localization and jurisdictional tax adapters remain planned and must not be represented as complete.
 
