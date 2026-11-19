@@ -81,7 +81,7 @@
         <h2>Settlement register</h2>
         @forelse($settlements as $settlement)
             <article class="admin-record">
-                <p class="eyebrow">{{ $settlement->reference }} · {{ strtoupper($settlement->status) }}</p>
+                <p class="eyebrow">{{ $settlement->reference }} · {{ $settlement->status === 'paid' ? 'PAID — EXTERNAL ATTESTATION' : strtoupper($settlement->status) }}</p>
                 <h3>{{ $settlement->assignment->application->full_name }} — {{ $settlement->assignment->client_name }}</h3>
                 <div class="admin-form-grid">
                     <p>Gross: {{ $settlement->gross_amount }} {{ $settlement->currency_code }}</p>
