@@ -45,6 +45,10 @@ class ModelAgencyApplicationLifecycleService
         DB::transaction(function () use ($application, $actorType, $actorId, $eventType): void {
             $locked = ModelTalentApplication::query()->lockForUpdate()->findOrFail($application->id);
 
+            if ($locked->status === 'erased') {
+                return;
+            }
+
             if ($locked->legal_hold_at !== null) {
                 throw ValidationException::withMessages([
                     'status' => 'This application is subject to a documented legal hold and cannot be erased yet.',
