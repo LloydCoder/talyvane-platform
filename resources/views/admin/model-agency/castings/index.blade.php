@@ -71,7 +71,7 @@
                         @foreach($eligibleApplications as $candidate)
                             @foreach($candidate->portfolioAssets->where('status', 'approved') as $asset)
                                 @foreach($asset->imageLicences->where('status', 'active')->where('purpose', 'casting_distribution') as $licence)
-                                    @if(in_array('casting_platform', $licence->channels ?? [], true))
+                                    @if(in_array('casting_platform', $licence->channels ?? [], true) && $licence->country_code === $call->country_code && $licence->starts_on->format('Y-m-d') <= $call->shoot_starts_at->format('Y-m-d') && $licence->ends_on->format('Y-m-d') >= $call->shoot_ends_at->format('Y-m-d'))
                                         <form method="POST" action="{{ route('admin.model-castings.submissions.store', $call) }}" class="inline-form">
                                             @csrf
                                             <input type="hidden" name="application_id" value="{{ $candidate->id }}">
