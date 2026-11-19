@@ -104,13 +104,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::post('/mfa/challenge', [AdminMfaController::class, 'verifyChallenge'])->middleware('throttle:5,1')->name('mfa.challenge.verify');
     Route::post('/mfa/recovery', [AdminMfaController::class, 'verifyRecovery'])->middleware('throttle:5,1')->name('mfa.recovery.verify');
 
-    Route::middleware(['auth', 'role:super_admin,owner,admin'])->group(function (): void {
+    Route::middleware(['auth', 'role:super_admin,owner,admin', 'admin.session-current'])->group(function (): void {
         Route::get('/mfa/setup', [AdminMfaController::class, 'setup'])->name('mfa.setup');
         Route::post('/mfa/setup', [AdminMfaController::class, 'confirmSetup'])->middleware('throttle:5,1')->name('mfa.setup.confirm');
         Route::get('/mfa/recovery-codes', [AdminMfaController::class, 'recoveryCodes'])->name('mfa.recovery-codes');
     });
 
-    Route::middleware(['auth', 'role:super_admin', 'admin.mfa'])->group(function (): void {
+    Route::middleware(['auth', 'role:super_admin', 'admin.session-current', 'admin.mfa'])->group(function (): void {
         Route::get('/features', [PlatformFeatureController::class, 'index'])->name('features.index');
         Route::patch('/features/{feature}', [PlatformFeatureController::class, 'update'])->middleware('throttle:5,1')->name('features.update');
     });
@@ -141,7 +141,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     });
 
     // Agency owners and administrators retain day-to-day operations, not deployment-wide configuration.
-    Route::middleware(['auth', 'role:super_admin,owner,admin', 'admin.mfa'])->group(function (): void {
+    Route::middleware(['auth', 'role:super_admin,owner,admin', 'admin.session-current', 'admin.mfa'])->group(function (): void {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
         Route::get('/profiles', [CompanionProfileController::class, 'index'])->name('profiles.index');
         Route::get('/profiles/create', [CompanionProfileController::class, 'create'])->name('profiles.create');
