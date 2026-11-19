@@ -25,7 +25,7 @@ class PaymentConfigurationTest extends TestCase
 
     public function test_admin_can_configure_independent_payment_switches(): void
     {
-        $admin = User::create([
+        $admin = $this->createAdminUser([
             'name' => 'Platform Admin',
             'email' => 'admin@example.test',
             'password' => 'Strong-Admin-Password-934!',
@@ -71,7 +71,7 @@ class PaymentConfigurationTest extends TestCase
 
     public function test_crypto_receiving_method_is_created_disabled_until_address_review(): void
     {
-        $admin = User::create([
+        $admin = $this->createAdminUser([
             'name' => 'Platform Admin',
             'email' => 'admin@example.test',
             'password' => 'Strong-Admin-Password-934!',
@@ -99,7 +99,7 @@ class PaymentConfigurationTest extends TestCase
 
     public function test_usdt_and_usdc_methods_require_a_token_contract(): void
     {
-        $admin = User::create([
+        $admin = $this->createAdminUser([
             'name' => 'Platform Admin',
             'email' => 'admin@example.test',
             'password' => 'Strong-Admin-Password-934!',
@@ -121,7 +121,7 @@ class PaymentConfigurationTest extends TestCase
     }
     public function test_receiving_method_cannot_be_enabled_before_review_and_matching_purpose_switches(): void
     {
-        $admin = User::create([
+        $admin = $this->createAdminUser([
             'name' => 'Platform Admin',
             'email' => 'admin@example.test',
             'password' => 'Strong-Admin-Password-934!',
