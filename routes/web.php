@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\PaymentSettingsController;
 use App\Http\Controllers\Admin\SitePageController;
 use App\Http\Controllers\Admin\PlatformFeatureController;
 use App\Http\Controllers\Admin\ModelAgencyApplicationAdminController;
+use App\Http\Controllers\Admin\ModelTalentRepresentationAgreementController;
 use App\Http\Controllers\ModelAgencyApplicationController;
 use App\Http\Controllers\ModelAgencyApplicationRightsController;
 use App\Http\Controllers\AccountSecurityController;
@@ -170,6 +171,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('/model-applications/{application}', [ModelAgencyApplicationAdminController::class, 'update'])->name('model-applications.update');
         Route::post('/model-applications/{application}/adult-eligibility', [ModelAgencyApplicationAdminController::class, 'verifyAdultEligibility'])->middleware('throttle:5,1')->name('model-applications.adult-eligibility');
         Route::post('/model-applications/{application}/legal-hold', [ModelAgencyApplicationAdminController::class, 'updateLegalHold'])->name('model-applications.legal-hold');
+        Route::post('/model-applications/{application}/agreements', [ModelTalentRepresentationAgreementController::class, 'store'])->middleware('throttle:10,1')->name('model-applications.agreements.store');
+        Route::post('/model-representation-agreements/{agreement}/offer', [ModelTalentRepresentationAgreementController::class, 'offer'])->middleware('throttle:10,1')->name('model-representation-agreements.offer');
+        Route::post('/model-representation-agreements/{agreement}/execute', [ModelTalentRepresentationAgreementController::class, 'execute'])->middleware('throttle:5,1')->name('model-representation-agreements.execute');
+        Route::post('/model-representation-agreements/{agreement}/terminate', [ModelTalentRepresentationAgreementController::class, 'terminate'])->middleware('throttle:5,1')->name('model-representation-agreements.terminate');
         Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
         Route::get('/clients', [ClientManagementController::class, 'index'])->name('clients.index');
         Route::post('/clients/{client}/membership', [ClientManagementController::class, 'assignMembership'])->middleware('feature:memberships')->name('clients.membership');

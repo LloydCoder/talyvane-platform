@@ -40,6 +40,58 @@
                         <button class="button button-dark" type="submit">{{ $application->legal_hold_at ? 'Release legal hold' : 'Place legal hold' }}</button>
                     </form>
                 @endif
+                @if($application->status === 'accepted' && $application->adult_eligibility_verified_at && ! $application->legal_hold_at)
+                    <section class="enquiry-status-form">
+                        <h3>Representation agreement</h3>
+                        @forelse($application->representationAgreements as $agreement)
+                            <div class="field-help">
+                                <strong>{{ $agreement->reference }} · v{{ $agreement->version }} · {{ str_replace('_', ' ', $agreement->status) }}</strong>
+                                <p>Terms policy: {{ $agreement->terms_policy_version }} · Scope: {{ $agreement->terms_snapshot['representation_scope'] ?? 'Not available' }}</p>
+                                @if($agreement->status === 'draft')
+                                    <form method="POST" action="{{ route('admin.model-representation-agreements.offer', $agreement) }}">@csrf
+                                        <button class="button button-dark" type="submit">Issue offer</button>
+                                    </form>
+                                @elseif($agreement->status === 'offered')
+                                    <form method="POST" action="{{ route('admin.model-representation-agreements.execute', $agreement) }}">
+                                        @csrf
+                                        <label>Private executed document storage reference</label>
+                                        <input name="executed_document_reference" required minlength="20" maxlength="200" placeholder="private/model-agreements/signed-contract-reference.pdf">
+                                        <label>Effective from</label><input type="date" name="effective_from" required>
+                                        <label>Effective until (optional)</label><input type="date" name="effective_until">
+                                        <label><input type="checkbox" name="confirm_externally_executed" value="1" required> All required parties have executed the agreement outside this platform and the referenced evidence is stored privately</label>
+                                        <button class="button button-dark" type="submit">Record external execution</button>
+                                    </form>
+                                @elseif($agreement->status === 'executed')
+                                    <p>Effective {{ $agreement->effective_from?->format('d M Y') }} @if($agreement->effective_until) until {{ $agreement->effective_until->format('d M Y') }} @endif. Execution evidence reference is encrypted.</p>
+                                    <form method="POST" action="{{ route('admin.model-representation-agreements.terminate', $agreement) }}">@csrf
+                                        <label>Termination reason</label><textarea name="reason" minlength="20" maxlength="2000" required></textarea>
+                                        <label><input type="checkbox" name="confirm_termination" value="1" required> I confirm termination is authorized under the executed agreement and applicable law</label>
+                                        <button class="button button-dark" type="submit">Record termination</button>
+                                    </form>
+                                @endif
+                            </div>
+                        @empty
+                            <p class="field-help">No representation agreement exists. Acceptance alone does not create an agency relationship.</p>
+                        @endforelse
+                        @if(! $application->representationAgreements->contains(fn ($agreement) => in_array($agreement->status, ['draft','offered','executed'], true)))
+                            <form method="POST" action="{{ route('admin.model-applications.agreements.store', $application) }}">
+                                @csrf
+                                <label>Approved territory</label><select name="country_code" required><option value="">Choose an approved market</option>@foreach($approvedMarkets as $market)<option value="{{ $market->country_code }}">{{ $market->name }} ({{ $market->country_code }})</option>@endforeach</select>
+                                <label>Representation scope</label><textarea name="representation_scope" minlength="20" maxlength="3000" required></textarea>
+                                <label>Exclusivity</label><select name="exclusivity" required><option value="non_exclusive">Non-exclusive</option><option value="exclusive">Exclusive</option></select>
+                                <label>Commission (%)</label><input type="number" name="commission_percent" min="0" max="100" step="0.01" required>
+                                <label>Term (months)</label><input type="number" name="term_months" min="1" max="60" required>
+                                <label>Notice period (days)</label><input type="number" name="notice_days" min="0" max="180" required>
+                                <label>Image and usage rights scope</label><textarea name="image_usage_scope" minlength="20" maxlength="3000" required></textarea>
+                                <label>Compensation and commission terms</label><textarea name="compensation_terms" minlength="20" maxlength="3000" required></textarea>
+                                <label>Expenses and deductions</label><textarea name="expense_terms" minlength="20" maxlength="3000" required></textarea>
+                                <label>Consent, withdrawal and safeguarding terms</label><textarea name="withdrawal_and_consent_terms" minlength="20" maxlength="3000" required></textarea>
+                                <button class="button button-dark" type="submit">Create agreement draft</button>
+                            </form>
+                        @endif
+                        <p class="field-help">Drafting and recording only. Offers are blocked until the current terms version is explicitly approved. This platform does not provide legal advice, create an electronic signature, or validate contract enforceability. Store executed documents in private storage and retain the required jurisdiction-specific evidence.</p>
+                    </section>
+                @endif
                 @if(in_array($application->status, ['submitted','reviewing'], true))
                     <form method="POST" action="{{ route('admin.model-applications.update', $application) }}" class="enquiry-status-form">
                         @csrf @method('PATCH')

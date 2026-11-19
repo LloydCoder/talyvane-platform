@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ModelTalentApplication;
 use App\Models\ModelTalentApplicationEvent;
+use App\Models\ModelTalentRepresentationAgreement;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -52,6 +53,12 @@ class ModelAgencyApplicationLifecycleService
             if ($locked->legal_hold_at !== null) {
                 throw ValidationException::withMessages([
                     'status' => 'This application is subject to a documented legal hold and cannot be erased yet.',
+                ]);
+            }
+
+            if (ModelTalentRepresentationAgreement::query()->where('application_id', $locked->id)->exists()) {
+                throw ValidationException::withMessages([
+                    'status' => 'This application has representation-agreement records. An operator must complete a separate documented contract-retention review before erasure can proceed.',
                 ]);
             }
 

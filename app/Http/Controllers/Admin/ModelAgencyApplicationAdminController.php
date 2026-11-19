@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ModelTalentApplication;
+use App\Models\CountryMarket;
 use App\Models\ModelTalentApplicationEvent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -27,8 +28,9 @@ class ModelAgencyApplicationAdminController extends Controller
         $this->assertSchemaReady();
 
         return response()->view('admin.model-agency.applications.index', [
+            'approvedMarkets' => CountryMarket::operationallyApproved()->orderBy('name')->get(['country_code', 'name']),
             'applications' => ModelTalentApplication::query()
-                ->with(['reviewer', 'adultEligibilityVerifier'])
+                ->with(['reviewer', 'adultEligibilityVerifier', 'representationAgreements'])
                 ->latest('submitted_at')
                 ->paginate(20),
         ])->header('Cache-Control', 'no-store, private, max-age=0')
@@ -220,6 +222,8 @@ class ModelAgencyApplicationAdminController extends Controller
         abort_unless(
             Schema::hasTable('model_talent_applications')
                 && Schema::hasColumns('model_talent_applications', ['reference', 'full_name', 'email', 'status', 'legal_hold_at', 'adult_eligibility_verified_at', 'adult_eligibility_verified_by', 'adult_eligibility_verification_method'])
+                && Schema::hasTable('model_talent_representation_agreements')
+                && Schema::hasColumns('model_talent_representation_agreements', ['application_id', 'country_code', 'reference', 'version', 'status', 'terms_snapshot', 'terms_policy_version'])
                 && Schema::hasTable('model_talent_application_events')
                 && Schema::hasColumns('model_talent_application_events', ['application_id', 'actor_type', 'event_type', 'occurred_at']),
             503,
