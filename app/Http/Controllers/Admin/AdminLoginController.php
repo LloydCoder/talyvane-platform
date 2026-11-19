@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -25,7 +26,8 @@ class AdminLoginController
             'password' => ['required', 'string', 'max:200'],
         ]);
 
-        $key = Str::transliterate(Str::lower($credentials['email']).'|'.$request->ip());
+        $email = strtolower($credentials['email']);
+        $key = Str::transliterate(Str::lower($email).'|'.$request->ip());
 
         if (RateLimiter::tooManyAttempts($key, 5)) {
             throw ValidationException::withMessages([
@@ -33,11 +35,13 @@ class AdminLoginController
             ]);
         }
 
-        if (! Auth::attempt([
-            'email' => $credentials['email'],
-            'password' => $credentials['password'],
-            'is_active' => true,
-        ], $request->boolean('remember'))) {
+        $user = User::query()
+            ->where('email', $email)
+            ->where('is_active', true)
+            ->whereIn('role', ['owner', 'admin'])
+            ->first();
+
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             RateLimiter::hit($key, 60);
 
             throw ValidationException::withMessages([
@@ -45,6 +49,7 @@ class AdminLoginController
             ]);
         }
 
+        Auth::login($user, $request->boolean('remember'));
         RateLimiter::clear($key);
         $request->session()->regenerate();
 
