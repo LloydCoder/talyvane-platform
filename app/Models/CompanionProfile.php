@@ -37,6 +37,11 @@ class CompanionProfile extends Model
         ];
     }
 
+    public function availabilityRules(): HasMany
+    {
+        return $this->hasMany(CompanionAvailabilityRule::class, 'companion_profile_id');
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
