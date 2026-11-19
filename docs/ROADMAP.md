@@ -113,7 +113,6 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Document release, upgrade, backup, rollback and operations procedures.
 - [x] Commit and validate the generated `composer.lock` through reviewed PR #20; CI installs the locked graph on PHP 8.3, 8.4 and 8.5.
 - [ ] Produce reproducible, tagged release artifacts with production vendor dependencies and compiled frontend assets.
-- [x] Commit and validate the Composer lockfile through a reviewed pull request; CI installs the locked graph on PHP 8.3, 8.4 and 8.5.
 - [x] Retire the privileged lockfile-bootstrap workflow after the committed lockfile became mandatory; missing lockfiles now fail normal CI rather than granting automation repository write permissions.
 - [x] Add automated PHP 8.3/8.4/8.5 compatibility and actual extension/platform checks in CI.
 - [ ] Build a secure no-SSH installer and first Super Admin bootstrap, with no arbitrary command execution or public setup backdoor.
