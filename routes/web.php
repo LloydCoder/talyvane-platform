@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\AdminMfaController;
 use App\Http\Controllers\Admin\BookingAdminController;
+use App\Http\Controllers\Admin\ClientManagementController;
 use App\Http\Controllers\Admin\BookingSettingsController;
 use App\Http\Controllers\Admin\BrandingController;
 use App\Http\Controllers\Admin\CompanionProfileController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Admin\PaymentSettingsController;
 use App\Http\Controllers\Admin\SitePageController;
 use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\ClientFavoriteController;
 use App\Http\Controllers\CompanionBookingController;
 use App\Http\Controllers\CompanionMediaController;
 use App\Http\Controllers\ProfileMediaController;
@@ -69,6 +71,8 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/portal', [PortalDashboardController::class, 'client'])->name('portal.dashboard');
         Route::get('/companions/{slug}/book', [BookingController::class, 'create'])->name('bookings.create');
         Route::post('/bookings', [BookingController::class, 'store'])->name('bookings.store');
+        Route::post('/client/favorites/{profile}', [ClientFavoriteController::class, 'store'])->middleware('throttle:30,1')->name('client.favorites.store');
+        Route::delete('/client/favorites/{profile}', [ClientFavoriteController::class, 'destroy'])->name('client.favorites.destroy');
         Route::post('/bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
     });
 
@@ -120,6 +124,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/profiles/{profile}/unpublish', [CompanionProfileController::class, 'unpublish'])->name('profiles.unpublish');
         Route::get('/enquiries', [EnquiryAdminController::class, 'index'])->name('enquiries.index');
         Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
+        Route::get('/clients', [ClientManagementController::class, 'index'])->name('clients.index');
+        Route::post('/clients/{client}/membership', [ClientManagementController::class, 'assignMembership'])->name('clients.membership');
         Route::get('/bookings', [BookingAdminController::class, 'index'])->name('bookings.index');
         Route::patch('/bookings/{booking}', [BookingAdminController::class, 'update'])->name('bookings.update');
         Route::post('/bookings/{booking}/deposit', [BookingAdminController::class, 'verifyDeposit'])->name('bookings.deposit');

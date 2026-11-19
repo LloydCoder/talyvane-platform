@@ -346,3 +346,45 @@ h1 em, h2 em { color: var(--gold); font-weight: 400; }
 .market-review-details .remember-row{display:flex;align-items:flex-start;gap:8px;line-height:1.5}
 .market-review-details .remember-row input{margin-top:2px}
 .market-review-details button{justify-content:center;min-height:38px;border:0;cursor:pointer}
+
+
+/* Private client portal */
+.client-membership-panel{position:relative;display:flex;justify-content:space-between;align-items:center;gap:28px;margin:28px 0 42px;padding:32px 36px;overflow:hidden;background:#202a23;color:#f3efe5}
+.client-membership-panel .eyebrow{color:#c8b58e;font-size:8px;letter-spacing:.2em}
+.client-membership-panel h2{margin:12px 0;color:#f3efe5;font:clamp(30px,4vw,42px)/1 var(--serif)}
+.client-membership-panel p{max-width:560px;margin:0;color:rgba(243,239,229,.78);font-size:11px;line-height:1.8}
+.client-membership-dates{display:block;margin-top:14px;color:#c8b58e;font-size:9px;letter-spacing:.08em}
+.client-membership-mark{color:rgba(200,181,142,.35);font:clamp(70px,12vw,140px)/1 var(--serif)}
+.client-saved-section,.client-bookings-section{margin:38px 0}
+.client-saved-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.client-saved-card{display:flex;min-height:130px;flex-direction:column;align-items:flex-start;justify-content:space-between;padding:20px;background:#f8f6f0;border:1px solid rgba(23,28,24,.12)}
+.client-saved-card h3{margin:8px 0;color:#202720;font:26px var(--serif)}
+.client-saved-card .eyebrow{color:#887858;font-size:8px}
+.client-saved-card form{margin-top:12px}
+.client-saved-card .text-link{font-size:9px}
+.admin-client-list{display:grid;gap:14px}
+.admin-client-card{padding:22px;background:#f8f6f0;border:1px solid rgba(23,28,24,.12)}
+.admin-client-summary{display:flex;justify-content:space-between;gap:18px}
+.admin-client-summary h2{margin:8px 0 4px;font:27px var(--serif)}
+.admin-client-summary p,.admin-client-benefits{margin:0;color:#73796f;font-size:10px;line-height:1.7}
+.admin-client-current{display:flex;flex-direction:column;gap:7px;text-align:right}
+.admin-client-current strong{color:#826f4d;font:22px var(--serif)}
+.admin-client-current small{color:#747b70;font-size:8px;letter-spacing:.12em}
+.admin-membership-editor{margin-top:18px;padding-top:15px;border-top:1px solid rgba(23,28,24,.12)}
+.admin-membership-editor summary{color:#826f4d;font-size:10px;cursor:pointer}
+.admin-membership-editor form{display:grid;gap:12px;margin-top:14px}
+.admin-membership-editor label{display:grid;gap:6px;color:#4d554c;font-size:9px}
+.admin-membership-editor input,.admin-membership-editor select,.admin-membership-editor textarea{width:100%;min-height:36px;padding:8px;border:1px solid rgba(23,28,24,.2);background:#fffefa;color:#252c26;font:10px var(--sans)}
+.admin-membership-editor textarea{resize:vertical}
+.admin-membership-editor button{justify-content:center;min-height:38px;border:0;cursor:pointer}
+@media(max-width:640px){.client-membership-panel{padding:24px;gap:12px}.client-membership-mark{font-size:72px}.client-saved-grid{grid-template-columns:1fr}.admin-client-summary{flex-direction:column}.admin-client-current{text-align:left}}
+
+
+/* Cinematic first viewport on desktop */
+@media(min-width:901px){
+    .hero{min-height:calc(100svh - 118px);align-items:center;padding-top:clamp(42px,6vh,88px);padding-bottom:clamp(42px,6vh,88px);background:radial-gradient(ellipse at 78% 48%,rgba(183,164,125,.075),transparent 38%)}
+    .hero-copy{max-width:620px}
+    .hero-copy h1{font-size:clamp(58px,6.2vw,90px)}
+    .hero-art{min-height:min(62vh,760px)}
+    .art-frame{width:min(100%,640px);height:min(62vh,760px)}
+}

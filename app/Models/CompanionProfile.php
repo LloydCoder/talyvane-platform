@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class CompanionProfile extends Model
 {
@@ -36,6 +37,11 @@ class CompanionProfile extends Model
             'automatic_booking_consent_at' => 'immutable_datetime',
             'accepts_automatic_bookings' => 'boolean',
         ];
+    }
+
+    public function favoritedBy(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'client_favorites', 'companion_profile_id', 'client_id')->withTimestamps();
     }
 
     public function media(): HasMany
