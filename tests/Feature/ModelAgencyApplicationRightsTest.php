@@ -169,7 +169,7 @@ class ModelAgencyApplicationRightsTest extends TestCase
             'city' => 'Manchester',
             'portfolio_url' => 'https://portfolio.example.test/updated',
             'experience_summary' => 'Updated commercial and editorial modelling experience.',
-        ])->assertRedirect('/models/application-support/'.$request->id);
+        ])->assertRedirect('/models/application-support/verify');
 
         $application->refresh();
         $this->assertSame('Jordan Updated', $application->full_name);
@@ -191,7 +191,7 @@ class ModelAgencyApplicationRightsTest extends TestCase
         $this->verifyCode($application, $request);
 
         $this->post('/models/application-support/'.$request->id.'/withdraw')
-            ->assertRedirect('/models/application-support/'.$request->id);
+            ->assertRedirect('/models/application-support/verify');
 
         $this->assertSame('withdrawn', $application->fresh()->status);
         $this->assertSame('completed', $request->fresh()->status);
@@ -220,7 +220,7 @@ class ModelAgencyApplicationRightsTest extends TestCase
         $this->verifyCode($application, $request);
 
         $this->post('/models/application-support/'.$request->id.'/erase')
-            ->assertRedirect('/models/application-support/'.$request->id);
+            ->assertRedirect('/models/application-support/verify');
 
         $application->refresh();
         $this->assertSame('erased', $application->status);
