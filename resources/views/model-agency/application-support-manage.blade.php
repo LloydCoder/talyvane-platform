@@ -18,6 +18,10 @@
         <dt>Adult eligibility policy version</dt><dd>{{ $rightsRequest->application->adult_eligibility_policy_version }}</dd>
     </dl>
 
+    @if($rightsRequest->request_type === 'access')
+        <p class="admin-muted">This self-service view shows the application fields and current status held in this portal. It is not a complete subject access response covering every personal-data record the agency may hold. For a broader access request, contact the controller using the details in the published applicant privacy notice.</p>
+    @endif
+
     @if($rightsRequest->request_type === 'correction')
         <section class="portal-form-section">
             <h2>Correct your information</h2>
