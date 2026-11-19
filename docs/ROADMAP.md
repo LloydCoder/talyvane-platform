@@ -9,6 +9,16 @@
 - [x] Define initial design tokens and responsive public/admin shell.
 
 ## Release 1 — Operational foundation
+- [x] Establish Talyvane Globalization and Localization Standard (TGLS) and ADR-0008 as mandatory global architecture.
+- [x] Add deployment-local currency, country-market, exchange-rate and polymorphic localized-price persistence schema.
+- [x] Add typed globalization domain models and a decimal-string Money value object with ISO-code shape and 0/2/3 precision handling.
+- [x] Add feature tests for decimal-safe money conversion and globalization schema.
+- [ ] Import and version the complete ISO 3166-1 and ISO 4217 reference datasets; current schema is intentionally empty until a vetted dataset/importer is delivered.
+- [ ] Build admin workflows for currency enablement, base reporting currency, country policy, locale/timezone and market-specific prices.
+- [ ] Implement exchange-rate provider adapters, rate freshness policy, immutable quote snapshots and deterministic rounding.
+- [ ] Integrate fail-closed market policy checks into discovery, booking, membership and payment boundaries.
+- [ ] Add localization preferences, translation fallback, locale-aware formatting and time-zone rendering across customer and admin interfaces.
+- [ ] Add tax adapters only after jurisdiction-specific legal and merchant review.
 - [x] Initial public homepage and responsive design system.
 - [x] CLI-only first-owner provisioning, login/logout, role-gated admin dashboard.
 - [x] Database-backed brand name, logo upload, tagline and contact configuration.
