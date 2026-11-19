@@ -18,11 +18,18 @@
 - [x] Public profile visibility gated by verified-adult status and non-withdrawn publication consent.
 - [x] Audited profile publication review with approved-provider allowlist, hashed provider reference and explicit consent version.
 - [ ] Integrate and verify a real age-assurance provider; current publication workflow is reviewer-recorded and must not be represented as automated verification.
+- [x] Public enquiry intake with validation, rate limiting, honeypot and admin CRM status workflow.
+- [x] Client self-registration with role separation and email verification.
+- [x] Companion CLI provisioning, linked profile accounts and verified companion portal.
+- [x] Companion-controlled automatic-booking opt-in and immediate publication-consent withdrawal.
+- [x] Manual booking requests and configurable automatic confirmation with fail-closed eligibility.
+- [x] Admin booking inbox, deposit verification attestation and overlap checks.
+- [ ] Booking cancellation/rescheduling policies, notification delivery and companion availability calendar.
 - [x] CI feature tests for homepage, authentication, role boundaries and branding persistence.
-Remaining: configurable content/CMS; enquiry inbox; legal pages and market flags; staging deployment and runtime verification; MFA.
+Remaining: configurable content/CMS; jurisdiction-approved legal documents (current pages are draft placeholders); market flags; staging deployment and runtime verification; MFA.
 
 ## Release 2 — Booking and portals
-Client and companion accounts; manual booking; admin-configurable automatic rules with fail-closed prerequisites; calendar, notifications, cancellation and audit history; consent and verification integration.
+Partially implemented: client and companion account authentication; verified email; manual requests; admin-configurable automatic eligibility; companion opt-in/withdrawal; deposit verification attestation; overlap checks; client and companion booking views. Remaining: cancellation/rescheduling policies, availability calendars, notifications, booking event audit trail and full companion profile editing.
 
 ## Release 3 — Payments
 Payment adapter contract; manual instructions; crypto invoice snapshots and server-side chain verification for approved networks; ledger and reconciliation; card adapters only after written underwriting.
