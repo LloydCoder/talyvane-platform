@@ -161,7 +161,7 @@ class DiscoveryTest extends TestCase
 
     public function test_owner_can_create_a_destination(): void
     {
-        $owner = User::create([
+        $owner = $this->createAdminUser([
             'name' => 'Platform Owner',
             'email' => 'owner@example.test',
             'password' => Hash::make('Strong-Testing-Password-934!'),
