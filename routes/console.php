@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Artisan;
 
 Artisan::command('talyvane:about', function () {
@@ -70,7 +71,7 @@ Artisan::command('talyvane:companion:create {email}', function () {
         'is_active' => true,
     ]);
 
-    event(new \\Illuminate\\Auth\\Events\\Registered($user));
+    event(new Registered($user));
 
     $this->info('Companion account created. Deliver the temporary password through a separate secure channel. The companion must verify their email before using the portal.');
 })->purpose('Provision a companion account from a trusted command line');
