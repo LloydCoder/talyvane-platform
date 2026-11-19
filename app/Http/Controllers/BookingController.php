@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\BookingEvent;
 use App\Models\BookingSetting;
 use App\Models\CompanionProfile;
 use Carbon\CarbonImmutable;
