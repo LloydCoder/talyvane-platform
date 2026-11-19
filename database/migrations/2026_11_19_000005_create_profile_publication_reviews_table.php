@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('companion_profile_id')->constrained()->cascadeOnDelete();
             $table->foreignId('reviewer_id')->constrained('users')->restrictOnDelete();
             $table->string('verification_provider', 80);
-            $table->char('verification_reference_hash', 64);
+            $table->char('verification_reference_hash', 64)->nullable();
             $table->string('consent_version', 80);
             $table->string('decision', 20)->index();
             $table->text('review_note')->nullable();
