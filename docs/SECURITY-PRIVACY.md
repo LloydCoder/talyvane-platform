@@ -37,3 +37,13 @@ Audit privileged configuration, profile publication, companion consent changes, 
 
 ## Release gates
 No production release until authorisation tests, upload security, payment verification, privacy controls, backup restore, dependency audit, secret scan, vulnerability review and jurisdictional sign-off pass.
+
+
+## Super Admin feature controls
+
+- Feature state changes are restricted to the deployment Super Admin and require current-password verification plus a fresh, single-use TOTP code.
+- Every state change requires a meaningful operator reason and is committed with its append-only audit event in one database transaction.
+- TOTP steps are consumed even when activation is blocked, preventing reuse of the same authenticator code for another action.
+- Activation fails closed for unimplemented features, disabled dependencies and unknown or unsatisfied prerequisites. Market activation requires at least one fully evidenced operationally approved market.
+- Disabling optional features is available as an emergency control. Re-enabling runs the activation evaluator again.
+- The registry is not a legal approval system and cannot override market, age-assurance, consent, safeguarding, payment integrity or other independent domain policy checks.
