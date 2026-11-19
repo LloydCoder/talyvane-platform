@@ -7,6 +7,7 @@ use App\Models\BookingEvent;
 use App\Models\CompanionProfile;
 use App\Models\Destination;
 use App\Models\ProfilePublicationReview;
+use App\Models\ProfileMedia;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
