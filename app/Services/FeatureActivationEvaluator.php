@@ -45,13 +45,40 @@ class FeatureActivationEvaluator
             }
 
             if ($requirement === 'applicant_data_lifecycle') {
-                $blockers[] = 'Applicant access, correction, withdrawal, erasure and retention execution are not implemented.';
+                $applicationSchemaReady = Schema::hasTable('model_talent_applications')
+                    && Schema::hasColumns('model_talent_applications', ['legal_hold_at', 'reviewed_at', 'submitted_at']);
+                $rightsTableReady = Schema::hasTable('model_talent_application_rights_requests')
+                    && Schema::hasColumns('model_talent_application_rights_requests', ['application_id', 'request_type', 'status', 'code_hash', 'attempts', 'expires_at', 'verified_at', 'completed_at']);
+                $applicationDays = (int) config('talyvane.model_agency.retention.application_days');
+                $acceptedDays = (int) config('talyvane.model_agency.retention.accepted_days');
+                $retentionApproved = config('talyvane.model_agency.retention.schedule_approved');
+                $smtpReady = config('mail.default') === 'smtp' && filled(config('mail.mailers.smtp.host'));
+
+                if (! $applicationSchemaReady || ! $rightsTableReady || $applicationDays < 1 || $acceptedDays < 1 || ! $retentionApproved || ! $smtpReady) {
+                    $blockers[] = 'Applicant rights verification, legal-hold schema, approved retention periods, scheduled retention execution and SMTP delivery must all be configured.';
+                }
+
                 continue;
             }
 
             if ($requirement === 'model_agency_workflow') {
-                if (! Schema::hasTable('model_talent_applications') || ! Schema::hasTable('model_talent_application_events')) {
-                    $blockers[] = 'The separate model-agency application and audit workflow is not installed.';
+                $schemaReady = Schema::hasTable('model_talent_applications')
+                    && Schema::hasTable('model_talent_application_events')
+                    && Schema::hasColumns('model_talent_applications', [
+                        'reference',
+                        'full_name',
+                        'email',
+                        'adult_eligibility_confirmed_at',
+                        'adult_eligibility_policy_version',
+                        'privacy_notice_version',
+                        'reviewed_at',
+                        'legal_hold_at',
+                        'submitted_at',
+                    ])
+                    && Schema::hasColumns('model_talent_application_events', ['application_id', 'actor_type', 'event_type', 'occurred_at']);
+
+                if (! $schemaReady) {
+                    $blockers[] = 'The separate model-agency application, legal-hold and audit schema is incomplete.';
                 }
 
                 continue;

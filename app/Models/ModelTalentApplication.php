@@ -26,6 +26,9 @@ class ModelTalentApplication extends Model
         'reviewed_by',
         'reviewed_at',
         'review_note',
+        'legal_hold_at',
+        'legal_hold_by',
+        'legal_hold_reason',
         'submitted_at',
     ];
 
@@ -39,10 +42,12 @@ class ModelTalentApplication extends Model
             'portfolio_url' => 'encrypted',
             'experience_summary' => 'encrypted',
             'review_note' => 'encrypted',
+            'legal_hold_reason' => 'encrypted',
             'adult_eligibility_confirmed_at' => 'immutable_datetime',
             'adult_eligibility_policy_accepted_at' => 'immutable_datetime',
             'privacy_notice_accepted_at' => 'immutable_datetime',
             'reviewed_at' => 'immutable_datetime',
+            'legal_hold_at' => 'immutable_datetime',
             'submitted_at' => 'immutable_datetime',
         ];
     }

@@ -165,7 +165,7 @@ If the release requires Laravel's scheduler, add a cPanel cron entry using the e
 * * * * * /usr/local/bin/php /home/CPANEL_USER/talyvane-app/artisan schedule:run >> /dev/null 2>&1
 ```
 
-The PHP path is provider-specific; discover it from the provider or cPanel Terminal. Do not copy the example path blindly. If cron is unavailable, disable or clearly mark scheduler-dependent features as unavailable.
+The PHP path is provider-specific; discover it from the provider or cPanel Terminal. Do not copy the example path blindly. If cron is unavailable, disable or clearly mark scheduler-dependent features as unavailable. Talyvane's model-agency retention command is scheduled daily at 02:30 when approved retention periods and the scheduler approval flag are configured. Configure and verify this once-per-minute scheduler entry before setting MODEL_AGENCY_RETENTION_SCHEDULE_APPROVED=true.
 
 ## 10. Go-live
 

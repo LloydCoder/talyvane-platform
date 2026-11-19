@@ -18,7 +18,7 @@ The initial model-agency application workflow is implemented as an independent d
 
 Applicants must self-attest that they are at least 18. This is not identity or age assurance. The application feature remains disabled until the deployment explicitly configures and approves versioned applicant privacy and adult-eligibility policies and publishes the CMS policy pages `model-applicant-privacy` and `model-adult-eligibility`. Admin acceptance is only progression to a separate representation discussion; it is not an executed agreement, a casting assignment or permission to use images. Applications and status transitions have separate audit records and administrator-only access.
 
-The next model-agency increments remain separate: representation agreement issuance/signature and revocation; casting calls and briefs; assignment/booking states; media releases and usage licences with territory, channel, term and purpose; talent availability; fees, expenses and settlements; applicant access, correction, withdrawal and retention/deletion workflows.
+The next model-agency increments remain separate: representation agreement issuance/signature and revocation; casting calls and briefs; assignment/booking states; media releases and usage licences with territory, channel, term and purpose; talent availability; fees, expenses and settlements. Applicant access, correction, withdrawal, erasure, legal holds and retention execution are implemented as a separate privacy-governance domain.
 
 ## Roles
 Public visitor; client; companion/provider; operator; verification/safeguarding reviewer; finance operator; administrator; platform maintainer. Use least privilege. Platform maintainers have no default access to customer business data.

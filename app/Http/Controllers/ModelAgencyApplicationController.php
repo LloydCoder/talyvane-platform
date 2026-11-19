@@ -7,21 +7,23 @@ use App\Models\ModelTalentApplicationEvent;
 use App\Models\PlatformFeature;
 use App\Services\FeatureActivationEvaluator;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\View\View;
 
 class ModelAgencyApplicationController extends Controller
 {
-    public function create(FeatureActivationEvaluator $evaluator): View
+    public function create(FeatureActivationEvaluator $evaluator): Response
     {
         $this->assertFeatureReady($evaluator);
 
-        return view('model-agency.apply', [
+        return response()->view('model-agency.apply', [
             'privacyNoticeVersion' => config('talyvane.model_agency.privacy_notice_version'),
             'adultEligibilityPolicyVersion' => config('talyvane.model_agency.adult_eligibility_policy_version'),
-        ]);
+        ])->header('Cache-Control', 'no-store, private, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Referrer-Policy', 'no-referrer');
     }
 
     public function store(Request $request, FeatureActivationEvaluator $evaluator): RedirectResponse
@@ -68,7 +70,7 @@ class ModelAgencyApplicationController extends Controller
             'website' => ['prohibited'],
         ]);
 
-        DB::transaction(function () use ($validated, $privacyNoticeVersion, $adultEligibilityPolicyVersion): void {
+        $application = DB::transaction(function () use ($validated, $privacyNoticeVersion, $adultEligibilityPolicyVersion): ModelTalentApplication {
             $application = ModelTalentApplication::query()->create([
                 'reference' => 'MTA-'.now()->format('Y').'-'.Str::upper(Str::random(10)),
                 'full_name' => trim($validated['full_name']),
@@ -94,14 +96,20 @@ class ModelAgencyApplicationController extends Controller
                 'to_status' => 'submitted',
                 'occurred_at' => now(),
             ]);
+
+            return $application;
         });
 
-        return redirect()->route('model-agency.apply.received');
+        return redirect()->route('model-agency.apply.received')
+            ->with('application_reference', $application->reference);
     }
 
-    public function received(): View
+    public function received(): Response
     {
-        return view('model-agency.received');
+        return response()->view('model-agency.received')
+            ->header('Cache-Control', 'no-store, private, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Referrer-Policy', 'no-referrer');
     }
 
     private function assertFeatureReady(FeatureActivationEvaluator $evaluator): void

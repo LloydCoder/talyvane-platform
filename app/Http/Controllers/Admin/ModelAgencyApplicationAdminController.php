@@ -5,14 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ModelTalentApplication;
 use App\Models\ModelTalentApplicationEvent;
-use App\Models\PlatformFeature;
-use App\Services\FeatureActivationEvaluator;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 
 class ModelAgencyApplicationAdminController extends Controller
 {
@@ -23,24 +22,25 @@ class ModelAgencyApplicationAdminController extends Controller
         'declined' => [],
     ];
 
-    public function index(FeatureActivationEvaluator $evaluator): View
+    public function index(): Response
     {
-        $this->assertFeatureReady($evaluator);
+        $this->assertSchemaReady();
 
-        return view('admin.model-agency.applications.index', [
+        return response()->view('admin.model-agency.applications.index', [
             'applications' => ModelTalentApplication::query()
                 ->with('reviewer')
                 ->latest('submitted_at')
                 ->paginate(20),
-        ]);
+        ])->header('Cache-Control', 'no-store, private, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Referrer-Policy', 'no-referrer');
     }
 
     public function update(
         Request $request,
         ModelTalentApplication $application,
-        FeatureActivationEvaluator $evaluator,
     ): RedirectResponse {
-        $this->assertFeatureReady($evaluator);
+        $this->assertSchemaReady();
 
         $validated = $request->validate([
             'status' => ['required', Rule::in(['reviewing', 'accepted', 'declined'])],
@@ -92,10 +92,71 @@ class ModelAgencyApplicationAdminController extends Controller
         );
     }
 
-    private function assertFeatureReady(FeatureActivationEvaluator $evaluator): void
+    public function updateLegalHold(Request $request, ModelTalentApplication $application): RedirectResponse
     {
-        $feature = PlatformFeature::query()->findOrFail('model-agency.applications');
+        $this->assertSchemaReady();
+        abort_unless(in_array($request->user()->role, ['super_admin', 'owner'], true), 403);
 
-        abort_if($evaluator->blockers($feature) !== [], 503, 'Model agency application safeguards are not configured.');
+        $validated = $request->validate([
+            'enabled' => ['required', 'boolean'],
+            'reason' => ['required', 'string', 'min:20', 'max:2000'],
+        ]);
+
+        $reason = trim($validated['reason']);
+        if (mb_strlen($reason) < 20) {
+            throw ValidationException::withMessages([
+                'reason' => 'Provide at least 20 non-whitespace characters.',
+            ]);
+        }
+
+        DB::transaction(function () use ($request, $application, $validated, $reason): void {
+            $locked = ModelTalentApplication::query()->lockForUpdate()->findOrFail($application->id);
+            $placing = (bool) $validated['enabled'];
+
+            abort_if($locked->status === 'erased', 410, 'Erased application records cannot be placed on legal hold.');
+
+            if ($placing && $locked->legal_hold_at !== null) {
+                throw ValidationException::withMessages(['enabled' => 'A legal hold is already active.']);
+            }
+
+            if (! $placing && $locked->legal_hold_at === null) {
+                throw ValidationException::withMessages(['enabled' => 'No legal hold is active.']);
+            }
+
+            $locked->forceFill($placing ? [
+                'legal_hold_at' => now(),
+                'legal_hold_by' => $request->user()->id,
+                'legal_hold_reason' => $reason,
+            ] : [
+                'legal_hold_at' => null,
+                'legal_hold_by' => null,
+                'legal_hold_reason' => null,
+            ])->save();
+
+            ModelTalentApplicationEvent::query()->create([
+                'application_id' => $locked->id,
+                'actor_id' => $request->user()->id,
+                'actor_type' => 'administrator',
+                'event_type' => $placing ? 'application.legal_hold_placed' : 'application.legal_hold_released',
+                'from_status' => $locked->status,
+                'to_status' => $locked->status,
+                'reason' => $reason,
+                'occurred_at' => now(),
+            ]);
+        });
+
+        return redirect()->route('admin.model-applications.index')->with('status', 'Applicant legal hold updated.');
+    }
+
+    private function assertSchemaReady(): void
+    {
+        abort_unless(
+            Schema::hasTable('model_talent_applications')
+                && Schema::hasColumns('model_talent_applications', ['reference', 'full_name', 'email', 'status', 'legal_hold_at'])
+                && Schema::hasTable('model_talent_application_events')
+                && Schema::hasColumns('model_talent_application_events', ['application_id', 'actor_type', 'event_type', 'occurred_at']),
+            503,
+            'Model agency application records are unavailable.',
+        );
     }
 }

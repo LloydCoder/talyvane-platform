@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('talyvane:about', function () {
     $this->comment('Talyvane platform foundation');
@@ -663,3 +664,10 @@ Artisan::command('talyvane:companion:create {email}', function () {
 
     $this->info('Companion account created. Deliver the temporary password through a separate secure channel. The companion must verify their email before using the portal.');
 })->purpose('Provision a companion account from a trusted command line');
+
+
+if ((int) config('talyvane.model_agency.retention.application_days') > 0
+    && (int) config('talyvane.model_agency.retention.accepted_days') > 0
+    && config('talyvane.model_agency.retention.schedule_approved')) {
+    Schedule::command('talyvane:model-agency:apply-retention')->dailyAt('02:30')->withoutOverlapping();
+}

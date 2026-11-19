@@ -7,6 +7,7 @@ use App\Models\SitePage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ModelAgencyApplicationTest extends TestCase
@@ -15,13 +16,12 @@ class ModelAgencyApplicationTest extends TestCase
 
     private function enableApplications(): void
     {
-        config(['talyvane.model_agency.privacy_notice_version' => 'model-application-privacy-v1', 'talyvane.model_agency.privacy_notice_approved' => true, 'talyvane.model_agency.adult_eligibility_policy_version' => 'adult-eligibility-v1', 'talyvane.model_agency.adult_eligibility_policy_approved' => true]);
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'smtp.example.test', 'talyvane.model_agency.retention.application_days' => 90, 'talyvane.model_agency.retention.accepted_days' => 365, 'talyvane.model_agency.retention.schedule_approved' => true, 'talyvane.model_agency.privacy_notice_version' => 'model-application-privacy-v1', 'talyvane.model_agency.privacy_notice_approved' => true, 'talyvane.model_agency.adult_eligibility_policy_version' => 'adult-eligibility-v1', 'talyvane.model_agency.adult_eligibility_policy_approved' => true]);
         SitePage::query()->create(['title' => 'Model Applicant Privacy Notice', 'slug' => 'model-applicant-privacy', 'body' => 'Approved model applicant privacy notice content for test. Version: model-application-privacy-v1.', 'is_published' => true, 'published_at' => now()]);
         SitePage::query()->create(['title' => 'Adult Eligibility Policy', 'slug' => 'model-adult-eligibility', 'body' => 'Approved adult eligibility policy content for test. Version: adult-eligibility-v1.', 'is_published' => true, 'published_at' => now()]);
         DB::table('platform_features')->where('key', 'model-agency.applications')->update([
             'implementation_status' => 'available',
             'is_enabled' => true,
-            'activation_requirements' => json_encode([]),
         ]);
     }
 
@@ -47,6 +47,12 @@ class ModelAgencyApplicationTest extends TestCase
         ])->assertRedirect('/models/apply/received');
 
         $application = ModelTalentApplication::query()->firstOrFail();
+
+        $this->get('/models/apply/received')
+            ->assertOk()
+            ->assertSee($application->reference)
+            ->assertSee('Keep this reference')
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
 
         $this->assertSame('submitted', $application->status);
         $this->assertSame('Jordan Example', $application->full_name);
@@ -318,6 +324,21 @@ class ModelAgencyApplicationTest extends TestCase
         $event->forceFill(['event_type' => 'application.tampered'])->save();
     }
 
+
+    public function test_feature_activation_fails_closed_when_applicant_legal_hold_schema_is_incomplete(): void
+    {
+        $this->enableApplications();
+
+        Schema::table('model_talent_applications', function ($table): void {
+            $table->dropColumn('legal_hold_at');
+        });
+
+        $feature = \App\Models\PlatformFeature::query()->findOrFail('model-agency.applications');
+        $blockers = app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature);
+
+        $this->assertContains('The separate model-agency application, legal-hold and audit schema is incomplete.', $blockers);
+    }
+
     public function test_feature_activation_requires_approved_privacy_and_adult_eligibility_policies(): void
     {
         $feature = \App\Models\PlatformFeature::query()->findOrFail('model-agency.applications');
@@ -338,7 +359,15 @@ class ModelAgencyApplicationTest extends TestCase
         SitePage::query()->create(['title' => 'Model Applicant Privacy Notice', 'slug' => 'model-applicant-privacy', 'body' => 'Approved model applicant privacy notice content for test. Version: model-application-privacy-v1.', 'is_published' => true, 'published_at' => now()]);
         SitePage::query()->create(['title' => 'Adult Eligibility Policy', 'slug' => 'model-adult-eligibility', 'body' => 'Approved adult eligibility policy content for test. Version: adult-eligibility-v1.', 'is_published' => true, 'published_at' => now()]);
 
-        $this->assertContains('Applicant access, correction, withdrawal, erasure and retention execution are not implemented.', app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature));
+        config([
+            'mail.default' => 'smtp',
+            'mail.mailers.smtp.host' => 'smtp.example.test',
+            'talyvane.model_agency.retention.application_days' => 90,
+            'talyvane.model_agency.retention.accepted_days' => 365,
+            'talyvane.model_agency.retention.schedule_approved' => true,
+        ]);
+
+        $this->assertSame([], app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature));
     }
 
 }
