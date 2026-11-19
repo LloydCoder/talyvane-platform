@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ModelCastingSubmission extends Model
 {
@@ -45,7 +46,7 @@ class ModelCastingSubmission extends Model
         return $this->belongsTo(ModelTalentImageLicence::class, 'image_licence_id');
     }
 
-    public function assignment(): \\Illuminate\\Database\\Eloquent\\Relations\\HasOne
+    public function assignment(): HasOne
     {
         return $this->hasOne(ModelTalentAssignment::class, 'source_submission_id');
     }
