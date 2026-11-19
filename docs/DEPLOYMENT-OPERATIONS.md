@@ -8,6 +8,16 @@
 - Store no secrets, customer records, production database dumps or `.env` files in the release artifact.
 - Record release version, commit SHA, migration list, PHP/database compatibility and rollback notes.
 
+## Privileged account provisioning
+
+Create a finance specialist only from a trusted CLI after the agency has assigned the individual and confirmed their duties:
+
+```bash
+php artisan talyvane:admin:create finance@example.test --role=finance
+```
+
+The command defaults to `--role=owner` for backward compatibility and accepts only `owner`, `admin` or `finance`. It never provisions a Super Admin. Require the finance specialist to enroll TOTP MFA before granting remote access, and review the role boundary after any staff change. Finance users are restricted to the model settlement workspace; owners and the deployment Super Admin retain oversight access.
+
 ## Initial deployment
 
 Follow [CPANEL-INSTALLATION.md](CPANEL-INSTALLATION.md) and verify every item in [HOSTING-COMPATIBILITY.md](HOSTING-COMPATIBILITY.md). The application must be served from Laravel's `public/` directory only. Keep source, `.env`, `vendor/`, private storage and backups outside the web root.
