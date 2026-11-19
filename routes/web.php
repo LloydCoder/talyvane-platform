@@ -125,7 +125,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::post('/mfa/challenge', [AdminMfaController::class, 'verifyChallenge'])->middleware('throttle:5,1')->name('mfa.challenge.verify');
     Route::post('/mfa/recovery', [AdminMfaController::class, 'verifyRecovery'])->middleware('throttle:5,1')->name('mfa.recovery.verify');
 
-    Route::middleware(['auth', 'role:super_admin,owner,admin', 'admin.session-current'])->group(function (): void {
+    Route::middleware(['auth', 'role:super_admin,owner,admin,finance', 'admin.session-current'])->group(function (): void {
         Route::get('/mfa/setup', [AdminMfaController::class, 'setup'])->name('mfa.setup');
         Route::post('/mfa/setup', [AdminMfaController::class, 'confirmSetup'])->middleware('throttle:5,1')->name('mfa.setup.confirm');
         Route::get('/mfa/recovery-codes', [AdminMfaController::class, 'recoveryCodes'])->name('mfa.recovery-codes');
@@ -222,7 +222,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/bookings', [BookingAdminController::class, 'index'])->name('bookings.index');
         Route::patch('/bookings/{booking}', [BookingAdminController::class, 'update'])->name('bookings.update');
         Route::post('/bookings/{booking}/deposit', [BookingAdminController::class, 'verifyDeposit'])->name('bookings.deposit');
-        Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
     });
 
     // Finance specialists are isolated to the model settlement workspace.
@@ -235,6 +234,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/model-settlements/{settlement}/payment', [ModelTalentSettlementAdminController::class, 'pay'])->middleware(['feature:model-agency.settlements', 'throttle:5,1'])->name('model-settlements.payment');
         Route::post('/model-settlements/{settlement}/reverse', [ModelTalentSettlementAdminController::class, 'reverse'])->middleware(['feature:model-agency.settlements', 'throttle:5,1'])->name('model-settlements.reverse');
         Route::post('/model-settlements/{settlement}/dispute', [ModelTalentSettlementAdminController::class, 'dispute'])->middleware(['feature:model-agency.settlements', 'throttle:5,1'])->name('model-settlements.dispute');
-        Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
     });
+
+    Route::post('/logout', [AdminLoginController::class, 'destroy'])
+        ->middleware(['auth', 'role:super_admin,owner,admin,finance'])
+        ->name('logout');
 });
