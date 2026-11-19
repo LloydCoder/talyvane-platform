@@ -90,7 +90,7 @@ If SMTP delivery fails, the transaction is rolled back and the recovery is not c
 
 `super_admin_recovery_events` records bootstrap issuance, recovery enrollment, rejected credential attempts, completed MFA recovery and notification delivery. The Eloquent model rejects update and delete operations. This is application-level append-only protection; a database administrator or direct SQL connection can bypass model events. Production database credentials must therefore be restricted, and database audit/backup controls must be enabled by the hosting operator.
 
-Admin sessions carry `admin_session_version`. Recovery and administrator password changes increment this value and rotate `remember_token`. The admin session middleware rejects sessions whose stored version is missing or stale, including sessions using file-based session storage.
+Authenticated admin sessions and pending MFA challenges carry the current `admin_session_version`. Recovery, recovery enrollment/contact rotation and administrator password changes increment this value and rotate `remember_token`. The middleware rejects sessions whose stored version is missing or stale, including file-based sessions; pending MFA challenges are also discarded if the version changes between password verification and MFA completion.
 
 ## Emergency loss of both factors
 
