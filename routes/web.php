@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\SitePageController;
 use App\Http\Controllers\Admin\PlatformFeatureController;
 use App\Http\Controllers\Admin\ModelAgencyApplicationAdminController;
 use App\Http\Controllers\ModelAgencyApplicationController;
+use App\Http\Controllers\ModelAgencyApplicationRightsController;
 use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\ClientFavoriteController;
@@ -165,7 +166,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/profiles/{profile}/unpublish', [CompanionProfileController::class, 'unpublish'])->name('profiles.unpublish');
         Route::get('/enquiries', [EnquiryAdminController::class, 'index'])->name('enquiries.index');
         Route::get('/model-applications', [ModelAgencyApplicationAdminController::class, 'index'])->middleware('feature:model-agency.applications')->name('model-applications.index');
-        Route::patch('/model-applications/{application}', [ModelAgencyApplicationAdminController::class, 'update'])->middleware('feature:model-agency.applications')->name('model-applications.update');\n        Route::post('/model-applications/{application}/legal-hold', [ModelAgencyApplicationAdminController::class, 'updateLegalHold'])->middleware('feature:model-agency.applications')->name('model-applications.legal-hold');
+        Route::patch('/model-applications/{application}', [ModelAgencyApplicationAdminController::class, 'update'])->middleware('feature:model-agency.applications')->name('model-applications.update');
+        Route::post('/model-applications/{application}/legal-hold', [ModelAgencyApplicationAdminController::class, 'updateLegalHold'])->middleware('feature:model-agency.applications')->name('model-applications.legal-hold');
         Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
         Route::get('/clients', [ClientManagementController::class, 'index'])->name('clients.index');
         Route::post('/clients/{client}/membership', [ClientManagementController::class, 'assignMembership'])->middleware('feature:memberships')->name('clients.membership');
