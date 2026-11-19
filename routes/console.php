@@ -234,6 +234,9 @@ Artisan::command('talyvane:super-admin:enroll-recovery', function () {
                 || ! $lockedUser->is_active
                 || ! $lockedUser->mfa_enabled_at
                 || ! $lockedUser->mfa_secret
+                || (! empty($lockedControl->super_admin_recovery_key_hash)
+                    && ! empty($lockedControl->super_admin_recovery_email_verified_at)
+                    && ! empty($lockedControl->super_admin_recovery_email))
                 || ! Hash::check($password, $lockedUser->password)) {
                 throw new \RuntimeException('Super Admin recovery enrollment state changed.');
             }
