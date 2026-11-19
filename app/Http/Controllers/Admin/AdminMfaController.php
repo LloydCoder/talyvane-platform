@@ -158,6 +158,7 @@ class AdminMfaController
         $request->session()->forget('pending_admin_mfa_user_id');
         Auth::login($user, $remember);
         $request->session()->regenerate();
+        $request->session()->put('admin_session_version', (int) $user->admin_session_version);
 
         return redirect()->intended(route('admin.dashboard'));
     }
