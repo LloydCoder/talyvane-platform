@@ -152,6 +152,26 @@ class ModelAgencyApplicationTest extends TestCase
             'to_status' => 'reviewing',
         ]);
 
+        $owner = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'agency-owner-verification@example.test',
+            'role' => 'owner',
+        ]);
+
+        $this->actingAs($owner)
+            ->post('/admin/model-applications/'.$application->id.'/adult-eligibility', [
+                'identity_matches_applicant' => '1',
+                'document_is_valid' => '1',
+                'meets_policy_age_threshold' => '1',
+                'verification_method' => 'manual_document_inspection',
+            ])
+            ->assertRedirect('/admin/model-applications');
+
+        $application->refresh();
+        $this->assertNotNull($application->adult_eligibility_verified_at);
+        $this->assertSame($owner->id, $application->adult_eligibility_verified_by);
+        $this->assertSame('manual_document_inspection', $application->adult_eligibility_verification_method);
+
         $this->actingAs($admin)
             ->patch('/admin/model-applications/'.$application->id, [
                 'status' => 'accepted',
@@ -161,7 +181,7 @@ class ModelAgencyApplicationTest extends TestCase
 
         $application->refresh();
         $this->assertSame('accepted', $application->status);
-        $this->assertDatabaseCount('model_talent_application_events', 2);
+        $this->assertDatabaseCount('model_talent_application_events', 3);
 
         $this->actingAs($admin)
             ->patch('/admin/model-applications/'.$application->id, [

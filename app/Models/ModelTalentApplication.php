@@ -21,6 +21,9 @@ class ModelTalentApplication extends Model
         'adult_eligibility_confirmed_at',
         'adult_eligibility_policy_version',
         'adult_eligibility_policy_accepted_at',
+        'adult_eligibility_verified_at',
+        'adult_eligibility_verified_by',
+        'adult_eligibility_verification_method',
         'privacy_notice_version',
         'privacy_notice_accepted_at',
         'reviewed_by',
@@ -45,6 +48,7 @@ class ModelTalentApplication extends Model
             'legal_hold_reason' => 'encrypted',
             'adult_eligibility_confirmed_at' => 'immutable_datetime',
             'adult_eligibility_policy_accepted_at' => 'immutable_datetime',
+            'adult_eligibility_verified_at' => 'immutable_datetime',
             'privacy_notice_accepted_at' => 'immutable_datetime',
             'reviewed_at' => 'immutable_datetime',
             'legal_hold_at' => 'immutable_datetime',
@@ -55,6 +59,11 @@ class ModelTalentApplication extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function adultEligibilityVerifier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'adult_eligibility_verified_by');
     }
 
     public function events(): HasMany

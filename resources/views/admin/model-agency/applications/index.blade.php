@@ -14,7 +14,18 @@
                 <p class="enquiry-destination">{{ $application->city }}, {{ $application->country_code }}</p>
                 @if($application->portfolio_url)<p><a href="{{ $application->portfolio_url }}" target="_blank" rel="noopener noreferrer nofollow">Open applicant portfolio ↗</a></p>@endif
                 <p class="enquiry-message">{{ $application->experience_summary }}</p>
-                <p class="field-help">Adult eligibility self-attested {{ $application->adult_eligibility_confirmed_at?->format('d M Y') ?? 'Erased' }} · Privacy notice {{ $application->privacy_notice_version }}</p>
+                <p class="field-help">Adult eligibility self-attested {{ $application->adult_eligibility_confirmed_at?->format('d M Y') ?? 'Erased' }} · @if($application->adult_eligibility_verified_at) Manually verified {{ $application->adult_eligibility_verified_at->format('d M Y') }} by {{ $application->adultEligibilityVerifier?->name ?? 'former administrator' }} @else <strong>Not yet verified — acceptance blocked</strong> @endif · Privacy notice {{ $application->privacy_notice_version }}</p>
+                @if($application->status === 'reviewing' && ! $application->adult_eligibility_verified_at && in_array(auth()->user()->role, ['super_admin', 'owner'], true))
+                    <form method="POST" action="{{ route('admin.model-applications.adult-eligibility', $application) }}" class="enquiry-status-form">
+                        @csrf
+                        <p class="field-help">Inspect an original identity document using the approved policy. Confirm identity match, document validity and the policy's applicable adult-age threshold. Do not upload or retain document images, document numbers or dates of birth here.</p>
+                        <label><input type="checkbox" name="identity_matches_applicant" value="1" required> Identity document matches the applicant</label>
+                        <label><input type="checkbox" name="document_is_valid" value="1" required> Document is valid and acceptable under policy</label>
+                        <label><input type="checkbox" name="meets_policy_age_threshold" value="1" required> Applicant meets the approved policy's adult-age threshold</label>
+                        <input type="hidden" name="verification_method" value="manual_document_inspection">
+                        <button class="button button-dark" type="submit">Record adult eligibility verification</button>
+                    </form>
+                @endif
                 @if($application->review_note)<p class="enquiry-message">Review note: {{ $application->review_note }}</p>@endif
                 @if($application->legal_hold_at)
                     <p class="field-help">Legal hold active since {{ $application->legal_hold_at->format('d M Y') }}.</p>
