@@ -78,7 +78,7 @@ Route::middleware('auth')->group(function (): void {
     });
 
     // Privacy-critical companion controls remain reachable even when the companion portal module is disabled.
-    Route::middleware(['verified', 'role:companion'])->group(function (): void {
+    Route::middleware(['role:companion'])->group(function (): void {
         Route::get('/companion-portal/privacy', [CompanionPortalController::class, 'privacyStatus'])->name('companion-portal.privacy-status');
         Route::delete('/companion-portal/profiles/{profile}/media/{media}', [CompanionMediaController::class, 'destroy'])->name('companion-portal.profiles.media.destroy');
         Route::post('/companion-portal/profiles/{profile}/withdraw-consent', [CompanionPortalController::class, 'withdrawPublicationConsent'])->name('companion-portal.profiles.withdraw-consent');
