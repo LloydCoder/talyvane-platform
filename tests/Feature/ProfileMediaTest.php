@@ -38,6 +38,7 @@ class ProfileMediaTest extends TestCase
             'timezone' => 'Europe/London',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket($destination);
 
         $profile = CompanionProfile::create([
             'user_id' => $user->id,
