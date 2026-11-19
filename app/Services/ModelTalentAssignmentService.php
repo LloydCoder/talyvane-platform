@@ -316,6 +316,7 @@ class ModelTalentAssignmentService
             : (string) $terms['shoot_ends_at'];
 
         if ($submission->status !== 'selected'
+            || $call->status === 'cancelled'
             || $application->status !== 'accepted'
             || $application->adult_eligibility_verified_at === null
             || $application->legal_hold_at !== null
