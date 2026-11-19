@@ -52,9 +52,12 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/bookings', [BookingController::class, 'store'])->name('bookings.store');
     });
 
-    Route::get('/companion-portal', [PortalDashboardController::class, 'companion'])
-        ->middleware(['verified', 'role:companion'])
-        ->name('companion-portal.dashboard');
+    Route::middleware(['verified', 'role:companion'])->group(function (): void {
+        Route::get('/companion-portal', [CompanionPortalController::class, 'index'])->name('companion-portal.dashboard');
+        Route::post('/companion-portal/profiles/{profile}/automatic-booking', [CompanionPortalController::class, 'updateAutomaticBooking'])->name('companion-portal.profiles.automatic-booking');
+        Route::post('/companion-portal/profiles/{profile}/withdraw-consent', [CompanionPortalController::class, 'withdrawPublicationConsent'])->name('companion-portal.profiles.withdraw-consent');
+        Route::patch('/companion-portal/bookings/{booking}', [CompanionBookingController::class, 'update'])->name('companion-portal.bookings.update');
+    });
 });
 
 Route::prefix('admin')->name('admin.')->group(function (): void {
