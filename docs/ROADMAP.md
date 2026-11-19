@@ -68,14 +68,14 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Define and seed a deployment feature registry with stable keys, module ownership, implementation status, dependencies, risk classes and activation prerequisites.
 - [x] Add a distinct `super_admin` principal to privileged authentication, route and MFA gates without silently promoting existing accounts.
 - [x] Add a singleton deployment-control record and transactional CLI bootstrap that provisions at most one Super Admin.
-- [ ] Complete last-Super-Admin protection, recovery governance and the legacy owner/admin least-privilege migration.
+- [ ] Complete last-Super-Admin protection, recovery governance and the legacy owner/admin least-privilege migration.\n- [ ] Implement membership entitlements and protected-resource authorization; current membership capability is assignment/display only.
 - [x] Build a Super Admin-only read-only feature catalogue showing implementation state, configured/effective state, dependencies, risk and activation prerequisites.
 - [x] Build feature mutation controls with impact preview, prerequisite evaluation, reason capture, password/TOTP step-up and transactional rollback.
 - [x] Add dependency-aware server-side feature resolution and route middleware for public discovery, dynamic CMS pages, client/companion portals and companionship booking endpoints.
 - [x] Recheck the automatic-booking feature gate inside the booking transaction before automatic confirmation.
 - [ ] Extend feature enforcement to every relevant policy, application service, scheduled job and integration boundary.
 - [x] Implement current-password plus single-use TOTP step-up, reason capture, atomic feature-state changes and append-only audit writes.
-- [x] Add an append-only feature-audit event schema and model-level update/delete protection; event-writing workflows remain pending.
+- [x] Add an append-only feature-audit event schema, model-level update/delete protection and transactional event writes for feature state changes.
 - [ ] Add secret set/rotate/clear workflows backed by environment or dedicated secret storage; never reveal stored values.
 - [ ] Add dependency and eligibility validation for market, payment, verification and communication activation.
 - [x] Add audited emergency disable for optional implemented features and prerequisite-checked re-enable workflow.
