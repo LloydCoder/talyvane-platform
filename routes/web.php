@@ -2,15 +2,16 @@
 
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLoginController;
+use App\Http\Controllers\Admin\BookingSettingsController;
 use App\Http\Controllers\Admin\BrandingController;
 use App\Http\Controllers\Admin\CompanionProfileController;
 use App\Http\Controllers\Admin\DestinationController;
 use App\Http\Controllers\Admin\EnquiryAdminController;
+use App\Http\Controllers\BookingController;
 use App\Http\Controllers\DiscoveryController;
 use App\Http\Controllers\EnquiryController;
 use App\Http\Controllers\PortalAuthController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function (\App\Services\BrandSettings $settings) {
@@ -42,8 +43,16 @@ Route::middleware('auth')->group(function (): void {
         return redirect()->route($request->user()->role === 'companion' ? 'companion-portal.dashboard' : 'portal.dashboard');
     })->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
     Route::post('/email/verification-notification', [PortalAuthController::class, 'resendVerification'])->middleware('throttle:6,1')->name('verification.send');
-    Route::get('/portal', fn () => view('portal.client-dashboard'))->middleware(['verified', 'role:client'])->name('portal.dashboard');
-    Route::get('/companion-portal', fn () => view('portal.companion-dashboard'))->middleware(['verified', 'role:companion'])->name('companion-portal.dashboard');
+
+    Route::middleware(['verified', 'role:client'])->group(function (): void {
+        Route::get('/portal', fn () => view('portal.client-dashboard'))->name('portal.dashboard');
+        Route::get('/companions/{slug}/book', [BookingController::class, 'create'])->name('bookings.create');
+        Route::post('/bookings', [BookingController::class, 'store'])->name('bookings.store');
+    });
+
+    Route::get('/companion-portal', fn () => view('portal.companion-dashboard'))
+        ->middleware(['verified', 'role:companion'])
+        ->name('companion-portal.dashboard');
 });
 
 Route::prefix('admin')->name('admin.')->group(function (): void {
@@ -64,6 +73,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/profiles/{profile}/unpublish', [CompanionProfileController::class, 'unpublish'])->name('profiles.unpublish');
         Route::get('/enquiries', [EnquiryAdminController::class, 'index'])->name('enquiries.index');
         Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
+        Route::get('/booking-settings', [BookingSettingsController::class, 'edit'])->name('bookings.settings');
+        Route::put('/booking-settings', [BookingSettingsController::class, 'update'])->name('bookings.settings.update');
         Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
     });
 });
