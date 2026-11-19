@@ -116,7 +116,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     });
 
     // Deployment-wide configuration is exclusively controlled by the Super Admin.
-    Route::middleware(['auth', 'role:super_admin', 'admin.mfa'])->group(function (): void {
+    Route::middleware(['auth', 'role:super_admin', 'admin.session-current', 'admin.mfa'])->group(function (): void {
         Route::get('/branding', [BrandingController::class, 'edit'])->name('branding.edit');
         Route::put('/branding', [BrandingController::class, 'update'])->name('branding.update');
 
