@@ -2,7 +2,7 @@
 
 ## Scope
 
-The platform implements a separate application intake, administrator-review workflow, applicant privacy-rights workflow, adult-eligibility gate and representation-agreement register. The model-agency workflow remains separate from companionship accounts, profiles, enquiries and bookings. The register records versioned draft terms, offers, external execution evidence and termination; it does not provide e-signature, grant image rights, publish models, create assignments or process settlements.
+The platform implements a separate application intake, administrator-review workflow, applicant privacy-rights workflow, adult-eligibility gate, representation-agreement register and private portfolio media/consent workflow. The model-agency workflow remains separate from companionship accounts, profiles, enquiries and bookings. The register records versioned draft terms, offers, external execution evidence and termination; it does not provide e-signature, grant image rights, publish models, create assignments or process settlements.
 
 ## Default-safe activation
 
@@ -54,7 +54,7 @@ Retention values are deployment/legal decisions, not product defaults. The sched
 
 Every transition requires an administrator reason and is committed with an application-event record in one transaction. Event records reject Eloquent updates and deletes; privileged direct database access remains outside that application-level protection.
 
-**Acceptance is not representation.** Do not publish a model profile, schedule an assignment, use portfolio imagery, or claim an agency relationship from an accepted application. See [Model Representation Agreement Register](MODEL-REPRESENTATION-AGREEMENTS.md) for the separate agreement lifecycle. The platform only records that an externally executed agreement was asserted by an administrator; it does not verify signatures.
+**Acceptance is not representation.** Do not publish a model profile, schedule an assignment, use portfolio imagery, or claim an agency relationship from an accepted application. See [Model Representation Agreement Register](MODEL-REPRESENTATION-AGREEMENTS.md) for the separate agreement lifecycle and [Model Portfolio Media](MODEL-PORTFOLIO-MEDIA.md) for private media intake, review and consent withdrawal. The platform only records that an externally executed agreement was asserted by an administrator; it does not verify signatures. Approved portfolio assets remain private and are not licensed for campaign, casting or public use.
 
 ## Outstanding launch requirements
 
