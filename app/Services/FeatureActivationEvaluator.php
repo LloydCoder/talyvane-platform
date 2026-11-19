@@ -6,6 +6,7 @@ use App\Models\CountryMarket;
 use App\Models\PlatformFeature;
 use App\Models\SitePage;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class FeatureActivationEvaluator
 {
@@ -52,9 +53,13 @@ class FeatureActivationEvaluator
             }
 
             if ($requirement === 'applicant_privacy_notice') {
-                if (! filled(config('talyvane.model_agency.privacy_notice_version'))
+                 $privacyVersion = (string) config('talyvane.model_agency.privacy_notice_version');
+                $privacyPage = SitePage::query()->where('slug', 'model-applicant-privacy')->where('is_published', true)->first();
+
+                if (! filled($privacyVersion)
                     || ! config('talyvane.model_agency.privacy_notice_approved')
-                    || ! SitePage::query()->where('slug', 'model-applicant-privacy')->where('is_published', true)->exists()) {
+                    || ! $privacyPage
+                    || ! Str::contains((string) $privacyPage->body, $privacyVersion)) {
                     $blockers[] = 'A legally reviewed and versioned model-applicant privacy notice must be configured and explicitly approved.';
                 }
 
@@ -62,9 +67,13 @@ class FeatureActivationEvaluator
             }
 
             if ($requirement === 'adult_eligibility_policy') {
-                if (! filled(config('talyvane.model_agency.adult_eligibility_policy_version'))
+                 $eligibilityVersion = (string) config('talyvane.model_agency.adult_eligibility_policy_version');
+                $eligibilityPage = SitePage::query()->where('slug', 'model-adult-eligibility')->where('is_published', true)->first();
+
+                if (! filled($eligibilityVersion)
                     || ! config('talyvane.model_agency.adult_eligibility_policy_approved')
-                    || ! SitePage::query()->where('slug', 'model-adult-eligibility')->where('is_published', true)->exists()) {
+                    || ! $eligibilityPage
+                    || ! Str::contains((string) $eligibilityPage->body, $eligibilityVersion)) {
                     $blockers[] = 'A legally reviewed, versioned adult-eligibility policy must be configured and explicitly approved.';
                 }
 
