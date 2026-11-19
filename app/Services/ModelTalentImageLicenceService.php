@@ -128,6 +128,7 @@ class ModelTalentImageLicenceService
             ])->save();
 
             $this->event($application, $actorId, 'application.image_licence_revoked', 'Revoked image licence '.$locked->reference.'. '.$reason);
+            app(ModelCastingWorkflowService::class)->invalidateForLicence($locked, $actorId, $reason);
         });
     }
 
@@ -148,6 +149,7 @@ class ModelTalentImageLicenceService
             ])->save();
 
             $this->event($asset->application, $actorId, 'application.image_licence_revoked', 'Consent withdrawal revoked image licence '.$licence->reference.'.');
+            app(ModelCastingWorkflowService::class)->invalidateForLicence($licence, $actorId, $reason);
         }
     }
 
@@ -168,6 +170,7 @@ class ModelTalentImageLicenceService
             ])->save();
 
             $this->event($agreement->application, $actorId, 'application.image_licence_revoked', 'Representation agreement termination revoked image licence '.$licence->reference.'.');
+            app(ModelCastingWorkflowService::class)->invalidateForLicence($licence, $actorId, $reason);
         }
     }
 
@@ -199,6 +202,7 @@ class ModelTalentImageLicenceService
 
                 $locked->forceFill(['status' => 'expired', 'expired_at' => now()])->save();
                 $this->event($application, null, 'application.image_licence_expired', 'Image licence '.$locked->reference.' expired at the end of its recorded term.');
+                app(ModelCastingWorkflowService::class)->invalidateForLicence($locked, null, 'The image licence expired at the end of its recorded term.');
                 $expired++;
             });
         }
