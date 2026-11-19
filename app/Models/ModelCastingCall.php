@@ -41,6 +41,11 @@ class ModelCastingCall extends Model
         return $this->hasMany(ModelCastingSubmission::class, 'call_id')->latest();
     }
 
+    public function clientAccesses(): HasMany
+    {
+        return $this->hasMany(ModelCastingClientAccess::class, 'call_id');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
