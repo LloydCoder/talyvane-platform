@@ -294,7 +294,7 @@ class ModelTalentSettlementTest extends TestCase
         try {
             $event->update(['reason' => 'Tampered settlement event.']);
             $this->fail('Settlement audit events must reject mutation.');
-        } catch (\\RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             $this->assertSame('Model settlement audit events are append-only.', $exception->getMessage());
         }
     }
