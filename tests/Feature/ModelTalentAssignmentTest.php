@@ -278,4 +278,87 @@ class ModelTalentAssignmentTest extends TestCase
             $this->assertArrayHasKey('assignment', $exception->errors());
         }
     }
+
+    public function test_assignment_activation_and_offer_fail_closed_when_policy_approval_is_withdrawn(): void
+    {
+        $context = $this->context();
+        config(['talyvane.model_agency.assignment_policy_approved' => false]);
+
+        try {
+            app(ModelTalentAssignmentService::class)->createDraft(
+                $context['submission'],
+                $context['admin']->id,
+                $this->assignmentTerms(),
+            );
+            $this->fail('Assignment creation must fail closed when the current policy is not approved.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('assignment', $exception->errors());
+        }
+    }
+
+    public function test_model_cannot_receive_overlapping_active_assignments(): void
+    {
+        $context = $this->context();
+        $service = app(ModelTalentAssignmentService::class);
+        $first = $service->createDraft($context['submission'], $context['admin']->id, $this->assignmentTerms());
+        $service->offer($first, $context['admin']->id);
+        $service->recordAcceptance(
+            $first,
+            $context['admin']->id,
+            'private/model-assignments/first-signed-assignment.pdf',
+            'private/model-consent/first-assignment-acceptance.pdf',
+        );
+        $service->confirm($first, $context['admin']->id);
+
+        $callService = app(ModelCastingWorkflowService::class);
+        $secondCall = $callService->createDraft($context['admin']->id, [
+            'title' => 'Second Editorial Casting',
+            'client_name' => 'Northstar Studio Ltd',
+            'project_purpose' => 'editorial',
+            'description' => 'Second editorial portrait commission in the same date window.',
+            'requirements' => 'Adult models with editorial experience and availability.',
+            'country_code' => 'GB',
+            'opens_at' => now()->subMinutes(5)->toDateTimeString(),
+            'closes_at' => now()->addDay()->toDateTimeString(),
+            'shoot_starts_at' => now()->addDays(3)->toDateTimeString(),
+            'shoot_ends_at' => now()->addDays(4)->toDateTimeString(),
+            'compensation_amount' => '800.00',
+            'currency_code' => 'GBP',
+            'max_submissions' => 20,
+        ]);
+        $callService->publish($secondCall, $context['admin']->id);
+        $secondSubmission = $callService->submit(
+            $secondCall,
+            $context['application'],
+            $context['asset'],
+            $context['licence'],
+            $context['admin']->id,
+        );
+        $callService->decide($secondSubmission, $context['admin']->id, 'selected', 'A second human selection for overlap validation.');
+
+        try {
+            $service->createDraft($secondSubmission, $context['admin']->id, $this->assignmentTerms());
+            $this->fail('An overlapping active assignment for the same model must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('assignment', $exception->errors());
+        }
+    }
+
+    public function test_assignment_event_ledger_rejects_model_level_mutation(): void
+    {
+        $context = $this->context();
+        $assignment = app(ModelTalentAssignmentService::class)->createDraft(
+            $context['submission'],
+            $context['admin']->id,
+            $this->assignmentTerms(),
+        );
+        $event = $assignment->events()->firstOrFail();
+
+        try {
+            $event->update(['reason' => 'Tampered assignment event.']);
+            $this->fail('Assignment event updates must be rejected.');
+        } catch (\\RuntimeException $exception) {
+            $this->assertSame('Model assignment audit events are append-only.', $exception->getMessage());
+        }
+    }
 }
