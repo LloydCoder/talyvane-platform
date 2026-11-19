@@ -6,7 +6,7 @@ This checklist is not legal advice. Obtain current advice from qualified counsel
 Separately identify the contracting entity and incorporation country; operator/staff locations; where services are advertised and supplied; client/provider locations; where data is collected/accessed/stored; and where payment accounts or wallet controllers are located. A target market is not proof that the model is lawful or authorised.
 
 ## Current implementation caveat
-The repository currently contains draft privacy and terms pages, not approved legal documents. The current profile publication workflow records a human reviewer's approved-provider reference and consent version; it does not itself perform age assurance or identity verification. The deposit workflow records a human administrator's independent verification attestation; it does not itself query a blockchain or payment processor. Do not market these workflows as automated verification or payment settlement.
+The repository currently contains draft privacy and terms pages, not approved legal documents. The current profile publication workflow records a human reviewer's approved-provider reference and consent version; it does not itself perform age assurance or identity verification. The companionship deposit workflow records a human administrator's independent verification attestation; it does not itself query a blockchain or payment processor. The model settlement ledger records a decimal-safe financial calculation and human-approved external payment evidence; it does not initiate, custody or verify bank or blockchain transfers. Do not market either workflow as automated verification or payment processing.
 
 ## Enforced country-market gate
 
