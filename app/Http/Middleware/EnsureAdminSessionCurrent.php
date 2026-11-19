@@ -13,8 +13,12 @@ class EnsureAdminSessionCurrent
     {
         $user = $request->user();
 
-        if (! $user || ! $user->isPlatformAdministrator()) {
+        if (! $user) {
             abort(403);
+        }
+
+        if (! $user->isPlatformAdministrator()) {
+            return $next($request);
         }
 
         $sessionVersion = $request->session()->get('admin_session_version');
