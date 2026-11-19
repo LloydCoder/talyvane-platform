@@ -25,3 +25,6 @@ The first commercial release remains deployment-isolated. A future hosted multi-
 - Existing owner/admin roles are not automatically promoted. Their least-privilege migration and the last-Super-Admin recovery process remain explicit follow-up work.
 - Tests must cover both feature states and attempts to bypass server-side gates.
 - No Super Admin UI may reveal stored secrets, permit public registration of a Super Admin, or alter immutable audit history.
+
+
+The first least-privilege boundary is implemented: `super_admin` alone may change deployment-wide branding, market/currency configuration, destinations, booking rules, payment configuration, site pages and feature controls. `owner` and `admin` retain agency operations such as profile review, enquiries, client records and booking operations. This is route-level role separation; granular per-action permissions and last-Super-Admin/recovery protections remain follow-up work.
