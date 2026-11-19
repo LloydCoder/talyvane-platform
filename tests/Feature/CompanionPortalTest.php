@@ -147,6 +147,11 @@ class CompanionPortalTest extends TestCase
             'id' => $booking->id,
             'status' => 'confirmed',
         ]);
+        $this->assertDatabaseHas('booking_events', [
+            'booking_id' => $booking->id,
+            'event_type' => 'companion_accepted',
+            'to_status' => 'confirmed',
+        ]);
     }
     public function test_companion_can_manage_own_weekly_availability(): void
     {
