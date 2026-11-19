@@ -16,7 +16,7 @@ class ProfileMediaController extends Controller
 
         return response(Storage::disk('local')->get($media->storage_path), 200, [
             'Content-Type' => 'image/webp',
-            'Content-Disposition' => 'inline; filename=\"pending-profile-image.webp\"',
+            'Content-Disposition' => 'inline; filename="pending-profile-image.webp"',
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, no-store, max-age=0',
             'Referrer-Policy' => 'no-referrer',
