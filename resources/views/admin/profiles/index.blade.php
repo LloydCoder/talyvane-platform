@@ -9,6 +9,24 @@
         <h1>Profile<br><em>review.</em></h1>
         <p>Profiles remain private until an approved age-assurance provider reference and explicit publication consent are reviewed and recorded.</p>
     </div>
+    <section class="admin-section">
+        <div class="portal-section-heading"><h2>Image moderation</h2><p>{{ $pendingMedia->count() }} awaiting review</p></div>
+        @forelse ($pendingMedia as $media)
+            <article class="companion-profile-card">
+                <div>
+                    <strong>{{ $media->profile->display_name }} · {{ $media->profile->destination->name }}</strong>
+                    <p>{{ $media->width }} × {{ $media->height }} · {{ number_format($media->file_size / 1024, 1) }} KB · submitted {{ $media->created_at->diffForHumans() }}</p>
+                    <p>Rights and publication consent recorded · {{ $media->consent_version }}</p>
+                </div>
+                <div class="companion-booking-actions">
+                    <form method="POST" action="{{ route('admin.profile-media.review', $media) }}">@csrf<input type="hidden" name="decision" value="approved"><button class="button button-dark" type="submit">Approve image</button></form>
+                    <form method="POST" action="{{ route('admin.profile-media.review', $media) }}">@csrf<input type="hidden" name="decision" value="rejected"><label class="sr-only" for="review-note-{{ $media->id }}">Reason</label><input id="review-note-{{ $media->id }}" name="review_note" maxlength="1000" placeholder="Reason (optional)"><button class="text-link" type="submit">Reject</button></form>
+                </div>
+            </article>
+        @empty
+            <p class="field-help">No profile images are awaiting review.</p>
+        @endforelse
+    </section>
     <div class="admin-list-toolbar"><span>{{ $profiles->total() }} profiles</span><a class="button button-dark" href="{{ route('admin.profiles.create') }}">Create draft profile ↗</a></div>
     <div class="admin-table-wrap">
         <table class="admin-table">
