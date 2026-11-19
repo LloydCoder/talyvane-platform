@@ -210,6 +210,7 @@ class DiscoveryTest extends TestCase
                 'timezone' => 'Europe/Lisbon',
                 'is_active' => '1',
                 'cover_image' => UploadedFile::fake()->image('lisbon.jpg', 1600, 1000),
+                'image_rights_confirmed' => '1',
             ])
             ->assertRedirect('/admin/destinations');
 
