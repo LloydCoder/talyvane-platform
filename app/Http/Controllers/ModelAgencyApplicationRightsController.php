@@ -9,6 +9,7 @@ use App\Notifications\ModelAgencyRightsVerificationCode;
 use App\Services\ModelAgencyApplicationLifecycleService;
 use App\Services\ModelAgencyRightsCodeGenerator;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -193,7 +194,7 @@ class ModelAgencyApplicationRightsController extends Controller
         return redirect()->route('model-agency.application-support.show', $rightsRequest);
     }
 
-    public function show(Request $request, ModelTalentApplicationRightsRequest $rightsRequest): \\Illuminate\\Http\\Response
+    public function show(Request $request, ModelTalentApplicationRightsRequest $rightsRequest): Response
     {
         $this->assertVerified($request, $rightsRequest);
 
