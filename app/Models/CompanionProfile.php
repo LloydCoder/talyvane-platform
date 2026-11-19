@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class CompanionProfile extends Model
 {
     protected $fillable = [
+        'user_id',
         'destination_id',
         'display_name',
         'slug',
@@ -34,6 +35,11 @@ class CompanionProfile extends Model
             'automatic_booking_consent_at' => 'immutable_datetime',
             'accepts_automatic_bookings' => 'boolean',
         ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function destination(): BelongsTo
