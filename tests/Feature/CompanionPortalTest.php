@@ -148,4 +148,25 @@ class CompanionPortalTest extends TestCase
             'status' => 'confirmed',
         ]);
     }
+    public function test_companion_can_manage_own_weekly_availability(): void
+    {
+        $companion = $this->companion('companion@example.test');
+        $profile = $this->profile($companion);
+
+        $this->actingAs($companion)
+            ->post('/companion-portal/profiles/'.$profile->id.'/availability', [
+                'weekday' => 2,
+                'starts_at' => '09:00',
+                'ends_at' => '17:00',
+            ])
+            ->assertRedirect('/companion-portal');
+
+        $this->assertDatabaseHas('companion_availability_rules', [
+            'companion_profile_id' => $profile->id,
+            'weekday' => 2,
+            'starts_at' => '09:00:00',
+            'ends_at' => '17:00:00',
+        ]);
+    }
+
 }
