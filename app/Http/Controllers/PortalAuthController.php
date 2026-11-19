@@ -7,6 +7,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -69,11 +70,7 @@ class PortalAuthController extends Controller
             ->whereIn('role', ['client', 'companion'])
             ->first();
 
-        if (! $user || ! Auth::attempt([
-            'email' => $credentials['email'],
-            'password' => $credentials['password'],
-            'is_active' => true,
-        ], $request->boolean('remember'))) {
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             RateLimiter::hit($key, 60);
 
             throw ValidationException::withMessages([
@@ -81,19 +78,11 @@ class PortalAuthController extends Controller
             ]);
         }
 
-        if (! in_array(Auth::user()->role, ['client', 'companion'], true)) {
-            Auth::logout();
-            RateLimiter::hit($key, 60);
-
-            throw ValidationException::withMessages([
-                'email' => 'The supplied credentials could not be verified.',
-            ]);
-        }
-
+        Auth::login($user, $request->boolean('remember'));
         RateLimiter::clear($key);
         $request->session()->regenerate();
 
-        return redirect()->intended(Auth::user()->role === 'companion'
+        return redirect()->intended($user->role === 'companion'
             ? route('companion-portal.dashboard')
             : route('portal.dashboard'));
     }
@@ -106,7 +95,9 @@ class PortalAuthController extends Controller
     public function resendVerification(Request $request): RedirectResponse
     {
         if ($request->user()->hasVerifiedEmail()) {
-            return redirect()->intended(route('portal.dashboard'));
+            return redirect()->intended($request->user()->role === 'companion'
+                ? route('companion-portal.dashboard')
+                : route('portal.dashboard'));
         }
 
         $request->user()->sendEmailVerificationNotification();
