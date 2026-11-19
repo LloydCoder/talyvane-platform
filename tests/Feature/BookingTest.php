@@ -77,6 +77,7 @@ class BookingTest extends TestCase
             'status' => 'pending_review',
             'booking_mode' => 'manual',
         ]);
+        $this->assertDatabaseHas('booking_events', ['event_type' => 'requested', 'to_status' => 'pending_review']);
     }
 
     public function test_automatic_booking_confirms_only_with_explicit_profile_opt_in(): void
@@ -101,6 +102,7 @@ class BookingTest extends TestCase
             'status' => 'confirmed',
             'booking_mode' => 'automatic',
         ]);
+        $this->assertDatabaseHas('booking_events', ['event_type' => 'automatically_confirmed', 'to_status' => 'confirmed']);
     }
 
     public function test_automatic_mode_falls_back_to_manual_review_without_companion_opt_in(): void
