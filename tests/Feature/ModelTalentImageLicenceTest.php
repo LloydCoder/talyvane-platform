@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\ModelTalentImageLicence;
 use App\Services\ModelTalentImageLicenceService;
+use App\Services\ModelTalentPortfolioAssetService;
+use App\Services\ModelTalentRepresentationAgreementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,6 +46,37 @@ class ModelTalentImageLicenceTest extends TestCase
         );
 
         $this->assertSame('active', $licence->fresh()->status);
+    }
+
+    private function activeLicence(array $context): \App\Models\ModelTalentImageLicence
+    {
+        $service = app(ModelTalentImageLicenceService::class);
+        $licence = $service->createDraft(
+            $context['asset'],
+            $context['agreement'],
+            $context['admin']->id,
+            [
+                'licensee_name' => 'Northstar Campaign Ltd',
+                'licensee_reference' => 'customer-contract-REF-2026',
+                'purpose' => 'commercial_campaign',
+                'channels' => ['website', 'social_media'],
+                'purpose_details' => 'Named campaign only; no unrelated reuse or sublicensing.',
+                'country_code' => 'GB',
+                'starts_on' => now()->addDays(2)->toDateString(),
+                'ends_on' => now()->addDays(30)->toDateString(),
+                'exclusivity' => false,
+                'compensation_amount' => '1250.00',
+                'currency_code' => 'GBP',
+            ],
+        );
+        $service->activate(
+            $licence,
+            $context['admin']->id,
+            'private/model-licences/signed-licence-2026-002.pdf',
+            'private/model-consent/campaign-consent-2026-002.pdf',
+        );
+
+        return $licence;
     }
 
     private function makeApprovedAssetAndAgreement(): array
@@ -141,3 +174,72 @@ class ModelTalentImageLicenceTest extends TestCase
         return compact('admin', 'application', 'agreement', 'asset');
     }
 }
+    public function test_withdrawing_portfolio_consent_revokes_active_licences(): void
+    {
+        $context = $this->makeApprovedAssetAndAgreement();
+        $licence = $this->activeLicence($context);
+
+        app(ModelTalentPortfolioAssetService::class)->withdrawConsent(
+            $context['asset'],
+            $context['admin']->id,
+            'The model requested withdrawal of consent for this portfolio image.',
+            'private/model-consent/withdrawal-licence-2026.pdf',
+        );
+
+        $this->assertSame('revoked', $licence->fresh()->status);
+        $this->assertNotNull($licence->fresh()->revoked_at);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertMissing('model-portfolio/licence-asset.webp');
+    }
+
+    public function test_terminating_representation_revokes_active_licences(): void
+    {
+        $context = $this->makeApprovedAssetAndAgreement();
+        $licence = $this->activeLicence($context);
+
+        app(ModelTalentRepresentationAgreementService::class)->terminate(
+            $context['agreement'],
+            $context['admin']->id,
+            'The representation relationship has been terminated under the executed agreement.',
+        );
+
+        $this->assertSame('revoked', $licence->fresh()->status);
+    }
+
+    public function test_image_licence_expiry_command_marks_past_terms_expired(): void
+    {
+        $context = $this->makeApprovedAssetAndAgreement();
+        $licence = $this->activeLicence($context);
+        $licence->forceFill(['ends_on' => now()->subDay()->toDateString()])->save();
+
+        $this->artisan('talyvane:model-agency:expire-image-licences')->assertExitCode(0);
+
+        $this->assertSame('expired', $licence->fresh()->status);
+    }
+
+    public function test_image_licence_requires_a_current_approved_policy_and_market(): void
+    {
+        $context = $this->makeApprovedAssetAndAgreement();
+        config(['talyvane.model_agency.image_licence_policy_approved' => false]);
+
+        try {
+            app(ModelTalentImageLicenceService::class)->createDraft(
+                $context['asset'],
+                $context['agreement'],
+                $context['admin']->id,
+                [
+                    'licensee_name' => 'Northstar Campaign Ltd',
+                    'purpose' => 'commercial_campaign',
+                    'channels' => ['website'],
+                    'purpose_details' => 'Named campaign only; no unrelated reuse or sublicensing.',
+                    'country_code' => 'GB',
+                    'starts_on' => now()->addDays(2)->toDateString(),
+                    'ends_on' => now()->addDays(30)->toDateString(),
+                    'exclusivity' => false,
+                ],
+            );
+            $this->fail('An unapproved licence policy must fail closed.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('licence', $exception->errors());
+        }
+    }
+
