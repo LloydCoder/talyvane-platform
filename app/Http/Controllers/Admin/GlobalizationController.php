@@ -69,6 +69,7 @@ class GlobalizationController
 
     public function toggleCurrency(Request $request, Currency $currency): RedirectResponse
     {
+        $request->validate(['is_enabled' => ['required', 'boolean']]);
         $enabled = $request->boolean('is_enabled');
 
         if (! $enabled && GlobalizationSetting::current()->base_currency_code === $currency->code) {
