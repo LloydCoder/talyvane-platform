@@ -116,6 +116,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/profiles', [CompanionProfileController::class, 'index'])->name('profiles.index');
         Route::get('/profiles/create', [CompanionProfileController::class, 'create'])->name('profiles.create');
         Route::post('/profiles', [CompanionProfileController::class, 'store'])->name('profiles.store');
+        Route::get('/profile-media/{media}/preview', [ProfileMediaController::class, 'preview'])->name('profile-media.preview');
         Route::post('/profile-media/{media}/review', [ProfileMediaReviewController::class, 'update'])->name('profile-media.review');
         Route::post('/profile-media/{media}/review', [ProfileMediaReviewController::class, 'update'])->name('profile-media.review');
         Route::post('/profiles/{profile}/publish', [CompanionProfileController::class, 'publish'])->name('profiles.publish');
