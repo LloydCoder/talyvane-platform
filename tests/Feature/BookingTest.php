@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Booking;
 use App\Models\BookingSetting;
+use App\Models\CompanionAvailabilityRule;
 use App\Models\CompanionProfile;
 use App\Models\Destination;
 use App\Models\User;
@@ -89,7 +90,7 @@ class BookingTest extends TestCase
         $this->actingAs($client)
             ->post('/bookings', [
                 'profile_id' => $profile->id,
-                'start_at' => now()->addDays(4)->setTimezone('Europe/London')->format('Y-m-d\TH:i'),
+                'start_at' => $localStart->format('Y-m-d\TH:i'),
                 'duration_minutes' => 60,
             ])
             ->assertRedirect('/portal');
