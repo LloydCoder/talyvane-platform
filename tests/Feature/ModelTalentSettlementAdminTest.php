@@ -25,7 +25,7 @@ class ModelTalentSettlementAdminTest extends TestCase
         ]);
     }
 
-    public function test_settlement_register_is_admin_only_and_disabled_by_default(): void
+    public function test_settlement_register_is_restricted_and_disabled_by_default(): void
     {
         $admin = $this->createAdminUser();
         $this->actingAs($admin)->get('/admin/model-settlements')->assertNotFound();
