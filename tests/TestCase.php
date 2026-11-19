@@ -3,6 +3,8 @@
 namespace Tests;
 
 use App\Models\User;
+use App\Models\Destination;
+use App\Models\CountryMarket;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
