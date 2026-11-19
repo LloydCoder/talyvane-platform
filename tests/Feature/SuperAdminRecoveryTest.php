@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\SuperAdminRecoveryEvent;
 use App\Notifications\SuperAdminRecoveryNotice;
 use App\Notifications\SuperAdminEmailVerificationCode;
 use App\Notifications\SuperAdminRecoveryEnrollmentNotice;
@@ -164,6 +165,40 @@ class SuperAdminRecoveryTest extends TestCase
         ]);
         Notification::assertSentOnDemand(SuperAdminEmailVerificationCode::class, 2);
         Notification::assertSentOnDemand(SuperAdminRecoveryEnrollmentNotice::class, 2);
+    }
+
+
+    public function test_super_admin_recovery_audit_events_are_append_only_at_the_eloquent_boundary(): void
+    {
+        [$superAdmin] = $this->provisionSuperAdmin();
+        $event = SuperAdminRecoveryEvent::query()->create([
+            'super_admin_user_id' => $superAdmin->id,
+            'event_type' => 'test_event',
+            'reason' => 'Append-only audit verification',
+            'session_version_before' => 7,
+            'session_version_after' => 7,
+            'metadata' => ['source' => 'test'],
+            'occurred_at' => now(),
+        ]);
+
+        try {
+            $event->update(['reason' => 'tampered']);
+            $this->fail('Recovery audit events must not be updated through Eloquent.');
+        } catch (\LogicException $exception) {
+            $this->assertStringContainsString('append-only', $exception->getMessage());
+        }
+
+        try {
+            $event->delete();
+            $this->fail('Recovery audit events must not be deleted through Eloquent.');
+        } catch (\LogicException $exception) {
+            $this->assertStringContainsString('append-only', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('super_admin_recovery_events', [
+            'id' => $event->id,
+            'reason' => 'Append-only audit verification',
+        ]);
     }
 
     private function provisionSuperAdmin(): array
