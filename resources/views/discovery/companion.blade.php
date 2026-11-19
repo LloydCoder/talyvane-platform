@@ -5,6 +5,13 @@
     <article class="profile-detail">
         <p class="eyebrow">VERIFIED ADULT PROFILE / {{ $profile->destination->name }}</p>
         <h1>{{ $profile->display_name }}<br><em>by Talyvane.</em></h1>
+        @if ($profile->media->where('status', 'approved')->isNotEmpty())
+            <div class="profile-media-gallery" aria-label="Approved profile photographs">
+                @foreach ($profile->media->where('status', 'approved') as $media)
+                    <img src="{{ route('profile-media.show', $media) }}" alt="Approved profile photograph of {{ $profile->display_name }}" loading="lazy" width="{{ $media->width }}" height="{{ $media->height }}">
+                @endforeach
+            </div>
+        @endif
         <p class="profile-summary">{{ $profile->summary }}</p>
         @if (!empty($profile->languages))
             <div class="profile-languages">Languages: {{ implode(' · ', $profile->languages) }}</div>
