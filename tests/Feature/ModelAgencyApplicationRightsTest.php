@@ -212,10 +212,7 @@ class ModelAgencyApplicationRightsTest extends TestCase
         $this->assertNull($application->portfolio_url);
         $this->assertNull($application->review_note);
         $this->assertSame('completed', $request->fresh()->status);
-        $this->assertDatabaseMissing('model_talent_application_events', [
-            'application_id' => $application->id,
-            'reason' => 'Jordan Example requested a private contact arrangement.',
-        ]);
+        $this->assertSame(0, DB::table('model_talent_application_events')->where('application_id', $application->id)->whereNotNull('reason')->count());
         $this->assertDatabaseHas('model_talent_application_events', [
             'application_id' => $application->id,
             'event_type' => 'application.erased',
@@ -238,6 +235,84 @@ class ModelAgencyApplicationRightsTest extends TestCase
         ])->assertSessionHasErrors('code');
 
         $this->assertGuest();
+    }
+
+    public function test_legal_hold_prevents_applicant_erasure_until_an_authorized_owner_releases_it(): void
+    {
+        $this->enableLifecycle();
+        $application = $this->application('declined', [
+            'legal_hold_at' => now(),
+            'legal_hold_reason' => 'Active litigation preservation requirement.',
+        ]);
+        $request = $this->requestCode($application, 'erasure');
+        $this->verifyCode($application, $request);
+
+        $this->post('/models/application-support/'.$request->id.'/erase')
+            ->assertRedirect('/models/application-support/verify');
+
+        $this->assertSame('Jordan Example', $application->fresh()->full_name);
+        $this->assertSame('rejected', $request->fresh()->status);
+        $this->assertDatabaseHas('model_talent_application_events', [
+            'application_id' => $application->id,
+            'event_type' => 'application.erasure_deferred',
+        ]);
+    }
+
+    public function test_only_owner_or_super_admin_can_place_or_release_an_applicant_legal_hold(): void
+    {
+        $this->enableLifecycle();
+        $application = $this->application();
+
+        $admin = $this->createAdminUser([
+            'name' => 'Agency Admin',
+            'email' => 'agency-admin@example.test',
+            'role' => 'admin',
+        ]);
+
+        $this->actingAs($admin)->post('/admin/model-applications/'.$application->id.'/legal-hold', [
+            'enabled' => '1',
+            'reason' => 'Preserve records for an active legal proceeding.',
+        ])->assertForbidden();
+
+        $owner = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'agency-owner@example.test',
+            'role' => 'owner',
+        ]);
+
+        $this->actingAs($owner)->post('/admin/model-applications/'.$application->id.'/legal-hold', [
+            'enabled' => '1',
+            'reason' => 'Preserve records for an active legal proceeding.',
+        ])->assertRedirect('/admin/model-applications');
+
+        $application->refresh();
+        $this->assertNotNull($application->legal_hold_at);
+        $this->assertSame('Preserve records for an active legal proceeding.', $application->legal_hold_reason);
+
+        $this->actingAs($owner)->post('/admin/model-applications/'.$application->id.'/legal-hold', [
+            'enabled' => '0',
+            'reason' => 'The legal preservation requirement has ended.',
+        ])->assertRedirect('/admin/model-applications');
+
+        $this->assertNull($application->fresh()->legal_hold_at);
+    }
+
+    public function test_verification_code_is_locked_after_five_incorrect_attempts(): void
+    {
+        $this->enableLifecycle();
+        $application = $this->application();
+        $request = $this->requestCode($application, 'access');
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->post('/models/application-support/verify', [
+                'reference' => $application->reference,
+                'email' => 'jordan@example.test',
+                'code' => '87654321',
+            ])->assertSessionHasErrors('code');
+        }
+
+        $this->assertSame('locked', $request->fresh()->status);
+        $this->assertSame(5, $request->fresh()->attempts);
     }
 
     public function test_retention_command_anonymizes_expired_applications_and_preserves_legal_holds(): void
