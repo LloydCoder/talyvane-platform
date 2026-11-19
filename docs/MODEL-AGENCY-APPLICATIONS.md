@@ -6,7 +6,7 @@ This release implements a separate application and administrator-review workflow
 
 ## Default-safe activation
 
-The feature registry entry `model-agency.applications` is available in code but disabled by default. It remains disabled by default. Activation requires verified applicant access/correction/withdrawal/erasure workflows, legal-hold controls, an approved retention schedule, configured SMTP and an explicitly approved scheduler.
+The feature registry entry `model-agency.applications` is available in code but disabled by default. Activation requires verified applicant access/correction/withdrawal/erasure workflows, legal-hold controls, an approved retention schedule, configured SMTP and an explicitly approved scheduler.
 
 1. Obtain jurisdiction-specific legal/privacy review for the actual operator entity and intended applicant markets.
 2. Create and publish a CMS page with the exact slug `model-applicant-privacy`. It must identify the controller, purposes and lawful bases, data categories, recipients/processors, international transfers, retention periods, applicant rights, complaint routes and contact details. Include the exact configured privacy-notice version string in the published page body so stale pages cannot satisfy activation.
@@ -61,7 +61,7 @@ Every transition requires an administrator reason and is committed with an appli
 - Independently review retention periods and test the production scheduler before activation.
 - Independent age/identity assurance appropriate to the legal markets and intended work.
 - Applicant access, correction, withdrawal and deletion-request workflows.
-- A legally approved retention schedule and automated/manual retention execution.
+- Legal review and sign-off of the configured retention periods and successful production cron execution.
 - Secure document and image submission only if later required, with private storage, scanning, consent and rights provenance.
 - Representation agreements, casting, assignment approvals, usage rights and settlements.
 - Production legal review, privacy review and safeguarding sign-off.
