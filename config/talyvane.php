@@ -29,6 +29,8 @@ return [
         'image_licence_policy_approved' => filter_var(env('MODEL_AGENCY_IMAGE_LICENCE_POLICY_APPROVED', false), FILTER_VALIDATE_BOOL),
         'casting_policy_version' => env('MODEL_AGENCY_CASTING_POLICY_VERSION'),
         'casting_policy_approved' => filter_var(env('MODEL_AGENCY_CASTING_POLICY_APPROVED', false), FILTER_VALIDATE_BOOL),
+        'assignment_policy_version' => env('MODEL_AGENCY_ASSIGNMENT_POLICY_VERSION'),
+        'assignment_policy_approved' => filter_var(env('MODEL_AGENCY_ASSIGNMENT_POLICY_APPROVED', false), FILTER_VALIDATE_BOOL),
         'retention' => [
             'application_days' => env('MODEL_AGENCY_APPLICATION_RETENTION_DAYS'),
             'accepted_days' => env('MODEL_AGENCY_ACCEPTED_RETENTION_DAYS'),
