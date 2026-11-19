@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('reference', 40)->unique();
             $table->unsignedInteger('version');
             $table->string('status', 20)->default('draft')->index();
-            $table->json('terms_snapshot');
+            $table->text('terms_snapshot');
             $table->string('terms_policy_version', 80);
             $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
             $table->foreignId('offered_by')->nullable()->constrained('users')->nullOnDelete();
