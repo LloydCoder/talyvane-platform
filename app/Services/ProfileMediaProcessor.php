@@ -24,18 +24,20 @@ class ProfileMediaProcessor
         }
 
         $bytes = file_get_contents($file->getRealPath());
-        $image = $bytes === false ? false : @imagecreatefromstring($bytes);
+        $dimensions = $bytes === false ? false : @getimagesizefromstring($bytes);
 
-        if (! $image) {
+        if (! is_array($dimensions)) {
             throw ValidationException::withMessages(['media' => 'The uploaded image could not be decoded.']);
         }
 
-        $width = imagesx($image);
-        $height = imagesy($image);
-
+        [$width, $height] = $dimensions;
         if ($width < 320 || $height < 320 || $width > 6000 || $height > 6000 || ($width * $height) > 24000000) {
-            imagedestroy($image);
             throw ValidationException::withMessages(['media' => 'Images must be at least 320px and no larger than 6000px per side or 24 megapixels.']);
+        }
+
+        $image = @imagecreatefromstring($bytes);
+        if (! $image) {
+            throw ValidationException::withMessages(['media' => 'The uploaded image could not be decoded.']);
         }
 
         ob_start();
