@@ -78,18 +78,21 @@ class ModelTalentPortfolioAssetService
                 throw ValidationException::withMessages(['decision' => 'Choose an allowed review decision.']);
             }
 
-            if ($locked->status !== 'pending_review' || ! $locked->storage_path || ! Storage::disk('local')->exists($locked->storage_path)) {
-                throw ValidationException::withMessages(['decision' => 'Only an intact private asset awaiting review can be approved or rejected.']);
+            if ($locked->status !== 'pending_review') {
+                throw ValidationException::withMessages(['decision' => 'Only an asset awaiting review can be approved or rejected.']);
             }
 
             if ($decision === 'approved') {
                 $policyVersion = $this->assertEligible($application, true);
-                if ($locked->consent_policy_version !== $policyVersion || $locked->consent_withdrawn_at !== null) {
-                    throw ValidationException::withMessages(['decision' => 'The asset consent is withdrawn or belongs to an outdated policy version. Obtain current, purpose-specific consent before approval.']);
+                if (! $locked->storage_path
+                    || ! Storage::disk('local')->exists($locked->storage_path)
+                    || $locked->consent_policy_version !== $policyVersion
+                    || $locked->consent_withdrawn_at !== null) {
+                    throw ValidationException::withMessages(['decision' => 'The asset file is missing, consent is withdrawn or the asset belongs to an outdated policy version. Obtain current, purpose-specific consent before approval.']);
                 }
             }
 
-            if ($decision === 'rejected') {
+            if ($decision === 'rejected' && $locked->storage_path && Storage::disk('local')->exists($locked->storage_path)) {
                 if (! Storage::disk('local')->delete($locked->storage_path)) {
                     throw new RuntimeException('The rejected portfolio image could not be removed from private storage.');
                 }
