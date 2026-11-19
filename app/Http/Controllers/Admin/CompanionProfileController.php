@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\Booking;
+use App\Models\BookingEvent;
 use App\Models\CompanionProfile;
 use App\Models\Destination;
 use App\Models\ProfilePublicationReview;
