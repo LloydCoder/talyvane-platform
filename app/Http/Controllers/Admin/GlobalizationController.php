@@ -144,6 +144,57 @@ class GlobalizationController
         return redirect()->route('admin.globalization')->with('status', 'Country market added in pending compliance state. It is not cleared for service availability.');
     }
 
+    public function reviewMarket(Request $request, CountryMarket $market): RedirectResponse
+    {
+        $validated = $request->validate([
+            'decision' => ['required', Rule::in(['approved', 'rejected'])],
+            'evidence_reference' => ['required', 'string', 'min:8', 'max:255'],
+            'review_summary' => ['required', 'string', 'min:20', 'max:2000'],
+            'review_confirmed' => ['required', 'accepted'],
+            'enable_market' => ['sometimes', 'boolean'],
+        ]);
+
+        if ($validated['decision'] === 'approved' && ! $request->boolean('enable_market')) {
+            return back()->withErrors(['enable_market' => 'Explicitly enable the market when approving it for service availability.']);
+        }
+
+        DB::transaction(function () use ($validated, $request, $market): void {
+            $locked = CountryMarket::query()->lockForUpdate()->findOrFail($market->country_code);
+            $before = $locked->only([
+                'is_enabled', 'compliance_status', 'compliance_reviewed_at',
+                'compliance_reviewed_by', 'compliance_evidence_reference', 'compliance_review_summary',
+            ]);
+
+            $locked->forceFill([
+                'is_enabled' => $validated['decision'] === 'approved' && $request->boolean('enable_market'),
+                'compliance_status' => $validated['decision'],
+                'compliance_reviewed_at' => now(),
+                'compliance_reviewed_by' => (string) $request->user()->id,
+                'compliance_evidence_reference' => trim($validated['evidence_reference']),
+                'compliance_review_summary' => trim($validated['review_summary']),
+            ])->save();
+
+            $this->recordAudit(
+                $request,
+                'country_market.compliance_reviewed',
+                'country_market',
+                $locked->country_code,
+                $before,
+                $locked->only([
+                    'is_enabled', 'compliance_status', 'compliance_reviewed_at',
+                    'compliance_reviewed_by', 'compliance_evidence_reference', 'compliance_review_summary',
+                ]),
+            );
+        });
+
+        return redirect()->route('admin.globalization')->with(
+            'status',
+            $validated['decision'] === 'approved'
+                ? 'Market approval recorded. Its destinations are now eligible for publication and booking.'
+                : 'Market rejection recorded. Its destinations remain unavailable.',
+        );
+    }
+
     private function recordAudit(
         Request $request,
         string $action,
