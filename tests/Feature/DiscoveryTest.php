@@ -213,7 +213,7 @@ class DiscoveryTest extends TestCase
             'is_active' => true,
         ]);
 
-        $withImage = \\App\\Models\\CompanionProfile::create([
+        $withImage = \App\Models\CompanionProfile::create([
             'user_id' => $companion->id,
             'destination_id' => $destination->id,
             'display_name' => 'Alex',
@@ -223,7 +223,7 @@ class DiscoveryTest extends TestCase
             'age_verified_at' => now(),
             'publication_consent_at' => now(),
         ]);
-        $withoutImage = \\App\\Models\\CompanionProfile::create([
+        $withoutImage = \App\Models\CompanionProfile::create([
             'destination_id' => $destination->id,
             'display_name' => 'Morgan',
             'slug' => 'morgan-london',
@@ -232,7 +232,7 @@ class DiscoveryTest extends TestCase
             'publication_consent_at' => now(),
         ]);
 
-        $approved = \\App\\Models\\ProfileMedia::create([
+        $approved = \App\Models\ProfileMedia::create([
             'companion_profile_id' => $withImage->id,
             'uploaded_by' => $companion->id,
             'storage_path' => 'profile-media/approved.webp',
@@ -244,7 +244,7 @@ class DiscoveryTest extends TestCase
             'rights_confirmed_at' => now(),
             'consent_version' => 'profile-publication-v1',
         ]);
-        $pending = \\App\\Models\\ProfileMedia::create([
+        $pending = \App\Models\ProfileMedia::create([
             'companion_profile_id' => $withImage->id,
             'uploaded_by' => $companion->id,
             'storage_path' => 'profile-media/pending.webp',
