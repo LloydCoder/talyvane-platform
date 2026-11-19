@@ -45,6 +45,7 @@ class AdminAccessTest extends TestCase
             $this->get('/admin/enquiries')->assertOk();
 
             foreach ([
+                '/admin/features',
                 '/admin/branding',
                 '/admin/globalization',
                 '/admin/destinations',
