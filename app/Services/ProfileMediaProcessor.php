@@ -13,7 +13,7 @@ class ProfileMediaProcessor
      * Decode and re-encode the upload as WebP. Re-encoding discards EXIF,
      * GPS, camera metadata, embedded comments and the original filename.
      *
-     * @return array{path:string,width:int,height:int,size:int}
+     * @return array{path:string,width:int,height:int,size:int,sha256:string}
      */
     public function storeSanitized(UploadedFile $file, string $directory = 'profile-media'): array
     {
