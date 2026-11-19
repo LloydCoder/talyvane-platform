@@ -6,12 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\ModelTalentApplication;
 use App\Models\ModelTalentApplicationEvent;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 
 class ModelAgencyApplicationAdminController extends Controller
 {
@@ -22,7 +22,7 @@ class ModelAgencyApplicationAdminController extends Controller
         'declined' => [],
     ];
 
-    public function index(): \\Illuminate\\Http\\Response
+    public function index(): Response
     {
         $this->assertSchemaReady();
 
