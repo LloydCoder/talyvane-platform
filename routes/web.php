@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\ModelTalentRepresentationAgreementController;
 use App\Http\Controllers\Admin\ModelTalentPortfolioAssetController;
 use App\Http\Controllers\Admin\ModelTalentImageLicenceController;
 use App\Http\Controllers\Admin\ModelCastingAdminController;
+use App\Http\Controllers\Admin\ModelCastingClientAccessAdminController;
 use App\Http\Controllers\Admin\ModelTalentAssignmentAdminController;
 use App\Http\Controllers\Admin\ModelTalentSettlementAdminController;
 use App\Http\Controllers\ModelAgencyApplicationController;
@@ -88,6 +89,14 @@ Route::middleware('auth')->group(function (): void {
         return redirect()->route($request->user()->role === 'companion' ? 'companion-portal.dashboard' : 'portal.dashboard');
     })->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
     Route::post('/email/verification-notification', [PortalAuthController::class, 'resendVerification'])->middleware('throttle:6,1')->name('verification.send');
+
+
+    Route::middleware(['verified', 'role:client', 'feature:model-agency.client-casting'])->group(function (): void {
+        Route::get('/client/model-castings', [ModelCastingClientPortalController::class, 'index'])->name('client.model-castings.index');
+        Route::get('/client/model-castings/{call}', [ModelCastingClientPortalController::class, 'show'])->name('client.model-castings.show');
+        Route::get('/client/model-castings/submissions/{submission}/media', [ModelCastingClientPortalController::class, 'media'])->name('client.model-castings.media');
+        Route::post('/client/model-castings/submissions/{submission}/review', [ModelCastingClientPortalController::class, 'review'])->middleware('throttle:10,1')->name('client.model-castings.review');
+    });
 
     Route::middleware(['verified', 'role:client', 'feature:portals.client'])->group(function (): void {
         Route::get('/portal', [PortalDashboardController::class, 'client'])->name('portal.dashboard');
@@ -198,6 +207,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/model-castings/{call}/submissions', [ModelCastingAdminController::class, 'submit'])->middleware(['feature:model-agency.casting', 'throttle:10,1'])->name('model-castings.submissions.store');
         Route::post('/model-casting-submissions/{submission}/decision', [ModelCastingAdminController::class, 'decide'])->middleware(['feature:model-agency.casting', 'throttle:10,1'])->name('model-casting-submissions.decision');
         Route::post('/model-casting-submissions/{submission}/withdraw', [ModelCastingAdminController::class, 'withdraw'])->middleware('throttle:5,1')->name('model-casting-submissions.withdraw');
+
+        Route::get('/model-casting-client-access', [ModelCastingClientAccessAdminController::class, 'index'])->middleware('feature:model-agency.client-casting')->name('model-casting-client-access.index');
+        Route::post('/model-casting-client-access', [ModelCastingClientAccessAdminController::class, 'grant'])->middleware(['feature:model-agency.client-casting', 'throttle:10,1'])->name('model-casting-client-access.grant');
+        Route::post('/model-casting-client-access/{access}/revoke', [ModelCastingClientAccessAdminController::class, 'revoke'])->middleware(['feature:model-agency.client-casting', 'throttle:5,1'])->name('model-casting-client-access.revoke');
         Route::get('/model-assignments', [ModelTalentAssignmentAdminController::class, 'index'])->middleware('feature:model-agency.assignments')->name('model-assignments.index');
         Route::post('/model-assignments', [ModelTalentAssignmentAdminController::class, 'store'])->middleware(['feature:model-agency.assignments', 'throttle:10,1'])->name('model-assignments.store');
         Route::post('/model-assignments/{assignment}/offer', [ModelTalentAssignmentAdminController::class, 'offer'])->middleware(['feature:model-agency.assignments', 'throttle:5,1'])->name('model-assignments.offer');
