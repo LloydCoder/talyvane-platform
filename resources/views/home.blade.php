@@ -39,7 +39,7 @@
             </div>
             <div class="hero-art" aria-label="Abstract architectural composition">
                 <div class="art-frame">
-                    <img class="hero-photo" src="https://images.pexels.com/photos/26729545/pexels-photo-26729545.jpeg?auto=compress&cs=tinysrgb&w=1600" alt="An elegant contemporary hotel lounge with warm architectural lighting" fetchpriority="high" decoding="async">
+                    <img class="hero-photo" src="{{ config('stock_photography.hero.url') }}" alt="{{ config('stock_photography.hero.alt') }}" fetchpriority="high" decoding="async">
                     <div class="art-image-wash"></div>
                     <div class="art-caption"><span>01 / 03</span><span>PRIVATE HOSPITALITY</span></div>
                 </div>
@@ -64,18 +64,12 @@
                 <h2>Considered spaces.<br><em>Memorable places.</em></h2>
             </div>
             <div class="editorial-gallery-grid">
-                <figure class="editorial-image editorial-image-tall">
-                    <img src="https://images.pexels.com/photos/12389384/pexels-photo-12389384.jpeg?auto=compress&cs=tinysrgb&w=1400" alt="Aerial view of a tropical resort with an infinity pool and ocean" loading="lazy" decoding="async">
-                    <figcaption><span>01</span> A sense of escape</figcaption>
-                </figure>
-                <figure class="editorial-image">
-                    <img src="https://images.pexels.com/photos/6774097/pexels-photo-6774097.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="A tranquil infinity pool overlooking the sea" loading="lazy" decoding="async">
-                    <figcaption><span>02</span> Space to unwind</figcaption>
-                </figure>
-                <figure class="editorial-image">
-                    <img src="https://images.pexels.com/photos/9143471/pexels-photo-9143471.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="An elegant restaurant interior with warm lighting and refined furnishings" loading="lazy" decoding="async">
-                    <figcaption><span>03</span> The art of detail</figcaption>
-                </figure>
+                @foreach (config('stock_photography.gallery') as $photo)
+                    <figure class="editorial-image {{ $loop->first ? 'editorial-image-tall' : '' }}">
+                        <img src="{{ $photo['url'] }}" alt="{{ $photo['alt'] }}" loading="lazy" decoding="async">
+                        <figcaption><span>{{ $photo['number'] }}</span> {{ $photo['caption'] }}</figcaption>
+                    </figure>
+                @endforeach
             </div>
             <p class="editorial-note">Illustrative hospitality photography. Destination-specific imagery and profile photography are managed separately.</p>
         </section>
