@@ -45,6 +45,7 @@ class ProfileAdministrationTest extends TestCase
     public function test_owner_cannot_publish_profile_in_a_pending_market(): void
     {
         $owner = $this->owner();
+        config(['talyvane.verification.approved_providers' => ['approved-provider']]);
         $destination = Destination::create([
             'name' => 'Lisbon',
             'slug' => 'lisbon-pending',
@@ -65,7 +66,7 @@ class ProfileAdministrationTest extends TestCase
 
         $this->actingAs($owner)
             ->post('/admin/profiles/'.$profile->id.'/publish', [
-                'verification_provider' => config('talyvane.verification.approved_providers.0'),
+                'verification_provider' => 'approved-provider',
                 'verification_reference' => 'verified-reference-12345',
                 'consent_confirmed' => '1',
                 'consent_version' => config('talyvane.privacy.profile_consent_version'),
