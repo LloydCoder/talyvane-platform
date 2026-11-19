@@ -17,7 +17,8 @@
                 <p class="field-help">Adult eligibility self-attested {{ $application->adult_eligibility_confirmed_at?->format('d M Y') ?? 'Erased' }} · Privacy notice {{ $application->privacy_notice_version }}</p>
                 @if($application->review_note)<p class="enquiry-message">Review note: {{ $application->review_note }}</p>@endif
                 @if($application->legal_hold_at)
-                    <p class="field-help">Legal hold active since {{ $application->legal_hold_at->format('d M Y') }}. {{ $application->legal_hold_reason }}</p>
+                    <p class="field-help">Legal hold active since {{ $application->legal_hold_at->format('d M Y') }}.</p>
+                    @if(in_array(auth()->user()->role, ['super_admin', 'owner'], true))<p class="field-help">Legal hold reason: {{ $application->legal_hold_reason }}</p>@endif
                 @endif
                 @if(in_array(auth()->user()->role, ['super_admin', 'owner'], true))
                     <form method="POST" action="{{ route('admin.model-applications.legal-hold', $application) }}" class="enquiry-status-form">
