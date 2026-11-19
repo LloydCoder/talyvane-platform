@@ -27,7 +27,7 @@ Created → Pending → Observed → Confirming → Confirmed → Settled. Excep
 Authentication is not authorisation. Model output, prompts, memories, tool outputs and client input never grant execution authority. Enforce server-side policies on every protected operation. Separate admin, finance, verifier and safeguarding permissions. MFA and step-up authentication for high-risk actions. Never log secrets or private evidence. Market eligibility is checked server-side and fails closed when policy is absent or unapproved.
 
 ## Hosting
-Do not assume SSH, Composer, cron, queues, Redis, Node build tools or writable paths until tested. Laravel public directory must be the web root. Environment files, source, storage and backups must not be web-accessible.
+Target standard cPanel shared hosting, subject to a per-plan compatibility check. The application must run without root access, Docker, Redis, WebSockets, Node.js/npm on production or a persistent worker. Baseline operation uses supported MySQL/MariaDB, private file cache/session where appropriate, synchronous low-volume jobs and bounded HTTP polling. Cron, SSH and Composer are optional deployment conveniences; features requiring cron or external services must disclose when unavailable. PHP 8.3+ and required Laravel extensions plus GD WebP are mandatory for the current release. Only Laravel `public/` may be web-accessible; source, `.env`, `vendor/`, logs, private storage and backups remain outside the document root. If a provider cannot safely serve the public front controller or provide required runtime capabilities, mark it incompatible rather than weakening security. See docs/HOSTING-COMPATIBILITY.md, docs/CPANEL-INSTALLATION.md and docs/DEPLOYMENT-OPERATIONS.md.
 
 ## Evolution
 Introduce shared tenancy, microservices or a central control plane only when customer scale and threat modelling justify them.
@@ -56,3 +56,7 @@ Keep hard safety and security invariants outside the editable feature registry. 
 - **Platform operator (future SaaS only):** deployment lifecycle/licensing administration, separated from tenant data-plane permissions.
 
 Bootstrap the first Super Admin through a one-time CLI/installation process. Do not expose public Super Admin registration. Protect role changes, recovery and Super Admin succession with step-up authentication and immutable audit events.
+
+
+## Release artifact and installation
+Commercial releases must be reproducible from a committed `composer.lock`, include production dependencies and compiled frontend assets, and exclude secrets and customer data. Build steps belong in CI or a trusted build environment, not on the production shared host. The no-SSH/no-Composer tier requires a prebuilt artifact and a safe, release-specific installation and Super Admin bootstrap path; never expose an unrestricted web-based Artisan runner.
