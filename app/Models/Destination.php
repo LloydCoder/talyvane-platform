@@ -63,6 +63,18 @@ class Destination extends Model
             ->whereHas('countryMarket', fn (Builder $market) => $market->operationallyApproved());
     }
 
+    public function lockAndCheckOperationalAvailability(): bool
+    {
+        $locked = static::query()->lockForUpdate()->find($this->id);
+        if (! $locked || ! $locked->is_active) {
+            return false;
+        }
+
+        $market = CountryMarket::query()->lockForUpdate()->find($locked->country_code);
+
+        return $market?->isOperationallyApproved() ?? false;
+    }
+
     public function companionProfiles(): HasMany
     {
         return $this->hasMany(CompanionProfile::class);
