@@ -645,7 +645,7 @@ Artisan::command('talyvane:admin:create {email} {--role=owner}', function () {
     ]);
 
     $this->info(ucfirst($role).' account created. Store the credentials securely and enable MFA before remote administration.');
-})->purpose('Create the first platform owner from a trusted command line');
+})->purpose('Provision an owner, administrator or finance specialist from a trusted command line');
 
 Artisan::command('talyvane:companion:create {email}', function () {
     $email = strtolower(trim((string) $this->argument('email')));
