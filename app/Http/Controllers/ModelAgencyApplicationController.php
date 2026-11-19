@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\ModelTalentApplication;
 use App\Models\ModelTalentApplicationEvent;
+use App\Models\PlatformFeature;
+use App\Services\FeatureActivationEvaluator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -12,9 +14,10 @@ use Illuminate\View\View;
 
 class ModelAgencyApplicationController extends Controller
 {
-    public function create(): View
+    public function create(FeatureActivationEvaluator $evaluator): View
     {
         $privacyNoticeVersion = config('talyvane.model_agency.privacy_notice_version');
+        abort_if($evaluator->blockers(PlatformFeature::query()->findOrFail('model-agency.applications')) !== [], 503, 'Model agency application safeguards are not configured.');
 
         if (! filled($privacyNoticeVersion)
             || ! config('talyvane.model_agency.privacy_notice_approved')
@@ -28,7 +31,7 @@ class ModelAgencyApplicationController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, FeatureActivationEvaluator $evaluator): RedirectResponse
     {
         $privacyNoticeVersion = config('talyvane.model_agency.privacy_notice_version');
 
