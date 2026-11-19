@@ -17,6 +17,10 @@ Identity & Access; Deployment Configuration; Brand & Content; Globalization & Ma
 ### Model agency application data boundary
 `model_talent_applications` and `model_talent_application_events` are independent from `companion_profiles`, `bookings` and `enquiries`. Public intake does not create an authenticated account. The application flow does not fetch submitted portfolio URLs or accept applicant image uploads. Administrative status transitions are transactionally recorded in an append-only application-event model. The first increment deliberately stops before representation contracts, casting, image licensing, assignments or settlement; acceptance is not a contract or permission to use a portfolio image.
 
+## Model agency application domain
+
+Model applications are persisted independently from companion profiles, enquiries and bookings. Public application submission is unauthenticated but rate-limited, policy-versioned and consent-gated. Only agency administrators can review records. A constrained state machine and append-only application event records capture each review decision. No external portfolio URL is fetched. Acceptance is not representation; contract, casting, rights, assignment and settlement domains are separate future increments.
+
 ## Data principles
 Use UUID/ULID public identifiers; integer minor units plus ISO 4217 currency for money; decimal-safe arithmetic for exchange rates; UTC timestamps; immutable quote, exchange-rate and payment-instruction snapshots; separate identity evidence from profile data; private-by-default media; explicit retention/deletion rules; no wallet seeds/private keys. Country/territory (ISO 3166), currency (ISO 4217), locale/language (BCP 47), time zone (IANA), market policy, tax policy and payment rail are independent dimensions. Never expose private addresses, sensitive availability or exact real-time location. See docs/TGLS.md.
 
