@@ -26,7 +26,7 @@ class ProfileAdministrationTest extends TestCase
 
     private function destination(): Destination
     {
-        return Destination::create([
+        $destination = Destination::create([
             'name' => 'London',
             'slug' => 'london',
             'country_code' => 'GB',
@@ -37,6 +37,9 @@ class ProfileAdministrationTest extends TestCase
             'timezone' => 'Europe/London',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket($destination);
+
+        return $destination;
     }
 
     public function test_owner_can_create_a_draft_profile_without_publication(): void
