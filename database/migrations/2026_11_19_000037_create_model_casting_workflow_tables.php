@@ -58,6 +58,7 @@ return new class extends Migration
             $table->text('decision_note')->nullable();
             $table->timestamp('invalidated_at')->nullable();
             $table->text('invalidation_reason')->nullable();
+            $table->text('withdrawal_evidence_reference')->nullable();
             $table->timestamps();
 
             $table->unique(['call_id', 'application_id']);
