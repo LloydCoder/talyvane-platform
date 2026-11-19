@@ -29,7 +29,48 @@ class BookingController extends Controller
             'profile' => $profile,
             'settings' => BookingSetting::current(),
         ]);
+    
+    public function cancel(Request $request, Booking $booking): RedirectResponse
+    {
+        abort_unless((int) $booking->client_id === (int) $request->user()->id, 403);
+
+        DB::transaction(function () use ($booking): void {
+            CompanionProfile::query()->lockForUpdate()->findOrFail($booking->companion_profile_id);
+            $lockedBooking = Booking::query()->lockForUpdate()->findOrFail($booking->id);
+            $settings = BookingSetting::current();
+
+            if (! in_array($lockedBooking->status, ['pending_review', 'confirmed'], true)) {
+                throw ValidationException::withMessages(['booking' => 'This booking can no longer be cancelled.']);
+            }
+
+            if ($lockedBooking->status === 'confirmed') {
+                $cutoff = now()->addHours($settings->cancellation_cutoff_hours);
+                if (! $settings->client_cancellation_enabled || ! $lockedBooking->starts_at->greaterThan($cutoff)) {
+                    throw ValidationException::withMessages(['booking' => 'The confirmed booking is outside the permitted cancellation window. Contact the agency for assistance.']);
+                }
+            }
+
+            $previousStatus = $lockedBooking->status;
+            $lockedBooking->forceFill([
+                'status' => 'cancelled',
+                'cancelled_at' => now(),
+            ])->save();
+
+            BookingEvent::query()->create([
+                'booking_id' => $lockedBooking->id,
+                'actor_id' => auth()->id(),
+                'event_type' => 'client_cancelled',
+                'from_status' => $previousStatus,
+                'to_status' => 'cancelled',
+                'metadata' => [],
+                'created_at' => now(),
+            ]);
+        });
+
+        return redirect()->route('portal.dashboard')->with('status', 'Your booking request has been cancelled. Any payment or refund is handled separately under the applicable policy.');
     }
+
+}
 
     public function store(Request $request): RedirectResponse
     {
