@@ -93,7 +93,7 @@ class SuperAdminBootstrapTest extends TestCase
         try {
             $superAdmin->forceFill(['role' => 'owner'])->save();
             $this->fail('The designated Super Admin must not be demoted outside the recovery workflow.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('designated Super Admin', $exception->getMessage());
         }
 
@@ -102,7 +102,7 @@ class SuperAdminBootstrapTest extends TestCase
         try {
             $superAdmin->forceFill(['is_active' => false])->save();
             $this->fail('The designated Super Admin must not be deactivated outside the recovery workflow.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('designated Super Admin', $exception->getMessage());
         }
 
@@ -111,7 +111,7 @@ class SuperAdminBootstrapTest extends TestCase
         try {
             $superAdmin->delete();
             $this->fail('The designated Super Admin must not be deleted outside the recovery workflow.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertStringContainsString('designated Super Admin', $exception->getMessage());
         }
 
@@ -140,7 +140,7 @@ class SuperAdminBootstrapTest extends TestCase
             'super_admin_user_id' => $first->id,
         ]);
 
-        $this->expectException(\\LogicException::class);
+        $this->expectException(\LogicException::class);
         $this->expectExceptionMessage('Only the designated deployment Super Admin may hold this role.');
 
         User::query()->create([
@@ -150,5 +150,19 @@ class SuperAdminBootstrapTest extends TestCase
             'role' => 'super_admin',
             'is_active' => true,
         ]);
+    }
+
+    public function test_user_serialization_does_not_expose_authenticator_secrets_or_recovery_material(): void
+    {
+        $user = $this->createAdminUser([
+            'name' => 'Protected Administrator',
+            'email' => 'protected@example.test',
+        ]);
+
+        $serialized = $user->toArray();
+
+        $this->assertArrayNotHasKey('mfa_secret', $serialized);
+        $this->assertArrayNotHasKey('mfa_recovery_codes', $serialized);
+        $this->assertArrayNotHasKey('mfa_last_used_step', $serialized);
     }
 }
