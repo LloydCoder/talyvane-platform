@@ -36,12 +36,23 @@ class BookingAdminController
             return back()->with('status', 'This deposit is already marked as verified.');
         }
 
+        $referenceHash = hash_hmac('sha256', $validated['transaction_reference'], (string) config('app.key'));
         $booking->forceFill([
             'deposit_status' => 'verified',
             'deposit_verified_at' => now(),
             'deposit_verified_by' => auth()->id(),
-            'deposit_reference_hash' => hash_hmac('sha256', $validated['transaction_reference'], (string) config('app.key')),
+            'deposit_reference_hash' => $referenceHash,
         ])->save();
+
+        BookingEvent::query()->create([
+            'booking_id' => $booking->id,
+            'actor_id' => auth()->id(),
+            'event_type' => 'deposit_verified',
+            'from_status' => $booking->status,
+            'to_status' => $booking->status,
+            'metadata' => ['reference_hash' => $referenceHash],
+            'created_at' => now(),
+        ]);
 
         return redirect()->route('admin.bookings.index')->with('status', 'Deposit verification recorded. The transaction reference was stored as a keyed hash.');
     }
@@ -59,6 +70,7 @@ class BookingAdminController
                 ->find($booking->companion_profile_id);
             $lockedBooking = Booking::query()->lockForUpdate()->findOrFail($booking->id);
             $settings = BookingSetting::current();
+            $previousStatus = $lockedBooking->status;
 
             if ($validated['status'] === 'confirmed') {
 
@@ -102,6 +114,16 @@ class BookingAdminController
 
             $lockedBooking->status = $validated['status'];
             $lockedBooking->save();
+
+            BookingEvent::query()->create([
+                'booking_id' => $lockedBooking->id,
+                'actor_id' => auth()->id(),
+                'event_type' => 'status_changed',
+                'from_status' => $previousStatus,
+                'to_status' => $lockedBooking->status,
+                'metadata' => ['actor_role' => auth()->user()->role],
+                'created_at' => now(),
+            ]);
         });
 
         return redirect()->route('admin.bookings.index')->with('status', 'Booking status updated.');
