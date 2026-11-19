@@ -27,9 +27,10 @@ See COMMERCIAL-LICENSING.md for the intended commercial model.
 - docs/ROADMAP.md
 - docs/COMPETITIVE-REFERENCE.md
 - docs/LOCAL-DEVELOPMENT.md
+- docs/COMPETITIVE-REFERENCE.md
 - docs/decisions/
 
-Planned initial stack: Laravel 13, PHP 8.3–8.5 (the client's PHP 8.4 host is version-compatible), MySQL, Blade, Tailwind CSS and Alpine.js, subject to compatibility verification against the actual hosting environment and supported package versions.
+Current application stack: Laravel 13, PHP 8.3–8.5, MySQL, Blade and custom responsive CSS. Composer dependencies are resolved by CI; a committed lockfile is still required before production. The client's PHP 8.4 host is version-compatible, subject to extension and hosting verification.
 
 ## Safeguarding
 Talyvane must not be used to facilitate trafficking, coercion, exploitation, non-consensual content or any activity involving minors. No production deployment should proceed without verified adult-only access controls, documented informed consent, lawful operating arrangements, privacy safeguards, appropriate payment/provider approval and independent legal review for each relevant jurisdiction.
