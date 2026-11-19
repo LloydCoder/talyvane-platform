@@ -343,7 +343,7 @@ class ModelTalentSettlementTest extends TestCase
         try {
             $expense->update(['amount' => '1.00']);
             $this->fail('Submitted expense amounts must be immutable.');
-        } catch (\\RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             $this->assertSame('Expense claim terms and evidence are immutable after submission.', $exception->getMessage());
         }
 
@@ -353,7 +353,7 @@ class ModelTalentSettlementTest extends TestCase
         try {
             $settlement->update(['gross_amount' => '1.0000']);
             $this->fail('Settlement financial snapshots must be immutable.');
-        } catch (\\RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             $this->assertSame('Settlement financial snapshots are immutable; use a governed state transition.', $exception->getMessage());
         }
     }
