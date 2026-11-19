@@ -5,6 +5,7 @@ use App\Models\SuperAdminRecoveryEvent;
 use App\Notifications\SuperAdminEmailVerificationCode;
 use App\Notifications\SuperAdminRecoveryNotice;
 use App\Services\RecoveryCodeGenerator;
+use App\Services\TotpService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -229,13 +230,13 @@ Artisan::command('talyvane:super-admin:enroll-recovery', function () {
                 || ! $lockedUser
                 || (int) $lockedControl->super_admin_user_id !== (int) $lockedUser->id
                 || ! Hash::check($password, $lockedUser->password)) {
-                throw new \\RuntimeException('Super Admin recovery enrollment state changed.');
+                throw new \RuntimeException('Super Admin recovery enrollment state changed.');
             }
 
             $step = $totp->verify($lockedUser->mfa_secret, $totpCode, $lockedUser->mfa_last_used_step);
 
             if ($step === null) {
-                throw new \\RuntimeException('The authenticator code was already used or expired.');
+                throw new \RuntimeException('The authenticator code was already used or expired.');
             }
 
             $versionBefore = (int) $lockedUser->admin_session_version;
