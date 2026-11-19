@@ -14,6 +14,7 @@ return new class extends Migration
             $table->timestamp('adult_eligibility_confirmed_at')->nullable()->change();
             $table->timestamp('adult_eligibility_policy_accepted_at')->nullable()->change();
             $table->timestamp('privacy_notice_accepted_at')->nullable()->change();
+            $table->timestamp('submitted_at')->nullable()->change();
             $table->timestamp('legal_hold_at')->nullable();
             $table->foreignId('legal_hold_by')->nullable()->constrained('users')->nullOnDelete();
             $table->text('legal_hold_reason')->nullable();
@@ -36,7 +37,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (DB::table('model_talent_applications')->whereNull('adult_eligibility_confirmed_at')->orWhereNull('adult_eligibility_policy_accepted_at')->orWhereNull('privacy_notice_accepted_at')->exists()) {
+        if (DB::table('model_talent_applications')->whereNull('adult_eligibility_confirmed_at')->orWhereNull('adult_eligibility_policy_accepted_at')->orWhereNull('privacy_notice_accepted_at')->orWhereNull('submitted_at')->exists()) {
             throw new RuntimeException('Cannot roll back applicant lifecycle after erasure has cleared consent timestamps. Restore a pre-erasure backup or retain this migration.');
         }
 
@@ -48,6 +49,7 @@ return new class extends Migration
             $table->timestamp('adult_eligibility_confirmed_at')->nullable(false)->change();
             $table->timestamp('adult_eligibility_policy_accepted_at')->nullable(false)->change();
             $table->timestamp('privacy_notice_accepted_at')->nullable(false)->change();
+            $table->timestamp('submitted_at')->nullable(false)->change();
         });
     }
 };
