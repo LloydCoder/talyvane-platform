@@ -47,13 +47,15 @@ class CompanionPortalController extends Controller
         }
 
         DB::transaction(function () use ($profile, $enabled): void {
-            $profile->forceFill([
+            $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
+            $this->assertOwnership($lockedProfile);
+            $lockedProfile->forceFill([
                 'accepts_automatic_bookings' => $enabled,
                 'automatic_booking_consent_at' => $enabled ? now() : null,
             ])->save();
 
             ProfilePublicationReview::query()->create([
-                'companion_profile_id' => $profile->id,
+                'companion_profile_id' => $lockedProfile->id,
                 'reviewer_id' => auth()->id(),
                 'verification_provider' => 'companion-portal',
                 'verification_reference_hash' => null,
@@ -78,7 +80,9 @@ class CompanionPortalController extends Controller
         ]);
 
         DB::transaction(function () use ($profile, $validated): void {
-            $profile->forceFill([
+            $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
+            $this->assertOwnership($lockedProfile);
+            $lockedProfile->forceFill([
                 'publication_status' => 'suspended',
                 'publication_consent_at' => null,
                 'consent_withdrawn_at' => now(),
@@ -87,7 +91,7 @@ class CompanionPortalController extends Controller
                 'automatic_booking_consent_at' => null,
             ])->save();
 
-            Booking::query()->where('companion_profile_id', $profile->id)
+            Booking::query()->where('companion_profile_id', $lockedProfile->id)
                 ->where('status', 'pending_review')
                 ->update(['status' => 'cancelled', 'cancelled_at' => now()]);
 
