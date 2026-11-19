@@ -25,7 +25,7 @@ MODEL_AGENCY_ADULT_ELIGIBILITY_POLICY_APPROVED=true
 7. Configure positive, counsel-approved MODEL_AGENCY_APPLICATION_RETENTION_DAYS and MODEL_AGENCY_ACCEPTED_RETENTION_DAYS values, then clear Laravel's configuration cache.
 8. In the Super Admin feature registry, inspect all activation blockers and enable model-agency.applications only when the workflow, published legal pages, approval flags, SMTP, retention periods and scheduler gate pass.
 
-The application HTTP controllers and administrator review controller repeat the same activation evaluation. A database-only flag change cannot bypass missing policy pages, approval configuration, SMTP, rights-request schema or retention/scheduler settings.
+The public intake HTTP controller repeats the activation evaluation. Applicant privacy-support routes and administrator record/legal-hold routes deliberately remain available after intake is disabled, so existing applicants retain access to their rights and the operator can continue governance. A database-only flag change cannot bypass missing policy pages, approval configuration, SMTP, rights-request schema or retention/scheduler settings.
 
 ## Applicant data
 
@@ -35,7 +35,7 @@ Applicant names, contact details, city, portfolio URL, experience summary and ad
 
 ## Applicant rights and retention
 
-Applicants open /models/application-support, provide the application reference and recorded email address, and choose access, correction, withdrawal or erasure. The response is deliberately generic whether or not the reference/email pair matches. A matching address receives an eight-digit code stored only as a password hash; it expires after 10 minutes and locks after five failed attempts. Successful verification creates a 30-minute session scoped to one rights request. The private applicant data page sends no-store/no-cache headers and a no-referrer policy. Email cannot be changed through this flow.
+Applicants open /models/application-support, provide the application reference and recorded email address, and choose access, correction, withdrawal or erasure. The response is deliberately generic whether or not the reference/email pair matches. A matching address receives an eight-digit code stored only as a password hash; it expires after 10 minutes and locks after five failed attempts. Successful verification creates a 30-minute session scoped to one rights request. A new code supersedes prior pending/verified requests, and applicants can explicitly close the private session. The private applicant data page sends no-store/no-cache headers and a no-referrer policy. Email cannot be changed through this flow.
 
 - Access displays the applicant's stored application data in the verified session.
 - Correction updates only name, phone, city, HTTPS portfolio URL and experience summary; email changes require a separately verified process.
