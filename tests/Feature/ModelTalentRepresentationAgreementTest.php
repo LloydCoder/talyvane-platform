@@ -126,7 +126,7 @@ class ModelTalentRepresentationAgreementTest extends TestCase
         $this->assertSame('terminated', $agreement->fresh()->status);
         $this->assertDatabaseHas('model_talent_application_events', [
             'application_id' => $application->id,
-            'event_type' => 'application.representation_agreement_executed_recorded',
+            'event_type' => 'application.representation_executed_recorded',
         ]);
         $this->assertDatabaseHas('model_talent_application_events', [
             'application_id' => $application->id,
