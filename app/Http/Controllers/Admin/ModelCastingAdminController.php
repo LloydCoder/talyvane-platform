@@ -136,7 +136,9 @@ class ModelCastingAdminController extends Controller
     private function assertSchemaReady(): void
     {
         abort_unless(
-            Schema::hasTable('model_casting_calls')
+            Schema::hasTable('model_casting_events')
+                && Schema::hasColumns('model_casting_calls', ['reference', 'status', 'country_code', 'opens_at', 'closes_at', 'shoot_starts_at', 'shoot_ends_at', 'casting_policy_version'])
+                && Schema::hasTable('model_casting_calls')
                 && Schema::hasTable('model_casting_submissions')
                 && Schema::hasTable('model_casting_events'),
             503,
