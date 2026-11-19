@@ -61,7 +61,9 @@ class ModelAgencyApplicationController extends Controller
             ],
                 'experience_summary' => ['required', 'string', 'min:20', 'max:4000'],
             'adult_eligibility_confirmed' => ['required', 'accepted'],
-                'privacy_notice_version' => ['required', 'string', 'in:'.$privacyNoticeVersion],
+            'adult_eligibility_policy_version' => ['required', 'string', 'in:'.config('talyvane.model_agency.adult_eligibility_policy_version')],
+            'adult_eligibility_policy_accepted' => ['required', 'accepted'],
+            'privacy_notice_version' => ['required', 'string', 'in:'.$privacyNoticeVersion],
             'privacy_notice_accepted' => ['required', 'accepted'],
             'website' => ['prohibited'],
         ]);
@@ -78,7 +80,9 @@ class ModelAgencyApplicationController extends Controller
             'experience_summary' => trim($validated['experience_summary']),
                 'status' => 'submitted',
                 'adult_eligibility_confirmed_at' => now(),
-            'privacy_notice_version' => $privacyNoticeVersion,
+                'adult_eligibility_policy_version' => config('talyvane.model_agency.adult_eligibility_policy_version'),
+                'adult_eligibility_policy_accepted_at' => now(),
+                'privacy_notice_version' => $privacyNoticeVersion,
                 'privacy_notice_accepted_at' => now(),
                 'submitted_at' => now(),
             ]);
