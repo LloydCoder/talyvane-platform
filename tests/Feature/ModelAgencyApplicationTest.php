@@ -21,6 +21,7 @@ class ModelAgencyApplicationTest extends TestCase
         DB::table('platform_features')->where('key', 'model-agency.applications')->update([
             'implementation_status' => 'available',
             'is_enabled' => true,
+            'activation_requirements' => json_encode([]),
         ]);
     }
 
