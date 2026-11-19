@@ -12,6 +12,14 @@ Talyvane supports two distinct agency verticals that may share platform infrastr
 
 The verticals may reuse identity, talent records, media infrastructure, availability primitives and CRM components only where access controls and data-purpose boundaries permit. They require separate booking types, service definitions, contract templates, consent scopes, price rules, compliance gates and analytics dimensions. A model assignment must not be treated as an escort booking, and consent for one vertical never implies consent for the other. Adult age assurance and safeguarding policies remain mandatory wherever applicable; no person under 18 may be represented in adult services or content.
 
+## Model agency application boundary
+
+The initial model-agency application workflow is implemented as an independent domain. It does not create a client or companion account, companion profile, companionship enquiry or booking. Intake stores only the applicant's name, contact details, country/city, optional HTTPS portfolio URL, experience summary, adult-eligibility self-attestation timestamp and the exact privacy-notice version accepted. It does not collect date of birth, identity documents or applicant photographs. Portfolio URLs are displayed as links only; the platform does not fetch or preview them.
+
+Applicants must self-attest that they are at least 18. This is not identity or age assurance. The application feature remains disabled until the deployment explicitly configures and approves versioned applicant privacy and adult-eligibility policies. Admin acceptance is only progression to a separate representation discussion; it is not an executed agreement, a casting assignment or permission to use images. Applications and status transitions have separate audit records and administrator-only access.
+
+The next model-agency increments remain separate: representation agreement issuance/signature and revocation; casting calls and briefs; assignment/booking states; media releases and usage licences with territory, channel, term and purpose; talent availability; fees, expenses and settlements; applicant access, correction, withdrawal and retention/deletion workflows.
+
 ## Roles
 Public visitor; client; companion/provider; operator; verification/safeguarding reviewer; finance operator; administrator; platform maintainer. Use least privilege. Platform maintainers have no default access to customer business data.
 
