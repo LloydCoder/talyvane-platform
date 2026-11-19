@@ -21,6 +21,8 @@ return new class extends Migration
             $table->text('experience_summary');
             $table->string('status', 24)->default('submitted')->index();
             $table->timestamp('adult_eligibility_confirmed_at');
+            $table->string('adult_eligibility_policy_version', 80);
+            $table->timestamp('adult_eligibility_policy_accepted_at');
             $table->string('privacy_notice_version', 80);
             $table->timestamp('privacy_notice_accepted_at');
             $table->foreignId('reviewed_by')->nullable()->constrained('users')->nullOnDelete();
