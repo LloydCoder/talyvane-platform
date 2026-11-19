@@ -6,7 +6,7 @@ This release implements a separate application and administrator-review workflow
 
 ## Default-safe activation
 
-The feature registry entry `model-agency.applications` is available in code but disabled by default. Do not enable it until all gates below are met.
+The feature registry entry `model-agency.applications` is available in code but disabled by default. It is also intentionally blocked by the activation evaluator until applicant access, correction, withdrawal, erasure and retention execution are implemented in a later phase. Publishing policy pages and setting approval flags alone must not enable intake.
 
 1. Obtain jurisdiction-specific legal/privacy review for the actual operator entity and intended applicant markets.
 2. Create and publish a CMS page with the exact slug `model-applicant-privacy`. It must identify the controller, purposes and lawful bases, data categories, recipients/processors, international transfers, retention periods, applicant rights, complaint routes and contact details. Include the exact configured privacy-notice version string in the published page body so stale pages cannot satisfy activation.
@@ -21,7 +21,7 @@ MODEL_AGENCY_ADULT_ELIGIBILITY_POLICY_APPROVED=true
 ```
 
 5. Reload the application's configuration cache according to the deployment runbook.
-6. In the Super Admin feature registry, inspect the activation blockers and enable `model-agency.applications` only when the published policy pages, explicit approval configuration and CMS dependency all pass.
+6. In the Super Admin feature registry, inspect the activation blockers. Intake remains unavailable until the separate applicant data-lifecycle phase is implemented and the lifecycle blocker is removed by a reviewed migration.
 
 The application HTTP controllers repeat the same activation evaluation. A database-only flag change cannot bypass missing policy pages or approval configuration.
 
@@ -43,6 +43,7 @@ Every transition requires an administrator reason and is committed with an appli
 
 ## Outstanding launch requirements
 
+- Applicant access, correction, withdrawal, erasure and retention execution; this is a hard activation blocker.
 - Independent age/identity assurance appropriate to the legal markets and intended work.
 - Applicant access, correction, withdrawal and deletion-request workflows.
 - A legally approved retention schedule and automated/manual retention execution.
