@@ -257,7 +257,7 @@ Artisan::command('talyvane:super-admin:enroll-recovery', function () {
                 'updated_at' => $occurredAt,
             ]);
 
-            $notice = new SuperAdminRecoveryNotice($occurredAt->toDayDateTimeString());
+            $notice = new SuperAdminRecoveryEnrollmentNotice($occurredAt->toDayDateTimeString());
             Notification::route('mail', $lockedUser->email)->notify($notice);
             Notification::route('mail', $recoveryEmail)->notify($notice);
 
