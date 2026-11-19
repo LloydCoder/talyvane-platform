@@ -77,15 +77,17 @@ class GlobalizationController
             'is_enabled' => ['sometimes', 'boolean'],
         ]);
 
-        $currency = Currency::query()->create([
-            ...$validated,
-            'is_enabled' => $request->boolean('is_enabled'),
-            'is_reporting_currency' => false,
-        ]);
+        DB::transaction(function () use ($validated, $request): void {
+            $currency = Currency::query()->create([
+                ...$validated,
+                'is_enabled' => $request->boolean('is_enabled'),
+                'is_reporting_currency' => false,
+            ]);
 
-        $this->recordAudit($request, 'currency.created', 'currency', $currency->code, null, $currency->only([
-            'code', 'numeric_code', 'name', 'symbol', 'minor_unit', 'is_enabled',
-        ]));
+            $this->recordAudit($request, 'currency.created', 'currency', $currency->code, null, $currency->only([
+                'code', 'numeric_code', 'name', 'symbol', 'minor_unit', 'is_enabled',
+            ]));
+        });
 
         return redirect()->route('admin.globalization')->with('status', 'Currency added. Confirm its ISO 4217 metadata before enabling it for transactions.');
     }
@@ -101,11 +103,13 @@ class GlobalizationController
             ]);
         }
 
-        $before = ['is_enabled' => $currency->is_enabled];
-        $currency->update(['is_enabled' => $enabled]);
-        $this->recordAudit($request, 'currency.availability_changed', 'currency', $currency->code, $before, [
-            'is_enabled' => $currency->is_enabled,
-        ]);
+        DB::transaction(function () use ($request, $currency, $enabled): void {
+            $before = ['is_enabled' => $currency->is_enabled];
+            $currency->update(['is_enabled' => $enabled]);
+            $this->recordAudit($request, 'currency.availability_changed', 'currency', $currency->code, $before, [
+                'is_enabled' => $currency->is_enabled,
+            ]);
+        });
 
         return redirect()->route('admin.globalization')->with('status', 'Currency availability updated.');
     }
@@ -122,18 +126,20 @@ class GlobalizationController
             'is_enabled' => ['sometimes', 'boolean'],
         ]);
 
-        $market = CountryMarket::query()->create([
-            ...$validated,
-            'is_enabled' => $request->boolean('is_enabled'),
-            'compliance_status' => 'pending',
-            'compliance_reviewed_at' => null,
-            'compliance_reviewed_by' => null,
-        ]);
+        DB::transaction(function () use ($validated, $request): void {
+            $market = CountryMarket::query()->create([
+                ...$validated,
+                'is_enabled' => $request->boolean('is_enabled'),
+                'compliance_status' => 'pending',
+                'compliance_reviewed_at' => null,
+                'compliance_reviewed_by' => null,
+            ]);
 
-        $this->recordAudit($request, 'country_market.created', 'country_market', $market->country_code, null, $market->only([
-            'country_code', 'alpha3_code', 'name', 'default_currency_code', 'default_locale',
-            'default_timezone', 'is_enabled', 'compliance_status',
-        ]));
+            $this->recordAudit($request, 'country_market.created', 'country_market', $market->country_code, null, $market->only([
+                'country_code', 'alpha3_code', 'name', 'default_currency_code', 'default_locale',
+                'default_timezone', 'is_enabled', 'compliance_status',
+            ]));
+        });
 
         return redirect()->route('admin.globalization')->with('status', 'Country market added in pending compliance state. It is not cleared for service availability.');
     }
