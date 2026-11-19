@@ -17,6 +17,7 @@ class Destination extends Model
         'locale',
         'timezone',
         'description',
+        'image_path',
         'sort_order',
         'is_active',
     ];
