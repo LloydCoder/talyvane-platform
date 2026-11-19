@@ -24,12 +24,13 @@
 - [x] Companion-controlled automatic-booking opt-in and immediate publication-consent withdrawal.
 - [x] Manual booking requests and configurable automatic confirmation with fail-closed eligibility.
 - [x] Admin booking inbox, deposit verification attestation and overlap checks.
-- [ ] Booking cancellation/rescheduling policies, notification delivery and companion availability calendar.
+- [x] Companion-managed weekly availability windows; automatic confirmation requires a matching local-time window.
+- [ ] Date-specific availability exceptions, calendar sync, booking cancellation/rescheduling policies and notification delivery.
 - [x] CI feature tests for homepage, authentication, role boundaries and branding persistence.
 Remaining: configurable content/CMS; jurisdiction-approved legal documents (current pages are draft placeholders); market flags; staging deployment and runtime verification; MFA.
 
 ## Release 2 — Booking and portals
-Partially implemented: client and companion account authentication; verified email; manual requests; admin-configurable automatic eligibility; companion opt-in/withdrawal; deposit verification attestation; overlap checks; client and companion booking views. Remaining: cancellation/rescheduling policies, availability calendars, notifications, booking event audit trail and full companion profile editing.
+Partially implemented: client and companion account authentication; verified email; manual requests; admin-configurable automatic eligibility; companion opt-in/withdrawal; weekly availability windows; deposit verification attestation; overlap checks; client and companion booking views. Remaining: date-specific availability exceptions, calendar sync, cancellation/rescheduling policies, notifications, booking event audit trail and full companion profile editing.
 
 ## Release 3 — Payments
 Payment adapter contract; manual instructions; crypto invoice snapshots and server-side chain verification for approved networks; ledger and reconciliation; card adapters only after written underwriting.
