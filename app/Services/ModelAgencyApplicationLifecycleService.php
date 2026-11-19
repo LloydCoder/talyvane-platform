@@ -55,6 +55,12 @@ class ModelAgencyApplicationLifecycleService
                 ]);
             }
 
+            if (ModelTalentRepresentationAgreement::query()->where('application_id', $locked->id)->exists()) {
+                throw ValidationException::withMessages([
+                    'status' => 'This application has representation-agreement records. An operator must complete a separate documented contract-retention review before erasure can proceed.',
+                ]);
+            }
+
             if ($locked->status === 'erased') {
                 return;
             }
