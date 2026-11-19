@@ -27,7 +27,7 @@ Artisan::command('talyvane:admin:create {email}', function () {
     $password = (string) $this->secret('Password (minimum 14 characters)');
     $confirmation = (string) $this->secret('Confirm password');
 
-    if ($name === '' || strlen($password) < 14 || ! hash_equals($password, $confirmation)) {
+    if ($name === '' || strlen($password) < 14 || ! preg_match('/[A-Za-z]/', $password) || ! preg_match('/[0-9]/', $password) || ! hash_equals($password, $confirmation)) {
         $this->error('Invalid name, password length, or password confirmation.');
 
         return;
