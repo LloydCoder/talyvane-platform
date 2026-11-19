@@ -84,6 +84,21 @@ class FeatureActivationEvaluator
                 continue;
             }
 
+            if ($requirement === 'adult_eligibility_verification') {
+                $verificationSchemaReady = Schema::hasTable('model_talent_applications')
+                    && Schema::hasColumns('model_talent_applications', [
+                        'adult_eligibility_verified_at',
+                        'adult_eligibility_verified_by',
+                        'adult_eligibility_verification_method',
+                    ]);
+
+                if (! $verificationSchemaReady) {
+                    $blockers[] = 'The privacy-minimizing adult-eligibility verification workflow is unavailable.';
+                }
+
+                continue;
+            }
+
             if ($requirement === 'applicant_privacy_notice') {
                 $privacyVersion = (string) config('talyvane.model_agency.privacy_notice_version');
                 $privacyPage = SitePage::query()->where('slug', 'model-applicant-privacy')->where('is_published', true)->first();

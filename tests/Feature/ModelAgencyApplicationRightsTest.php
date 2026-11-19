@@ -56,6 +56,7 @@ class ModelAgencyApplicationRightsTest extends TestCase
                 'applicant_data_lifecycle',
                 'applicant_privacy_notice',
                 'adult_eligibility_policy',
+                'adult_eligibility_verification',
             ]),
         ]);
     }
@@ -250,6 +251,9 @@ class ModelAgencyApplicationRightsTest extends TestCase
         $this->assertNull($application->portfolio_url);
         $this->assertNull($application->review_note);
         $this->assertNull($application->adult_eligibility_confirmed_at);
+        $this->assertNull($application->adult_eligibility_verified_at);
+        $this->assertNull($application->adult_eligibility_verified_by);
+        $this->assertNull($application->adult_eligibility_verification_method);
         $this->assertNull($application->adult_eligibility_policy_accepted_at);
         $this->assertNull($application->privacy_notice_accepted_at);
         $this->assertNull($application->submitted_at);

@@ -28,7 +28,7 @@ class ModelAgencyApplicationAdminController extends Controller
 
         return response()->view('admin.model-agency.applications.index', [
             'applications' => ModelTalentApplication::query()
-                ->with('reviewer')
+                ->with(['reviewer', 'adultEligibilityVerifier'])
                 ->latest('submitted_at')
                 ->paginate(20),
         ])->header('Cache-Control', 'no-store, private, max-age=0')
