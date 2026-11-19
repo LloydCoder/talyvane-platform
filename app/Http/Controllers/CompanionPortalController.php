@@ -63,7 +63,14 @@ class CompanionPortalController extends Controller
         $this->assertOwnership($profile);
         abort_unless((int) $rule->companion_profile_id === (int) $profile->id, 404);
 
-        $rule->delete();
+        DB::transaction(function () use ($profile, $rule): void {
+            $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
+            $this->assertOwnership($lockedProfile);
+            CompanionAvailabilityRule::query()
+                ->where('companion_profile_id', $lockedProfile->id)
+                ->whereKey($rule->id)
+                ->delete();
+        });
 
         return redirect()->route('companion-portal.dashboard')->with('status', 'Availability window removed.');
     }
