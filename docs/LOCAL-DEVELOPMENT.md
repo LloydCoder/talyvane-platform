@@ -45,7 +45,7 @@ There is no public staff registration or web-based setup endpoint. Create the fi
 
 Provision companion accounts from a trusted terminal with `php artisan talyvane:companion:create companion@example.com`. Deliver the temporary password through a separate secure channel. The companion must verify their email and then access `/companion-portal`. Link the account to a draft profile in Admin → Profiles.
 
-MFA and step-up authentication are still required before exposing privileged administration to production internet traffic.
+The first owner must enrol a TOTP authenticator on first admin login before accessing the dashboard. Save the one-time recovery codes in a secure offline vault. Protected admin routes enforce MFA; never disable this middleware in production.
 
 ## Production deployment checklist
 - Set APP_ENV=production, APP_DEBUG=false and a strong generated APP_KEY.
