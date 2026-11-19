@@ -248,4 +248,25 @@ class BookingTest extends TestCase
         $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'status' => 'confirmed']);
     }
 
+    public function test_automatic_booking_does_not_confirm_without_a_matching_availability_window(): void
+    {
+        $client = $this->client();
+        $profile = $this->profile(true);
+        BookingSetting::create(['booking_mode' => 'automatic', 'auto_confirm_enabled' => true, 'auto_requires_verified_deposit' => false]);
+
+        $this->actingAs($client)
+            ->post('/bookings', [
+                'profile_id' => $profile->id,
+                'start_at' => now()->addDays(7)->setTimezone('Europe/London')->format('Y-m-d\\TH:i'),
+                'duration_minutes' => 60,
+            ])
+            ->assertRedirect('/portal');
+
+        $this->assertDatabaseHas('bookings', [
+            'companion_profile_id' => $profile->id,
+            'status' => 'pending_review',
+            'booking_mode' => 'automatic',
+        ]);
+    }
+
 }
