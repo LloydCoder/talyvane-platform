@@ -18,7 +18,7 @@
                 {{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span>
             @endif
         </a>
-        <nav aria-label="Main navigation"><a href="{{ route('destinations.index') }}">Destinations</a><a href="{{ route('companions.index') }}">Profiles</a><a href="{{ route('home') }}">Home</a><a href="{{ route('contact') }}">Contact</a><a href="{{ route('login') }}">Account</a></nav>
+        <nav aria-label="Main navigation"><a href="{{ route('destinations.index') }}">Destinations</a><a href="{{ route('companions.index') }}">Companions</a><a href="{{ route('home') }}">Home</a><a href="{{ route('contact') }}">Contact</a><a href="{{ route('login') }}">Account</a></nav>
     </header>
     <main class="discovery-main">@yield('content')</main>
     <footer class="discovery-footer">

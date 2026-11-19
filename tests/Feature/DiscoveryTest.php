@@ -192,6 +192,80 @@ class DiscoveryTest extends TestCase
             ->assertSessionHasErrors('destination');
     }
 
+    public function test_companion_directory_uses_only_approved_real_profile_images_and_never_stock_portraits(): void
+    {
+        $destination = Destination::create([
+            'name' => 'London',
+            'slug' => 'london',
+            'country_code' => 'GB',
+            'country_name' => 'United Kingdom',
+            'city_name' => 'London',
+            'currency_code' => 'GBP',
+            'locale' => 'en',
+            'timezone' => 'Europe/London',
+            'is_active' => true,
+        ]);
+        $companion = User::create([
+            'name' => 'Companion Account',
+            'email' => 'companion@example.test',
+            'password' => Hash::make('Strong-Testing-Password-934!'),
+            'role' => 'companion',
+            'is_active' => true,
+        ]);
+
+        $withImage = \App\Models\CompanionProfile::create([
+            'user_id' => $companion->id,
+            'destination_id' => $destination->id,
+            'display_name' => 'Alex',
+            'slug' => 'alex-london',
+            'summary' => 'A considered profile introduction.',
+            'publication_status' => 'published',
+            'age_verified_at' => now(),
+            'publication_consent_at' => now(),
+        ]);
+        $withoutImage = \App\Models\CompanionProfile::create([
+            'destination_id' => $destination->id,
+            'display_name' => 'Morgan',
+            'slug' => 'morgan-london',
+            'publication_status' => 'published',
+            'age_verified_at' => now(),
+            'publication_consent_at' => now(),
+        ]);
+
+        $approved = \App\Models\ProfileMedia::create([
+            'companion_profile_id' => $withImage->id,
+            'uploaded_by' => $companion->id,
+            'storage_path' => 'profile-media/approved.webp',
+            'mime_type' => 'image/webp',
+            'width' => 800,
+            'height' => 1000,
+            'file_size' => 12000,
+            'status' => 'approved',
+            'rights_confirmed_at' => now(),
+            'consent_version' => 'profile-publication-v1',
+        ]);
+        $pending = \App\Models\ProfileMedia::create([
+            'companion_profile_id' => $withImage->id,
+            'uploaded_by' => $companion->id,
+            'storage_path' => 'profile-media/pending.webp',
+            'mime_type' => 'image/webp',
+            'width' => 800,
+            'height' => 1000,
+            'file_size' => 12000,
+            'status' => 'pending_review',
+            'rights_confirmed_at' => now(),
+            'consent_version' => 'profile-publication-v1',
+        ]);
+
+        $this->get('/companions')
+            ->assertOk()
+            ->assertSee(route('profile-media.show', $approved), false)
+            ->assertDontSee(route('profile-media.show', $pending), false)
+            ->assertSee('profile-monogram')
+            ->assertSee('Morgan')
+            ->assertSee('Companions');
+    }
+
     public function test_owner_can_create_a_destination(): void
     {
         $owner = $this->createAdminUser([

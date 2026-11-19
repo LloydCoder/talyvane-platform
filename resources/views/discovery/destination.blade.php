@@ -8,7 +8,7 @@
     </figure>
     <section class="profile-grid">
         @forelse ($profiles as $profile)
-            <a class="profile-card" href="{{ route('companions.show', $profile->slug) }}"><span class="eyebrow">VERIFIED ADULT PROFILE</span><h2>{{ $profile->display_name }}</h2><p>{{ $profile->summary }}</p><span class="text-link">View profile ↗</span></a>
+            @include('discovery.partials.companion-card', ['profile' => $profile])
         @empty
             <p class="empty-discovery">No profiles are currently published for this destination.</p>
         @endforelse
