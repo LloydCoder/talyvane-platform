@@ -142,7 +142,7 @@ class AdminAccessTest extends TestCase
         $this->post('/admin/login', [
             'email' => 'owner@example.test',
             'password' => 'Strong-Testing-Password-934!',
-        '])->assertRedirect('/admin/mfa/challenge');
+        ])->assertRedirect('/admin/mfa/challenge');
 
         $this->assertGuest();
         $user = User::where('email', 'owner@example.test')->firstOrFail();
