@@ -50,6 +50,11 @@ class User extends Authenticatable implements MustVerifyEmail
                 throw new LogicException('Only the designated deployment Super Admin may hold this role.');
             }
 
+            if ($user->isDesignatedBreakGlassGuardian()
+                && $user->isDirty(['role', 'is_active', 'email', 'email_verified_at', 'mfa_secret', 'mfa_enabled_at'])) {
+                throw new LogicException('An assigned break-glass guardian cannot have their role, activation, verified email or MFA enrollment changed until the assignment is cleared.');
+            }
+
             if (! $user->isDesignatedDeploymentSuperAdmin()) {
                 return;
             }
@@ -61,10 +66,25 @@ class User extends Authenticatable implements MustVerifyEmail
         });
 
         static::deleting(function (User $user): void {
+            if ($user->isDesignatedBreakGlassGuardian()) {
+                throw new LogicException('An assigned break-glass guardian cannot be deleted until the assignment is cleared.');
+            }
+
             if ($user->isDesignatedDeploymentSuperAdmin()) {
                 throw new LogicException('The designated Super Admin cannot be deleted outside the controlled recovery process.');
             }
         });
+    }
+
+    private function isDesignatedBreakGlassGuardian(): bool
+    {
+        if (! $this->exists || ! $this->getKey() || ! Schema::hasTable('super_admin_recovery_guardians')) {
+            return false;
+        }
+
+        return DB::table('super_admin_recovery_guardians')
+            ->where('user_id', $this->getKey())
+            ->exists();
     }
 
     private function isDesignatedDeploymentSuperAdmin(): bool
