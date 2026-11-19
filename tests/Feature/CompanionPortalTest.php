@@ -104,7 +104,9 @@ class CompanionPortalTest extends TestCase
                 'enabled' => '1',
                 'consent_confirmed' => '1',
             ])
-            ->assertRedirect('/companion-portal');
+            ->assertRedirect('/companion-portal/privacy');
+
+        $this->get('/companion-portal/privacy')->assertOk()->assertSee('Your privacy');
 
         $this->assertDatabaseHas('companion_profiles', [
             'id' => $profile->id,
@@ -124,6 +126,8 @@ class CompanionPortalTest extends TestCase
         $profile = $this->profile($companion);
         $client = User::create(['name' => 'Client', 'email' => 'client@example.test', 'password' => 'Strong-Client-Password-934!', 'role' => 'client', 'is_active' => true]);
         $start = now()->addDays(3);
+        DB::table('platform_features')->where('key', 'portals.companion')->update(['is_enabled' => false]);
+
         $pendingBooking = Booking::create([
             'reference' => 'WITHDRAW123',
             'client_id' => $client->id,
