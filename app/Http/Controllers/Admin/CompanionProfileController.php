@@ -38,11 +38,14 @@ class CompanionProfileController
             'slug' => ['required', 'alpha_dash', 'max:120', 'unique:companion_profiles,slug'],
             'summary' => ['nullable', 'string', 'max:500'],
             'languages' => ['nullable', 'array', 'max:8'],
+            'languages_text' => ['nullable', 'string', 'max:320'],
             'languages.*' => ['string', 'max:40'],
         ]);
 
         $validated['publication_status'] = 'draft';
-        $validated['languages'] = array_values(array_unique(array_filter(array_map('trim', $validated['languages'] ?? []))));
+        $languageValues = $validated['languages'] ?? preg_split('/[,;]+/', $validated['languages_text'] ?? '', -1, PREG_SPLIT_NO_EMPTY);
+        $validated['languages'] = array_values(array_unique(array_filter(array_map('trim', $languageValues))));
+        unset($validated['languages_text']);
 
         CompanionProfile::query()->create($validated);
 
