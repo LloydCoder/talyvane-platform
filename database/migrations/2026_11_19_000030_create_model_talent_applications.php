@@ -53,6 +53,7 @@ return new class extends Migration
             'description' => 'Independent adult model-agency application intake and reviewed admissions workflow. This is separate from companionship profiles and bookings.',
             'activation_requirements' => json_encode([
                 'model_agency_workflow',
+                'applicant_data_lifecycle',
                 'applicant_privacy_notice',
                 'adult_eligibility_policy',
             ]),
