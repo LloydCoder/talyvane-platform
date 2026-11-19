@@ -35,6 +35,12 @@ return [
             'caption' => 'The art of detail',
             'number' => '03',
         ],
+        [
+            'url' => 'https://images.unsplash.com/photo-1768346564233-d71f37bd19b6?auto=format&fit=crop&w=1400&q=80',
+            'alt' => 'A refined private aircraft cabin with cream leather seating and warm interior lighting',
+            'caption' => 'Beyond the expected',
+            'number' => '04',
+        ],
     ],
     'destination_fallbacks' => [
         'https://images.unsplash.com/photo-1681912609128-3a05a7bdce64?auto=format&fit=crop&w=1200&q=80',
