@@ -7,6 +7,7 @@ use App\Services\ModelTalentImageLicenceService;
 use App\Services\ModelTalentPortfolioAssetService;
 use App\Services\ModelTalentRepresentationAgreementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class ModelTalentImageLicenceTest extends TestCase
