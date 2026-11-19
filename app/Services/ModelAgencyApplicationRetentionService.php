@@ -14,6 +14,10 @@ class ModelAgencyApplicationRetentionService
 
     public function apply(): int
     {
+        if (! config('talyvane.model_agency.retention.schedule_approved')) {
+            throw new \\RuntimeException('Model agency retention execution is disabled because the operator has not approved the retention schedule.');
+        }
+
         $applicationDays = (int) config('talyvane.model_agency.retention.application_days');
         $acceptedDays = (int) config('talyvane.model_agency.retention.accepted_days');
 
