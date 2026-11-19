@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#111513">
-    <meta name="description" content="Talyvane brings considered design and disciplined operations to premium agency businesses.">
+    <meta name="description" content="{{ $brand['tagline'] ?? 'Discover a more considered standard.' }}">
     <title>{{ $brand['brand_name'] ?? 'Talyvane' }} — A more considered standard</title>
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
