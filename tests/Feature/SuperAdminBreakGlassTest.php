@@ -168,6 +168,40 @@ class SuperAdminBreakGlassTest extends TestCase
             ->assertExitCode(1);
     }
 
+
+    public function test_super_admin_can_clear_break_glass_guardians_with_current_password_and_mfa(): void
+    {
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'smtp.example.test']);
+        Notification::fake();
+        $superAdmin = $this->provisionSuperAdmin();
+        $step = intdiv(time(), 30);
+        $superAdmin->forceFill(['mfa_last_used_step' => $step - 1])->save();
+
+        $one = $this->provisionGuardian('guardian-one@example.test', 'Guardian-One-Password-934!', 'JBSWY3DPEHPK3PXP', $step - 1);
+        $two = $this->provisionGuardian('guardian-two@example.test', 'Guardian-Two-Password-934!', 'KRUGS4ZANFZSAYJA', $step - 1);
+        SuperAdminRecoveryGuardian::query()->create(['slot' => 1, 'user_id' => $one->id, 'enrolled_at' => now()]);
+        SuperAdminRecoveryGuardian::query()->create(['slot' => 2, 'user_id' => $two->id, 'enrolled_at' => now()]);
+
+        $code = (new TotpService())->codeForStep($superAdmin->mfa_secret, $step);
+
+        $this->artisan('talyvane:super-admin:clear-break-glass')
+            ->expectsQuestion('Current Super Admin password', 'Strong-Root-Password-934!')
+            ->expectsQuestion('Current authenticator code', $code)
+            ->expectsQuestion('Reason for clearing break-glass guardians (minimum 20 characters)', 'Guardian ownership changed after approved security review')
+            ->expectsOutput('Break-glass guardian assignments cleared. The recovery path is unavailable until two new Owners are configured.')
+            ->assertExitCode(0);
+
+        $this->assertSame(0, SuperAdminRecoveryGuardian::query()->count());
+        $this->assertSame(8, $superAdmin->fresh()->admin_session_version);
+        $this->assertDatabaseHas('super_admin_recovery_events', [
+            'super_admin_user_id' => $superAdmin->id,
+            'event_type' => 'break_glass_guardians_cleared',
+            'session_version_before' => 7,
+            'session_version_after' => 8,
+        ]);
+        Notification::assertSentOnDemand(\App\Notifications\SuperAdminBreakGlassNotice::class, 4);
+    }
+
     public function test_assigned_guardian_cannot_be_demoted_deactivated_or_deleted(): void
     {
         $this->provisionSuperAdmin();
