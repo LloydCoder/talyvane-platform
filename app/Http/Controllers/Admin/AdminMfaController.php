@@ -69,7 +69,7 @@ class AdminMfaController
     {
         $codes = $request->session()->get('mfa_recovery_codes');
         if (! is_array($codes)) {
-            return redirect()->route('admin.dashboard');
+            return redirect()->route($request->user()->role === 'finance' ? 'admin.model-settlements.index' : 'admin.dashboard');
         }
 
         return view('admin.auth.mfa-recovery', ['codes' => $codes]);
