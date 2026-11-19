@@ -334,7 +334,7 @@ class DiscoveryTest extends TestCase
     }
 
 
-    public function test_admin_can_upload_a_destination_cover_image(): void
+    public function test_super_admin_can_upload_a_destination_cover_image(): void
     {
         Storage::fake('public');
         $admin = $this->createAdminUser(['role' => 'super_admin']);
@@ -366,10 +366,10 @@ class DiscoveryTest extends TestCase
     }
 
 
-    public function test_admin_must_confirm_image_rights_when_uploading_a_cover(): void
+    public function test_super_admin_must_confirm_image_rights_when_uploading_a_cover(): void
     {
         Storage::fake('public');
-        $admin = $this->createAdminUser();
+        $admin = $this->createAdminUser(['role' => 'super_admin']);
 
         $this->actingAs($admin)
             ->from('/admin/destinations/create')
@@ -391,10 +391,10 @@ class DiscoveryTest extends TestCase
         $this->assertSame([], Storage::disk('public')->allFiles('destinations'));
     }
 
-    public function test_admin_destination_upload_rejects_svg_files(): void
+    public function test_super_admin_destination_upload_rejects_svg_files(): void
     {
         Storage::fake('public');
-        $admin = $this->createAdminUser();
+        $admin = $this->createAdminUser(['role' => 'super_admin']);
 
         $this->actingAs($admin)
             ->from('/admin/destinations/create')
