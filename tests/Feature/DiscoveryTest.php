@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\BrandSetting;
 use App\Models\Destination;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
