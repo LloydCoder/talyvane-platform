@@ -38,11 +38,11 @@ Route::get('/', function (\App\Services\BrandSettings $settings) {
     ]);
 })->name('home');
 
-Route::get('/destinations', [DiscoveryController::class, 'destinations'])->name('destinations.index');
-Route::get('/destinations/{slug}', [DiscoveryController::class, 'destination'])->name('destinations.show');
-Route::get('/companions', [DiscoveryController::class, 'companions'])->name('companions.index');
-Route::get('/companions/{slug}', [DiscoveryController::class, 'companion'])->name('companions.show');
-Route::get('/profile-media/{media}', [ProfileMediaController::class, 'show'])->name('profile-media.show');
+Route::get('/destinations', [DiscoveryController::class, 'destinations'])->middleware('feature:public.discovery')->name('destinations.index');
+Route::get('/destinations/{slug}', [DiscoveryController::class, 'destination'])->middleware('feature:public.discovery')->name('destinations.show');
+Route::get('/companions', [DiscoveryController::class, 'companions'])->middleware('feature:public.discovery')->name('companions.index');
+Route::get('/companions/{slug}', [DiscoveryController::class, 'companion'])->middleware('feature:public.discovery')->name('companions.show');
+Route::get('/profile-media/{media}', [ProfileMediaController::class, 'show'])->middleware('feature:public.discovery')->name('profile-media.show');
 Route::get('/contact', [EnquiryController::class, 'create'])->name('contact');
 Route::get('/pages/{slug}', [PageController::class, 'show'])->name('pages.show');
 Route::view('/privacy', 'legal.privacy')->name('privacy');
@@ -67,20 +67,20 @@ Route::middleware('auth')->group(function (): void {
     })->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
     Route::post('/email/verification-notification', [PortalAuthController::class, 'resendVerification'])->middleware('throttle:6,1')->name('verification.send');
 
-    Route::middleware(['verified', 'role:client'])->group(function (): void {
+    Route::middleware(['verified', 'role:client', 'feature:portals.client'])->group(function (): void {
         Route::get('/portal', [PortalDashboardController::class, 'client'])->name('portal.dashboard');
-        Route::get('/companions/{slug}/book', [BookingController::class, 'create'])->name('bookings.create');
-        Route::post('/bookings', [BookingController::class, 'store'])->name('bookings.store');
+        Route::get('/companions/{slug}/book', [BookingController::class, 'create'])->middleware('feature:bookings.companionship')->name('bookings.create');
+        Route::post('/bookings', [BookingController::class, 'store'])->middleware('feature:bookings.companionship')->name('bookings.store');
         Route::post('/client/favorites/{profile}', [ClientFavoriteController::class, 'store'])->middleware('throttle:30,1')->name('client.favorites.store');
         Route::delete('/client/favorites/{profile}', [ClientFavoriteController::class, 'destroy'])->name('client.favorites.destroy');
-        Route::post('/bookings/{booking}/cancel', [BookingController::class, 'cancel'])->name('bookings.cancel');
+        Route::post('/bookings/{booking}/cancel', [BookingController::class, 'cancel'])->middleware('feature:bookings.companionship')->name('bookings.cancel');
     });
 
-    Route::middleware(['verified', 'role:companion'])->group(function (): void {
+    Route::middleware(['verified', 'role:companion', 'feature:portals.companion'])->group(function (): void {
         Route::get('/companion-portal', [CompanionPortalController::class, 'index'])->name('companion-portal.dashboard');
         Route::post('/companion-portal/profiles/{profile}/media', [CompanionMediaController::class, 'store'])->middleware('throttle:10,1')->name('companion-portal.profiles.media.store');
         Route::delete('/companion-portal/profiles/{profile}/media/{media}', [CompanionMediaController::class, 'destroy'])->name('companion-portal.profiles.media.destroy');
-        Route::post('/companion-portal/profiles/{profile}/automatic-booking', [CompanionPortalController::class, 'updateAutomaticBooking'])->name('companion-portal.profiles.automatic-booking');
+        Route::post('/companion-portal/profiles/{profile}/automatic-booking', [CompanionPortalController::class, 'updateAutomaticBooking'])->middleware('feature:bookings.automatic')->name('companion-portal.profiles.automatic-booking');
         Route::post('/companion-portal/profiles/{profile}/availability', [CompanionPortalController::class, 'storeAvailability'])->name('companion-portal.profiles.availability.store');
         Route::delete('/companion-portal/profiles/{profile}/availability/{rule}', [CompanionPortalController::class, 'destroyAvailability'])->name('companion-portal.profiles.availability.destroy');
         Route::post('/companion-portal/profiles/{profile}/withdraw-consent', [CompanionPortalController::class, 'withdrawPublicationConsent'])->name('companion-portal.profiles.withdraw-consent');
@@ -102,6 +102,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/mfa/setup', [AdminMfaController::class, 'setup'])->name('mfa.setup');
         Route::post('/mfa/setup', [AdminMfaController::class, 'confirmSetup'])->middleware('throttle:5,1')->name('mfa.setup.confirm');
         Route::get('/mfa/recovery-codes', [AdminMfaController::class, 'recoveryCodes'])->name('mfa.recovery-codes');
+    });
+
+    Route::middleware(['auth', 'role:super_admin', 'admin.mfa'])->group(function (): void {
+        Route::get('/features', [PlatformFeatureController::class, 'index'])->name('features.index');
     });
 
     Route::middleware(['auth', 'role:super_admin,owner,admin', 'admin.mfa'])->group(function (): void {
