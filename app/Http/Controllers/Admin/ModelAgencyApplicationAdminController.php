@@ -149,7 +149,7 @@ class ModelAgencyApplicationAdminController extends Controller
     private function assertSchemaReady(): void
     {
         abort_unless(
-            Schema::hasTable('model_talent_applications') && Schema::hasTable('model_talent_application_events'),
+            Schema::hasTable('model_talent_applications') && Schema::hasTable('model_talent_application_events') && Schema::hasColumn('model_talent_applications', 'legal_hold_at'),
             503,
             'Model agency application records are unavailable.',
         );
