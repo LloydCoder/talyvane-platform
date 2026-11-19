@@ -18,7 +18,7 @@ final readonly class Money
     public static function fromMajor(string $amount, string $currency, int $minorUnitPrecision): self
     {
         if (! preg_match('/^[A-Z]{3}$/D', $currency)) {
-            throw new InvalidArgumentException('Currency must be a three-letter uppercase ISO 4217 code.');
+            throw new InvalidArgumentException('Currency code must use the three-letter uppercase ISO 4217 format.');
         }
 
         if ($minorUnitPrecision < 0 || $minorUnitPrecision > 3) {
@@ -66,7 +66,7 @@ final readonly class Money
 
     public function toMajor(): string
     {
-        $digits = (string) abs($this->minorUnits);
+        $digits = ltrim((string) $this->minorUnits, '-');
 
         if ($this->minorUnitPrecision === 0) {
             return ($this->minorUnits < 0 ? '-' : '').$digits;
