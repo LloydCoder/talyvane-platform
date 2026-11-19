@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\SuperAdminEmailVerificationCode;
 use App\Services\RecoveryCodeGenerator;
 use App\Services\SuperAdminBreakGlassService;
+use App\Services\TotpService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -23,6 +24,7 @@ class RecoverSuperAdminBreakGlass extends Command
     public function handle(
         SuperAdminBreakGlassService $breakGlass,
         RecoveryCodeGenerator $codes,
+        TotpService $totp,
     ): int {
         $control = DB::table('platform_control')->where('id', 1)->first();
         $superAdmin = $control?->super_admin_user_id ? User::query()->find($control->super_admin_user_id) : null;
@@ -68,6 +70,7 @@ class RecoverSuperAdminBreakGlass extends Command
         }
 
         $guardians = [];
+        $guardianUsers = [];
         foreach ($assignments as $index => $assignment) {
             $guardian = $assignment->user;
 
@@ -86,7 +89,8 @@ class RecoverSuperAdminBreakGlass extends Command
             $password = (string) $this->secret('Guardian '.($index + 1).' password');
             $totpCode = (string) $this->secret('Guardian '.($index + 1).' authenticator code');
 
-            if (! Hash::check($password, $guardian->password)) {
+            if (! Hash::check($password, $guardian->password)
+                || $totp->verify($guardian->mfa_secret, $totpCode, $guardian->mfa_last_used_step) === null) {
                 $this->recordRejected($superAdmin->id, 'Break-glass guardian credential verification failed.');
 
                 $this->error('The supplied recovery guardian credentials could not be verified.');
@@ -94,12 +98,23 @@ class RecoverSuperAdminBreakGlass extends Command
                 return self::FAILURE;
             }
 
+            $guardianUsers[] = $guardian;
             $guardians[] = [
                 'user_id' => $guardian->id,
                 'email' => $guardian->email,
                 'password' => $password,
                 'totp_code' => $totpCode,
             ];
+        }
+
+        if (hash_equals($guardianUsers[0]->mfa_secret, $guardianUsers[1]->mfa_secret)
+            || Hash::check($guardians[0]['password'], $guardianUsers[1]->password)
+            || Hash::check($guardians[1]['password'], $guardianUsers[0]->password)) {
+            $this->recordRejected($superAdmin->id, 'Break-glass guardian credentials are not independent.');
+
+            $this->error('The two recovery guardians must use independent authenticator secrets and different passwords.');
+
+            return self::FAILURE;
         }
 
         $verificationCodes = [$codes->generate(), $codes->generate()];
