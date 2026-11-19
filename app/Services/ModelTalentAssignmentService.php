@@ -216,8 +216,8 @@ class ModelTalentAssignmentService
 
             $locked->forceFill([
                 'status' => 'declined',
-                'acceptance_recorded_by' => $actorId,
-                'accepted_at' => now(),
+                'declined_by' => $actorId,
+                'declined_at' => now(),
                 'model_decline_evidence_reference' => $evidenceReference,
                 'decline_reason' => $reason,
             ])->save();
