@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\EnsureAdminMfa;
+use App\Http\Middleware\EnsureAdminSessionCurrent;
 use App\Http\Middleware\EnsurePlatformFeatureEnabled;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
