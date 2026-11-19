@@ -60,6 +60,7 @@ class AdminLoginController
         }
 
         Auth::login($user, $request->boolean('remember'));
+        $request->session()->put('admin_session_version', (int) $user->admin_session_version);
 
         if (! $user->mfa_enabled_at || ! $user->mfa_secret) {
             return redirect()->route('admin.mfa.setup');
