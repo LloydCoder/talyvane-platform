@@ -223,7 +223,7 @@ class ModelAgencyApplicationAdminController extends Controller
             Schema::hasTable('model_talent_applications')
                 && Schema::hasColumns('model_talent_applications', ['reference', 'full_name', 'email', 'status', 'legal_hold_at', 'adult_eligibility_verified_at', 'adult_eligibility_verified_by', 'adult_eligibility_verification_method'])
                 && Schema::hasTable('model_talent_representation_agreements')
-                && Schema::hasColumns('model_talent_representation_agreements', ['application_id', 'reference', 'version', 'status', 'terms_snapshot', 'terms_policy_version'])
+                && Schema::hasColumns('model_talent_representation_agreements', ['application_id', 'country_code', 'reference', 'version', 'status', 'terms_snapshot', 'terms_policy_version'])
                 && Schema::hasTable('model_talent_application_events')
                 && Schema::hasColumns('model_talent_application_events', ['application_id', 'actor_type', 'event_type', 'occurred_at']),
             503,
