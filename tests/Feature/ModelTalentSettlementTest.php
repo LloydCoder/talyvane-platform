@@ -29,6 +29,12 @@ class ModelTalentSettlementTest extends TestCase
         ]);
 
         $admin = $this->createAdminUser(['email' => 'settlement-admin-'.strtolower(bin2hex(random_bytes(4))).'@example.test']);
+        $reviewer = $this->createAdminUser([
+            'name' => 'Independent Finance Reviewer',
+            'email' => 'settlement-reviewer-'.strtolower(bin2hex(random_bytes(4))).'@example.test',
+            'role' => 'owner',
+            'is_active' => true,
+        ]);
         $verifier = User::query()->create([
             'name' => 'Eligibility Verifier',
             'email' => 'settlement-verifier-'.strtolower(bin2hex(random_bytes(4))).'@example.test',
@@ -210,7 +216,7 @@ class ModelTalentSettlementTest extends TestCase
             'completed_at' => $status === 'completed' ? now()->subDay() : null,
         ]);
 
-        return compact('admin', 'application', 'agreement', 'asset', 'licence', 'call', 'submission', 'assignment');
+        return compact('admin', 'reviewer', 'application', 'agreement', 'asset', 'licence', 'call', 'submission', 'assignment');
     }
 
     public function test_settlement_snapshots_gross_commission_approved_expenses_and_manual_payment_evidence(): void
@@ -231,8 +237,8 @@ class ModelTalentSettlementTest extends TestCase
             'evidence_reference' => 'private/model-expenses/second-expense-receipt.pdf',
         ]);
 
-        $service->reviewExpense($expenseA, $context['admin']->id, 'approved', 'Receipt reviewed and expense approved.');
-        $service->reviewExpense($expenseB, $context['admin']->id, 'rejected', 'Expense was not authorized under the assignment terms.');
+        $service->reviewExpense($expenseA, $context['reviewer']->id, 'approved', 'Receipt reviewed and expense approved.');
+        $service->reviewExpense($expenseB, $context['reviewer']->id, 'rejected', 'Expense was not authorized under the assignment terms.');
 
         $settlement = $service->createDraft($context['assignment'], $context['admin']->id);
         $this->assertSame('800.0000', $settlement->gross_amount);
@@ -240,7 +246,7 @@ class ModelTalentSettlementTest extends TestCase
         $this->assertSame('25.0000', $settlement->approved_expenses_amount);
         $this->assertSame('705.0000', $settlement->model_net_amount);
 
-        $service->approve($settlement, $context['admin']->id, 'Settlement calculation and approved expense evidence reviewed.');
+        $service->approve($settlement, $context['reviewer']->id, 'Settlement calculation and approved expense evidence reviewed.');
         $service->recordPayment(
             $settlement,
             $context['admin']->id,
@@ -255,6 +261,62 @@ class ModelTalentSettlementTest extends TestCase
             'settlement_id' => $settlement->id,
             'event_type' => 'settlement.paid_recorded',
         ]);
+    }
+
+
+    public function test_expense_review_settlement_approval_and_payment_attestation_require_independent_actors(): void
+    {
+        $context = $this->assignment();
+        $service = app(ModelTalentSettlementService::class);
+
+        $expense = $service->addExpense($context['assignment'], $context['admin']->id, [
+            'description' => 'Documented travel expense for the assignment.',
+            'amount' => '25.00',
+            'currency_code' => 'GBP',
+            'evidence_reference' => 'private/model-expenses/maker-checker-expense.pdf',
+        ]);
+
+        try {
+            $service->reviewExpense($expense, $context['admin']->id, 'approved', 'The submitter must not review their own expense claim.');
+            $this->fail('Expense submitters must not approve or reject their own claims.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('expense', $exception->errors());
+        }
+
+        $service->reviewExpense($expense, $context['reviewer']->id, 'approved', 'Independent reviewer checked the receipt and assignment expense policy.');
+        $settlement = $service->createDraft($context['assignment'], $context['admin']->id);
+
+        try {
+            $service->approve($settlement, $context['admin']->id, 'The settlement maker must not approve their own settlement draft.');
+            $this->fail('Settlement creators must not approve their own drafts.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('settlement', $exception->errors());
+        }
+
+        $service->approve($settlement, $context['reviewer']->id, 'Independent approver reconciled the calculation and supporting expense decisions.');
+
+        try {
+            $service->recordPayment(
+                $settlement,
+                $context['reviewer']->id,
+                'bank_transfer',
+                'BANK-TRANSFER-REF-MAKER-CHECKER',
+                'private/model-settlements/maker-checker-payment.pdf',
+            );
+            $this->fail('The settlement approver must not attest to payment of the same settlement.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('payment', $exception->errors());
+        }
+
+        $service->recordPayment(
+            $settlement,
+            $context['admin']->id,
+            'bank_transfer',
+            'BANK-TRANSFER-REF-INDEPENDENT-PAYER',
+            'private/model-settlements/independent-payment-evidence.pdf',
+        );
+
+        $this->assertSame('paid', $settlement->fresh()->status);
     }
 
     public function test_commission_rounding_is_half_up_to_the_currency_minor_unit(): void
@@ -317,7 +379,7 @@ class ModelTalentSettlementTest extends TestCase
             $this->assertArrayHasKey('settlement', $exception->errors());
         }
 
-        $service->reviewExpense($expense, $context['admin']->id, 'approved', 'Expense reviewed.');
+        $service->reviewExpense($expense, $context['reviewer']->id, 'approved', 'Expense reviewed.');
         $inProgress = $this->assignment('in_progress');
 
         try {
@@ -376,7 +438,7 @@ class ModelTalentSettlementTest extends TestCase
             $this->assertSame('Expense claim terms and evidence are immutable after submission.', $exception->getMessage());
         }
 
-        $service->reviewExpense($expense, $context['admin']->id, 'approved', 'Receipt and amount verified for reimbursement.');
+        $service->reviewExpense($expense, $context['reviewer']->id, 'approved', 'Receipt and amount verified for reimbursement.');
         $settlement = $service->createDraft($context['assignment'], $context['admin']->id);
 
         try {
@@ -392,7 +454,7 @@ class ModelTalentSettlementTest extends TestCase
         $context = $this->assignment();
         $service = app(ModelTalentSettlementService::class);
         $settlement = $service->createDraft($context['assignment'], $context['admin']->id);
-        $service->approve($settlement, $context['admin']->id, 'Settlement approved after reconciliation.');
+        $service->approve($settlement, $context['reviewer']->id, 'Settlement approved after reconciliation.');
 
         try {
             $service->reverse($settlement, $context['admin']->id, 'Duplicate payment was reversed by the bank.', 'public/reversal.pdf');
