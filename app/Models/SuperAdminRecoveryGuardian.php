@@ -7,6 +7,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SuperAdminRecoveryGuardian extends Model
 {
+    protected static function booted(): void
+    {
+        static::updating(fn () => throw new LogicException('Break-glass guardian assignments are immutable; use the controlled CLI commands.'));
+        static::deleting(fn () => throw new LogicException('Break-glass guardian assignments are immutable; use the controlled CLI commands.'));
+    }
+
     protected $fillable = [
         'slot',
         'user_id',
