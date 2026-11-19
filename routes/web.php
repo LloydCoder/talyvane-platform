@@ -131,7 +131,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/enquiries', [EnquiryAdminController::class, 'index'])->name('enquiries.index');
         Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
         Route::get('/clients', [ClientManagementController::class, 'index'])->name('clients.index');
-        Route::post('/clients/{client}/membership', [ClientManagementController::class, 'assignMembership'])->name('clients.membership');
+        Route::post('/clients/{client}/membership', [ClientManagementController::class, 'assignMembership'])->middleware('feature:memberships')->name('clients.membership');
         Route::get('/bookings', [BookingAdminController::class, 'index'])->name('bookings.index');
         Route::patch('/bookings/{booking}', [BookingAdminController::class, 'update'])->name('bookings.update');
         Route::post('/bookings/{booking}/deposit', [BookingAdminController::class, 'verifyDeposit'])->name('bookings.deposit');
