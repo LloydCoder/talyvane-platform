@@ -12,6 +12,8 @@ class BookingSetting extends Model
         'auto_requires_verified_deposit',
         'minimum_notice_hours',
         'maximum_advance_days',
+        'client_cancellation_enabled',
+        'cancellation_cutoff_hours',
         'updated_by',
     ];
 
@@ -20,6 +22,7 @@ class BookingSetting extends Model
         return [
             'auto_confirm_enabled' => 'boolean',
             'auto_requires_verified_deposit' => 'boolean',
+            'client_cancellation_enabled' => 'boolean',
         ];
     }
 
