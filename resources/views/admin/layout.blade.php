@@ -41,6 +41,9 @@
         @if (\Illuminate\Support\Facades\Schema::hasTable('model_casting_calls') && app(\App\Services\FeatureRegistry::class)->isEnabled('model-agency.casting'))
             <a class="sidebar-link {{ request()->routeIs('admin.model-castings.*') || request()->routeIs('admin.model-casting-submissions.*') ? 'active' : '' }}" href="{{ route('admin.model-castings.index') }}">Model casting</a>
         @endif
+        @if (\Illuminate\Support\Facades\Schema::hasTable('model_talent_assignments') && app(\App\Services\FeatureRegistry::class)->isEnabled('model-agency.assignments'))
+            <a class="sidebar-link {{ request()->routeIs('admin.model-assignments.*') ? 'active' : '' }}" href="{{ route('admin.model-assignments.index') }}">Model assignments</a>
+        @endif
         <a class="sidebar-link {{ request()->routeIs('admin.bookings.index') ? 'active' : '' }}" href="{{ route('admin.bookings.index') }}">Booking requests</a>
         <div class="sidebar-bottom">
             <span>{{ auth()->user()->name }}</span>
