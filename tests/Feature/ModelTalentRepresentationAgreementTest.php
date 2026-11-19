@@ -227,4 +227,37 @@ class ModelTalentRepresentationAgreementTest extends TestCase
         $this->assertSame('accepted', $application->fresh()->status);
         $this->assertSame('jordan@example.test', $application->fresh()->email);
     }
+    public function test_agreement_creation_fails_closed_without_an_operationally_approved_market(): void
+    {
+        $application = $this->application();
+        $admin = $this->createAdminUser();
+
+        $this->actingAs($admin)->post('/admin/model-applications/'.$application->id.'/agreements', $this->terms())
+            ->assertSessionHasErrors('agreement');
+
+        $this->assertDatabaseCount('model_talent_representation_agreements', 0);
+    }
+
+    public function test_offer_rechecks_market_approval_before_issuing_the_offer(): void
+    {
+        config([
+            'talyvane.model_agency.representation_terms_version' => 'representation-terms-v1',
+            'talyvane.model_agency.representation_terms_approved' => true,
+        ]);
+        $market = $this->market();
+        $application = $this->application();
+        $admin = $this->createAdminUser();
+
+        $this->actingAs($admin)->post('/admin/model-applications/'.$application->id.'/agreements', $this->terms())
+            ->assertRedirect();
+        $agreement = ModelTalentRepresentationAgreement::query()->firstOrFail();
+
+        $market->forceFill(['is_enabled' => false])->save();
+
+        $this->actingAs($admin)->post('/admin/model-representation-agreements/'.$agreement->id.'/offer')
+            ->assertSessionHasErrors('agreement');
+
+        $this->assertSame('draft', $agreement->fresh()->status);
+    }
+
 }
