@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\PaymentSettingsController;
 use App\Http\Controllers\Admin\SitePageController;
 use App\Http\Controllers\Admin\PlatformFeatureController;
 use App\Http\Controllers\Admin\ModelAgencyApplicationAdminController;
+use App\Http\Controllers\Admin\ModelAgencySarAdminController;
 use App\Http\Controllers\ModelAgencyApplicationController;
 use App\Http\Controllers\ModelAgencyApplicationRightsController;
 use App\Http\Controllers\AccountSecurityController;
@@ -169,6 +170,16 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/model-applications', [ModelAgencyApplicationAdminController::class, 'index'])->name('model-applications.index');
         Route::patch('/model-applications/{application}', [ModelAgencyApplicationAdminController::class, 'update'])->name('model-applications.update');
         Route::post('/model-applications/{application}/legal-hold', [ModelAgencyApplicationAdminController::class, 'updateLegalHold'])->name('model-applications.legal-hold');
+
+        Route::middleware('role:super_admin,owner')->prefix('model-applicant-sar')->name('model-applicant-sar.')->group(function (): void {
+            Route::get('/', [ModelAgencySarAdminController::class, 'index'])->name('index');
+            Route::get('/{rightsRequest}', [ModelAgencySarAdminController::class, 'show'])->name('show');
+            Route::post('/{rightsRequest}/prepare', [ModelAgencySarAdminController::class, 'prepare'])->name('prepare');
+            Route::get('/{rightsRequest}/download', [ModelAgencySarAdminController::class, 'download'])->name('download');
+            Route::post('/{rightsRequest}/fulfil', [ModelAgencySarAdminController::class, 'fulfil'])->name('fulfil');
+            Route::post('/{rightsRequest}/extend', [ModelAgencySarAdminController::class, 'extend'])->name('extend');
+        });
+
         Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
         Route::get('/clients', [ClientManagementController::class, 'index'])->name('clients.index');
         Route::post('/clients/{client}/membership', [ClientManagementController::class, 'assignMembership'])->middleware('feature:memberships')->name('clients.membership');
