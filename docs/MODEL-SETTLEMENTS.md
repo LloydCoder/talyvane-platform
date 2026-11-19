@@ -36,3 +36,16 @@ Reversal records an external reversal reason and private evidence reference; it 
 Expense descriptions, evidence references, review notes, settlement calculation snapshots, external payment references and dispute/reversal evidence are encrypted at rest. Only authorized agency administrators can access the register; routes require the existing admin authentication, MFA and feature gates. The feature depends on the assignment domain and an explicitly approved settlement policy.
 
 Application-layer immutability does not protect against a database administrator or direct SQL. Backups, database access controls, operational separation of duties and independent reconciliation remain necessary.
+
+
+## Independent maker-checker controls
+
+Financial transitions enforce actor separation inside their database transactions:
+
+- An expense claimant cannot approve or reject their own expense.
+- The operator who creates a settlement draft cannot approve that draft.
+- The operator who approves a settlement cannot attest to its external payment.
+- These rules apply to every authorized role, including Owner and Super Admin; privileged oversight does not bypass separation.
+- Rejected attempts leave the financial record unchanged. Successful transitions retain the actor IDs and append-only settlement event history.
+
+These are application-layer controls. They do not prove that an external bank transfer occurred, prevent privileged direct SQL, or replace dual authorization at the bank/payment provider. Production operations should reconcile payment evidence independently and restrict database access.
