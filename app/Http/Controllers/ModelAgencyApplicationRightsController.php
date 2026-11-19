@@ -72,6 +72,7 @@ class ModelAgencyApplicationRightsController extends Controller
                     'code_hash' => Hash::make($code),
                     'attempts' => 0,
                     'expires_at' => now()->addMinutes(10),
+                    'response_due_at' => $validated['request_type'] === 'access' ? now()->addMonthNoOverflow() : null,
                 ]);
 
                 ModelTalentApplicationEvent::query()->create([
@@ -363,7 +364,7 @@ class ModelAgencyApplicationRightsController extends Controller
                 && Schema::hasTable('model_talent_application_events')
                 && Schema::hasColumns('model_talent_application_events', ['application_id', 'actor_type', 'event_type', 'occurred_at'])
                 && Schema::hasTable('model_talent_application_rights_requests')
-                && Schema::hasColumns('model_talent_application_rights_requests', ['application_id', 'request_type', 'status', 'code_hash', 'attempts', 'expires_at', 'verified_at', 'completed_at']),
+                && Schema::hasColumns('model_talent_application_rights_requests', ['application_id', 'request_type', 'status', 'code_hash', 'attempts', 'expires_at', 'verified_at', 'completed_at', 'response_status', 'response_due_at', 'response_content', 'response_sha256', 'response_review_checklist']),
             503,
             'Applicant privacy request services are temporarily unavailable.',
         );
