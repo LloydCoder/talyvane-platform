@@ -243,6 +243,7 @@ class FeatureActivationEvaluator
             'model-agency.applications' => ['Public adult model-agency application intake', 'Restricted agency review workspace', 'Append-only application status history'],
             'model-agency.usage-rights' => ['Representation agreement register', 'Private portfolio media and consent', 'Purpose-bound image usage licence ledger'],
             'model-agency.casting' => ['Private casting briefs', 'Licensed model submissions', 'Manual shortlist and selection controls'],
+            'model-agency.assignments' => ['Model assignment offers and acceptance evidence', 'Assignment confirmation and delivery states', 'Agreed compensation metadata (not settlement)'],
             'payments.configuration' => ['Payment method configuration and payment-purpose controls'],
             default => [$feature->module.' module surfaces'],
         };
