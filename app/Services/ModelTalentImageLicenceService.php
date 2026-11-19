@@ -219,6 +219,10 @@ class ModelTalentImageLicenceService
             || $agreement->application_id !== $application->id
             || $asset->status !== 'approved'
             || $asset->consent_withdrawn_at !== null
+            || ! config('talyvane.model_agency.portfolio_consent_approved')
+            || $asset->consent_policy_version !== (string) config('talyvane.model_agency.portfolio_consent_version')
+            || ! config('talyvane.model_agency.representation_terms_approved')
+            || $agreement->terms_policy_version !== (string) config('talyvane.model_agency.representation_terms_version')
             || ! $asset->storage_path
             || ! Storage::disk('local')->exists($asset->storage_path)
             || ! config('talyvane.model_agency.portfolio_consent_approved')
