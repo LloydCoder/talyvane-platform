@@ -41,13 +41,43 @@ class RecoverSuperAdminBreakGlass extends Command
             return self::FAILURE;
         }
 
-        $recentFailures = SuperAdminRecoveryEvent::query()
-            ->where('super_admin_user_id', $superAdmin->id)
-            ->where('event_type', 'break_glass_rejected')
-            ->where('occurred_at', '>=', now()->subMinutes(15))
-            ->count();
+        $attemptReserved = DB::transaction(function () use ($superAdmin): bool {
+            $lockedControl = DB::table('platform_control')->where('id', 1)->lockForUpdate()->first();
 
-        if ($recentFailures >= 5) {
+            if (! $lockedControl || (int) $lockedControl->super_admin_user_id !== (int) $superAdmin->id) {
+                return false;
+            }
+
+            $cutoff = now()->subMinutes(15);
+            $startedAttempts = SuperAdminRecoveryEvent::query()
+                ->where('super_admin_user_id', $superAdmin->id)
+                ->where('event_type', 'break_glass_attempt_started')
+                ->where('occurred_at', '>=', $cutoff)
+                ->count();
+            $rejectedAttempts = SuperAdminRecoveryEvent::query()
+                ->where('super_admin_user_id', $superAdmin->id)
+                ->where('event_type', 'break_glass_rejected')
+                ->where('occurred_at', '>=', $cutoff)
+                ->count();
+
+            if (max($startedAttempts, $rejectedAttempts) >= 5) {
+                return false;
+            }
+
+            SuperAdminRecoveryEvent::query()->create([
+                'super_admin_user_id' => $superAdmin->id,
+                'event_type' => 'break_glass_attempt_started',
+                'reason' => null,
+                'session_version_before' => (int) $superAdmin->admin_session_version,
+                'session_version_after' => (int) $superAdmin->admin_session_version,
+                'metadata' => ['source' => 'trusted_cli'],
+                'occurred_at' => now(),
+            ]);
+
+            return true;
+        });
+
+        if (! $attemptReserved) {
             $this->error('Break-glass recovery is temporarily locked after five rejected attempts. Wait 15 minutes before retrying.');
 
             return self::FAILURE;
