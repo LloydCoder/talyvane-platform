@@ -61,6 +61,36 @@ class EnquiryTest extends TestCase
             ->assertSessionHasErrors('email');
     }
 
+    public function test_enquiry_cannot_reference_an_inactive_destination(): void
+    {
+        $destination = \\App\\Models\\Destination::create([
+            'name' => 'Hidden City',
+            'slug' => 'hidden-city',
+            'country_code' => 'GB',
+            'country_name' => 'United Kingdom',
+            'city_name' => 'Hidden City',
+            'currency_code' => 'GBP',
+            'locale' => 'en',
+            'timezone' => 'Europe/London',
+            'is_active' => false,
+        ]);
+
+        $this->from('/contact')
+            ->post('/enquiries', [
+                'name' => 'Taylor',
+                'email' => 'taylor@example.test',
+                'subject' => 'Question',
+                'message' => 'Please contact me about this city.',
+                'destination_id' => $destination->id,
+                'privacy_acknowledged' => '1',
+                'website' => '',
+            ])
+            ->assertRedirect('/contact')
+            ->assertSessionHasErrors('destination_id');
+
+        $this->assertDatabaseCount('enquiries', 0);
+    }
+
     public function test_admin_can_update_enquiry_status(): void
     {
         $admin = User::create([
