@@ -45,4 +45,9 @@
             <button class="button button-dark" type="submit">Confirm erasure request ↗</button>
         </form>
     @endif
+
+    <form method="POST" action="{{ route('model-agency.application-support.finish', $rightsRequest) }}">
+        @csrf
+        <button class="text-link" type="submit">Finish and close private session</button>
+    </form>
 @endsection
