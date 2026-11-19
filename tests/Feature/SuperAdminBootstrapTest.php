@@ -41,7 +41,7 @@ class SuperAdminBootstrapTest extends TestCase
         $this->assertSame('recovery@example.test', DB::table('platform_control')->value('super_admin_recovery_email'));
         $this->assertNotNull(DB::table('platform_control')->value('super_admin_recovery_email_verified_at'));
         $this->assertDatabaseHas('super_admin_recovery_events', ['super_admin_user_id' => $user->id, 'event_type' => 'bootstrap_recovery_key_issued']);
-        Notification::assertSentOnDemand(SuperAdminEmailVerificationCode::class, null, 2);
+        Notification::assertSentOnDemand(SuperAdminEmailVerificationCode::class, 2);
         $this->assertDatabaseHas('platform_control', [
             'id' => 1,
             'super_admin_user_id' => $user->id,
