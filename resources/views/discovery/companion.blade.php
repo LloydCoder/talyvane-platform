@@ -1,5 +1,6 @@
 @extends('discovery.layout')
 @section('title', $profile->display_name)
+@section('robots', 'noindex,nofollow')
 @section('content')
     <article class="profile-detail">
         <p class="eyebrow">VERIFIED ADULT PROFILE / {{ $profile->destination->name }}</p>
