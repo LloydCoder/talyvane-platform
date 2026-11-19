@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -22,11 +23,15 @@ class ModelAgencyApplicationRightsController extends Controller
 {
     public function create(): View
     {
+        $this->assertLifecycleSchemaReady();
+
         return view('model-agency.application-support');
     }
 
     public function submitRequest(Request $request, ModelAgencyRightsCodeGenerator $codes): RedirectResponse
     {
+        $this->assertLifecycleSchemaReady();
+
         $validated = $request->validate([
             'reference' => ['required', 'string', 'max:32'],
             'email' => ['required', 'email:rfc', 'max:254'],
@@ -84,11 +89,15 @@ class ModelAgencyApplicationRightsController extends Controller
 
     public function verifyForm(): View
     {
+        $this->assertLifecycleSchemaReady();
+
         return view('model-agency.application-support-verify');
     }
 
     public function verify(Request $request): RedirectResponse
     {
+        $this->assertLifecycleSchemaReady();
+
         $validated = $request->validate([
             'reference' => ['required', 'string', 'max:32'],
             'email' => ['required', 'email:rfc', 'max:254'],
@@ -303,6 +312,16 @@ class ModelAgencyApplicationRightsController extends Controller
 
         return redirect()->route('model-agency.application-support.verify')
             ->with('status', 'The personal information in your application has been erased. A minimal non-identifying audit record is retained.');
+    }
+
+    private function assertLifecycleSchemaReady(): void
+    {
+        abort_unless(
+            Schema::hasTable('model_talent_applications')
+                && Schema::hasTable('model_talent_application_rights_requests'),
+            503,
+            'Applicant privacy request services are temporarily unavailable.',
+        );
     }
 
     private function assertVerified(Request $request, ModelTalentApplicationRightsRequest $rightsRequest): void
