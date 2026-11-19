@@ -8,6 +8,7 @@
         <p class="eyebrow">SUPER ADMIN / CONTROL PLANE</p>
         <h1>Feature<br><em>registry.</em></h1>
         <p>Deployment feature inventory, implementation readiness, dependencies and activation prerequisites. This release is an inspect-only registry; feature changes remain disabled until the audited control workflow is delivered.</p>
+        <p class="field-help">Registry availability reflects implementation status, configured state and declared dependencies only. It does not certify jurisdictional approval, age assurance, consent, payment-provider approval or any other business prerequisite; those controls remain independently enforced.</p>
     </div>
 
     <div class="admin-card-grid">
