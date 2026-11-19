@@ -194,4 +194,55 @@ class BookingTest extends TestCase
         $this->assertDatabaseCount('bookings', 1);
     }
 
+    public function test_admin_must_verify_deposit_before_confirmation_when_required(): void
+    {
+        $client = $this->client();
+        $profile = $this->profile();
+        $admin = User::create(['name' => 'Admin', 'email' => 'admin@example.test', 'password' => 'Strong-Admin-Password-934!', 'role' => 'admin', 'is_active' => true]);
+        BookingSetting::create(['booking_mode' => 'manual', 'auto_requires_verified_deposit' => true]);
+        $start = now('Europe/London')->addDays(4)->utc();
+        $booking = Booking::create([
+            'reference' => 'PENDING1234', 'client_id' => $client->id,
+            'companion_profile_id' => $profile->id, 'destination_id' => $profile->destination_id,
+            'booking_mode' => 'manual', 'status' => 'pending_review', 'deposit_status' => 'pending',
+            'starts_at' => $start, 'ends_at' => $start->copy()->addHour(),
+            'timezone' => 'Europe/London', 'duration_minutes' => 60,
+        ]);
+
+        $this->actingAs($admin)->from('/admin/bookings')
+            ->patch('/admin/bookings/'.$booking->id, ['status' => 'confirmed'])
+            ->assertRedirect('/admin/bookings')->assertSessionHasErrors('status');
+
+        $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'status' => 'pending_review']);
+    }
+
+    public function test_admin_can_verify_deposit_then_confirm_booking(): void
+    {
+        $client = $this->client();
+        $profile = $this->profile();
+        $admin = User::create(['name' => 'Admin', 'email' => 'admin@example.test', 'password' => 'Strong-Admin-Password-934!', 'role' => 'admin', 'is_active' => true]);
+        BookingSetting::create(['booking_mode' => 'manual', 'auto_requires_verified_deposit' => true]);
+        $start = now('Europe/London')->addDays(5)->utc();
+        $booking = Booking::create([
+            'reference' => 'PENDING5678', 'client_id' => $client->id,
+            'companion_profile_id' => $profile->id, 'destination_id' => $profile->destination_id,
+            'booking_mode' => 'manual', 'status' => 'pending_review', 'deposit_status' => 'pending',
+            'starts_at' => $start, 'ends_at' => $start->copy()->addHour(),
+            'timezone' => 'Europe/London', 'duration_minutes' => 60,
+        ]);
+
+        $this->actingAs($admin)
+            ->post('/admin/bookings/'.$booking->id.'/deposit', [
+                'transaction_reference' => 'external-transaction-reference-123',
+                'verified' => '1',
+            ])->assertRedirect('/admin/bookings');
+
+        $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'deposit_status' => 'verified', 'deposit_verified_by' => $admin->id]);
+
+        $this->patch('/admin/bookings/'.$booking->id, ['status' => 'confirmed'])
+            ->assertRedirect('/admin/bookings');
+
+        $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'status' => 'confirmed']);
+    }
+
 }
