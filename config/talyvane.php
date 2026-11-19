@@ -33,6 +33,9 @@ return [
         'assignment_policy_approved' => filter_var(env('MODEL_AGENCY_ASSIGNMENT_POLICY_APPROVED', false), FILTER_VALIDATE_BOOL),
         'settlement_policy_version' => env('MODEL_AGENCY_SETTLEMENT_POLICY_VERSION'),
         'settlement_policy_approved' => filter_var(env('MODEL_AGENCY_SETTLEMENT_POLICY_APPROVED', false), FILTER_VALIDATE_BOOL),
+        'client_review_policy_version' => env('MODEL_AGENCY_CLIENT_REVIEW_POLICY_VERSION'),
+        'client_review_policy_approved' => filter_var(env('MODEL_AGENCY_CLIENT_REVIEW_POLICY_APPROVED', false), FILTER_VALIDATE_BOOL),
+        'client_review_access_days' => (int) env('MODEL_AGENCY_CLIENT_REVIEW_ACCESS_DAYS', 30),
         'retention' => [
             'application_days' => env('MODEL_AGENCY_APPLICATION_RETENTION_DAYS'),
             'accepted_days' => env('MODEL_AGENCY_ACCEPTED_RETENTION_DAYS'),
