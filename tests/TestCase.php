@@ -10,7 +10,18 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 abstract class TestCase extends BaseTestCase
 {
 
-    public function actingAs(UserContract $user, $guard = null)\n    {\n        parent::actingAs($user, $guard);\n\n        if ($user instanceof User && $user->isPlatformAdministrator()) {\n            $this->withSession(['admin_session_version' => (int) $user->admin_session_version]);\n        }\n\n        return $this;\n    }\n\n    protected function approveCountryMarket(Destination $destination): CountryMarket
+    public function actingAs(UserContract $user, $guard = null)
+    {
+        parent::actingAs($user, $guard);
+
+        if ($user instanceof User && $user->isPlatformAdministrator()) {
+            $this->withSession(['admin_session_version' => (int) $user->admin_session_version]);
+        }
+
+        return $this;
+    }
+
+    protected function approveCountryMarket(Destination $destination): CountryMarket
     {
         return CountryMarket::query()->updateOrCreate(
             ['country_code' => $destination->country_code],
