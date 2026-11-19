@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ModelTalentAssignment extends Model
 {
@@ -63,6 +64,16 @@ class ModelTalentAssignment extends Model
     public function representationAgreement(): BelongsTo
     {
         return $this->belongsTo(ModelTalentRepresentationAgreement::class, 'representation_agreement_id');
+    }
+
+    public function settlement(): HasOne
+    {
+        return $this->hasOne(ModelTalentSettlement::class, 'assignment_id');
+    }
+
+    public function settlementExpenses(): HasMany
+    {
+        return $this->hasMany(ModelTalentSettlementExpense::class, 'assignment_id')->latest();
     }
 
     public function events(): HasMany
