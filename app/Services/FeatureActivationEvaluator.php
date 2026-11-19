@@ -84,6 +84,31 @@ class FeatureActivationEvaluator
                 continue;
             }
 
+
+            if ($requirement === 'operator_sar_fulfilment') {
+                $sarSchemaReady = Schema::hasTable('model_talent_application_rights_requests')
+                    && Schema::hasColumns('model_talent_application_rights_requests', [
+                        'response_status',
+                        'response_due_at',
+                        'response_content',
+                        'response_sha256',
+                        'response_review_checklist',
+                        'response_reviewed_by',
+                        'response_reviewed_at',
+                        'response_responded_at',
+                        'response_delivery_method',
+                        'response_delivery_reference_hash',
+                        'response_decision_reason',
+                        'response_delivered_by',
+                    ]);
+
+                if (! $sarSchemaReady) {
+                    $blockers[] = 'The operator-led subject-access response workflow schema is incomplete.';
+                }
+
+                continue;
+            }
+
             if ($requirement === 'applicant_privacy_notice') {
                 $privacyVersion = (string) config('talyvane.model_agency.privacy_notice_version');
                 $privacyPage = SitePage::query()->where('slug', 'model-applicant-privacy')->where('is_published', true)->first();
