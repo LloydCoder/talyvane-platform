@@ -17,27 +17,35 @@ class ProfileMediaReviewController
             'review_note' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $media->load('profile');
-        if ($media->status !== 'pending_review') {
-            throw ValidationException::withMessages(['media' => 'This media item has already been reviewed.']);
-        }
-
-        if ($validated['decision'] === 'approved') {
-            $profile = $media->profile;
-            if ($profile->publication_status !== 'published' || ! $profile->publication_consent_at || $profile->consent_withdrawn_at) {
-                throw ValidationException::withMessages(['media' => 'The profile must have current publication consent before media can be approved.']);
+        DB::transaction(function () use ($media, $request, $validated): void {
+            $lockedMedia = ProfileMedia::query()->lockForUpdate()->findOrFail($media->id);
+            if ($lockedMedia->status !== 'pending_review') {
+                throw ValidationException::withMessages(['media' => 'This media item has already been reviewed.']);
             }
-            if (! Storage::disk('local')->exists($media->storage_path)) {
-                throw ValidationException::withMessages(['media' => 'The private image file is missing and cannot be approved.']);
-            }
-        }
 
-        $media->forceFill([
-            'status' => $validated['decision'],
-            'reviewed_by' => $request->user()->id,
-            'reviewed_at' => now(),
-            'review_note' => $validated['review_note'] ?? null,
-        ])->save();
+            if ($validated['decision'] === 'approved') {
+                $profile = $lockedMedia->profile()->lockForUpdate()->firstOrFail();
+                if (
+                    $profile->publication_status !== 'published'
+                    || ! $profile->age_verified_at
+                    || ! $profile->publication_consent_at
+                    || $profile->consent_withdrawn_at
+                    || ! $profile->destination()->where('is_active', true)->exists()
+                ) {
+                    throw ValidationException::withMessages(['media' => 'The profile must remain age-verified, active and consented before media can be approved.']);
+                }
+                if (! Storage::disk('local')->exists($lockedMedia->storage_path)) {
+                    throw ValidationException::withMessages(['media' => 'The private image file is missing and cannot be approved.']);
+                }
+            }
+
+            $lockedMedia->forceFill([
+                'status' => $validated['decision'],
+                'reviewed_by' => $request->user()->id,
+                'reviewed_at' => now(),
+                'review_note' => $validated['review_note'] ?? null,
+            ])->save();
+        });
 
         return redirect()->route('admin.profiles.index')->with('status', 'Media review recorded. Approved images remain delivered through a consent-checked route.');
     }
