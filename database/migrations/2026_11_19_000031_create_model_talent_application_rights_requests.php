@@ -10,6 +10,8 @@ return new class extends Migration
     {
         Schema::table('model_talent_applications', function (Blueprint $table): void {
             $table->timestamp('adult_eligibility_confirmed_at')->nullable()->change();
+            $table->timestamp('adult_eligibility_policy_accepted_at')->nullable()->change();
+            $table->timestamp('privacy_notice_accepted_at')->nullable()->change();
             $table->timestamp('legal_hold_at')->nullable();
             $table->foreignId('legal_hold_by')->nullable()->constrained('users')->nullOnDelete();
             $table->text('legal_hold_reason')->nullable();
@@ -38,6 +40,8 @@ return new class extends Migration
             $table->dropConstrainedForeignId('legal_hold_by');
             $table->dropColumn(['legal_hold_at', 'legal_hold_reason']);
             $table->timestamp('adult_eligibility_confirmed_at')->nullable(false)->change();
+            $table->timestamp('adult_eligibility_policy_accepted_at')->nullable(false)->change();
+            $table->timestamp('privacy_notice_accepted_at')->nullable(false)->change();
         });
     }
 };
