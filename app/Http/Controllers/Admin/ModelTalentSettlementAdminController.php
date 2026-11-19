@@ -87,7 +87,7 @@ class ModelTalentSettlementAdminController extends Controller
     {
         $this->assertSchemaReady();
         $validated = $request->validate([
-            'payment_method' => ['required', 'in:bank_transfer,cash,crypto_external,other_external'],
+            'payment_method' => ['required', 'in:bank_transfer,cash,other_external'],
             'payment_reference' => ['required', 'string', 'min:4', 'max:200'],
             'payment_evidence_reference' => ['required', 'string', 'min:20', 'max:200'],
         ]);
