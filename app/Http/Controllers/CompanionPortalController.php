@@ -141,9 +141,20 @@ class CompanionPortalController extends Controller
                 'automatic_booking_consent_at' => null,
             ])->save();
 
-            Booking::query()->where('companion_profile_id', $lockedProfile->id)
-                ->where('status', 'pending_review')
-                ->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+            $pendingBookings = Booking::query()->where('companion_profile_id', $lockedProfile->id)
+                ->where('status', 'pending_review')->get();
+            foreach ($pendingBookings as $pendingBooking) {
+                $pendingBooking->forceFill(['status' => 'cancelled', 'cancelled_at' => now()])->save();
+                BookingEvent::query()->create([
+                    'booking_id' => $pendingBooking->id,
+                    'actor_id' => auth()->id(),
+                    'event_type' => 'consent_withdrawn',
+                    'from_status' => 'pending_review',
+                    'to_status' => 'cancelled',
+                    'metadata' => [],
+                    'created_at' => now(),
+                ]);
+            }
 
             ProfilePublicationReview::query()->create([
                 'companion_profile_id' => $profile->id,
