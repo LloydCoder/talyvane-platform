@@ -8,6 +8,21 @@ use Illuminate\Support\Facades\Storage;
 
 class ProfileMediaController extends Controller
 {
+    public function preview(ProfileMedia $media): Response
+    {
+        abort_unless(auth()->check() && in_array(auth()->user()->role, ['owner', 'admin'], true), 403);
+        abort_unless($media->status === 'pending_review', 404);
+        abort_unless(Storage::disk('local')->exists($media->storage_path), 404);
+
+        return response(Storage::disk('local')->get($media->storage_path), 200, [
+            'Content-Type' => 'image/webp',
+            'Content-Disposition' => 'inline; filename=\"pending-profile-image.webp\"',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'Referrer-Policy' => 'no-referrer',
+        ]);
+    }
+
     public function show(ProfileMedia $media): Response
     {
         abort_unless($media->status === 'approved', 404);
