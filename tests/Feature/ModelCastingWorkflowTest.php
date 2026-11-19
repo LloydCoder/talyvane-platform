@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\CountryMarket;
 use App\Models\Currency;
 use App\Models\ModelTalentApplication;
+use App\Models\ModelCastingEvent;
 use App\Models\ModelTalentImageLicence;
 use App\Models\ModelTalentPortfolioAsset;
 use App\Models\ModelTalentRepresentationAgreement;
@@ -179,9 +180,10 @@ class ModelCastingWorkflowTest extends TestCase
 
         $this->assertSame('submitted', $submission->status);
         $this->assertSame($context['licence']->id, $submission->image_licence_id);
-        $this->assertDatabaseHas('model_talent_application_events', [
-            'application_id' => $context['application']->id,
-            'event_type' => 'application.casting_submission_created',
+        $this->assertDatabaseHas('model_casting_events', [
+            'call_id' => $call->id,
+            'submission_id' => $submission->id,
+            'event_type' => 'casting.submission_created',
         ]);
     }
 
