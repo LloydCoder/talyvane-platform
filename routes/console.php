@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('talyvane:about', function () {
     $this->comment('Talyvane platform foundation');
@@ -668,7 +669,5 @@ Artisan::command('talyvane:companion:create {email}', function () {
 if ((int) config('talyvane.model_agency.retention.application_days') > 0
     && (int) config('talyvane.model_agency.retention.accepted_days') > 0
     && config('talyvane.model_agency.retention.schedule_approved')) {
-    if (config('talyvane.model_agency.retention.schedule_approved')) {
     Schedule::command('talyvane:model-agency:apply-retention')->dailyAt('02:30')->withoutOverlapping();
-}
 }
