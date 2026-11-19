@@ -27,7 +27,7 @@ The commission percentage is snapshotted on the assignment from its executed rep
 
 ## External payment boundary
 
-The `paid` state means an administrator recorded an external payment attestation and private evidence reference. Supported labels include bank transfer, cash, external crypto transfer and other external payment. The application does not initiate, custody, route, confirm or independently verify funds, bank transfers or blockchain transactions. A transaction hash or uploaded screenshot is not independently validated.
+The `paid` state means an administrator recorded an external payment attestation and private evidence reference. Supported labels include bank transfer, cash and other external payment. External crypto settlement is not implemented because network, token contract, confirmation, reorganization and reconciliation details are not captured. The application does not initiate, custody, route, confirm or independently verify funds, bank transfers or blockchain transactions. A transaction hash or uploaded screenshot is not independently validated.
 
 Reversal records an external reversal reason and private evidence reference; it does not initiate a refund. Disputes require human reconciliation. Tax, withholding, invoicing, chargebacks, refunds, FX conversion, multi-currency split payments, partial payments and statutory reporting are not implemented.
 
