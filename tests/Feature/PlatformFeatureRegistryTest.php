@@ -63,7 +63,7 @@ class PlatformFeatureRegistryTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $this->expectException(\\LogicException::class);
+        $this->expectException(\LogicException::class);
         $event->update(['reason' => 'Tampered reason']);
     }
 
@@ -76,7 +76,7 @@ class PlatformFeatureRegistryTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $this->expectException(\\LogicException::class);
+        $this->expectException(\LogicException::class);
         $event->delete();
     }
 
