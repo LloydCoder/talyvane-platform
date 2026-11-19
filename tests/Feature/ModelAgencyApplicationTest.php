@@ -263,8 +263,8 @@ class ModelAgencyApplicationTest extends TestCase
 
         $this->assertNotEmpty(app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature));
 
-        SitePage::query()->create(['title' => 'Model Applicant Privacy Notice', 'slug' => 'model-applicant-privacy', 'body' => 'Approved model applicant privacy notice content for test.', 'is_published' => true, 'published_at' => now()]);
-        SitePage::query()->create(['title' => 'Adult Eligibility Policy', 'slug' => 'model-adult-eligibility', 'body' => 'Approved adult eligibility policy content for test.', 'is_published' => true, 'published_at' => now()]);
+        SitePage::query()->create(['title' => 'Model Applicant Privacy Notice', 'slug' => 'model-applicant-privacy', 'body' => 'Approved model applicant privacy notice content for test. Version: model-application-privacy-v1.', 'is_published' => true, 'published_at' => now()]);
+        SitePage::query()->create(['title' => 'Adult Eligibility Policy', 'slug' => 'model-adult-eligibility', 'body' => 'Approved adult eligibility policy content for test. Version: adult-eligibility-v1.', 'is_published' => true, 'published_at' => now()]);
 
         $this->assertSame([], app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature));
     }
