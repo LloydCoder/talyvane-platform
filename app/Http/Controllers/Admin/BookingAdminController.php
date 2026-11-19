@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\Booking;
+use App\Models\BookingEvent;
 use App\Models\BookingSetting;
 use App\Models\CompanionProfile;
 use Illuminate\Http\RedirectResponse;
