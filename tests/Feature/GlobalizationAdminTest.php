@@ -40,6 +40,10 @@ class GlobalizationAdminTest extends TestCase
             'minor_unit' => 2,
             'is_enabled' => true,
         ]);
+        $this->assertDatabaseHas('globalization_audit_events', [
+            'action' => 'currency.created',
+            'subject_key' => 'USD',
+        ]);
     }
 
     public function test_new_country_markets_are_created_pending_compliance_review(): void
@@ -61,6 +65,10 @@ class GlobalizationAdminTest extends TestCase
             'country_code' => 'US',
             'is_enabled' => true,
             'compliance_status' => 'pending',
+        ]);
+        $this->assertDatabaseHas('globalization_audit_events', [
+            'action' => 'country_market.created',
+            'subject_key' => 'US',
         ]);
     }
 
@@ -84,6 +92,10 @@ class GlobalizationAdminTest extends TestCase
 
         $this->assertDatabaseHas('globalization_settings', ['id' => 1, 'base_currency_code' => 'USD']);
         $this->assertDatabaseHas('currencies', ['code' => 'USD', 'is_reporting_currency' => true]);
+        $this->assertDatabaseHas('globalization_audit_events', [
+            'action' => 'deployment_defaults.updated',
+            'subject_key' => '1',
+        ]);
     }
 
     public function test_admin_cannot_disable_the_active_reporting_currency(): void
