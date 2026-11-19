@@ -1,6 +1,17 @@
 # Security and Privacy Baseline
 
-This is an engineering baseline, not a certification or legal opinion. Use OWASP ASVS 5.0 as a verification framework and threat-model authentication, admin access, bookings, identity evidence, media, payments, webhooks, exports and update workflows.
+This is an engineering baseline, not a certification or legal opinion. Use OWASP ASVS 5.0.0 as the version-pinned verification framework and OWASP Top 10:2025 as a risk-awareness taxonomy. ASVS provides testable requirements; the Top 10 is not a substitute for a control catalogue or security assessment. Map applicable ASVS requirements to implementation evidence, automated tests and manual review. Do not claim ASVS compliance or certification without a scoped independent assessment.
+
+Official references:
+- OWASP ASVS 5.0.0: https://asvs.owasp.org/
+- OWASP Top 10:2025: https://top10.owasp.org/2025/
+
+## Verification governance
+- Maintain a threat model covering public discovery, account lifecycle, privileged administration, bookings, companion autonomy, identity/age evidence, media, payments, integrations, exports, backups, installers and upgrades.
+- Track each applicable ASVS requirement as not assessed, pass, fail, not applicable (with rationale), or blocked; retain test/evidence references and reviewer/date.
+- Require negative authorization tests for every role and resource boundary, including tenant/deployment isolation if hosted multi-tenancy is introduced.
+- Include dependency/SBOM review, secret scanning, static analysis, dynamic testing, upload abuse tests, backup-restore exercises and manual security review in release gates.
+- Treat CI success as evidence only for the checks actually executed; it is not proof of legal compliance, production readiness or security certification.
 
 ## Identity and access
 - Server-side role and resource policies on every protected request.
