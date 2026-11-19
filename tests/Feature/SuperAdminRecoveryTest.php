@@ -61,6 +61,29 @@ class SuperAdminRecoveryTest extends TestCase
         Notification::assertSentOnDemand(SuperAdminRecoveryNotice::class, 2);
     }
 
+
+    public function test_super_admin_recovery_is_throttled_after_five_rejected_attempts_in_fifteen_minutes(): void
+    {
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'smtp.example.test']);
+        [$superAdmin] = $this->provisionSuperAdmin();
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            SuperAdminRecoveryEvent::query()->create([
+                'super_admin_user_id' => $superAdmin->id,
+                'event_type' => 'recovery_rejected',
+                'reason' => 'Credential verification failed',
+                'session_version_before' => 7,
+                'session_version_after' => 7,
+                'metadata' => ['source' => 'trusted_cli'],
+                'occurred_at' => now()->subMinutes(5),
+            ]);
+        }
+
+        $this->artisan('talyvane:super-admin:recover')
+            ->expectsOutput('Super Admin recovery is temporarily locked after five rejected attempts. Wait 15 minutes before retrying.')
+            ->assertExitCode(1);
+    }
+
     public function test_super_admin_recovery_rejects_invalid_credentials_without_mutating_security_state(): void
     {
         config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'smtp.example.test']);
