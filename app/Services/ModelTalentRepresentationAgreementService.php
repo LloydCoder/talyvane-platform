@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ModelTalentApplication;
 use App\Models\ModelTalentApplicationEvent;
+use App\Models\CountryMarket;
 use App\Models\ModelTalentRepresentationAgreement;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
