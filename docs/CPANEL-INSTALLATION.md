@@ -89,9 +89,9 @@ QUEUE_CONNECTION=sync
 MAIL_MAILER=smtp
 MAIL_HOST=mail.example.com
 MAIL_PORT=587
+# Leave MAIL_SCHEME unset unless the provider explicitly requires smtp or smtps.
 MAIL_USERNAME=REPLACE_WITH_MAIL_USER
 MAIL_PASSWORD=REPLACE_WITH_MAIL_SECRET
-MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS=concierge@example.com
 MAIL_FROM_NAME="Talyvane"
 ```
