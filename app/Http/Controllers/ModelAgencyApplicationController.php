@@ -70,7 +70,7 @@ class ModelAgencyApplicationController extends Controller
             'website' => ['prohibited'],
         ]);
 
-        DB::transaction(function () use ($validated, $privacyNoticeVersion, $adultEligibilityPolicyVersion): void {
+        $application = DB::transaction(function () use ($validated, $privacyNoticeVersion, $adultEligibilityPolicyVersion): ModelTalentApplication {
             $application = ModelTalentApplication::query()->create([
                 'reference' => 'MTA-'.now()->format('Y').'-'.Str::upper(Str::random(10)),
                 'full_name' => trim($validated['full_name']),
@@ -96,14 +96,20 @@ class ModelAgencyApplicationController extends Controller
                 'to_status' => 'submitted',
                 'occurred_at' => now(),
             ]);
+
+            return $application;
         });
 
-        return redirect()->route('model-agency.apply.received');
+        return redirect()->route('model-agency.apply.received')
+            ->with('application_reference', $application->reference);
     }
 
-    public function received(): View
+    public function received(): Response
     {
-        return view('model-agency.received');
+        return response()->view('model-agency.received')
+            ->header('Cache-Control', 'no-store, private, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Referrer-Policy', 'no-referrer');
     }
 
     private function assertFeatureReady(FeatureActivationEvaluator $evaluator): void
