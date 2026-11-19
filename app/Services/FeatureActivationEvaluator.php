@@ -41,6 +41,32 @@ class FeatureActivationEvaluator
                 continue;
             }
 
+            if ($requirement === 'model_agency_workflow') {
+                if (! Schema::hasTable('model_talent_applications') || ! Schema::hasTable('model_talent_application_events')) {
+                    $blockers[] = 'The separate model-agency application and audit workflow is not installed.';
+                }
+
+                continue;
+            }
+
+            if ($requirement === 'applicant_privacy_notice') {
+                if (! filled(config('talyvane.model_agency.privacy_notice_version'))
+                    || ! config('talyvane.model_agency.privacy_notice_approved')) {
+                    $blockers[] = 'A legally reviewed and versioned model-applicant privacy notice must be configured and explicitly approved.';
+                }
+
+                continue;
+            }
+
+            if ($requirement === 'adult_eligibility_policy') {
+                if (! filled(config('talyvane.model_agency.adult_eligibility_policy_version'))
+                    || ! config('talyvane.model_agency.adult_eligibility_policy_approved')) {
+                    $blockers[] = 'A legally reviewed, versioned adult-eligibility policy must be configured and explicitly approved.';
+                }
+
+                continue;
+            }
+
             if (in_array($requirement, ['approved_market_policy', 'market_approval'], true)) {
                 if (! CountryMarket::query()->operationallyApproved()->exists()) {
                     $blockers[] = 'At least one market must have a documented, operational compliance approval.';
