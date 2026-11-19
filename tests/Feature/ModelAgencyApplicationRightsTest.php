@@ -116,7 +116,7 @@ class ModelAgencyApplicationRightsTest extends TestCase
 
         DB::table('platform_features')->where('key', 'model-agency.applications')->update(['is_enabled' => false]);
 
-        $this->get('/models/application-support')->assertOk();
+        $this->get('/models/application-support')->assertOk()->assertHeader('Cache-Control', 'no-store, private, max-age=0');
         $request = $this->requestCode($application, 'access');
         $this->verifyCode($application, $request);
 
