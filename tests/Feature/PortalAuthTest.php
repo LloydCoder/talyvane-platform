@@ -51,8 +51,8 @@ class PortalAuthTest extends TestCase
             'password' => 'Strong-Client-Password-934!',
             'role' => 'client',
             'is_active' => true,
-            'email_verified_at' => now(),
         ]);
+        $client->forceFill(['email_verified_at' => now()])->save();
 
         $this->actingAs($client)
             ->get('/portal')
