@@ -16,6 +16,9 @@
 - [ ] Import and version the complete ISO 3166-1 and ISO 4217 reference datasets; current schema is intentionally empty until a vetted dataset/importer is delivered.
 - [x] Add admin workflows for deployment base currency/locale/time zone, currency registration and currency enable/disable, plus country-market registration that defaults to pending compliance.
 - [x] Record globalization defaults, currency and country-market configuration changes in an append-only audit-event table, atomically with the relevant writes.
+- [x] Curate royalty-free hospitality imagery for the public homepage and destination fallback cards; document source, photographer, license and restrictions.
+- [x] Add admin-managed destination cover image uploads with JPEG/PNG/WebP, size/dimension validation and commercial-rights declaration.
+- [ ] Add local image optimization/CDN strategy, EXIF removal, image moderation and complete companion-owned media upload/consent lifecycle.
 - [ ] Complete currency editing/reference-data validation, market policy review and approval workflows, market-specific price management and audited change history.
 - [ ] Implement exchange-rate provider adapters, rate freshness policy, immutable quote snapshots and deterministic rounding.
 - [ ] Integrate fail-closed market policy checks into discovery, booking, membership and payment boundaries.
