@@ -23,13 +23,13 @@ class PaymentConfigurationTest extends TestCase
         $this->assertDatabaseCount('payment_methods', 0);
     }
 
-    public function test_admin_can_configure_independent_payment_switches(): void
+    public function test_super_admin_can_configure_independent_payment_switches(): void
     {
         $admin = $this->createAdminUser([
             'name' => 'Platform Admin',
             'email' => 'admin@example.test',
             'password' => 'Strong-Admin-Password-934!',
-            'role' => 'admin',
+            'role' => 'super_admin',
             'is_active' => true,
         ]);
 
