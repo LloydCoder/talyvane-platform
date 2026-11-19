@@ -187,6 +187,29 @@ class SuperAdminFeatureControlTest extends TestCase
         ]);
     }
 
+    public function test_feature_change_rejects_an_incorrect_current_password(): void
+    {
+        $admin = $this->createAdminUser([
+            'name' => 'Deployment Super Admin',
+            'email' => 'super-admin@example.test',
+            'role' => 'super_admin',
+        ]);
+        $step = intdiv(time(), 30);
+        $code = (new TotpService())->codeForStep($admin->mfa_secret, $step);
+
+        $this->actingAs($admin)
+            ->patch('/admin/features/cms.pages', [
+                'enabled' => false,
+                'reason' => 'Valid reason explaining the controlled maintenance action.',
+                'password' => 'incorrect-password',
+                'code' => $code,
+            ])
+            ->assertSessionHasErrors('password');
+
+        $this->assertDatabaseHas('platform_features', ['key' => 'cms.pages', 'is_enabled' => true]);
+        $this->assertSame(0, PlatformFeatureAuditEvent::query()->count());
+    }
+
     public function test_feature_change_requires_a_meaningful_reason_and_valid_step_up_credentials(): void
     {
         $admin = $this->createAdminUser([
@@ -204,7 +227,7 @@ class SuperAdminFeatureControlTest extends TestCase
                 'password' => 'incorrect-password',
                 'code' => $code,
             ])
-            ->assertSessionHasErrors(['reason', 'password']);
+            ->assertSessionHasErrors('reason');
 
         $this->assertDatabaseHas('platform_features', ['key' => 'cms.pages', 'is_enabled' => true]);
         $this->assertSame(0, PlatformFeatureAuditEvent::query()->count());
