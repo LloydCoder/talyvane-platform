@@ -5,11 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ModelTalentApplication;
 use App\Models\ModelTalentApplicationEvent;
-use App\Models\PlatformFeature;
-use App\Services\FeatureActivationEvaluator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -23,9 +22,9 @@ class ModelAgencyApplicationAdminController extends Controller
         'declined' => [],
     ];
 
-    public function index(FeatureActivationEvaluator $evaluator): View
+    public function index(): View
     {
-        $this->assertFeatureReady($evaluator);
+        $this->assertSchemaReady();
 
         return view('admin.model-agency.applications.index', [
             'applications' => ModelTalentApplication::query()
@@ -38,9 +37,8 @@ class ModelAgencyApplicationAdminController extends Controller
     public function update(
         Request $request,
         ModelTalentApplication $application,
-        FeatureActivationEvaluator $evaluator,
     ): RedirectResponse {
-        $this->assertFeatureReady($evaluator);
+        $this->assertSchemaReady();
 
         $validated = $request->validate([
             'status' => ['required', Rule::in(['reviewing', 'accepted', 'declined'])],
@@ -92,9 +90,9 @@ class ModelAgencyApplicationAdminController extends Controller
         );
     }
 
-    public function updateLegalHold(Request $request, ModelTalentApplication $application, FeatureActivationEvaluator $evaluator): RedirectResponse
+    public function updateLegalHold(Request $request, ModelTalentApplication $application): RedirectResponse
     {
-        $this->assertFeatureReady($evaluator);
+        $this->assertSchemaReady();
         abort_unless(in_array($request->user()->role, ['super_admin', 'owner'], true), 403);
 
         $validated = $request->validate([
@@ -146,10 +144,12 @@ class ModelAgencyApplicationAdminController extends Controller
         return redirect()->route('admin.model-applications.index')->with('status', 'Applicant legal hold updated.');
     }
 
-    private function assertFeatureReady(FeatureActivationEvaluator $evaluator): void
+    private function assertSchemaReady(): void
     {
-        $feature = PlatformFeature::query()->findOrFail('model-agency.applications');
-
-        abort_if($evaluator->blockers($feature) !== [], 503, 'Model agency application safeguards are not configured.');
+        abort_unless(
+            Schema::hasTable('model_talent_applications') && Schema::hasTable('model_talent_application_events'),
+            503,
+            'Model agency application records are unavailable.',
+        );
     }
 }
