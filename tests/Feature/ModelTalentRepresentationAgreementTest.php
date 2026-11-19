@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ModelTalentApplication;
 use App\Models\ModelTalentRepresentationAgreement;
+use App\Models\CountryMarket;
 use App\Models\User;
 use App\Services\ModelAgencyApplicationLifecycleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,10 +46,25 @@ class ModelTalentRepresentationAgreementTest extends TestCase
         ], $overrides));
     }
 
+    private function market(): CountryMarket
+    {
+        return CountryMarket::query()->create([
+            'country_code' => 'GB',
+            'name' => 'United Kingdom',
+            'is_enabled' => true,
+            'compliance_status' => 'approved',
+            'compliance_reviewed_at' => now(),
+            'compliance_reviewed_by' => 'test-fixture',
+            'compliance_evidence_reference' => 'test-market-evidence-gb',
+            'compliance_review_summary' => 'Test fixture only; not legal approval for a real market.',
+            'market_policy' => ['test_fixture' => true],
+        ]);
+    }
+
     private function terms(): array
     {
         return [
-            'territory' => 'United Kingdom — subject to local legal approval',
+            'country_code' => 'GB',
             'representation_scope' => 'Commercial and editorial model representation within the approved territory.',
             'exclusivity' => 'non_exclusive',
             'commission_percent' => '15.00',
@@ -92,6 +108,7 @@ class ModelTalentRepresentationAgreementTest extends TestCase
             'talyvane.model_agency.representation_terms_version' => 'representation-terms-v1',
             'talyvane.model_agency.representation_terms_approved' => true,
         ]);
+        $this->market();
         $application = $this->application();
         $admin = $this->createAdminUser();
 
@@ -101,7 +118,8 @@ class ModelTalentRepresentationAgreementTest extends TestCase
         $agreement = ModelTalentRepresentationAgreement::query()->firstOrFail();
         $this->assertSame('draft', $agreement->status);
         $this->assertSame('representation-terms-v1', $agreement->terms_policy_version);
-        $this->assertSame('United Kingdom — subject to local legal approval', $agreement->terms_snapshot['territory']);
+        $this->assertSame('GB', $agreement->country_code);
+        $this->assertSame('United Kingdom', $agreement->terms_snapshot['territory']);
 
         $this->actingAs($admin)->post('/admin/model-representation-agreements/'.$agreement->id.'/offer')
             ->assertRedirect();
@@ -142,6 +160,7 @@ class ModelTalentRepresentationAgreementTest extends TestCase
             'talyvane.model_agency.representation_terms_version' => 'representation-terms-v1',
             'talyvane.model_agency.representation_terms_approved' => false,
         ]);
+        $this->market();
         $application = $this->application();
         $admin = $this->createAdminUser();
 
@@ -189,6 +208,7 @@ class ModelTalentRepresentationAgreementTest extends TestCase
         $admin = $this->createAdminUser();
         ModelTalentRepresentationAgreement::query()->create([
             'application_id' => $application->id,
+            'country_code' => 'GB',
             'reference' => 'MRA-2026-ERASURE01',
             'version' => 1,
             'status' => 'draft',
