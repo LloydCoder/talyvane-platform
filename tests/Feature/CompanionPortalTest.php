@@ -164,8 +164,8 @@ class CompanionPortalTest extends TestCase
         $this->assertDatabaseHas('companion_availability_rules', [
             'companion_profile_id' => $profile->id,
             'weekday' => 2,
-            'starts_at' => '09:00:00',
-            'ends_at' => '17:00:00',
+            'starts_at' => '09:00',
+            'ends_at' => '17:00',
         ]);
     }
 
