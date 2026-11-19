@@ -3,6 +3,15 @@
 ## Product outcome
 A premium, responsive white-label agency operations platform that can be independently deployed and branded for each licensed customer. Admin must manage approved branding and operational settings from desktop, tablet or mobile. The product is globally extensible by default; no initial customer-market list limits the platform's country, currency, language or locale model.
 
+## Business verticals and product boundary
+
+Talyvane supports two distinct agency verticals that may share platform infrastructure but must never be conflated in service, contract, consent, pricing, booking or reporting logic:
+
+1. **Luxury escort and elite companionship** — adult companionship enquiries, introductions, availability, client relationship management and booking workflows. This vertical may be activated only in a deployment and jurisdiction that has passed documented legal, safeguarding, payment-provider and market approval. No market is presumed approved by default.
+2. **Model agency and representation** — talent applications, portfolio curation, casting, assignments, representation agreements, image usage licences, booking coordination and talent settlements. Model work is not an escort service and must have its own service catalogue, application and casting states, contracts, usage-rights controls, fees and settlement records.
+
+The verticals may reuse identity, talent records, media infrastructure, availability primitives and CRM components only where access controls and data-purpose boundaries permit. They require separate booking types, service definitions, contract templates, consent scopes, price rules, compliance gates and analytics dimensions. A model assignment must not be treated as an escort booking, and consent for one vertical never implies consent for the other. Adult age assurance and safeguarding policies remain mandatory wherever applicable; no person under 18 may be represented in adult services or content.
+
 ## Roles
 Public visitor; client; companion/provider; operator; verification/safeguarding reviewer; finance operator; administrator; platform maintainer. Use least privilege. Platform maintainers have no default access to customer business data.
 
