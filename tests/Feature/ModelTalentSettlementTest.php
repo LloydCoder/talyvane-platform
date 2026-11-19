@@ -275,6 +275,30 @@ class ModelTalentSettlementTest extends TestCase
         $this->assertSame('half_up_to_currency_minor_unit', $settlement->calculation_snapshot['rounding']);
     }
 
+    public function test_settlement_requires_current_policy_approval_and_event_ledger_is_append_only(): void
+    {
+        $context = $this->assignment();
+        config(['talyvane.model_agency.settlement_policy_approved' => false]);
+
+        try {
+            app(ModelTalentSettlementService::class)->createDraft($context['assignment'], $context['admin']->id);
+            $this->fail('Settlement creation must stop when policy approval is withdrawn.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('settlement', $exception->errors());
+        }
+
+        config(['talyvane.model_agency.settlement_policy_approved' => true]);
+        $settlement = app(ModelTalentSettlementService::class)->createDraft($context['assignment'], $context['admin']->id);
+        $event = $settlement->events()->firstOrFail();
+
+        try {
+            $event->update(['reason' => 'Tampered settlement event.']);
+            $this->fail('Settlement audit events must reject mutation.');
+        } catch (\\RuntimeException $exception) {
+            $this->assertSame('Model settlement audit events are append-only.', $exception->getMessage());
+        }
+    }
+
     public function test_settlement_cannot_be_created_with_pending_expenses_or_before_assignment_completion(): void
     {
         $context = $this->assignment();
