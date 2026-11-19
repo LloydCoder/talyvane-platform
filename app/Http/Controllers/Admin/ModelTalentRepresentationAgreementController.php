@@ -99,7 +99,7 @@ class ModelTalentRepresentationAgreementController extends Controller
     {
         abort_unless(
             Schema::hasTable('model_talent_representation_agreements')
-                && Schema::hasColumns('model_talent_representation_agreements', ['application_id', 'reference', 'version', 'status', 'terms_snapshot', 'terms_policy_version', 'executed_document_reference']),
+                && Schema::hasColumns('model_talent_representation_agreements', ['application_id', 'country_code', 'reference', 'version', 'status', 'terms_snapshot', 'terms_policy_version', 'executed_document_reference']),
             503,
             'Representation agreement services are temporarily unavailable.',
         );
