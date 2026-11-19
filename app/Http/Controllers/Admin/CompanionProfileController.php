@@ -62,6 +62,7 @@ class CompanionProfileController
             'verification_reference' => ['required', 'string', 'min:8', 'max:255'],
             'consent_confirmed' => ['required', 'accepted'],
             'consent_version' => ['required', 'string', Rule::in([$consentVersion])],
+            'automatic_booking_opt_in' => ['sometimes', 'accepted'],
             'review_note' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -70,13 +71,16 @@ class CompanionProfileController
         }
 
         $now = now();
+        $automaticOptIn = isset($validated['automatic_booking_opt_in']);
 
-        DB::transaction(function () use ($profile, $validated, $now): void {
+        DB::transaction(function () use ($profile, $validated, $now, $automaticOptIn): void {
             $profile->forceFill([
                 'age_verified_at' => $now,
                 'publication_consent_at' => $now,
                 'consent_withdrawn_at' => null,
                 'publication_status' => 'published',
+                'accepts_automatic_bookings' => $automaticOptIn,
+                'automatic_booking_consent_at' => $automaticOptIn ? $now : null,
                 'published_at' => $now,
             ])->save();
 
@@ -86,6 +90,7 @@ class CompanionProfileController
                 'verification_provider' => $validated['verification_provider'],
                 'verification_reference_hash' => hash_hmac('sha256', $validated['verification_reference'], (string) config('app.key')),
                 'consent_version' => $validated['consent_version'],
+                'automatic_booking_opt_in' => $automaticOptIn,
                 'decision' => 'approved',
                 'review_note' => $validated['review_note'] ?? null,
                 'reviewed_at' => $now,
