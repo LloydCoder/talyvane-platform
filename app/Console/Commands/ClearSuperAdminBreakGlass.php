@@ -29,6 +29,12 @@ class ClearSuperAdminBreakGlass extends Command
             return self::FAILURE;
         }
 
+        if (config('mail.default') !== 'smtp' || blank(config('mail.mailers.smtp.host'))) {
+            $this->error('Clearing break-glass guardians requires configured SMTP delivery for security notifications.');
+
+            return self::FAILURE;
+        }
+
         if (! SuperAdminRecoveryGuardian::query()->exists()) {
             $this->error('No break-glass guardian assignment is configured.');
 
