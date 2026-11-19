@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\CompanionAvailabilityRule;
 use App\Models\CompanionProfile;
 use App\Models\ProfilePublicationReview;
 use Illuminate\Http\RedirectResponse;
