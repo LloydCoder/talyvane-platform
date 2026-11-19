@@ -45,12 +45,12 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/email/verification-notification', [PortalAuthController::class, 'resendVerification'])->middleware('throttle:6,1')->name('verification.send');
 
     Route::middleware(['verified', 'role:client'])->group(function (): void {
-        Route::get('/portal', fn () => view('portal.client-dashboard'))->name('portal.dashboard');
+        Route::get('/portal', [PortalDashboardController::class, 'client'])->name('portal.dashboard');
         Route::get('/companions/{slug}/book', [BookingController::class, 'create'])->name('bookings.create');
         Route::post('/bookings', [BookingController::class, 'store'])->name('bookings.store');
     });
 
-    Route::get('/companion-portal', fn () => view('portal.companion-dashboard'))
+    Route::get('/companion-portal', [PortalDashboardController::class, 'companion'])
         ->middleware(['verified', 'role:companion'])
         ->name('companion-portal.dashboard');
 });
