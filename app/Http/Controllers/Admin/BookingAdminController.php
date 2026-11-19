@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\Booking;
 use App\Models\BookingSetting;
+use App\Models\CompanionProfile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -56,7 +57,7 @@ class BookingAdminController
             $settings = BookingSetting::current();
 
             if ($validated['status'] === 'confirmed') {
-                $profile = \\App\\Models\\CompanionProfile::query()
+                $profile = CompanionProfile::query()
                     ->publiclyDiscoverable()
                     ->lockForUpdate()
                     ->find($lockedBooking->companion_profile_id);
