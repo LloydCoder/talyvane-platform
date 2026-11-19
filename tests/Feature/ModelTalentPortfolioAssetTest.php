@@ -150,6 +150,10 @@ class ModelTalentPortfolioAssetTest extends TestCase
         $this->assertNull($asset->storage_path);
         Storage::disk('local')->assertMissing($path);
         $this->actingAs($admin)->get('/admin/model-portfolio-assets/'.$asset->id.'/preview')->assertNotFound();
+
+        app(ModelAgencyApplicationLifecycleService::class)->anonymize($application, 'applicant');
+        $this->assertSame('erased', $application->fresh()->status);
+        $this->assertDatabaseMissing('model_talent_portfolio_assets', ['id' => $asset->id]);
     }
 
     public function test_upload_fails_closed_without_policy_approval_market_approval_or_adult_eligibility(): void
@@ -210,4 +214,41 @@ class ModelTalentPortfolioAssetTest extends TestCase
 
         $this->assertSame('accepted', $application->fresh()->status);
     }
+    public function test_outdated_consent_cannot_be_approved_but_can_be_rejected_and_removed(): void
+    {
+        Storage::fake('local');
+        $this->configurePortfolioPolicy();
+        $this->approvedMarket();
+        $application = $this->application();
+        $admin = $this->createAdminUser();
+
+        $this->actingAs($admin)
+            ->post('/admin/model-applications/'.$application->id.'/portfolio-assets', $this->uploadPayload())
+            ->assertRedirect();
+        $asset = ModelTalentPortfolioAsset::query()->firstOrFail();
+        $path = $asset->storage_path;
+
+        config(['talyvane.model_agency.portfolio_consent_version' => 'model-portfolio-consent-v2']);
+
+        $this->actingAs($admin)
+            ->post('/admin/model-portfolio-assets/'.$asset->id.'/review', [
+                'decision' => 'approved',
+                'review_note' => 'Attempted approval under a stale consent policy version.',
+            ])
+            ->assertSessionHasErrors('decision');
+
+        $this->assertSame('pending_review', $asset->fresh()->status);
+
+        $this->actingAs($admin)
+            ->post('/admin/model-portfolio-assets/'.$asset->id.'/review', [
+                'decision' => 'rejected',
+                'review_note' => 'Rejected because the asset consent version is no longer current.',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('rejected', $asset->fresh()->status);
+        $this->assertNull($asset->fresh()->storage_path);
+        Storage::disk('local')->assertMissing($path);
+    }
+
 }
