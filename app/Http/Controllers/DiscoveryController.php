@@ -32,7 +32,7 @@ class DiscoveryController extends Controller
         $profiles = CompanionProfile::query()
             ->publiclyDiscoverable()
             ->where('destination_id', $destination->id)
-            ->with(['media' => fn ($query) => $query->where('status', 'approved')->latest()])
+            ->with(['destination:id,name,slug,country_name', 'media' => fn ($query) => $query->where('status', 'approved')->latest()])
             ->orderByDesc('published_at')
             ->paginate(12);
 
