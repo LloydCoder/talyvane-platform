@@ -212,5 +212,6 @@ class SuperAdminBootstrapTest extends TestCase
         $this->assertArrayNotHasKey('mfa_secret', $serialized);
         $this->assertArrayNotHasKey('mfa_recovery_codes', $serialized);
         $this->assertArrayNotHasKey('mfa_last_used_step', $serialized);
+        $this->assertArrayNotHasKey('admin_session_version', $serialized);
     }
 }
