@@ -25,6 +25,20 @@ Artisan::command('talyvane:super-admin:create {email}', function () {
         return 1;
     }
 
+    $control = DB::table('platform_control')->where('id', 1)->first();
+
+    if (! $control) {
+        $this->error('Run the database migrations before provisioning the deployment Super Admin.');
+
+        return 1;
+    }
+
+    if ($control->super_admin_user_id !== null || User::query()->where('role', 'super_admin')->exists()) {
+        $this->error('A Super Admin is already provisioned for this deployment. Use the documented recovery process.');
+
+        return 1;
+    }
+
     $name = trim((string) $this->ask('Super Admin name'));
     $password = (string) $this->secret('Password (minimum 14 characters)');
     $confirmation = (string) $this->secret('Confirm password');
