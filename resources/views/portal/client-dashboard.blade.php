@@ -6,6 +6,7 @@
     <p class="admin-muted">Welcome, {{ auth()->user()->name }}. Your account and saved profiles are private to you.</p>
     @if (session('status'))<div class="form-success" role="status">{{ session('status') }}</div>@endif
 
+    @if ($membershipFeatureEnabled)
     <section class="client-membership-panel">
         <div>
             <p class="eyebrow">YOUR MEMBERSHIP</p>
@@ -24,6 +25,7 @@
         </div>
         <span class="client-membership-mark" aria-hidden="true">T.</span>
     </section>
+    @endif
 
     <section class="client-saved-section">
         <div class="portal-section-heading"><h2>Saved companions</h2><a href="{{ route('companions.index') }}">Discover companions ↗</a></div>
