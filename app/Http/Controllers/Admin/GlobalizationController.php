@@ -7,6 +7,7 @@ use App\Models\Currency;
 use App\Models\GlobalizationSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -29,10 +30,19 @@ class GlobalizationController
             'default_timezone' => ['required', 'timezone'],
         ]);
 
-        GlobalizationSetting::current()->update([
-            ...$validated,
-            'updated_by' => $request->user()->id,
-        ]);
+        DB::transaction(function () use ($validated, $request): void {
+            Currency::query()->update(['is_reporting_currency' => false]);
+
+            if (! empty($validated['base_currency_code'])) {
+                Currency::query()->where('code', $validated['base_currency_code'])
+                    ->update(['is_reporting_currency' => true]);
+            }
+
+            GlobalizationSetting::current()->update([
+                ...$validated,
+                'updated_by' => $request->user()->id,
+            ]);
+        });
 
         return redirect()->route('admin.globalization')->with('status', 'Globalization defaults saved.');
     }
@@ -63,7 +73,7 @@ class GlobalizationController
             'country_code' => ['required', 'string', 'size:2', 'regex:/^[A-Z]{2}$/', 'unique:country_markets,country_code'],
             'alpha3_code' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/', 'unique:country_markets,alpha3_code'],
             'name' => ['required', 'string', 'max:120'],
-            'default_currency_code' => ['nullable', 'string', 'size:3', 'exists:currencies,code'],
+            'default_currency_code' => ['nullable', 'string', 'size:3', Rule::exists('currencies', 'code')->where('is_enabled', true)],
             'default_locale' => ['nullable', 'string', 'max:35', 'regex:/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/'],
             'default_timezone' => ['nullable', 'timezone'],
             'is_enabled' => ['sometimes', 'boolean'],
