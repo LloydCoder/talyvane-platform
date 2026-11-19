@@ -70,4 +70,9 @@ class ModelTalentApplication extends Model
     {
         return $this->hasMany(ModelTalentApplicationEvent::class, 'application_id');
     }
+
+    public function representationAgreements(): HasMany
+    {
+        return $this->hasMany(ModelTalentRepresentationAgreement::class, 'application_id')->latest('version');
+    }
 }
