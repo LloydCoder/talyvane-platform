@@ -49,9 +49,17 @@ class AdminLoginController
             ]);
         }
 
-        Auth::login($user, $request->boolean('remember'));
         RateLimiter::clear($key);
         $request->session()->regenerate();
+
+        if ($user->mfa_enabled_at && $user->mfa_secret) {
+            $request->session()->put('pending_admin_mfa_user_id', $user->id);
+            $request->session()->put('pending_admin_mfa_remember', $request->boolean('remember'));
+
+            return redirect()->route('admin.mfa.challenge');
+        }
+
+        Auth::login($user, $request->boolean('remember'));
 
         return redirect()->intended(route('admin.dashboard'));
     }
