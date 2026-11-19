@@ -142,6 +142,17 @@ class CompanionPortalController extends Controller
                 'automatic_booking_consent_at' => null,
             ])->save();
 
+            // Re-consenting to the profile later must never silently revive old image consent.
+            \\App\\Models\\ProfileMedia::query()
+                ->where('companion_profile_id', $lockedProfile->id)
+                ->whereIn('status', ['pending_review', 'approved'])
+                ->update([
+                    'status' => 'withdrawn',
+                    'reviewed_by' => auth()->id(),
+                    'reviewed_at' => now(),
+                    'review_note' => 'Image publication consent withdrawn by profile owner.',
+                ]);
+
             $pendingBookings = Booking::query()->where('companion_profile_id', $lockedProfile->id)
                 ->where('status', 'pending_review')->get();
             foreach ($pendingBookings as $pendingBooking) {
