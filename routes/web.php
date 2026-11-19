@@ -21,6 +21,7 @@ use App\Http\Controllers\EnquiryController;
 use App\Http\Controllers\PortalAuthController;
 use App\Http\Controllers\PortalDashboardController;
 use App\Http\Controllers\PageController;
+use App\Models\SitePage;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
 
