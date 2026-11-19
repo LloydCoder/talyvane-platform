@@ -37,7 +37,7 @@ Route::get('/', function (\App\Services\BrandSettings $settings) {
         'brand' => $settings->publicBrand(),
         'pages' => SitePage::query()->where('is_published', true)->orderBy('title')->get(['title', 'slug']),
     ]);
-})->name('home');
+})->middleware('feature:public.discovery')->name('home');
 
 Route::get('/destinations', [DiscoveryController::class, 'destinations'])->middleware('feature:public.discovery')->name('destinations.index');
 Route::get('/destinations/{slug}', [DiscoveryController::class, 'destination'])->middleware('feature:public.discovery')->name('destinations.show');
