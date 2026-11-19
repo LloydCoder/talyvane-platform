@@ -84,6 +84,7 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [ ] Add dependency and eligibility validation for market, payment, verification and communication activation.
 - [x] Add audited emergency disable for optional implemented features and prerequisite-checked re-enable workflow.
 - [x] Test designated Super Admin lifecycle invariants and second-principal rejection at the Eloquent boundary.
+- [x] Exclude MFA secret, recovery-code hashes and TOTP replay state from User model serialization, with regression coverage.
 - [ ] Test authorization boundaries, direct-database bypass threat, audit integrity and attempts to bypass feature gates.
 - [ ] Keep hard safeguards outside the feature registry and verify they cannot be disabled by Super Admin settings.
 
