@@ -1,16 +1,16 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Models\\CompanionProfile;
-use App\\Models\\Destination;
-use App\\Models\\ProfileMedia;
-use App\\Models\\User;
-use App\\Services\\ProfileMediaProcessor;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Http\\UploadedFile;
-use Illuminate\\Support\\Facades\\Storage;
-use Tests\\TestCase;
+use App\Models\CompanionProfile;
+use App\Models\Destination;
+use App\Models\ProfileMedia;
+use App\Models\User;
+use App\Services\ProfileMediaProcessor;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
 
 class ProfileMediaTest extends TestCase
 {
