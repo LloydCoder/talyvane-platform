@@ -66,8 +66,11 @@ A milestone is not complete because screens exist. Each release requires tests, 
 ## Super Admin control plane (approved architecture; implementation pending)
 
 - [x] Define and seed a deployment feature registry with stable keys, module ownership, implementation status, dependencies, risk classes and activation prerequisites.
-- [x] Add a distinct `super_admin` principal to privileged authentication, route and MFA gates without silently promoting existing accounts.\n- [x] Add a singleton deployment-control record and transactional CLI bootstrap that provisions at most one Super Admin.\n- [ ] Complete last-Super-Admin protection, recovery governance and the legacy owner/admin least-privilege migration.
-- [x] Build a Super Admin-only read-only feature catalogue showing implementation state, configured/effective state, dependencies, risk and activation prerequisites.\n- [ ] Build feature mutation controls with impact preview, prerequisite evaluation, reason capture, step-up authentication and rollback.
+- [x] Add a distinct `super_admin` principal to privileged authentication, route and MFA gates without silently promoting existing accounts.
+- [x] Add a singleton deployment-control record and transactional CLI bootstrap that provisions at most one Super Admin.
+- [ ] Complete last-Super-Admin protection, recovery governance and the legacy owner/admin least-privilege migration.
+- [x] Build a Super Admin-only read-only feature catalogue showing implementation state, configured/effective state, dependencies, risk and activation prerequisites.
+- [ ] Build feature mutation controls with impact preview, prerequisite evaluation, reason capture, step-up authentication and rollback.
 - [ ] Centralize server-side feature enforcement across routes, policies, application services, scheduled jobs and integrations.
 - [ ] Implement MFA/step-up, reason capture, atomic configuration changes and append-only audit events for high-impact actions.
 - [ ] Add secret set/rotate/clear workflows backed by environment or dedicated secret storage; never reveal stored values.
