@@ -44,7 +44,7 @@ Applicants open /models/application-support, provide the application reference a
 - A legal hold can be placed/released only by Super Admin or Owner with a reason. A hold blocks erasure and automated retention.
 - talyvane:model-agency:apply-retention anonymizes records after the configured retention period. Accepted applications use the accepted retention period; other non-erased statuses use the general application period. The clock starts at the latest review/decision timestamp when present, otherwise at submission. The initial candidate scan is not authoritative: each record's current status, decision timestamp and legal-hold state are rechecked under a database row lock in the same transaction as anonymization, preventing a concurrent acceptance, status change or legal hold from being bypassed. The scheduled task runs daily at 02:30 and is protected against overlapping execution.
 
-Retention values are deployment/legal decisions, not product defaults. The scheduler approval flag is an operator attestation, not automatic proof that the host cron is functioning. Monitor the command and host cron. Erasure is anonymization of identifying fields, not deletion of the minimal audit row. The verified data page and administrator application list use no-store/no-cache and no-referrer headers. Rights support and administrator governance remain available even when new intake is disabled.
+Retention values are deployment/legal decisions, not product defaults. The scheduler approval flag is an operator attestation, not automatic proof that the host cron is functioning. The schedule is registered only while the approval flag and positive retention periods are configured, and the command independently refuses to run if approval is withdrawn. Monitor the command and host cron. Erasure is anonymization of identifying fields, not deletion of the minimal audit row. The verified data page and administrator application list use no-store/no-cache and no-referrer headers. Rights support and administrator governance remain available even when new intake is disabled.
 
 ## Review state machine
 
@@ -60,7 +60,7 @@ Every transition requires an administrator reason and is committed with an appli
 
 - Independently review retention periods and test the production scheduler before activation.
 - Independent age/identity assurance appropriate to the legal markets and intended work.
-- Applicant access, correction, withdrawal and deletion-request workflows.
+- A separately verified applicant email-change and account-recovery process; the current rights workflow intentionally cannot change the registered email.
 - Legal review and sign-off of the configured retention periods and successful production cron execution.
 - Secure document and image submission only if later required, with private storage, scanning, consent and rights provenance.
 - Representation agreements, casting, assignment approvals, usage rights and settlements.
@@ -68,6 +68,8 @@ Every transition requires an administrator reason and is committed with an appli
 
 ## Engineering references
 
+- [ICO — Storage limitation](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/storage-limitation/)
+- [ICO — Recruitment and selection](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/employment/recruitment-and-selection/)
 - [ICO — Data minimisation](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/data-minimisation/)
 - [NIST SP 800-63A-4 — Identity proofing](https://pages.nist.gov/800-63-4/sp800-63a/proofing/)
 - [OWASP — SSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html)
