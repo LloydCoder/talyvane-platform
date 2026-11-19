@@ -15,7 +15,7 @@ class ModelTalentAssignment extends Model
         'compensation_amount', 'expense_cap_amount', 'currency_code', 'commission_percent',
         'assignment_policy_version', 'status', 'created_by', 'offered_by', 'offered_at',
         'acceptance_recorded_by', 'accepted_at', 'executed_document_reference',
-        'model_acceptance_evidence_reference', 'model_decline_evidence_reference', 'decline_reason', 'confirmed_by', 'confirmed_at',
+        'model_acceptance_evidence_reference', 'model_decline_evidence_reference', 'decline_reason', 'declined_by', 'declined_at', 'confirmed_by', 'confirmed_at',
         'started_by', 'started_at', 'completed_by', 'completed_at', 'cancelled_by',
         'cancelled_at', 'cancellation_reason', 'disputed_by', 'disputed_at', 'dispute_reason',
     ];
@@ -32,6 +32,7 @@ class ModelTalentAssignment extends Model
             'model_acceptance_evidence_reference' => 'encrypted',
             'model_decline_evidence_reference' => 'encrypted',
             'decline_reason' => 'encrypted',
+            'declined_at' => 'immutable_datetime',
             'cancellation_reason' => 'encrypted',
             'dispute_reason' => 'encrypted',
             'compensation_amount' => 'decimal:4',
