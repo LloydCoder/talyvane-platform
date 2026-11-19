@@ -100,6 +100,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/globalization', [GlobalizationController::class, 'edit'])->name('globalization');
         Route::put('/globalization/defaults', [GlobalizationController::class, 'updateDefaults'])->name('globalization.defaults.update');
         Route::post('/globalization/currencies', [GlobalizationController::class, 'storeCurrency'])->name('globalization.currencies.store');
+        Route::patch('/globalization/currencies/{currency}/enabled', [GlobalizationController::class, 'toggleCurrency'])->name('globalization.currencies.enabled');
         Route::post('/globalization/markets', [GlobalizationController::class, 'storeMarket'])->name('globalization.markets.store');
         Route::put('/branding', [BrandingController::class, 'update'])->name('branding.update');
         Route::resource('destinations', DestinationController::class)->except(['show', 'destroy']);
