@@ -48,6 +48,29 @@ class SuperAdminBootstrapTest extends TestCase
         ]);
     }
 
+
+    public function test_cli_bootstrap_does_not_create_an_account_when_either_notification_code_is_invalid(): void
+    {
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'smtp.example.test']);
+        Notification::fake();
+        $this->mock(RecoveryCodeGenerator::class, fn ($mock) => $mock->shouldReceive('generate')->twice()->andReturn('111111', '222222'));
+
+        $this->artisan('talyvane:super-admin:create', ['email' => 'root@example.test'])
+            ->expectsQuestion('Super Admin name', 'Deployment Owner')
+            ->expectsQuestion('Password (minimum 14 characters)', 'Strong-Root-Password-934!')
+            ->expectsQuestion('Confirm password', 'Strong-Root-Password-934!')
+            ->expectsQuestion('Recovery notification email (must differ from admin email)', 'recovery@example.test')
+            ->expectsQuestion('Verification code sent to root@example.test', '111111')
+            ->expectsQuestion('Verification code sent to recovery@example.test', '999999')
+            ->expectsOutput('Notification address verification failed or expired. No administrator account was created.')
+            ->assertExitCode(1);
+
+        $this->assertDatabaseMissing('users', ['email' => 'root@example.test']);
+        $this->assertNull(DB::table('platform_control')->value('super_admin_user_id'));
+        $this->assertNull(DB::table('platform_control')->value('super_admin_recovery_key_hash'));
+        Notification::assertSentOnDemand(SuperAdminEmailVerificationCode::class, 2);
+    }
+
     public function test_cli_bootstrap_refuses_a_second_super_admin_without_creating_an_account(): void
     {
         $first = User::query()->create([
