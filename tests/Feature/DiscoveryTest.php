@@ -15,6 +15,16 @@ class DiscoveryTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_homepage_renders_curated_hospitality_photography(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('editorial-gallery')
+            ->assertSee('images.pexels.com/photos/26729545')
+            ->assertSee('images.pexels.com/photos/12389384')
+            ->assertSee('images.pexels.com/photos/9143471');
+    }
+
     public function test_public_destination_directory_shows_active_destinations(): void
     {
         Destination::create([
@@ -44,6 +54,8 @@ class DiscoveryTest extends TestCase
         $this->get('/destinations')
             ->assertOk()
             ->assertSee('London')
+            ->assertSee('destination-card-image')
+            ->assertSee('Illustrative hospitality photography')
             ->assertDontSee('Hidden Destination');
     }
 
@@ -217,6 +229,10 @@ class DiscoveryTest extends TestCase
         $destination = Destination::query()->where('slug', 'lisbon')->firstOrFail();
         $this->assertNotNull($destination->image_path);
         Storage::disk('public')->assertExists($destination->image_path);
+
+        $this->get('/destinations')
+            ->assertOk()
+            ->assertSee('storage/'.$destination->image_path);
     }
 
     public function test_admin_destination_upload_rejects_svg_files(): void
