@@ -92,6 +92,7 @@ class DiscoveryTest extends TestCase
             'timezone' => 'Europe/London',
             'is_active' => true,
         ]);
+        $this->approveCountryMarket($destination);
 
         $visible = \App\Models\CompanionProfile::create([
             'destination_id' => $destination->id,
