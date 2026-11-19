@@ -79,7 +79,9 @@ class DestinationController
             'timezone' => ['required', 'timezone'],
             'description' => ['nullable', 'string', 'max:2000'],
             'cover_image' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120', 'dimensions:min_width=800,min_height=500'],
-            'image_rights_confirmed' => [Rule::requiredIf(fn (): bool => $request->hasFile('cover_image')), 'nullable', 'accepted'],
+            'image_rights_confirmed' => $request->hasFile('cover_image')
+                ? ['required', 'accepted']
+                : ['sometimes', 'nullable', 'accepted'],
             'remove_cover_image' => ['sometimes', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
             'is_active' => ['sometimes', 'boolean'],
