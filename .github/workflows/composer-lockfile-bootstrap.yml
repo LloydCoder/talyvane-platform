@@ -1,0 +1,112 @@
+name: Bootstrap Composer lockfile
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: composer-lockfile-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - id: guard
+        name: Check whether a committed lockfile is still needed
+        run: |
+          if [ -f composer.lock ]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure PHP and Composer runtime
+        if: steps.guard.outputs.needed == 'true'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, tokenizer, xml
+          coverage: none
+
+      - name: Prepare bot-owned lockfile branch
+        if: steps.guard.outputs.needed == 'true'
+        run: |
+          git fetch origin main
+          git checkout -B automation/composer-lockfile origin/main
+
+      - name: Resolve and validate dependencies against the minimum PHP version
+        if: steps.guard.outputs.needed == 'true'
+        run: |
+          composer update --prefer-dist --no-interaction --no-progress
+          composer validate --no-check-publish
+          composer audit --no-interaction
+          composer check-platform-reqs
+
+      - name: Require deterministic Composer installation in CI
+        if: steps.guard.outputs.needed == 'true'
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/ci.yml')
+          content = path.read_text()
+          old = """      - name: Install reproducible dependencies
+                run: |
+                  if [ -f composer.lock ]; then
+                    composer install --prefer-dist --no-interaction --no-progress
+                  else
+                    echo "::warning::composer.lock is not committed yet; using temporary dependency resolution until the lockfile bootstrap PR is merged."
+                    composer update --prefer-dist --no-interaction --no-progress
+                  fi
+          """
+          new = """      - name: Install reproducible dependencies
+                run: composer install --prefer-dist --no-interaction --no-progress
+          """
+          if old not in content:
+              raise SystemExit('Expected temporary Composer fallback block was not found; refusing to rewrite CI unexpectedly.')
+          path.write_text(content.replace(old, new, 1))
+          PY
+
+      - name: Commit and publish the lockfile proposal
+        if: steps.guard.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add composer.lock .github/workflows/ci.yml
+          git commit -m "build: commit reproducible Composer dependency lockfile"
+          git push --force origin HEAD:refs/heads/automation/composer-lockfile
+
+          pr_number="$(gh pr list --head automation/composer-lockfile --base main --json number --jq '.[0].number // empty')"
+          if [ -z "$pr_number" ]; then
+            gh pr create \
+              --base main \
+              --head automation/composer-lockfile \
+              --title "build: commit reproducible Composer dependency lockfile" \
+              --body "## Summary
+          - Commit the resolved Composer dependency graph generated against the PHP 8.3 minimum platform.
+          - Change CI to use deterministic `composer install` and verify actual runtime platform requirements on PHP 8.3, 8.4 and 8.5.
+          - Preserve dependency audit and Composer validation.
+
+          ## Validation
+          - Lockfile generated and audited on PHP 8.4 with Composer platform PHP pinned to 8.3.0.
+          - A separate CI workflow-dispatch run is started for this branch to validate the locked graph across the supported PHP matrix."
+          else
+            gh pr edit "$pr_number" --title "build: commit reproducible Composer dependency lockfile"
+          fi
+
+          gh workflow run ci.yml --ref automation/composer-lockfile
