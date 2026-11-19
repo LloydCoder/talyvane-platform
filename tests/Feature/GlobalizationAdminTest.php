@@ -72,6 +72,47 @@ class GlobalizationAdminTest extends TestCase
         ]);
     }
 
+    public function test_market_approval_requires_evidence_and_is_recorded_in_the_audit_log(): void
+    {
+        $admin = $this->createAdminUser();
+        $market = CountryMarket::query()->create([
+            'country_code' => 'GB',
+            'name' => 'United Kingdom',
+            'is_enabled' => false,
+            'compliance_status' => 'pending',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.globalization.markets.review', $market->country_code), [
+                'decision' => 'approved',
+                'enable_market' => '1',
+                'review_confirmed' => '1',
+            ])
+            ->assertSessionHasErrors(['evidence_reference', 'review_summary']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.globalization.markets.review', $market->country_code), [
+                'decision' => 'approved',
+                'evidence_reference' => 'counsel-opinion-reference-2026-GB',
+                'review_summary' => 'Qualified local counsel reviewed the documented operating model and current jurisdiction-specific requirements.',
+                'enable_market' => '1',
+                'review_confirmed' => '1',
+            ])
+            ->assertRedirect(route('admin.globalization'));
+
+        $this->assertDatabaseHas('country_markets', [
+            'country_code' => 'GB',
+            'is_enabled' => true,
+            'compliance_status' => 'approved',
+            'compliance_reviewed_by' => (string) $admin->id,
+            'compliance_evidence_reference' => 'counsel-opinion-reference-2026-GB',
+        ]);
+        $this->assertDatabaseHas('globalization_audit_events', [
+            'action' => 'country_market.compliance_reviewed',
+            'subject_key' => 'GB',
+        ]);
+    }
+
     public function test_admin_can_set_reporting_currency_and_it_is_marked_in_registry(): void
     {
         $admin = $this->createAdminUser();
