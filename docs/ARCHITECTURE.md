@@ -31,3 +31,28 @@ Do not assume SSH, Composer, cron, queues, Redis, Node build tools or writable p
 
 ## Evolution
 Introduce shared tenancy, microservices or a central control plane only when customer scale and threat modelling justify them.
+
+
+## Super Admin control plane
+
+The deployment's Super Admin is the highest customer-controlled principal. Implement a registry-driven control plane rather than scattered boolean settings:
+
+1. **Feature registry:** stable feature keys, module ownership, descriptions, default state, dependencies, risk class, configuration schema and activation prerequisites. Unknown feature keys are rejected.
+2. **Deployment configuration:** persisted enabled/disabled state and typed configuration, scoped to the isolated installation. Sensitive credentials live in environment/secret storage, not generic settings rows.
+3. **Policy enforcement:** a central feature-availability service is consulted by HTTP middleware, authorization policies, application services, scheduled jobs and provider adapters. UI visibility is a convenience only.
+4. **Eligibility gates:** activation checks dependencies, verified configuration, provider approval, market policy and safeguarding prerequisites. A disabled feature fails closed at every entry point.
+5. **Privileged workflow:** MFA/step-up, impact preview, reason capture, transactional update and append-only audit event. High-risk changes must be atomic with their audit record.
+6. **Operational visibility:** searchable feature catalogue, status, blockers, last changed by/when, version, and safe diagnostics. Do not reveal secret values.
+7. **Emergency control:** immediate disable path for risky optional functionality. Re-enable follows full eligibility checks; emergency disable cannot disable the security/audit mechanisms that make the action accountable.
+
+Keep hard safety and security invariants outside the editable feature registry. The Super Admin can choose stricter policy and disable capabilities, but cannot toggle off age assurance, consent, authorization, MFA for privileged access, audit integrity, privacy boundaries, market approval or payment verification requirements. A configuration change must never grant authority by itself.
+
+### Authorization hierarchy
+
+- **Super Admin:** full configuration and operational authority within one deployment, subject to hard invariants.
+- **Administrator / operator:** explicit scoped permissions; no implicit Super Admin capabilities.
+- **Specialist roles:** finance, verification, safeguarding and support permissions limited to their duties.
+- **Client and companion:** access only to their own authorized records and self-service functions.
+- **Platform operator (future SaaS only):** deployment lifecycle/licensing administration, separated from tenant data-plane permissions.
+
+Bootstrap the first Super Admin through a one-time CLI/installation process. Do not expose public Super Admin registration. Protect role changes, recovery and Super Admin succession with step-up authentication and immutable audit events.
