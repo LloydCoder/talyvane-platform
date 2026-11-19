@@ -12,7 +12,8 @@
 - [x] Initial public homepage and responsive design system.
 - [x] CLI-only first-owner provisioning, login/logout, role-gated admin dashboard.
 - [x] Database-backed brand name, logo upload, tagline and contact configuration.
-- [ ] Enforce MFA and step-up authentication for privileged accounts before production.
+- [x] Enforce TOTP MFA, replay protection and single-use recovery codes for privileged administrator routes.
+- [ ] Add hardware security keys, privileged step-up confirmation and formal MFA reset governance.
 - [x] Destination administration with market/currency/locale/timezone configuration.
 - [x] Public destination and companion profile discovery with active-destination filters.
 - [x] Public profile visibility gated by verified-adult status and non-withdrawn publication consent.
