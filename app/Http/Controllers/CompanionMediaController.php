@@ -30,18 +30,32 @@ class CompanionMediaController extends Controller
         $image = $processor->storeSanitized($validated['media']);
 
         try {
-            ProfileMedia::query()->create([
-                'companion_profile_id' => $profile->id,
-                'uploaded_by' => $request->user()->id,
-                'storage_path' => $image['path'],
-                'mime_type' => 'image/webp',
-                'width' => $image['width'],
-                'height' => $image['height'],
-                'file_size' => $image['size'],
-                'status' => 'pending_review',
-                'rights_confirmed_at' => now(),
-                'consent_version' => config('talyvane.privacy.profile_consent_version'),
-            ]);
+            DB::transaction(function () use ($profile, $request, $image): void {
+                $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
+                abort_unless((int) $lockedProfile->user_id === (int) $request->user()->id, 403);
+
+                if (
+                    $lockedProfile->publication_status !== 'published'
+                    || ! $lockedProfile->age_verified_at
+                    || ! $lockedProfile->publication_consent_at
+                    || $lockedProfile->consent_withdrawn_at
+                ) {
+                    throw ValidationException::withMessages(['media' => 'Profile publication consent changed while the image was being processed. Please review your profile status and try again.']);
+                }
+
+                ProfileMedia::query()->create([
+                    'companion_profile_id' => $lockedProfile->id,
+                    'uploaded_by' => $request->user()->id,
+                    'storage_path' => $image['path'],
+                    'mime_type' => 'image/webp',
+                    'width' => $image['width'],
+                    'height' => $image['height'],
+                    'file_size' => $image['size'],
+                    'status' => 'pending_review',
+                    'rights_confirmed_at' => now(),
+                    'consent_version' => config('talyvane.privacy.profile_consent_version'),
+                ]);
+            });
         } catch (\Throwable $exception) {
             Storage::disk('local')->delete($image['path']);
             throw $exception;
