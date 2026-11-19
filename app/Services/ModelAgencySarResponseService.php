@@ -251,7 +251,7 @@ class ModelAgencySarResponseService
                 || ! in_array($locked->response_status, ['pending', 'prepared'], true)
                 || $locked->response_extended_at !== null
                 || $locked->response_due_at === null
-                || now()->greaterThan($locked->created_at->addMonthNoOverflow())
+                || now()->greaterThan($locked->created_at->copy()->addMonthNoOverflow())
                 || $application->status === 'erased') {
                 throw ValidationException::withMessages(['response_due_at' => 'This request is not eligible for a statutory response extension.']);
             }
