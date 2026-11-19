@@ -44,6 +44,43 @@ class AdminMfaTest extends TestCase
         $this->get('/admin')->assertOk();
     }
 
+
+    public function test_pending_mfa_challenge_is_invalidated_when_admin_session_version_changes(): void
+    {
+        $admin = User::create([
+            'name' => 'Administrator',
+            'email' => 'pending-admin@example.test',
+            'password' => 'Strong-Admin-Password-934!',
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        $secret = 'JBSWY3DPEHPK3PXP';
+        $step = intdiv(time(), 30);
+        $admin->forceFill([
+            'mfa_secret' => $secret,
+            'mfa_enabled_at' => now(),
+            'mfa_last_used_step' => $step - 1,
+            'admin_session_version' => 3,
+        ])->save();
+
+        $this->post('/admin/login', [
+            'email' => 'pending-admin@example.test',
+            'password' => 'Strong-Admin-Password-934!',
+        ])->assertRedirect('/admin/mfa/challenge');
+
+        $this->assertSame(3, $this->app['session.store']->get('pending_admin_mfa_session_version'));
+
+        $admin->forceFill(['admin_session_version' => 4])->save();
+        $code = (new TotpService())->codeForStep($secret, $step);
+
+        $this->post('/admin/mfa/challenge', ['code' => $code])
+            ->assertRedirect('/admin/login');
+
+        $this->assertGuest();
+        $this->assertNull($this->app['session.store']->get('pending_admin_mfa_user_id'));
+        $this->assertNull($this->app['session.store']->get('pending_admin_mfa_session_version'));
+    }
+
     public function test_recovery_code_is_single_use(): void
     {
         $admin = User::create([
