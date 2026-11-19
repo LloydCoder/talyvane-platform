@@ -53,14 +53,14 @@ class BookingAdminController
         ]);
 
         DB::transaction(function () use ($booking, $validated): void {
+            $profile = CompanionProfile::query()
+                ->publiclyDiscoverable()
+                ->lockForUpdate()
+                ->find($booking->companion_profile_id);
             $lockedBooking = Booking::query()->lockForUpdate()->findOrFail($booking->id);
             $settings = BookingSetting::current();
 
             if ($validated['status'] === 'confirmed') {
-                $profile = CompanionProfile::query()
-                    ->publiclyDiscoverable()
-                    ->lockForUpdate()
-                    ->find($lockedBooking->companion_profile_id);
 
                 if (! $profile || $lockedBooking->starts_at->isPast()) {
                     throw ValidationException::withMessages([
