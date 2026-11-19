@@ -16,7 +16,8 @@
         <a class="admin-card" href="{{ route('admin.enquiries.index') }}"><span>04 / RELATIONSHIPS</span><h2>Enquiries</h2><p>Review incoming messages and manage the response pipeline.</p><b>Open inbox ↗</b></a>
         <a class="admin-card" href="{{ route('admin.bookings.index') }}"><span>05 / BOOKINGS</span><h2>Booking requests</h2><p>Review requests, verify deposits and confirm eligible bookings.</p><b>Open bookings ↗</b></a>
         <a class="admin-card" href="{{ route('admin.bookings.settings') }}"><span>06 / OPERATIONS</span><h2>Booking rules</h2><p>Configure manual review, automatic eligibility, availability and deposit gates.</p><b>Configure ↗</b></a>
-        <a class="admin-card" href="{{ route('admin.payment-settings') }}"><span>07 / COMMERCE</span><h2>Payment settings</h2><p>Configure independent payment switches and permitted purposes.</p><b>Configure ↗</b></a>
-        <a class="admin-card" href="{{ route('admin.payment-methods') }}"><span>08 / CRYPTO</span><h2>Receiving addresses</h2><p>Manage BTC, USDT and USDC addresses by network. Settlement remains gated.</p><b>Configure ↗</b></a>
+        <a class="admin-card" href="{{ route('admin.pages.index') }}"><span>07 / CONTENT</span><h2>Site pages</h2><p>Publish deployment-specific pages and SEO metadata with safe text rendering.</p><b>Manage content ↗</b></a>
+        <a class="admin-card" href="{{ route('admin.payment-settings') }}"><span>08 / COMMERCE</span><h2>Payment settings</h2><p>Configure independent payment switches and permitted purposes.</p><b>Configure ↗</b></a>
+        <a class="admin-card" href="{{ route('admin.payment-methods') }}"><span>09 / CRYPTO</span><h2>Receiving addresses</h2><p>Manage BTC, USDT and USDC addresses by network. Settlement remains gated.</p><b>Configure ↗</b></a>
     </div>
 @endsection
