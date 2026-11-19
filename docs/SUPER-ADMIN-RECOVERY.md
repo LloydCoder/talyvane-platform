@@ -96,6 +96,13 @@ Admin sessions carry `admin_session_version`. Recovery and administrator passwor
 
 There is deliberately no public reset link, support override, model-driven approval or unauthenticated database-reset endpoint. If both the password and offline recovery key are lost, the documented CLI recovery path cannot authenticate the operator. A separate deployment-owner identity-proofing and dual-control break-glass procedure is still required before production use. Do not improvise direct SQL changes on a live deployment.
 
+
+## Standards references and scope
+
+This implementation adopts relevant recovery patterns from [NIST SP 800-63B-4, Section 4.2 (Account Recovery)](https://pages.nist.gov/800-63-4/sp800-63b.html) and [OWASP Multifactor Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Multifactor_Authentication_Cheat_Sheet.html): offline saved recovery material, one-time replacement after use, verified multiple notification addresses, independent event notifications, and throttling of rejected recovery attempts.
+
+The 64-character recovery key exceeds the NIST 64-bit minimum for saved recovery codes. The password plus saved recovery key follows one of the NIST AAL2 recovery method patterns. This is an implementation reference, not an AAL2 or NIST conformance claim: the full platform has not undergone an independent digital-identity assessment, and phishing-resistant authentication and identity-proofing controls remain separate work.
+
 ## Operational requirements
 
 - SMTP must deliver to both verified addresses.
