@@ -170,6 +170,11 @@ class SuperAdminBreakGlassService
             throw new RuntimeException('Exactly two distinct recovery guardians are required.');
         }
 
+        $guardianEmails = array_map(static fn (array $guardian): string => strtolower($guardian['email']), $guardians);
+        if (count(array_unique($guardianEmails)) !== 2) {
+            throw new RuntimeException('Recovery guardian notification addresses must be distinct.');
+        }
+
         $newRecoveryKey = Str::random(64);
         $guardianIds = array_map(static fn (array $guardian): int => (int) $guardian['user_id'], $guardians);
         sort($guardianIds);
@@ -208,6 +213,8 @@ class SuperAdminBreakGlassService
                 $user = $lockedUsers->get((int) $guardian['user_id']);
 
                 if (! $user
+                    || hash_equals(strtolower($superAdmin->email), strtolower($user->email))
+                    || hash_equals(strtolower($control->super_admin_recovery_email), strtolower($user->email))
                     || $user->role !== 'owner'
                     || ! $user->is_active
                     || ! $user->email_verified_at
