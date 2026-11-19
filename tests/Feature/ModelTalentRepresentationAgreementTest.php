@@ -180,7 +180,7 @@ class ModelTalentRepresentationAgreementTest extends TestCase
 
         $this->assertDatabaseCount('model_talent_representation_agreements', 0);
     }
-}
+
     public function test_applicant_erasure_is_deferred_when_representation_agreement_records_exist(): void
     {
         $application = $this->application();
@@ -205,4 +205,4 @@ class ModelTalentRepresentationAgreementTest extends TestCase
         $this->assertSame('accepted', $application->fresh()->status);
         $this->assertSame('jordan@example.test', $application->fresh()->email);
     }
-
+}
