@@ -235,6 +235,32 @@ class DiscoveryTest extends TestCase
             ->assertSee('storage/'.$destination->image_path);
     }
 
+
+    public function test_admin_must_confirm_image_rights_when_uploading_a_cover(): void
+    {
+        Storage::fake('public');
+        $admin = $this->createAdminUser();
+
+        $this->actingAs($admin)
+            ->from('/admin/destinations/create')
+            ->post('/admin/destinations', [
+                'name' => 'Lisbon',
+                'slug' => 'lisbon',
+                'country_code' => 'PT',
+                'country_name' => 'Portugal',
+                'city_name' => 'Lisbon',
+                'currency_code' => 'EUR',
+                'locale' => 'pt-PT',
+                'timezone' => 'Europe/Lisbon',
+                'cover_image' => UploadedFile::fake()->image('lisbon.jpg', 1600, 1000),
+            ])
+            ->assertRedirect('/admin/destinations/create')
+            ->assertSessionHasErrors('image_rights_confirmed');
+
+        $this->assertDatabaseMissing('destinations', ['slug' => 'lisbon']);
+        $this->assertSame([], Storage::disk('public')->allFiles('destinations'));
+    }
+
     public function test_admin_destination_upload_rejects_svg_files(): void
     {
         Storage::fake('public');
