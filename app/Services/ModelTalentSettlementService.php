@@ -95,6 +95,7 @@ class ModelTalentSettlementService
             if (! in_array($decision, ['approved', 'rejected'], true)
                 || $locked->status !== 'pending'
                 || $locked->settlement_id !== null
+                || (int) $locked->created_by === $actorId
                 || ModelTalentSettlement::query()->where('assignment_id', $assignment->id)->exists()) {
                 throw ValidationException::withMessages(['expense' => 'Only an unassigned pending expense can receive a review decision.']);
             }
@@ -173,6 +174,7 @@ class ModelTalentSettlementService
             $locked = ModelTalentSettlement::query()->lockForUpdate()->findOrFail($settlement->id);
 
             if ($locked->status !== 'draft'
+                || (int) $locked->created_by === $actorId
                 || $assignment->status !== 'completed'
                 || $locked->settlement_policy_version !== $this->approvedPolicyVersion()) {
                 throw ValidationException::withMessages(['settlement' => 'Only a draft settlement under the current approved policy can be approved.']);
@@ -236,8 +238,8 @@ class ModelTalentSettlementService
             $assignment = ModelTalentAssignment::query()->lockForUpdate()->findOrFail($current->assignment_id);
             $locked = ModelTalentSettlement::query()->lockForUpdate()->findOrFail($settlement->id);
 
-            if ($locked->status !== 'approved') {
-                throw ValidationException::withMessages(['payment' => 'Only an approved settlement can have external payment evidence recorded.']);
+            if ($locked->status !== 'approved' || (int) $locked->approved_by === $actorId) {
+                throw ValidationException::withMessages(['payment' => 'Only an independently approved settlement can have external payment evidence recorded by a different operator.']);
             }
 
             $locked->forceFill([
