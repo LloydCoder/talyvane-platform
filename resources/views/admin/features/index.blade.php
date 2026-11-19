@@ -20,7 +20,7 @@
                 <p><strong>Key:</strong> <code>{{ $feature->key }}</code></p>
                 <p><strong>Implementation:</strong> {{ ucfirst($feature->implementation_status) }}</p>
                 <p><strong>Configured:</strong> {{ $feature->is_enabled ? 'Enabled' : 'Disabled' }}</p>
-                <p><strong>Effective:</strong> {{ $feature->effective_enabled ? 'Available' : 'Unavailable' }}</p>
+                <p><strong>Registry gate:</strong> {{ $feature->effective_enabled ? 'Pass' : 'Blocked' }}</p>
                 @if (!empty($feature->dependencies))
                     <p><strong>Dependencies:</strong> {{ implode(', ', $feature->dependencies) }}</p>
                 @endif
