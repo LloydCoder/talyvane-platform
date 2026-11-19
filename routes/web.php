@@ -22,6 +22,8 @@ Route::get('/destinations/{slug}', [DiscoveryController::class, 'destination'])-
 Route::get('/companions', [DiscoveryController::class, 'companions'])->name('companions.index');
 Route::get('/companions/{slug}', [DiscoveryController::class, 'companion'])->name('companions.show');
 Route::get('/contact', [EnquiryController::class, 'create'])->name('contact');
+Route::view('/privacy', 'legal.privacy')->name('privacy');
+Route::view('/terms', 'legal.terms')->name('terms');
 Route::post('/enquiries', [EnquiryController::class, 'store'])->middleware('throttle:5,1')->name('enquiries.store');
 
 Route::middleware('guest')->group(function (): void {
