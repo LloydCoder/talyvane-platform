@@ -32,7 +32,7 @@ class ProfileMediaProcessor
 
         [$width, $height] = $dimensions;
         if ($width < 320 || $height < 320 || $width > 6000 || $height > 6000 || ($width * $height) > 16000000) {
-            throw ValidationException::withMessages(['media' => 'Images must be at least 320px and no larger than 6000px per side or 24 megapixels.']);
+            throw ValidationException::withMessages(['media' => 'Images must be at least 320px and no larger than 6000px per side or 16 megapixels.']);
         }
 
         $image = @imagecreatefromstring($bytes);
