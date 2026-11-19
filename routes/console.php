@@ -17,8 +17,8 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('talyvane:model-agency:expire-image-licences', function (ModelTalentImageLicenceService $licences) {
-    $expired = $licences->expireDue();
+Artisan::command('talyvane:model-agency:expire-image-licences', function () {
+    $expired = app(ModelTalentImageLicenceService::class)->expireDue();
     $this->info('Expired '.$expired.' model image licence(s).');
 
     return 0;
