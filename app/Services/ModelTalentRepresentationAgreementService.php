@@ -16,7 +16,7 @@ class ModelTalentRepresentationAgreementService
     {
         return DB::transaction(function () use ($application, $actorId, $terms): ModelTalentRepresentationAgreement {
             $locked = ModelTalentApplication::query()->lockForUpdate()->findOrFail($application->id);
-            $this->assertEligible($locked, (string) ($terms['country_code'] ?? ''));
+            $market = $this->assertEligible($locked, (string) ($terms['country_code'] ?? ''));
 
             $active = ModelTalentRepresentationAgreement::query()
                 ->where('application_id', $locked->id)
@@ -35,10 +35,11 @@ class ModelTalentRepresentationAgreementService
 
             $agreement = ModelTalentRepresentationAgreement::query()->create([
                 'application_id' => $locked->id,
+                'country_code' => $market->country_code,
                 'reference' => 'MRA-'.now()->format('Y').'-'.Str::upper(Str::random(12)),
                 'version' => $version,
                 'status' => 'draft',
-                'terms_snapshot' => $terms,
+                'terms_snapshot' => array_merge($terms, ['territory' => $market->name]),
                 'terms_policy_version' => (string) config('talyvane.model_agency.representation_terms_version'),
                 'created_by' => $actorId,
             ]);
@@ -54,7 +55,7 @@ class ModelTalentRepresentationAgreementService
         DB::transaction(function () use ($agreement, $actorId): void {
             $locked = ModelTalentRepresentationAgreement::query()->lockForUpdate()->findOrFail($agreement->id);
             $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($locked->application_id);
-            $this->assertEligible($application, (string) ($locked->terms_snapshot['country_code'] ?? ''));
+            $this->assertEligible($application, (string) ($locked->country_code ?? ''));
 
             if ($locked->status !== 'draft') {
                 throw ValidationException::withMessages(['agreement' => 'Only a draft agreement can be offered.']);
@@ -124,7 +125,7 @@ class ModelTalentRepresentationAgreementService
         });
     }
 
-    private function assertEligible(ModelTalentApplication $application, string $countryCode): void
+    private function assertEligible(ModelTalentApplication $application, string $countryCode): CountryMarket
     {
         if ($application->status !== 'accepted'
             || $application->adult_eligibility_verified_at === null
@@ -140,6 +141,8 @@ class ModelTalentRepresentationAgreementService
                 'agreement' => 'The agreement territory must be an enabled market with current compliance approval and evidence.',
             ]);
         }
+
+        return $market;
     }
 
     private function event(ModelTalentApplication $application, int $actorId, string $type, string $reason): void
