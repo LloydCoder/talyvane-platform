@@ -46,6 +46,13 @@ class PlatformFeatureRegistryTest extends TestCase
         ]);
     }
 
+    public function test_automatic_booking_fails_closed_when_a_dependency_is_disabled(): void
+    {
+        DB::table('platform_features')->where('key', 'bookings.companionship')->update(['is_enabled' => false]);
+
+        $this->assertFalse(app(FeatureRegistry::class)->isEnabled('bookings.automatic'));
+    }
+
     public function test_only_super_admin_can_view_the_feature_registry(): void
     {
         $owner = $this->createAdminUser([
