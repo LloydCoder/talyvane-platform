@@ -38,6 +38,9 @@
         @if (\Illuminate\Support\Facades\Schema::hasTable('model_talent_applications'))
             <a class="sidebar-link {{ request()->routeIs('admin.model-applications.*') ? 'active' : '' }}" href="{{ route('admin.model-applications.index') }}">Model applications</a>
         @endif
+        @if (\Illuminate\Support\Facades\Schema::hasTable('model_casting_calls'))
+            <a class="sidebar-link {{ request()->routeIs('admin.model-castings.*') || request()->routeIs('admin.model-casting-submissions.*') ? 'active' : '' }}" href="{{ route('admin.model-castings.index') }}">Model casting</a>
+        @endif
         <a class="sidebar-link {{ request()->routeIs('admin.bookings.index') ? 'active' : '' }}" href="{{ route('admin.bookings.index') }}">Booking requests</a>
         <div class="sidebar-bottom">
             <span>{{ auth()->user()->name }}</span>
