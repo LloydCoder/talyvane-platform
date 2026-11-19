@@ -131,6 +131,21 @@ class PlatformFeatureRegistryTest extends TestCase
         $this->assertContains('feature:portals.companion', $portal->gatherMiddleware());
     }
 
+    public function test_disabling_payment_configuration_hides_payment_admin_configuration_routes(): void
+    {
+        DB::table('platform_features')->where('key', 'payments.configuration')->update(['is_enabled' => false]);
+
+        $admin = $this->createAdminUser([
+            'name' => 'Deployment Super Admin',
+            'email' => 'super-admin@example.test',
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/payment-settings')
+            ->assertNotFound();
+    }
+
     public function test_only_super_admin_can_view_the_feature_registry(): void
     {
         $owner = $this->createAdminUser([
