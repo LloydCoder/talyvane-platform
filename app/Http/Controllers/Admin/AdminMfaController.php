@@ -18,7 +18,7 @@ class AdminMfaController
     public function setup(Request $request, TotpService $totp): View|RedirectResponse
     {
         $user = $request->user();
-        if ($user->mfa_enabled_at) {
+        if ($user->mfa_enabled_at && $user->mfa_secret) {
             return redirect()->route('admin.dashboard');
         }
 
@@ -117,16 +117,23 @@ class AdminMfaController
             return redirect()->route('admin.login');
         }
 
+        $key = 'admin-mfa-recovery:'.$user->id.'|'.$request->ip();
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            throw ValidationException::withMessages(['recovery_code' => 'Too many recovery attempts. Try again shortly.']);
+        }
+
         $codes = $user->mfa_recovery_codes ?? [];
         foreach ($codes as $index => $hash) {
             if (Hash::check(strtoupper($validated['recovery_code']), $hash)) {
                 unset($codes[$index]);
                 $user->forceFill(['mfa_recovery_codes' => array_values($codes)])->save();
+                RateLimiter::clear($key);
 
                 return $this->completeLogin($request, $user);
             }
         }
 
+        RateLimiter::hit($key, 60);
         throw ValidationException::withMessages(['recovery_code' => 'The recovery code is invalid or has already been used.']);
     }
 
