@@ -92,6 +92,7 @@ class FeatureActivationEvaluator
             'portals.companion' => ['Companion sign-in experience', 'Companion availability, consent and booking controls'],
             'cms.pages' => ['Public deployment-managed pages'],
             'memberships' => ['Client membership display and agency assignment'],
+            'model-agency.applications' => ['Public adult model-agency application intake', 'Restricted agency review workspace', 'Append-only application status history'],
             'payments.configuration' => ['Payment method configuration and payment-purpose controls'],
             default => [$feature->module.' module surfaces'],
         };
