@@ -19,7 +19,7 @@ class AdminMfaController
     {
         $user = $request->user();
         if ($user->mfa_enabled_at && $user->mfa_secret) {
-            return redirect()->route('admin.dashboard');
+            return redirect()->route($user->role === 'finance' ? 'admin.model-settlements.index' : 'admin.dashboard');
         }
 
         $secret = $request->session()->get('mfa_setup_secret');
@@ -147,7 +147,7 @@ class AdminMfaController
         $user = User::query()
             ->whereKey($id)
             ->where('is_active', true)
-            ->whereIn('role', ['super_admin', 'owner', 'admin'])
+            ->whereIn('role', ['super_admin', 'owner', 'admin', 'finance'])
             ->whereNotNull('mfa_enabled_at')
             ->first();
 
@@ -170,6 +170,6 @@ class AdminMfaController
         $request->session()->regenerate();
         $request->session()->put('admin_session_version', (int) $user->admin_session_version);
 
-        return redirect()->intended(route('admin.dashboard'));
+        return redirect()->intended(route($user->role === 'finance' ? 'admin.model-settlements.index' : 'admin.dashboard'));
     }
 }
