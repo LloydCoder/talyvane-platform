@@ -285,8 +285,8 @@ class ModelAgencyApplicationRightsController extends Controller
                 ]);
 
                 $rightsRequest->forceFill([
-                'status' => 'rejected',
-                'code_hash' => '',
+                    'status' => 'rejected',
+                    'code_hash' => '',
                     'completed_at' => now(),
                 ])->save();
             });
