@@ -17,7 +17,8 @@
                 {{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span>
             @endif</a>
         <nav class="desktop-nav" aria-label="Main navigation">
-            <a href="#platform">The platform</a>
+            <a href="{{ route('destinations.index') }}">Destinations</a>
+            <a href="{{ route('companions.index') }}">Profiles</a>
             <a href="#capabilities">Capabilities</a>
             <a href="#approach">Our approach</a>
         </nav>
@@ -33,7 +34,7 @@
                 <h1>A more considered<br><em>standard</em> of agency<br>operations.</h1>
                 <p class="hero-intro">A refined digital foundation for premium agencies. Discover, coordinate and manage every detail through one beautifully considered platform.</p>
                 <div class="hero-actions">
-                    <a class="button button-light" href="#platform">Discover the platform <span aria-hidden="true">↗</span></a>
+                    <a class="button button-light" href="{{ route('destinations.index') }}">Explore destinations <span aria-hidden="true">↗</span></a>
                     <a class="text-link" href="#approach">Explore our approach <span aria-hidden="true">↓</span></a>
                 </div>
                 <div class="hero-note"><span class="note-line"></span><span>BUILT FOR INDEPENDENT OPERATORS</span></div>
