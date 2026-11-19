@@ -7,6 +7,10 @@ use App\Models\PlatformFeature;
 
 class FeatureActivationEvaluator
 {
+    public function __construct(private readonly FeatureRegistry $registry)
+    {
+    }
+
     private const RUNTIME_GUARDS = [
         'adult_age_assurance',
         'current_consent',
@@ -27,7 +31,7 @@ class FeatureActivationEvaluator
         }
 
         foreach ($feature->dependencies ?? [] as $dependency) {
-            if (! app(FeatureRegistry::class)->isEnabled((string) $dependency)) {
+            if (! $this->registry->isEnabled((string) $dependency)) {
                 $blockers[] = 'Required feature is not effectively enabled: '.$dependency.'.';
             }
         }
