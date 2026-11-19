@@ -203,7 +203,7 @@ class BookingTest extends TestCase
     {
         $client = $this->client();
         $profile = $this->profile();
-        $admin = User::create(['name' => 'Admin', 'email' => 'admin@example.test', 'password' => 'Strong-Admin-Password-934!', 'role' => 'admin', 'is_active' => true]);
+        $admin = $this->createAdminUser(['name' => 'Admin', 'email' => 'admin@example.test', 'password' => 'Strong-Admin-Password-934!', 'role' => 'admin', 'is_active' => true]);
         BookingSetting::create(['booking_mode' => 'manual', 'auto_requires_verified_deposit' => true]);
         $start = now('Europe/London')->addDays(4)->utc();
         $booking = Booking::create([
@@ -225,7 +225,7 @@ class BookingTest extends TestCase
     {
         $client = $this->client();
         $profile = $this->profile();
-        $admin = User::create(['name' => 'Admin', 'email' => 'admin@example.test', 'password' => 'Strong-Admin-Password-934!', 'role' => 'admin', 'is_active' => true]);
+        $admin = $this->createAdminUser(['name' => 'Admin', 'email' => 'admin@example.test', 'password' => 'Strong-Admin-Password-934!', 'role' => 'admin', 'is_active' => true]);
         BookingSetting::create(['booking_mode' => 'manual', 'auto_requires_verified_deposit' => true]);
         $start = now('Europe/London')->addDays(5)->utc();
         $booking = Booking::create([
