@@ -76,7 +76,7 @@
                         @if(! $application->representationAgreements->contains(fn ($agreement) => in_array($agreement->status, ['draft','offered','executed'], true)))
                             <form method="POST" action="{{ route('admin.model-applications.agreements.store', $application) }}">
                                 @csrf
-                                <label>Territory (must match the legally approved scope)</label><input name="territory" maxlength="120" required>
+                                <label>Approved territory</label><select name="country_code" required><option value="">Choose an approved market</option>@foreach($approvedMarkets as $market)<option value="{{ $market->country_code }}">{{ $market->name }} ({{ $market->country_code }})</option>@endforeach</select>
                                 <label>Representation scope</label><textarea name="representation_scope" minlength="20" maxlength="3000" required></textarea>
                                 <label>Exclusivity</label><select name="exclusivity" required><option value="non_exclusive">Non-exclusive</option><option value="exclusive">Exclusive</option></select>
                                 <label>Commission (%)</label><input type="number" name="commission_percent" min="0" max="100" step="0.01" required>
