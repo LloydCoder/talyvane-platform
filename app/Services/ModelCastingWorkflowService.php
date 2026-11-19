@@ -241,9 +241,13 @@ class ModelCastingWorkflowService
         });
     }
 
-    public function withdraw(ModelCastingSubmission $submission, int $actorId, string $reason): void
+    public function withdraw(ModelCastingSubmission $submission, int $actorId, string $reason, string $evidenceReference): void
     {
-        DB::transaction(function () use ($submission, $actorId, $reason): void {
+        if (! str_starts_with($evidenceReference, 'private/model-consent/') || str_contains($evidenceReference, '..')) {
+            throw ValidationException::withMessages(['evidence' => 'Withdrawal evidence must use a private model-consent storage reference.']);
+        }
+
+        DB::transaction(function () use ($submission, $actorId, $reason, $evidenceReference): void {
             $current = ModelCastingSubmission::query()->findOrFail($submission->id);
             $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($current->application_id);
             $call = ModelCastingCall::query()->lockForUpdate()->findOrFail($current->call_id);
@@ -258,6 +262,7 @@ class ModelCastingWorkflowService
                 'decision_by' => $actorId,
                 'decision_at' => now(),
                 'decision_note' => $reason,
+                'withdrawal_evidence_reference' => $evidenceReference,
             ])->save();
 
             $this->event($call, $locked->id, $actorId, 'casting.submission_withdrawn', 'Model submission withdrawal recorded: '.$reason);
