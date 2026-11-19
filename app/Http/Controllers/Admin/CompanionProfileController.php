@@ -74,7 +74,7 @@ class CompanionProfileController
         ]);
 
         if (! $profile->destination()->operationallyAvailable()->exists()) {
-            return back()->withErrors(['destination' => 'The destination must be active before publication.']);
+            return back()->withErrors(['destination' => 'The destination must be active and its country market approved before publication.']);
         }
 
         $now = now();
