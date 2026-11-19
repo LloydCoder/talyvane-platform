@@ -3,8 +3,8 @@
 ## Release policy
 
 - Deploy only tagged, reviewed releases with green CI.
-- Build a reproducible artifact from the exact commit and committed `composer.lock`.
-- Run dependency audit, tests, asset build and packaging in CI; production cPanel must not need Node.js.
+- Build a reproducible artifact from the exact commit and committed `composer.lock`. CI currently produces a 14-day standalone-package smoke artifact after the full PHP matrix passes; it is a validation output, not a signed or tagged production release.
+- Run dependency audit, tests, asset build and packaging in CI; production cPanel must not need Node.js. The current package job verifies production Composer installation, platform requirements, dependency advisories, archive contents and SHA-256 integrity.
 - Store no secrets, customer records, production database dumps or `.env` files in the release artifact.
 - Record release version, commit SHA, migration list, PHP/database compatibility and rollback notes.
 
