@@ -193,17 +193,33 @@ class ModelCastingWorkflowService
                 throw ValidationException::withMessages(['decision' => 'This casting submission cannot receive the requested decision.']);
             }
 
-            if ($decision === 'selected') {
-                $licence = ModelTalentImageLicence::query()->findOrFail($locked->image_licence_id);
-                $asset = ModelTalentPortfolioAsset::query()->findOrFail($locked->portfolio_asset_id);
-                if ($licence->status !== 'active'
-                    || $licence->ends_on->format('Y-m-d') < $call->shoot_ends_at->format('Y-m-d')
+            if (in_array($decision, ['shortlisted', 'selected'], true)) {
+                $licence = ModelTalentImageLicence::query()->lockForUpdate()->findOrFail($locked->image_licence_id);
+                $asset = ModelTalentPortfolioAsset::query()->lockForUpdate()->findOrFail($locked->portfolio_asset_id);
+                $agreement = $licence->representationAgreement;
+
+                if ($application->status !== 'accepted'
+                    || $application->adult_eligibility_verified_at === null
+                    || $application->legal_hold_at !== null
+                    || $licence->status !== 'active'
+                    || $licence->purpose !== 'casting_distribution'
+                    || ! in_array('casting_platform', $licence->channels ?? [], true)
+                    || $licence->country_code !== $call->country_code
                     || $licence->starts_on->format('Y-m-d') > $call->shoot_starts_at->format('Y-m-d')
+                    || $licence->ends_on->format('Y-m-d') < $call->shoot_ends_at->format('Y-m-d')
                     || $asset->status !== 'approved'
                     || $asset->consent_withdrawn_at !== null
                     || ! $asset->storage_path
-                    || ! Storage::disk('local')->exists($asset->storage_path)) {
-                    throw ValidationException::withMessages(['decision' => 'A model cannot be selected while the required asset or casting licence is inactive or outside its authorized term.']);
+                    || ! Storage::disk('local')->exists($asset->storage_path)
+                    || ! $agreement
+                    || $agreement->status !== 'executed'
+                    || $agreement->country_code !== $call->country_code
+                    || ! CountryMarket::query()->where('country_code', $call->country_code)->lockForUpdate()->first()?->isOperationallyApproved()
+                    || ! config('talyvane.model_agency.casting_policy_approved')
+                    || $call->casting_policy_version !== (string) config('talyvane.model_agency.casting_policy_version')
+                    || ! config('talyvane.model_agency.image_licence_policy_approved')
+                    || $licence->licence_policy_version !== (string) config('talyvane.model_agency.image_licence_policy_version')) {
+                    throw ValidationException::withMessages(['decision' => 'Shortlisting or selection requires a currently eligible model, approved asset, approved market and active casting licence.']);
                 }
             }
 
@@ -355,6 +371,8 @@ class ModelCastingWorkflowService
             || $agreement->status !== 'executed'
             || $agreement->country_code !== $call->country_code
             || ! $agreement->effective_from
+            || $agreement->application_id !== $application->id
+            || ! config('talyvane.model_agency.representation_terms_approved')
             || $agreement->terms_policy_version !== (string) config('talyvane.model_agency.representation_terms_version')) {
             throw ValidationException::withMessages(['submission' => 'An executed representation agreement for the casting territory is required.']);
         }
