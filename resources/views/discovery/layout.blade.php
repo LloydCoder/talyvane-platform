@@ -13,7 +13,7 @@
     <header class="discovery-header">
         <a class="wordmark" href="{{ route('home') }}" aria-label="{{ $brand['brand_name'] ?? 'Home' }}">
             @if (!empty($brand['logo_path']))
-                <img class="wordmark-image" src="{{ \Illuminate\\Support\\Facades\\Storage::disk('public')->url($brand['logo_path']) }}" alt="{{ $brand['brand_name'] ?? 'Brand logo' }}">
+                <img class="wordmark-image" src="{{ asset('storage/' . $brand['logo_path']) }}" alt="{{ $brand['brand_name'] ?? 'Brand logo' }}">
             @else
                 {{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span>
             @endif
