@@ -158,4 +158,40 @@ class BookingTest extends TestCase
 
         $this->assertDatabaseCount('bookings', 0);
     }
+    public function test_overlapping_confirmed_booking_is_rejected(): void
+    {
+        $client = $this->client();
+        $profile = $this->profile();
+        BookingSetting::create(['booking_mode' => 'manual', 'auto_confirm_enabled' => false]);
+        $startLocal = now('Europe/London')->addDays(3)->setTime(12, 0);
+        $startsAt = $startLocal->copy()->utc();
+
+        Booking::create([
+            'reference' => 'EXISTING123',
+            'client_id' => $client->id,
+            'companion_profile_id' => $profile->id,
+            'destination_id' => $profile->destination_id,
+            'booking_mode' => 'manual',
+            'status' => 'confirmed',
+            'deposit_status' => 'verified',
+            'starts_at' => $startsAt,
+            'ends_at' => $startsAt->copy()->addHour(),
+            'timezone' => 'Europe/London',
+            'duration_minutes' => 60,
+            'confirmed_at' => now(),
+        ]);
+
+        $this->actingAs($client)
+            ->from('/portal')
+            ->post('/bookings', [
+                'profile_id' => $profile->id,
+                'start_at' => $startLocal->format('Y-m-d\\TH:i'),
+                'duration_minutes' => 60,
+            ])
+            ->assertRedirect('/portal')
+            ->assertSessionHasErrors('start_at');
+
+        $this->assertDatabaseCount('bookings', 1);
+    }
+
 }
