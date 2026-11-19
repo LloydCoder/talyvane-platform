@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ModelTalentApplication;
 use App\Models\ModelTalentApplicationEvent;
+use App\Models\PlatformFeature;
+use App\Services\FeatureActivationEvaluator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,8 +24,9 @@ class ModelAgencyApplicationAdminController extends Controller
         'declined' => [],
     ];
 
-    public function index(): View
+    public function index(FeatureActivationEvaluator $evaluator): View
     {
+        $this->assertFeatureReady($evaluator);
         return view('admin.model-agency.applications.index', [
             'applications' => ModelTalentApplication::query()
                 ->with('reviewer')
@@ -32,8 +35,9 @@ class ModelAgencyApplicationAdminController extends Controller
         ]);
     }
 
-    public function update(Request $request, ModelTalentApplication $application): RedirectResponse
+    public function update(Request $request, ModelTalentApplication $application, FeatureActivationEvaluator $evaluator): RedirectResponse
     {
+        $this->assertFeatureReady($evaluator);
         $validated = $request->validate([
             'status' => ['required', Rule::in(['reviewing', 'accepted', 'declined'])],
             'review_note' => [
@@ -44,7 +48,7 @@ class ModelAgencyApplicationAdminController extends Controller
             ],
         ]);
 
-        $changed = DB::transaction(function () use ($request, $application, $validated): bool {
+        DB::transaction(function () use ($request, $application, $validated): bool {
             $locked = ModelTalentApplication::query()->lockForUpdate()->findOrFail($application->id);
             $target = $validated['status'];
             $allowed = self::TRANSITIONS[$locked->status] ?? [];
@@ -74,8 +78,6 @@ class ModelAgencyApplicationAdminController extends Controller
                 'reason' => $note,
                 'occurred_at' => now(),
             ]);
-
-            return true;
         });
 
         return redirect()->route('admin.model-applications.index')->with(
@@ -83,4 +85,11 @@ class ModelAgencyApplicationAdminController extends Controller
             'Application status updated. Acceptance is an invitation to the separate representation process, not a signed representation agreement.',
         );
     }
+    private function assertFeatureReady(FeatureActivationEvaluator $evaluator): void
+    {
+        $feature = PlatformFeature::query()->findOrFail('model-agency.applications');
+
+        abort_if($evaluator->blockers($feature) !== [], 503, 'Model agency application safeguards are not configured.');
+    }
+
 }
