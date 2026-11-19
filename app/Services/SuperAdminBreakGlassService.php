@@ -176,8 +176,15 @@ class SuperAdminBreakGlassService
                 ? User::query()->lockForUpdate()->find($control->super_admin_user_id)
                 : null;
 
-            if (! $control || ! $superAdmin || $superAdmin->role !== 'super_admin' || ! $superAdmin->is_active) {
-                throw new RuntimeException('The designated Super Admin is unavailable for break-glass recovery.');
+            if (! $control
+                || ! $superAdmin
+                || $superAdmin->role !== 'super_admin'
+                || ! $superAdmin->is_active
+                || ! $superAdmin->email_verified_at
+                || blank($control->super_admin_recovery_email)
+                || ! $control->super_admin_recovery_email_verified_at
+                || blank($control->super_admin_recovery_key_hash)) {
+                throw new RuntimeException('The designated Super Admin and verified recovery notification contacts must exist before break-glass recovery.');
             }
 
             $assignments = DB::table('super_admin_recovery_guardians')->orderBy('slot')->lockForUpdate()->get();
