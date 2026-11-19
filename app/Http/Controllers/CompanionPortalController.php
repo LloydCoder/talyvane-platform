@@ -18,7 +18,7 @@ class CompanionPortalController extends Controller
     public function index(): View
     {
         $profiles = CompanionProfile::query()
-            ->with(['destination', 'availabilityRules'])
+            ->with(['destination', 'availabilityRules', 'media'])
             ->where('user_id', auth()->id())
             ->get();
 
