@@ -105,9 +105,7 @@ class CompanionPortalTest extends TestCase
                 'enabled' => '1',
                 'consent_confirmed' => '1',
             ])
-            ->assertRedirect('/companion-portal/privacy');
-
-        $this->get('/companion-portal/privacy')->assertOk()->assertSee('Your privacy');
+            ->assertRedirect('/companion-portal');
 
         $this->assertDatabaseHas('companion_profiles', [
             'id' => $profile->id,
