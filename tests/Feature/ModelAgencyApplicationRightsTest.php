@@ -137,6 +137,7 @@ class ModelAgencyApplicationRightsTest extends TestCase
         $this->get('/models/application-support/'.$request->id)
             ->assertOk()
             ->assertSee('Jordan Example')
+            ->assertSee('not a complete subject access response')
             ->assertSee('jordan@example.test')
             ->assertSee('Commercial and editorial modelling experience.')
             ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
