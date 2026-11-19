@@ -299,3 +299,20 @@ h1 em, h2 em { color: var(--gold); font-weight: 400; }
 @media(prefers-reduced-motion:reduce){.editorial-image img,.destination-card-image{transition:none}}
 
 .age-notice{display:block;max-width:620px;margin-top:12px;color:rgba(255,255,255,.56);font-size:9px;line-height:1.7;letter-spacing:.04em}
+
+
+/* Consent-governed companion imagery */
+.profile-media-gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:28px 0 34px}
+.profile-media-gallery img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;background:#e7e2d8}
+.profile-media-gallery img:first-child:nth-last-child(odd){grid-column:1/-1;max-height:620px;aspect-ratio:16/10}
+.admin-section{margin:0 0 36px;padding:24px;background:#f8f6f0;border:1px solid rgba(23,28,24,.12)}
+.admin-section .portal-section-heading{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:16px}
+.admin-section .portal-section-heading h2{margin:0;font:24px var(--serif)}
+.admin-section .portal-section-heading p{margin:0;color:#777d72;font-size:10px}
+.admin-section .companion-profile-card{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:16px 0;border-top:1px solid rgba(23,28,24,.12)}
+.admin-section .companion-profile-card p{margin:6px 0;color:#777d72;font-size:10px}
+.admin-section .companion-booking-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.admin-section .companion-booking-actions form{display:flex;align-items:center;gap:8px}
+.admin-section input{max-width:220px;min-height:34px;padding:7px;border:1px solid rgba(23,28,24,.2);background:#fffefa;font:10px var(--sans)}
+.admin-section .table-action{color:#826f4d;font-size:10px}
+@media(max-width:640px){.profile-media-gallery{grid-template-columns:1fr}.profile-media-gallery img:first-child:nth-last-child(odd){grid-column:auto;aspect-ratio:4/5}.admin-section .companion-profile-card{align-items:flex-start;flex-direction:column}.admin-section .companion-booking-actions{align-items:flex-start;flex-direction:column}}
