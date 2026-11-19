@@ -14,6 +14,7 @@ use App\Models\ModelTalentPortfolioAsset;
 use App\Models\ModelTalentRepresentationAgreement;
 use App\Models\User;
 use DateTimeInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -28,13 +29,16 @@ class ModelCastingClientPortalService
         string $reason,
     ): ModelCastingClientAccess {
         $this->assertFeatureAndPolicy();
+        if (mb_strlen(trim($reason)) < 20 || mb_strlen(trim($reason)) > 1000) {
+            throw ValidationException::withMessages(['access' => 'Provide a grant reason between 20 and 1,000 characters.']);
+        }
 
         return DB::transaction(function () use ($call, $client, $adminId, $expiresAt, $reason): ModelCastingClientAccess {
             $lockedCall = ModelCastingCall::query()->lockForUpdate()->findOrFail($call->id);
             $this->assertApprovedMarket($lockedCall->country_code);
 
             $maxDays = (int) config('talyvane.model_agency.client_review_access_days', 30);
-            $expiry = now()->parse($expiresAt);
+            $expiry = Carbon::parse($expiresAt);
             if (! in_array($lockedCall->status, ['open', 'closed'], true)
                 || $client->role !== 'client'
                 || ! $client->is_active
@@ -82,6 +86,10 @@ class ModelCastingClientPortalService
 
     public function revokeAccess(ModelCastingClientAccess $access, int $adminId, string $reason): void
     {
+        if (mb_strlen(trim($reason)) < 20 || mb_strlen(trim($reason)) > 1000) {
+            throw ValidationException::withMessages(['access' => 'Provide a revocation reason between 20 and 1,000 characters.']);
+        }
+
         DB::transaction(function () use ($access, $adminId, $reason): void {
             $locked = ModelCastingClientAccess::query()->lockForUpdate()->findOrFail($access->id);
             if ($locked->revoked_at !== null) {
@@ -101,6 +109,7 @@ class ModelCastingClientPortalService
     public function callsFor(User $client)
     {
         $this->assertFeatureAndPolicy();
+        abort_unless($client->role === 'client' && $client->is_active && $client->email_verified_at !== null, 404);
 
         return ModelCastingCall::query()
             ->whereIn('status', ['open', 'closed'])
@@ -211,6 +220,7 @@ class ModelCastingClientPortalService
     private function activeAccess(ModelCastingCall $call, User $client): ModelCastingClientAccess
     {
         $this->assertFeatureAndPolicy();
+        abort_unless($client->role === 'client' && $client->is_active && $client->email_verified_at !== null, 404);
         abort_unless(in_array($call->status, ['open', 'closed'], true), 404);
 
         $access = ModelCastingClientAccess::query()
@@ -269,6 +279,7 @@ class ModelCastingClientPortalService
             && $call->status !== 'cancelled'
             && config('talyvane.model_agency.casting_policy_approved')
             && $call->casting_policy_version === (string) config('talyvane.model_agency.casting_policy_version')
+            && filled($asset->storage_path)
             && Storage::disk('local')->exists($asset->storage_path);
 
         if (! $valid) {
