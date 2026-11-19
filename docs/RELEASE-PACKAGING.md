@@ -1,0 +1,32 @@
+# Standalone release packaging
+
+## Current CI artifact
+
+After every complete PHP 8.3/8.4/8.5 test matrix passes, CI performs a production-only Composer installation on PHP 8.3 and creates a standalone package smoke artifact from the exact tested commit.
+
+The job:
+
+1. Checks out the exact commit without persisting Git credentials.
+2. Installs production dependencies with `composer install --no-dev` from the committed `composer.lock`.
+3. Verifies actual PHP platform requirements and audits production dependencies.
+4. Packages the application, production `vendor/`, public assets, migrations, configuration, documentation and environment example.
+5. Excludes the real `.env`, tests, Git metadata, runtime caches, logs and customer/private uploaded data.
+6. Writes a commit/runtime manifest, creates a normalized tar archive, computes SHA-256 and inspects the archive for forbidden paths.
+7. Uploads the package, checksum and package-content listing as an immutable GitHub Actions artifact with a 14-day retention period.
+
+The package uses the tracked public assets. No Node.js or npm build is currently required by the application.
+
+## Important release boundary
+
+The CI artifact is a packaging and installability smoke-test output. It is **not** a signed, versioned customer release, does not constitute a security certification, and must not be deployed directly to production. A successful package job proves only the checks actually executed by that job.
+
+Production release engineering remains open:
+
+- Signed and tagged versioned release workflow.
+- Build provenance/SBOM and artifact attestation.
+- Release notes, migration compatibility declaration and rollback plan.
+- Supported cPanel provider test matrix and deployment smoke tests.
+- Secure no-SSH installation and first Super Admin provisioning.
+- Backup/restore and upgrade/rollback drills.
+
+Until those gates are completed, use the documented SSH/Composer installation path only on a verified compatible host, and obtain written hosting, payment and legal approvals for the actual deployment model.
