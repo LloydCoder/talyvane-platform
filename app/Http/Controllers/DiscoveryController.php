@@ -40,6 +40,11 @@ class DiscoveryController extends Controller
 
     public function companions(Request $request): View
     {
+        $filters = $request->validate([
+            'destination' => ['nullable', 'string', 'alpha_dash', 'max:140'],
+            'language' => ['nullable', 'string', 'max:40'],
+        ]);
+
         $destinations = Destination::query()
             ->where('is_active', true)
             ->orderBy('name')
@@ -48,13 +53,12 @@ class DiscoveryController extends Controller
         $profiles = CompanionProfile::query()
             ->publiclyDiscoverable()
             ->with('destination:id,name,slug,country_name')
-            ->when($request->filled('destination'), function ($query) use ($request): void {
+            ->when(! empty($filters['destination']), function ($query) use ($filters): void {
                 $query->whereHas('destination', fn ($destination) => $destination
-                    ->where('slug', $request->string('destination')->toString()));
+                    ->where('slug', $filters['destination']));
             })
-            ->when($request->filled('language'), function ($query) use ($request): void {
-                $language = $request->string('language')->trim()->limit(40)->toString();
-                $query->whereJsonContains('languages', $language);
+            ->when(! empty($filters['language']), function ($query) use ($filters): void {
+                $query->whereJsonContains('languages', trim($filters['language']));
             })
             ->orderByDesc('published_at')
             ->paginate(12)
