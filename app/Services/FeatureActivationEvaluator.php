@@ -199,6 +199,34 @@ class FeatureActivationEvaluator
                 continue;
             }
 
+            if ($requirement === 'model_agency_client_casting_schema') {
+                $schemaReady = Schema::hasTable('model_casting_client_accesses')
+                    && Schema::hasColumns('model_casting_client_accesses', [
+                        'call_id', 'client_user_id', 'granted_by', 'expires_at', 'revoked_at',
+                    ])
+                    && Schema::hasTable('model_casting_client_reviews')
+                    && Schema::hasColumns('model_casting_client_reviews', [
+                        'call_id', 'submission_id', 'access_id', 'client_user_id', 'decision', 'reviewed_at',
+                    ]);
+
+                if (! $schemaReady) {
+                    $blockers[] = 'The expiring client-access and advisory review schemas must be available.';
+                }
+
+                continue;
+            }
+
+            if ($requirement === 'model_agency_client_casting_policy') {
+                $days = (int) config('talyvane.model_agency.client_review_access_days');
+                if (! filled(config('talyvane.model_agency.client_review_policy_version'))
+                    || ! config('talyvane.model_agency.client_review_policy_approved')
+                    || $days < 1 || $days > 30) {
+                    $blockers[] = 'A current client-review policy must be explicitly approved and client access must expire within 30 days.';
+                }
+
+                continue;
+            }
+
             if ($requirement === 'adult_eligibility_verification') {
                 $verificationSchemaReady = Schema::hasTable('model_talent_applications')
                     && Schema::hasColumns('model_talent_applications', [
@@ -271,6 +299,7 @@ class FeatureActivationEvaluator
             'model-agency.casting' => ['Private casting briefs', 'Licensed model submissions', 'Manual shortlist and selection controls'],
             'model-agency.assignments' => ['Model assignment offers and acceptance evidence', 'Assignment confirmation and delivery states', 'Agreed compensation metadata (not settlement)'],
             'model-agency.settlements' => ['Expense claim review and evidence', 'Decimal-safe commission and net settlement calculation', 'Approval and external payment evidence register'],
+            'model-agency.client-casting' => ['Named-client expiring access to private casting calls', 'Purpose-specific licensed image previews', 'Advisory client shortlist/decline feedback only'],
             'payments.configuration' => ['Payment method configuration and payment-purpose controls'],
             default => [$feature->module.' module surfaces'],
         };
