@@ -47,7 +47,7 @@ class DiscoveryController extends Controller
         ]);
 
         $destinations = Destination::query()
-            ->where('is_active', true)
+            ->operationallyAvailable()
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
