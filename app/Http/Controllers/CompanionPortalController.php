@@ -16,7 +16,7 @@ class CompanionPortalController extends Controller
     public function index(): View
     {
         $profiles = CompanionProfile::query()
-            ->with('destination')
+            ->with(['destination', 'availabilityRules'])
             ->where('user_id', auth()->id())
             ->get();
 
@@ -26,7 +26,45 @@ class CompanionPortalController extends Controller
             ->latest()
             ->paginate(10);
 
-        return view('portal.companion-dashboard', compact('profiles', 'bookings'));
+        $weekdays = [0 => 'Sunday', 1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday'];
+
+        return view('portal.companion-dashboard', compact('profiles', 'bookings', 'weekdays'));
+    }
+
+
+    public function storeAvailability(Request $request, CompanionProfile $profile): RedirectResponse
+    {
+        $this->assertOwnership($profile);
+        $validated = $request->validate([
+            'weekday' => ['required', 'integer', 'between:0,6'],
+            'starts_at' => ['required', 'date_format:H:i'],
+            'ends_at' => ['required', 'date_format:H:i', 'after:starts_at'],
+        ]);
+
+        DB::transaction(function () use ($profile, $validated): void {
+            $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
+            $this->assertOwnership($lockedProfile);
+
+            CompanionAvailabilityRule::query()->create([
+                'companion_profile_id' => $lockedProfile->id,
+                'weekday' => $validated['weekday'],
+                'starts_at' => $validated['starts_at'],
+                'ends_at' => $validated['ends_at'],
+                'is_active' => true,
+            ]);
+        });
+
+        return redirect()->route('companion-portal.dashboard')->with('status', 'Availability window saved.');
+    }
+
+    public function destroyAvailability(CompanionProfile $profile, CompanionAvailabilityRule $rule): RedirectResponse
+    {
+        $this->assertOwnership($profile);
+        abort_unless((int) $rule->companion_profile_id === (int) $profile->id, 404);
+
+        $rule->delete();
+
+        return redirect()->route('companion-portal.dashboard')->with('status', 'Availability window removed.');
     }
 
     public function updateAutomaticBooking(Request $request, CompanionProfile $profile): RedirectResponse
