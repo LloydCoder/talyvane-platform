@@ -31,6 +31,10 @@ These assets are used as illustrative hospitality imagery. Pexels permits free c
 
 A stock-site license grants rights in the photograph under that site's terms; it does not automatically clear every trademark, privacy, publicity, property, moral or other third-party right that may appear in an image. Re-check the license and the individual asset before material changes to use or context. Retain a copy of the source page and license review with each deployment's asset register.
 
+## White-label deployment review
+
+Each white-label deployment must review image relevance, brand fit, local advertising rules and any market-specific restrictions before launch. A platform-wide asset register is a provenance aid, not a substitute for the deploying operator's own legal review. Operators may replace stock imagery through their deployment branding and destination administration; retain their own proof of rights for every replacement.
+
 ## Operational recommendations
 
 1. Keep the stock image registry centralized in config/stock_photography.php.
