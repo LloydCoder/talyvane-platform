@@ -15,7 +15,7 @@ class ModelTalentRepresentationAgreementService
     {
         return DB::transaction(function () use ($application, $actorId, $terms): ModelTalentRepresentationAgreement {
             $locked = ModelTalentApplication::query()->lockForUpdate()->findOrFail($application->id);
-            $this->assertEligible($locked);
+            $this->assertEligible($locked, (string) ($terms['country_code'] ?? ''));
 
             $active = ModelTalentRepresentationAgreement::query()
                 ->where('application_id', $locked->id)
@@ -53,7 +53,7 @@ class ModelTalentRepresentationAgreementService
         DB::transaction(function () use ($agreement, $actorId): void {
             $locked = ModelTalentRepresentationAgreement::query()->lockForUpdate()->findOrFail($agreement->id);
             $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($locked->application_id);
-            $this->assertEligible($application);
+            $this->assertEligible($application, (string) ($locked->terms_snapshot['country_code'] ?? ''));
 
             if ($locked->status !== 'draft') {
                 throw ValidationException::withMessages(['agreement' => 'Only a draft agreement can be offered.']);
@@ -123,13 +123,20 @@ class ModelTalentRepresentationAgreementService
         });
     }
 
-    private function assertEligible(ModelTalentApplication $application): void
+    private function assertEligible(ModelTalentApplication $application, string $countryCode): void
     {
         if ($application->status !== 'accepted'
             || $application->adult_eligibility_verified_at === null
             || $application->legal_hold_at !== null) {
             throw ValidationException::withMessages([
                 'agreement' => 'Representation agreements require an accepted application, completed adult-eligibility verification and no active legal hold.',
+            ]);
+        }
+
+        $market = CountryMarket::query()->where('country_code', $countryCode)->first();
+        if (! $market || ! $market->isOperationallyApproved()) {
+            throw ValidationException::withMessages([
+                'agreement' => 'The agreement territory must be an enabled market with current compliance approval and evidence.',
             ]);
         }
     }
