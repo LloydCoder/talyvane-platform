@@ -81,6 +81,21 @@ class CompanionPortalTest extends TestCase
     {
         $companion = $this->companion('companion@example.test');
         $profile = $this->profile($companion);
+        $client = User::create(['name' => 'Client', 'email' => 'client@example.test', 'password' => 'Strong-Client-Password-934!', 'role' => 'client', 'is_active' => true]);
+        $start = now()->addDays(3);
+        $pendingBooking = Booking::create([
+            'reference' => 'WITHDRAW123',
+            'client_id' => $client->id,
+            'companion_profile_id' => $profile->id,
+            'destination_id' => $profile->destination_id,
+            'booking_mode' => 'manual',
+            'status' => 'pending_review',
+            'deposit_status' => 'pending',
+            'starts_at' => $start,
+            'ends_at' => $start->copy()->addHour(),
+            'timezone' => 'Europe/London',
+            'duration_minutes' => 60,
+        ]);
 
         $this->actingAs($companion)
             ->post('/companion-portal/profiles/'.$profile->id.'/withdraw-consent', [
@@ -93,6 +108,8 @@ class CompanionPortalTest extends TestCase
             'id' => $profile->id,
             'publication_status' => 'suspended',
         ]);
+        $this->assertDatabaseHas('bookings', ['id' => $pendingBooking->id, 'status' => 'cancelled']);
+        $this->assertDatabaseHas('booking_events', ['booking_id' => $pendingBooking->id, 'event_type' => 'consent_withdrawn']);
 
         $this->get('/companions')
             ->assertOk()
