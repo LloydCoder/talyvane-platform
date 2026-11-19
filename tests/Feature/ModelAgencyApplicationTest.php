@@ -21,7 +21,6 @@ class ModelAgencyApplicationTest extends TestCase
         DB::table('platform_features')->where('key', 'model-agency.applications')->update([
             'implementation_status' => 'available',
             'is_enabled' => true,
-            'activation_requirements' => json_encode([]),
         ]);
     }
 
@@ -40,6 +39,8 @@ class ModelAgencyApplicationTest extends TestCase
             'portfolio_url' => 'https://portfolio.example.test/jordan',
             'experience_summary' => 'Commercial and editorial modelling experience.',
             'adult_eligibility_confirmed' => '1',
+            'adult_eligibility_policy_version' => 'adult-eligibility-v1',
+            'adult_eligibility_policy_accepted' => '1',
             'privacy_notice_version' => 'model-application-privacy-v1',
             'privacy_notice_accepted' => '1',
         ])->assertRedirect('/models/apply/received');
@@ -50,6 +51,8 @@ class ModelAgencyApplicationTest extends TestCase
         $this->assertSame('Jordan Example', $application->full_name);
         $this->assertSame('jordan@example.test', $application->email);
         $this->assertNotNull($application->adult_eligibility_confirmed_at);
+        $this->assertNotNull($application->adult_eligibility_policy_accepted_at);
+        $this->assertSame('adult-eligibility-v1', $application->adult_eligibility_policy_version);
         $this->assertNotNull($application->privacy_notice_accepted_at);
         $this->assertSame('model-application-privacy-v1', $application->privacy_notice_version);
         $this->assertDatabaseMissing('users', ['email' => 'jordan@example.test']);
@@ -70,7 +73,7 @@ class ModelAgencyApplicationTest extends TestCase
             'country_code' => 'GB',
             'city' => 'London',
             'experience_summary' => 'Commercial modelling experience.',
-        ])->assertSessionHasErrors(['adult_eligibility_confirmed', 'privacy_notice_accepted']);
+        ])->assertSessionHasErrors(['adult_eligibility_confirmed', 'adult_eligibility_policy_accepted', 'privacy_notice_accepted']);
 
         $this->assertDatabaseCount('model_talent_applications', 0);
     }
@@ -93,6 +96,8 @@ class ModelAgencyApplicationTest extends TestCase
             'experience_summary' => 'Editorial and commercial experience.',
             'status' => 'submitted',
             'adult_eligibility_confirmed_at' => now(),
+            'adult_eligibility_policy_version' => 'adult-eligibility-v1',
+            'adult_eligibility_policy_accepted_at' => now(),
             'privacy_notice_version' => 'model-application-privacy-v1',
             'privacy_notice_accepted_at' => now(),
             'submitted_at' => now(),
@@ -147,6 +152,8 @@ class ModelAgencyApplicationTest extends TestCase
             'experience_summary' => 'Editorial and commercial experience.',
             'status' => 'submitted',
             'adult_eligibility_confirmed_at' => now(),
+            'adult_eligibility_policy_version' => 'adult-eligibility-v1',
+            'adult_eligibility_policy_accepted_at' => now(),
             'privacy_notice_version' => 'model-application-privacy-v1',
             'privacy_notice_accepted_at' => now(),
             'submitted_at' => now(),
@@ -182,6 +189,8 @@ class ModelAgencyApplicationTest extends TestCase
             'city' => 'London',
             'experience_summary' => 'Commercial modelling experience and editorial portfolio.',
             'adult_eligibility_confirmed' => '1',
+            'adult_eligibility_policy_version' => 'adult-eligibility-v1',
+            'adult_eligibility_policy_accepted' => '1',
             'privacy_notice_version' => 'model-application-privacy-v1',
             'privacy_notice_accepted' => '1',
         ])->assertStatus(503);
@@ -201,6 +210,8 @@ class ModelAgencyApplicationTest extends TestCase
             'portfolio_url' => 'http://127.0.0.1/private',
             'experience_summary' => 'Commercial modelling experience and editorial portfolio.',
             'adult_eligibility_confirmed' => '1',
+            'adult_eligibility_policy_version' => 'adult-eligibility-v1',
+            'adult_eligibility_policy_accepted' => '1',
             'privacy_notice_version' => 'model-application-privacy-v1',
             'privacy_notice_accepted' => '1',
         ])->assertSessionHasErrors('portfolio_url');
@@ -218,6 +229,8 @@ class ModelAgencyApplicationTest extends TestCase
             'city' => 'London',
             'experience_summary' => 'Commercial modelling experience and editorial portfolio.',
             'adult_eligibility_confirmed' => '1',
+            'adult_eligibility_policy_version' => 'adult-eligibility-v1',
+            'adult_eligibility_policy_accepted' => '1',
             'privacy_notice_version' => 'model-application-privacy-v1',
             'privacy_notice_accepted' => '1',
         ])->assertRedirect('/models/apply/received');
