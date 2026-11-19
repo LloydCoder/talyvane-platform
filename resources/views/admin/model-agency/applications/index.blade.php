@@ -14,8 +14,20 @@
                 <p class="enquiry-destination">{{ $application->city }}, {{ $application->country_code }}</p>
                 @if($application->portfolio_url)<p><a href="{{ $application->portfolio_url }}" target="_blank" rel="noopener noreferrer nofollow">Open applicant portfolio ↗</a></p>@endif
                 <p class="enquiry-message">{{ $application->experience_summary }}</p>
-                <p class="field-help">Adult eligibility self-attested {{ $application->adult_eligibility_confirmed_at->format('d M Y') }} · Privacy notice {{ $application->privacy_notice_version }}</p>
+                <p class="field-help">Adult eligibility self-attested {{ $application->adult_eligibility_confirmed_at?->format('d M Y') ?? 'Erased' }} · Privacy notice {{ $application->privacy_notice_version }}</p>
                 @if($application->review_note)<p class="enquiry-message">Review note: {{ $application->review_note }}</p>@endif
+                @if($application->legal_hold_at)
+                    <p class="field-help">Legal hold active since {{ $application->legal_hold_at->format('d M Y') }}. {{ $application->legal_hold_reason }}</p>
+                @endif
+                @if(in_array(auth()->user()->role, ['super_admin', 'owner'], true))
+                    <form method="POST" action="{{ route('admin.model-applications.legal-hold', $application) }}" class="enquiry-status-form">
+                        @csrf
+                        <input type="hidden" name="enabled" value="{{ $application->legal_hold_at ? '0' : '1' }}">
+                        <label for="legal-hold-reason-{{ $application->id }}">{{ $application->legal_hold_at ? 'Reason for releasing legal hold' : 'Reason for placing legal hold' }}</label>
+                        <textarea id="legal-hold-reason-{{ $application->id }}" name="reason" rows="2" minlength="20" maxlength="2000" required></textarea>
+                        <button class="button button-dark" type="submit">{{ $application->legal_hold_at ? 'Release legal hold' : 'Place legal hold' }}</button>
+                    </form>
+                @endif
                 @if(in_array($application->status, ['submitted','reviewing'], true))
                     <form method="POST" action="{{ route('admin.model-applications.update', $application) }}" class="enquiry-status-form">
                         @csrf @method('PATCH')
