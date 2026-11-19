@@ -122,6 +122,71 @@
                                         <button class="button button-dark" type="submit">Withdraw consent and remove image</button>
                                     </form>
                                 @endif
+                                <div class="field-help">
+                                    <strong>Purpose-bound image licences</strong>
+                                    @foreach($asset->imageLicences as $licence)
+                                        <div class="field-help">
+                                            <strong>{{ $licence->reference }} · {{ str_replace('_', ' ', $licence->status) }}</strong>
+                                            <p>{{ $licence->purpose }} · {{ $licence->country_code }} · {{ $licence->starts_on->format('d M Y') }} – {{ $licence->ends_on->format('d M Y') }}</p>
+                                            <p>Channels: {{ implode(', ', $licence->channels ?? []) }} · Licensee: {{ $licence->licensee_name }}</p>
+                                            @if($licence->compensation_amount !== null)
+                                                <p>Agreed compensation: {{ $licence->compensation_amount }} {{ $licence->currency_code }}</p>
+                                            @endif
+                                            @if($licence->status === 'draft')
+                                                <form method="POST" action="{{ route('admin.model-image-licences.activate', $licence) }}">
+                                                    @csrf
+                                                    <label>Private externally executed licence document reference</label><input name="execution_evidence_reference" minlength="20" maxlength="200" required placeholder="private/model-licences/signed-licence.pdf">
+                                                    <label>Private purpose-specific model consent evidence reference</label><input name="model_consent_evidence_reference" minlength="20" maxlength="200" required placeholder="private/model-consent/campaign-consent.pdf">
+                                                    <label><input type="checkbox" name="confirm_external_execution" value="1" required> All required parties externally executed the licence and evidence is stored privately</label>
+                                                    <label><input type="checkbox" name="confirm_model_consent" value="1" required> The model gave informed consent for this exact purpose, territory, channel and term</label>
+                                                    <button class="button button-dark" type="submit">Activate recorded licence</button>
+                                                </form>
+                                            @endif
+                                            @if(in_array($licence->status, ['draft','active'], true))
+                                                <form method="POST" action="{{ route('admin.model-image-licences.revoke', $licence) }}">@csrf
+                                                    <label>Revocation reason</label><textarea name="reason" minlength="20" maxlength="2000" required></textarea>
+                                                    <label><input type="checkbox" name="confirm_revocation" value="1" required> I confirm this licence must be revoked</label>
+                                                    <button class="button button-dark" type="submit">Revoke licence</button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                    @if($asset->status === 'approved' && ! $asset->consent_withdrawn_at)
+                                        @php($executedAgreements = $application->representationAgreements->where('status', 'executed')->where('country_code', $application->country_code))
+                                        @if($executedAgreements->isNotEmpty())
+                                            <form method="POST" action="{{ route('admin.model-portfolio-assets.licences.store', $asset) }}">
+                                                @csrf
+                                                <label>Executed representation agreement</label>
+                                                <select name="agreement_id" required>
+                                                    <option value="">Choose agreement</option>
+                                                    @foreach($executedAgreements as $agreement)<option value="{{ $agreement->id }}">{{ $agreement->reference }} · v{{ $agreement->version }}</option>@endforeach
+                                                </select>
+                                                <label>Licensee / client entity</label><input name="licensee_name" minlength="2" maxlength="160" required>
+                                                <label>Licensee contract reference (optional)</label><input name="licensee_reference" maxlength="200">
+                                                <label>Usage purpose</label>
+                                                <select name="purpose" required>
+                                                    <option value="editorial">Editorial</option><option value="commercial_campaign">Commercial campaign</option><option value="e_commerce">E-commerce</option><option value="social_media">Social media</option><option value="advertising">Advertising</option><option value="casting_distribution">Casting distribution</option><option value="private_portfolio">Private portfolio</option><option value="other">Other (describe below)</option>
+                                                </select>
+                                                <label>Permitted channels</label>
+                                                @foreach(['website','print','social_media','email','e_commerce','casting_platform','out_of_home','broadcast'] as $channel)
+                                                    <label><input type="checkbox" name="channels[]" value="{{ $channel }}"> {{ str_replace('_', ' ', $channel) }}</label>
+                                                @endforeach
+                                                <label>Exact usage, campaign and restriction details</label><textarea name="purpose_details" minlength="20" maxlength="2000" required></textarea>
+                                                <label>Territory</label><input name="country_code" value="{{ $application->country_code }}" maxlength="2" pattern="[A-Z]{2}" required>
+                                                <label>Licence starts</label><input type="date" name="starts_on" min="{{ now()->toDateString() }}" required>
+                                                <label>Licence ends</label><input type="date" name="ends_on" required>
+                                                <input type="hidden" name="exclusivity" value="0">
+                                                <label><input type="checkbox" name="exclusivity" value="1"> Exclusive in the specified scope</label>
+                                                <label>Agreed compensation (optional)</label><input type="number" name="compensation_amount" min="0.0001" step="0.0001">
+                                                <label>Currency (required with compensation)</label><input name="currency_code" maxlength="3" pattern="[A-Z]{3}">
+                                                <button class="button button-dark" type="submit">Create private licence draft</button>
+                                            </form>
+                                        @else
+                                            <p>No executed representation agreement exists for this territory. A licence cannot be drafted.</p>
+                                        @endif
+                                    @endif
+                                    <p class="field-help">An active record means the agency has recorded an externally executed instrument and separate model consent evidence. This platform does not sign or validate the document and does not serve images publicly. Withdrawal of portfolio consent or termination of representation automatically revokes related draft/active licences.</p>
+                                </div>
                             </div>
                         @endforeach
                         @if($application->status === 'accepted' && $application->adult_eligibility_verified_at && ! $application->legal_hold_at)
