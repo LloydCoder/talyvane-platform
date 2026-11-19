@@ -37,7 +37,7 @@
                 </div>
                 <div class="hero-note"><span class="note-line"></span><span>BUILT FOR INDEPENDENT OPERATORS</span></div>
             </div>
-            <div class="hero-art" aria-label="Abstract architectural composition">
+            <div class="hero-art" aria-label="Luxury hospitality photography">
                 <div class="art-frame">
                     <img class="hero-photo" src="{{ config('stock_photography.hero.url') }}" alt="{{ config('stock_photography.hero.alt') }}" fetchpriority="high" decoding="async">
                     <div class="art-image-wash"></div>
