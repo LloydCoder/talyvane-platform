@@ -53,7 +53,7 @@ class FeatureActivationEvaluator
             }
 
             if ($requirement === 'applicant_privacy_notice') {
-                 $privacyVersion = (string) config('talyvane.model_agency.privacy_notice_version');
+                $privacyVersion = (string) config('talyvane.model_agency.privacy_notice_version');
                 $privacyPage = SitePage::query()->where('slug', 'model-applicant-privacy')->where('is_published', true)->first();
 
                 if (! filled($privacyVersion)
@@ -67,7 +67,7 @@ class FeatureActivationEvaluator
             }
 
             if ($requirement === 'adult_eligibility_policy') {
-                 $eligibilityVersion = (string) config('talyvane.model_agency.adult_eligibility_policy_version');
+                $eligibilityVersion = (string) config('talyvane.model_agency.adult_eligibility_policy_version');
                 $eligibilityPage = SitePage::query()->where('slug', 'model-adult-eligibility')->where('is_published', true)->first();
 
                 if (! filled($eligibilityVersion)
