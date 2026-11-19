@@ -81,7 +81,7 @@ class ModelTalentRepresentationAgreementService
         DB::transaction(function () use ($agreement, $actorId, $documentReference, $effectiveFrom, $effectiveUntil): void {
             $locked = ModelTalentRepresentationAgreement::query()->lockForUpdate()->findOrFail($agreement->id);
             $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($locked->application_id);
-            $this->assertEligible($application);
+            $this->assertEligible($application, (string) ($locked->country_code ?? ''));
 
             if ($locked->status !== 'offered') {
                 throw ValidationException::withMessages(['agreement' => 'Only an outstanding offer can be marked executed.']);
