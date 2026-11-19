@@ -22,9 +22,9 @@ The first commercial release remains deployment-isolated. A future hosted multi-
 - Feature activation is consistent across UI, routes, APIs, jobs and services.
 - Enabling a feature may be blocked until dependencies, credentials, provider approvals or market reviews are complete.
 - High-impact changes require MFA/step-up, a reason and an audit record.
-- Existing owner/admin roles are not automatically promoted. Their least-privilege migration and the last-Super-Admin recovery process remain explicit follow-up work.
+- Existing owner/admin roles are not automatically promoted. The designated Super Admin cannot be demoted, deactivated or deleted through Eloquent model operations; a second Super Admin cannot be assigned after the singleton principal is set. These model guards are defense in depth, not a database-level boundary: privileged direct SQL can bypass them. A separately authenticated, audited recovery/rotation command remains a release blocker.
 - Tests must cover both feature states and attempts to bypass server-side gates.
 - No Super Admin UI may reveal stored secrets, permit public registration of a Super Admin, or alter immutable audit history.
 
 
-The first least-privilege boundary is implemented: `super_admin` alone may change deployment-wide branding, market/currency configuration, destinations, booking rules, payment configuration, site pages and feature controls. `owner` and `admin` retain agency operations such as profile review, enquiries, client records and booking operations. This is route-level role separation; granular per-action permissions and last-Super-Admin/recovery protections remain follow-up work.
+The first least-privilege boundary is implemented: `super_admin` alone may change deployment-wide branding, market/currency configuration, destinations, booking rules, payment configuration, site pages and feature controls. `owner` and `admin` retain agency operations such as profile review, enquiries, client records and booking operations. This is route-level role separation. The designated-principal lifecycle guards are implemented at the Eloquent model boundary and covered by regression tests; direct SQL remains outside that guard. Granular per-action permissions and a separately governed recovery/rotation procedure remain follow-up work.
