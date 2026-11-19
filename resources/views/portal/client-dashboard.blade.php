@@ -15,5 +15,6 @@
         @endforelse
     </div>
     <div class="pagination-wrap">{{ $bookings->links() }}</div>
+    @include('portal.account-security')
     <form method="POST" action="{{ route('logout') }}">@csrf<button class="button button-dark admin-submit" type="submit">Sign out ↗</button></form>
 @endsection
