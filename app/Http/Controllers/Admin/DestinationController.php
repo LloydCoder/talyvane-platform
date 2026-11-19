@@ -58,7 +58,7 @@ class DestinationController
             $validated['image_path'] = null;
         }
 
-        $destination->update($validated);
+        DB::transaction(fn () => $destination->update($validated));
 
         if ($previousImage && $previousImage !== $destination->image_path) {
             Storage::disk('public')->delete($previousImage);
