@@ -45,7 +45,8 @@ class FeatureActivationEvaluator
             }
 
             if ($requirement === 'applicant_data_lifecycle') {
-                $rightsTableReady = Schema::hasTable('model_talent_application_rights_requests');
+                $rightsTableReady = Schema::hasTable('model_talent_application_rights_requests')
+                    && Schema::hasColumn('model_talent_applications', 'legal_hold_at');
                 $applicationDays = (int) config('talyvane.model_agency.retention.application_days');
                 $acceptedDays = (int) config('talyvane.model_agency.retention.accepted_days');
                 $retentionApproved = config('talyvane.model_agency.retention.schedule_approved');
