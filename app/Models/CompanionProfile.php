@@ -38,6 +38,11 @@ class CompanionProfile extends Model
         ];
     }
 
+    public function media(): HasMany
+    {
+        return $this->hasMany(ProfileMedia::class, 'companion_profile_id');
+    }
+
     public function availabilityRules(): HasMany
     {
         return $this->hasMany(CompanionAvailabilityRule::class, 'companion_profile_id');

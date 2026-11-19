@@ -10,6 +10,25 @@
                 <div><span class="eyebrow">{{ $profile->destination->name }} / {{ strtoupper($profile->publication_status) }}</span><h3>{{ $profile->display_name }}</h3><p>Publication consent: {{ $profile->consent_withdrawn_at ? 'Withdrawn' : ($profile->publication_consent_at ? 'Active' : 'Not recorded') }}</p></div>
                 @if ($profile->publication_status === 'published' && !$profile->consent_withdrawn_at)
                     <div class="availability-panel">
+                        <strong>Profile imagery · private submission</strong>
+                        <p>Uploads are converted to metadata-stripped WebP, stored privately and held for agency review. Nothing is public until approved.</p>
+                        @foreach ($profile->media as $media)
+                            <div class="availability-row">
+                                <span>{{ strtoupper($media->status) }} · {{ $media->width }} × {{ $media->height }}</span>
+                                @if ($media->status === 'pending_review')
+                                    <form method="POST" action="{{ route('companion-portal.profiles.media.destroy', [$profile, $media]) }}">@csrf @method('DELETE')<button type="submit">Remove</button></form>
+                                @endif
+                            </div>
+                        @endforeach
+                        <form method="POST" enctype="multipart/form-data" action="{{ route('companion-portal.profiles.media.store', $profile) }}" class="availability-form">
+                            @csrf
+                            <label>Choose a profile image</label><input type="file" name="media" accept="image/jpeg,image/png,image/webp" required>
+                            <label class="remember-row"><input type="checkbox" name="rights_confirmed" value="1" required> I own or have documented rights to this image and it contains no person whose identity or likeness is used without their permission</label>
+                            <label class="remember-row"><input type="checkbox" name="publication_confirmed" value="1" required> I explicitly consent to this image being displayed on my profile if approved; I may withdraw consent at any time</label>
+                            <button class="button button-dark" type="submit">Submit image for review</button>
+                        </form>
+                    </div>
+                    <div class="availability-panel">
                         <strong>Weekly availability · {{ $profile->destination->timezone }}</strong>
                         @forelse ($profile->availabilityRules as $rule)
                             <div class="availability-row"><span>{{ $weekdays[$rule->weekday] }} · {{ substr($rule->starts_at, 0, 5) }}–{{ substr($rule->ends_at, 0, 5) }}</span><form method="POST" action="{{ route('companion-portal.profiles.availability.destroy', [$profile, $rule]) }}">@csrf @method('DELETE')<button type="submit">Remove</button></form></div>

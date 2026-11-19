@@ -7,6 +7,7 @@ use App\Models\BookingEvent;
 use App\Models\CompanionAvailabilityRule;
 use App\Models\CompanionProfile;
 use App\Models\ProfilePublicationReview;
+use App\Models\ProfileMedia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,7 @@ class CompanionPortalController extends Controller
     public function index(): View
     {
         $profiles = CompanionProfile::query()
-            ->with(['destination', 'availabilityRules'])
+            ->with(['destination', 'availabilityRules', 'media'])
             ->where('user_id', auth()->id())
             ->get();
 
@@ -141,6 +142,17 @@ class CompanionPortalController extends Controller
                 'accepts_automatic_bookings' => false,
                 'automatic_booking_consent_at' => null,
             ])->save();
+
+            // Re-consenting to the profile later must never silently revive old image consent.
+            ProfileMedia::query()
+                ->where('companion_profile_id', $lockedProfile->id)
+                ->whereIn('status', ['pending_review', 'approved'])
+                ->update([
+                    'status' => 'withdrawn',
+                    'reviewed_by' => auth()->id(),
+                    'reviewed_at' => now(),
+                    'review_note' => 'Image publication consent withdrawn by profile owner.',
+                ]);
 
             $pendingBookings = Booking::query()->where('companion_profile_id', $lockedProfile->id)
                 ->where('status', 'pending_review')->get();

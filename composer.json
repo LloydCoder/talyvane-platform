@@ -7,6 +7,7 @@
     "license": "LicenseRef-Talyvane-Commercial",
     "require": {
         "php": "^8.3",
+        "ext-gd": "*",
         "laravel/framework": "^13.0",
         "laravel/tinker": "^3.0"
     },

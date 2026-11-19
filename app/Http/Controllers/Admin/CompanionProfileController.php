@@ -7,6 +7,7 @@ use App\Models\BookingEvent;
 use App\Models\CompanionProfile;
 use App\Models\Destination;
 use App\Models\ProfilePublicationReview;
+use App\Models\ProfileMedia;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ class CompanionProfileController
     {
         return view('admin.profiles.index', [
             'profiles' => CompanionProfile::query()->with(['destination', 'user'])->latest()->paginate(20),
+            'pendingMedia' => ProfileMedia::query()->with('profile.destination')->where('status', 'pending_review')->latest()->get(),
             'approvedProviders' => config('talyvane.verification.approved_providers', []),
             'consentVersion' => config('talyvane.privacy.profile_consent_version'),
         ]);
