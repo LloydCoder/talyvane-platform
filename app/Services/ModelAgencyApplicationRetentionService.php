@@ -3,7 +3,8 @@
 namespace App\Services;
 
 use App\Models\ModelTalentApplication;
-use Illuminate\Validation\ValidationException;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\DB;
 
 class ModelAgencyApplicationRetentionService
 {
@@ -35,17 +36,49 @@ class ModelAgencyApplicationRetentionService
                 });
             })
             ->orderBy('id')
-            ->chunkById(100, function ($applications) use (&$anonymized): void {
+            ->chunkById(100, function ($applications) use (&$anonymized, $applicationCutoff, $acceptedCutoff): void {
                 foreach ($applications as $application) {
-                    try {
-                        $this->lifecycle->anonymize($application, 'system', null, 'application.retained');
+                    if ($this->anonymizeIfDue($application->id, $applicationCutoff, $acceptedCutoff)) {
                         $anonymized++;
-                    } catch (ValidationException) {
-                        // A legal hold may have been placed after the candidate query; leave the record untouched.
                     }
                 }
             });
 
         return $anonymized;
+    }
+
+    /**
+     * Re-evaluate retention eligibility under the same row lock used for anonymization.
+     * The initial candidate query is only a performance optimization and is never authority
+     * to erase a record after its status, decision timestamp or legal-hold state changes.
+     */
+    public function anonymizeIfDue(
+        int $applicationId,
+        CarbonInterface $applicationCutoff,
+        CarbonInterface $acceptedCutoff,
+    ): bool {
+        return DB::transaction(function () use ($applicationId, $applicationCutoff, $acceptedCutoff): bool {
+            $application = ModelTalentApplication::query()->lockForUpdate()->find($applicationId);
+
+            if (! $application || $application->status === 'erased' || $application->legal_hold_at !== null) {
+                return false;
+            }
+
+            $retentionClock = $application->reviewed_at ?? $application->submitted_at;
+
+            if ($retentionClock === null) {
+                return false;
+            }
+
+            $cutoff = $application->status === 'accepted' ? $acceptedCutoff : $applicationCutoff;
+
+            if ($retentionClock->gt($cutoff)) {
+                return false;
+            }
+
+            $this->lifecycle->anonymize($application, 'system', null, 'application.retained');
+
+            return true;
+        });
     }
 }
