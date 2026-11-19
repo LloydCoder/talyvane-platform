@@ -103,7 +103,7 @@
                         @endif
                         @if(in_array($submission->status, ['submitted','shortlisted','selected'], true))
                             <form method="POST" action="{{ route('admin.model-casting-submissions.withdraw', $submission) }}" class="inline-form">
-                                @csrf<input name="reason" minlength="20" maxlength="1500" placeholder="Verified model withdrawal reason" required>
+                                @csrf<input name="reason" minlength="20" maxlength="1500" placeholder="Verified model withdrawal reason" required><input name="withdrawal_evidence_reference" minlength="20" maxlength="200" placeholder="private/model-consent/withdrawal-evidence.pdf" required>
                                 <button class="button button-dark" type="submit">Withdraw submission</button>
                             </form>
                         @endif
