@@ -98,7 +98,7 @@ class CompanionPortalController extends Controller
         DB::transaction(function () use ($profile, $enabled): void {
             $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
             $this->assertOwnership($lockedProfile);
-            if ($enabled && ($lockedProfile->publication_status !== 'published' || ! $lockedProfile->publication_consent_at || $lockedProfile->consent_withdrawn_at || ! $lockedProfile->destination()->operationallyAvailable()->exists())) {
+            if ($enabled && ($lockedProfile->publication_status !== 'published' || ! $lockedProfile->publication_consent_at || $lockedProfile->consent_withdrawn_at || ! $lockedProfile->destination()->first()?->lockAndCheckOperationalAvailability())) {
                 throw ValidationException::withMessages(['enabled' => 'Publication consent or market approval is no longer active.']);
             }
             $lockedProfile->forceFill([
