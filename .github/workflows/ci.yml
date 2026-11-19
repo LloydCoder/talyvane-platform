@@ -76,6 +76,12 @@ jobs:
         run: |
           composer check-platform-reqs --no-dev
           composer audit --no-dev --no-interaction
+      - name: Smoke-test routes and Blade compilation with production dependencies
+        env:
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+        run: |
+          php artisan route:list --except-vendor
+          php artisan view:cache
       - name: Assemble standalone release package
         env:
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -95,6 +101,7 @@ jobs:
           frontend= tracked public assets; no production Node.js build required
           EOF
           find "$staging/bootstrap/cache" -type f ! -name '.gitkeep' -delete
+          find "$staging/storage/framework/views" -type f ! -name '.gitkeep' -delete
           mkdir -p dist
           tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -C dist -cf - talyvane | gzip -n > "dist/talyvane-${GITHUB_SHA}.tar.gz"
           sha256sum "dist/talyvane-${GITHUB_SHA}.tar.gz" > "dist/talyvane-${GITHUB_SHA}.tar.gz.sha256"
