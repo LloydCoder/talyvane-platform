@@ -58,7 +58,7 @@ Route::get('/models/apply/received', [ModelAgencyApplicationController::class, '
 Route::get('/models/application-support', [ModelAgencyApplicationRightsController::class, 'create'])->name('model-agency.application-support');
 Route::post('/models/application-support', [ModelAgencyApplicationRightsController::class, 'submitRequest'])->middleware('throttle:3,1')->name('model-agency.application-support.submit');
 Route::get('/models/application-support/verify', [ModelAgencyApplicationRightsController::class, 'verifyForm'])->name('model-agency.application-support.verify');
-Route::post('/models/application-support/verify', [ModelAgencyApplicationRightsController::class, 'verify'])->middleware('throttle:5,1')->name('model-agency.application-support.verify.submit');
+Route::post('/models/application-support/verify', [ModelAgencyApplicationRightsController::class, 'verify'])->middleware('throttle:10,1')->name('model-agency.application-support.verify.submit');
 Route::get('/models/application-support/{rightsRequest}', [ModelAgencyApplicationRightsController::class, 'show'])->name('model-agency.application-support.show');
 Route::post('/models/application-support/{rightsRequest}/finish', [ModelAgencyApplicationRightsController::class, 'finish'])->name('model-agency.application-support.finish');
 Route::patch('/models/application-support/{rightsRequest}', [ModelAgencyApplicationRightsController::class, 'correct'])->name('model-agency.application-support.correct');
