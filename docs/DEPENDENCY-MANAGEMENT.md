@@ -18,7 +18,7 @@ The repository currently requires PHP 8.3+, Laravel 13, and GD. The CI matrix is
 
 ## Lockfile bootstrap
 
-Until the first lockfile is merged, CI temporarily falls back to `composer update` and emits a warning. The `Bootstrap Composer lockfile` workflow is restricted to pushes or manual dispatches on `main`. It resolves and audits dependencies on PHP 8.4 while targeting PHP 8.3.0, creates or refreshes a bot-owned branch, updates CI to require `composer install`, and dispatches the CI matrix against that branch. A maintainer then opens and reviews the pull request using the repository's normal review path.
+Until the first lockfile is merged, CI temporarily falls back to `composer update` and emits a warning. The `Bootstrap Composer lockfile` workflow is restricted to pushes or manual dispatches on `main`. It resolves and audits dependencies on PHP 8.4 while targeting PHP 8.3.0, creates or refreshes a bot-owned branch containing the generated lockfile and dispatches the existing conditional CI matrix against that branch. CI selects deterministic `composer install` whenever the lockfile exists. Once the lockfile is merged, a separate reviewed change removes the temporary no-lockfile fallback. A maintainer then opens and reviews the pull request using the repository's normal review path.
 
 The bootstrap workflow does not run for pull requests and does not merge its own pull request. A maintainer must review the generated dependency diff and wait for all PHP matrix jobs to pass before merging. After the lockfile is present on `main`, the bootstrap workflow exits without writing another branch.
 
