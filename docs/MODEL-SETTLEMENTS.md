@@ -10,9 +10,10 @@ The settlement domain records the financial close-out of a completed model assig
 - Exactly one settlement may exist per assignment.
 - Expense claims can be submitted while an assignment is `in_progress` or `completed`, before a settlement draft exists.
 - Expense claims require a private evidence-key reference, the assignment currency and an expense cap. Pending and approved claims count against the cap; rejected claims do not.
-- An expense claim can be reviewed once as approved or rejected. Pending claims block settlement creation.
+- An expense claim can be reviewed once as approved or rejected. The claimant cannot review their own claim. Pending claims block settlement creation.
 - Settlement calculation snapshots gross compensation, the assignment's commission percentage, approved expenses, currency code and minor-unit precision.
 - A settlement follows `draft → approved → paid`; approved or paid settlements can be disputed, and a paid settlement can be reversed with private evidence.
+- Maker-checker is enforced in the domain service: the settlement creator cannot approve that settlement, and the settlement approver cannot attest its external payment. These checks apply regardless of whether the caller is an owner, Super Admin or finance user; there is no application-level self-approval exception.
 - The settlement and expense models prevent Eloquent mutation of financial terms after submission. Settlement audit events are append-only at the Eloquent model layer.
 
 ## Calculation
@@ -33,6 +34,6 @@ Reversal records an external reversal reason and private evidence reference; it 
 
 ## Privacy and security
 
-Expense descriptions, evidence references, review notes, settlement calculation snapshots, external payment references and dispute/reversal evidence are encrypted at rest. Only authorized agency administrators can access the register; routes require the existing admin authentication, MFA and feature gates. The feature depends on the assignment domain and an explicitly approved settlement policy.
+Expense descriptions, evidence references, review notes, settlement calculation snapshots, external payment references and dispute/reversal evidence are encrypted at rest. Only authorized agency administrators can access the register; routes require the existing admin authentication, MFA and feature gates. Expense review, settlement approval and payment attestation require distinct actors at each governed boundary. These controls are enforced in the service layer, not only by hiding UI actions. The feature depends on the assignment domain and an explicitly approved settlement policy.
 
 Application-layer immutability does not protect against a database administrator or direct SQL. Backups, database access controls, operational separation of duties and independent reconciliation remain necessary.
