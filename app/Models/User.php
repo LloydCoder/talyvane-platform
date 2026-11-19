@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
+use LogicException;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -61,6 +63,54 @@ class User extends Authenticatable implements MustVerifyEmail
     public function companionProfile(): HasOne
     {
         return $this->hasOne(CompanionProfile::class);
+    }
+
+
+    protected static function booted(): void
+    {
+        static::creating(function (User $user): void {
+            if ($user->role !== 'super_admin') {
+                return;
+            }
+
+            $control = DB::table('platform_control')->where('id', 1)->value('super_admin_user_id');
+            $existingSuperAdmin = static::query()->where('role', 'super_admin')->exists();
+
+            if ($control !== null || $existingSuperAdmin) {
+                throw new LogicException('A deployment may have only one Super Admin. Use the controlled bootstrap or recovery command.');
+            }
+        });
+
+        static::updating(function (User $user): void {
+            $controlId = DB::table('platform_control')->where('id', 1)->value('super_admin_user_id');
+            $isReferencedPrincipal = $controlId !== null && (int) $controlId === (int) $user->id;
+
+            if ($user->getOriginal('role') === 'super_admin') {
+                if ($controlId !== null && ! $isReferencedPrincipal) {
+                    throw new LogicException('Super Admin principal and deployment control record are inconsistent.');
+                }
+
+                if ($user->isDirty('role') && $user->role !== 'super_admin') {
+                    throw new LogicException('The deployment Super Admin cannot be demoted.');
+                }
+
+                if ($user->isDirty('is_active') && ! $user->is_active) {
+                    throw new LogicException('The deployment Super Admin cannot be deactivated.');
+                }
+            }
+
+            if ($user->isDirty('role') && $user->role === 'super_admin' && ! $isReferencedPrincipal) {
+                throw new LogicException('Super Admin promotion is permitted only through the controlled bootstrap process.');
+            }
+        });
+
+        static::deleting(function (User $user): void {
+            $controlId = DB::table('platform_control')->where('id', 1)->value('super_admin_user_id');
+
+            if ($user->role === 'super_admin' || ($controlId !== null && (int) $controlId === (int) $user->id)) {
+                throw new LogicException('The deployment Super Admin cannot be deleted. Use the controlled recovery process.');
+            }
+        });
     }
 
     public function isPlatformAdministrator(): bool
