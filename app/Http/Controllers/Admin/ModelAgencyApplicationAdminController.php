@@ -22,16 +22,18 @@ class ModelAgencyApplicationAdminController extends Controller
         'declined' => [],
     ];
 
-    public function index(): View
+    public function index(): \\Illuminate\\Http\\Response
     {
         $this->assertSchemaReady();
 
-        return view('admin.model-agency.applications.index', [
+        return response()->view('admin.model-agency.applications.index', [
             'applications' => ModelTalentApplication::query()
                 ->with('reviewer')
                 ->latest('submitted_at')
                 ->paginate(20),
-        ]);
+        ])->header('Cache-Control', 'no-store, private, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Referrer-Policy', 'no-referrer');
     }
 
     public function update(
