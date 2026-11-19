@@ -149,6 +149,30 @@ class FeatureActivationEvaluator
                 continue;
             }
 
+            if ($requirement === 'model_agency_assignment_schema') {
+                $schemaReady = Schema::hasTable('model_talent_assignments')
+                    && Schema::hasColumns('model_talent_assignments', [
+                        'source_submission_id', 'application_id', 'representation_agreement_id',
+                        'status', 'shoot_starts_at', 'shoot_ends_at', 'assignment_policy_version',
+                    ])
+                    && Schema::hasTable('model_talent_assignment_events');
+
+                if (! $schemaReady) {
+                    $blockers[] = 'The model assignment and append-only audit schemas must be available.';
+                }
+
+                continue;
+            }
+
+            if ($requirement === 'model_agency_assignment_policy') {
+                if (! filled(config('talyvane.model_agency.assignment_policy_version'))
+                    || ! config('talyvane.model_agency.assignment_policy_approved')) {
+                    $blockers[] = 'A current, jurisdiction-reviewed model assignment policy version must be configured and explicitly approved.';
+                }
+
+                continue;
+            }
+
             if ($requirement === 'adult_eligibility_verification') {
                 $verificationSchemaReady = Schema::hasTable('model_talent_applications')
                     && Schema::hasColumns('model_talent_applications', [
