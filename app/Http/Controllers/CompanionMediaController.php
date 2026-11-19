@@ -17,7 +17,7 @@ class CompanionMediaController extends Controller
     {
         abort_unless((int) $profile->user_id === (int) $request->user()->id, 403);
 
-        if ($profile->publication_status !== 'published' || ! $profile->publication_consent_at || $profile->consent_withdrawn_at) {
+        if ($profile->publication_status !== 'published' || ! $profile->age_verified_at || ! $profile->publication_consent_at || $profile->consent_withdrawn_at) {
             throw ValidationException::withMessages(['media' => 'An actively published profile with current consent is required before submitting media.']);
         }
 
