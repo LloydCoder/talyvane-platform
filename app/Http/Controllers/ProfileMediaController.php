@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Http\\Controllers;
+namespace App\Http\Controllers;
 
-use App\\Models\\ProfileMedia;
-use Illuminate\\Http\\Response;
-use Illuminate\\Support\\Facades\\Storage;
+use App\Models\ProfileMedia;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
 
 class ProfileMediaController extends Controller
 {
