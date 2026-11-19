@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLoginController;
+use App\Http\Controllers\Admin\BookingAdminController;
 use App\Http\Controllers\Admin\BookingSettingsController;
 use App\Http\Controllers\Admin\BrandingController;
 use App\Http\Controllers\Admin\CompanionProfileController;
@@ -74,6 +75,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/profiles/{profile}/unpublish', [CompanionProfileController::class, 'unpublish'])->name('profiles.unpublish');
         Route::get('/enquiries', [EnquiryAdminController::class, 'index'])->name('enquiries.index');
         Route::patch('/enquiries/{enquiry}', [EnquiryAdminController::class, 'update'])->name('enquiries.update');
+        Route::get('/bookings', [BookingAdminController::class, 'index'])->name('bookings.index');
+        Route::patch('/bookings/{booking}', [BookingAdminController::class, 'update'])->name('bookings.update');
+        Route::post('/bookings/{booking}/deposit', [BookingAdminController::class, 'verifyDeposit'])->name('bookings.deposit');
         Route::get('/booking-settings', [BookingSettingsController::class, 'edit'])->name('bookings.settings');
         Route::put('/booking-settings', [BookingSettingsController::class, 'update'])->name('bookings.settings.update');
         Route::post('/logout', [AdminLoginController::class, 'destroy'])->name('logout');
