@@ -151,6 +151,14 @@ class DiscoveryTest extends TestCase
             ->assertDontSee('Manila Profile');
     }
 
+    public function test_companion_directory_rejects_array_filter_input(): void
+    {
+        $this->from('/companions')
+            ->get('/companions?destination[]=london')
+            ->assertRedirect('/companions')
+            ->assertSessionHasErrors('destination');
+    }
+
     public function test_owner_can_create_a_destination(): void
     {
         $owner = User::create([
