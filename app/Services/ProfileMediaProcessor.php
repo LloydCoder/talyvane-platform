@@ -31,7 +31,7 @@ class ProfileMediaProcessor
         }
 
         [$width, $height] = $dimensions;
-        if ($width < 320 || $height < 320 || $width > 6000 || $height > 6000 || ($width * $height) > 24000000) {
+        if ($width < 320 || $height < 320 || $width > 6000 || $height > 6000 || ($width * $height) > 16000000) {
             throw ValidationException::withMessages(['media' => 'Images must be at least 320px and no larger than 6000px per side or 24 megapixels.']);
         }
 
@@ -45,12 +45,14 @@ class ProfileMediaProcessor
         $sanitized = ob_get_clean();
         imagedestroy($image);
 
-        if (! $encoded || ! is_string($sanitized) || $sanitized === '') {
+        if (! $encoded || ! is_string($sanitized) || $sanitized === '' || strlen($sanitized) > 8388608) {
             throw new RuntimeException('The image could not be safely re-encoded.');
         }
 
         $path = 'profile-media/'.bin2hex(random_bytes(24)).'.webp';
-        Storage::disk('local')->put($path, $sanitized);
+        if (! Storage::disk('local')->put($path, $sanitized)) {
+            throw new RuntimeException('The sanitized image could not be stored privately.');
+        }
 
         return [
             'path' => $path,
