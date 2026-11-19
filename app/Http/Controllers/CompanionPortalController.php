@@ -35,6 +35,17 @@ class CompanionPortalController extends Controller
     }
 
 
+
+    public function privacyStatus(): View
+    {
+        $profile = CompanionProfile::query()->where('user_id', auth()->id())->first();
+        $media = $profile
+            ? $profile->media()->latest()->get(['id', 'companion_profile_id', 'status', 'created_at'])
+            : collect();
+
+        return view('portal.companion-privacy-status', compact('profile', 'media'));
+    }
+
     public function storeAvailability(Request $request, CompanionProfile $profile): RedirectResponse
     {
         $this->assertOwnership($profile);
