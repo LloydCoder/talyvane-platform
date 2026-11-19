@@ -98,7 +98,7 @@ class ModelTalentRepresentationAgreementService
                 'effective_until' => $effectiveUntil,
             ])->save();
 
-            $this->event($application, $actorId, 'application.representation_agreement_executed_recorded', 'Recorded externally executed agreement '.$locked->reference.'. The platform did not perform or validate an electronic signature.');
+            $this->event($application, $actorId, 'application.representation_executed_recorded', 'Recorded externally executed agreement '.$locked->reference.'. The platform did not perform or validate an electronic signature.');
         });
     }
 
