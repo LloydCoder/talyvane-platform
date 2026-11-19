@@ -2,7 +2,7 @@
 
 ## Scope
 
-The settlement domain records the financial close-out of a completed model assignment. It is separate from companionship booking deposits and from payment processor configuration. It is an administrator-only ledger and is disabled by default until a versioned, jurisdiction-reviewed settlement policy is explicitly approved.
+The settlement domain records the financial close-out of a completed model assignment. It is separate from companionship booking deposits and from payment processor configuration. It is an administrator-only ledger and is disabled by default until a versioned, jurisdiction-reviewed settlement policy is explicitly approved. Configure `MODEL_AGENCY_SETTLEMENT_POLICY_VERSION` and set `MODEL_AGENCY_SETTLEMENT_POLICY_APPROVED=true` only after the applicable legal, tax and finance review. Both values are deployment-controlled; the approval default is false.
 
 ## Eligibility and lifecycle
 
