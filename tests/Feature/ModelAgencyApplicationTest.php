@@ -323,6 +323,21 @@ class ModelAgencyApplicationTest extends TestCase
         $event->forceFill(['event_type' => 'application.tampered'])->save();
     }
 
+
+    public function test_feature_activation_fails_closed_when_applicant_legal_hold_schema_is_incomplete(): void
+    {
+        $this->enableApplications();
+
+        Schema::table('model_talent_applications', function ($table): void {
+            $table->dropColumn('legal_hold_at');
+        });
+
+        $feature = \App\Models\PlatformFeature::query()->findOrFail('model-agency.applications');
+        $blockers = app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature);
+
+        $this->assertContains('The separate model-agency application, legal-hold and audit schema is incomplete.', $blockers);
+    }
+
     public function test_feature_activation_requires_approved_privacy_and_adult_eligibility_policies(): void
     {
         $feature = \App\Models\PlatformFeature::query()->findOrFail('model-agency.applications');
