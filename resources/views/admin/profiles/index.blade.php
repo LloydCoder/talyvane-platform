@@ -31,6 +31,7 @@
                                     <label>Provider verification reference</label><input name="verification_reference" required minlength="8" maxlength="255" autocomplete="off">
                                     <label>Consent version</label><input name="consent_version" value="{{ $consentVersion }}" readonly>
                                     <label class="remember-row"><input type="checkbox" name="consent_confirmed" value="1" required> I reviewed the current, explicit publication consent</label>
+                                    <label class="remember-row"><input type="checkbox" name="automatic_booking_opt_in" value="1"> I confirm this companion separately opted into automatic booking</label>
                                     <label>Review note (optional)</label><textarea name="review_note" rows="2" maxlength="1000"></textarea>
                                     <button class="button button-dark" type="submit">Approve & publish</button>
                                 </form>
