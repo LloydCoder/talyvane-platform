@@ -61,6 +61,35 @@ class SuperAdminFeatureControlTest extends TestCase
         $this->assertSame($step, $admin->fresh()->mfa_last_used_step);
     }
 
+    public function test_safe_feature_can_be_reenabled_after_prerequisites_pass_with_a_new_totp_step(): void
+    {
+        $admin = $this->createAdminUser([
+            'name' => 'Deployment Super Admin',
+            'email' => 'super-admin@example.test',
+            'role' => 'super_admin',
+        ]);
+        $step = intdiv(time(), 30);
+        $totp = new TotpService();
+        $this->actingAs($admin);
+
+        $this->patch('/admin/features/cms.pages', [
+            'enabled' => false,
+            'reason' => 'Disable content management for the planned maintenance window.',
+            'password' => 'Strong-Testing-Password-934!',
+            'code' => $totp->codeForStep($admin->mfa_secret, $step),
+        ])->assertRedirect(route('admin.features.index'));
+
+        $this->patch('/admin/features/cms.pages', [
+            'enabled' => true,
+            'reason' => 'Maintenance is complete and the content service is ready to resume.',
+            'password' => 'Strong-Testing-Password-934!',
+            'code' => $totp->codeForStep($admin->mfa_secret, $step + 1),
+        ])->assertRedirect(route('admin.features.index'));
+
+        $this->assertDatabaseHas('platform_features', ['key' => 'cms.pages', 'is_enabled' => true]);
+        $this->assertSame(2, PlatformFeatureAuditEvent::query()->where('feature_key', 'cms.pages')->count());
+    }
+
     public function test_totp_code_cannot_be_replayed_for_a_second_feature_change(): void
     {
         $admin = $this->createAdminUser([
