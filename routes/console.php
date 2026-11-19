@@ -3,10 +3,77 @@
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 
 Artisan::command('talyvane:about', function () {
     $this->comment('Talyvane platform foundation');
 })->purpose('Display Talyvane application information');
+
+
+Artisan::command('talyvane:super-admin:create {email}', function () {
+    $email = strtolower(trim((string) $this->argument('email')));
+
+    if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $this->error('A valid email address is required.');
+
+        return 1;
+    }
+
+    if (User::query()->whereRaw('LOWER(email) = ?', [$email])->exists()) {
+        $this->error('An account with that email already exists.');
+
+        return 1;
+    }
+
+    $name = trim((string) $this->ask('Super Admin name'));
+    $password = (string) $this->secret('Password (minimum 14 characters)');
+    $confirmation = (string) $this->secret('Confirm password');
+
+    $strongPassword = strlen($password) >= 14
+        && preg_match('/[a-z]/', $password)
+        && preg_match('/[A-Z]/', $password)
+        && preg_match('/[0-9]/', $password)
+        && preg_match('/[^A-Za-z0-9]/', $password);
+
+    if ($name === '' || ! $strongPassword || ! hash_equals($password, $confirmation)) {
+        $this->error('A name, a strong 14-character password, and matching confirmation are required.');
+
+        return 1;
+    }
+
+    $superAdmin = DB::transaction(function () use ($name, $email, $password): ?User {
+        $control = DB::table('platform_control')->where('id', 1)->lockForUpdate()->first();
+
+        if (! $control || $control->super_admin_user_id !== null || User::query()->where('role', 'super_admin')->exists()) {
+            return null;
+        }
+
+        $user = User::query()->create([
+            'name' => $name,
+            'email' => $email,
+            'password' => $password,
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+
+        DB::table('platform_control')->where('id', 1)->update([
+            'super_admin_user_id' => $user->id,
+            'updated_at' => now(),
+        ]);
+
+        return $user;
+    });
+
+    if (! $superAdmin) {
+        $this->error('A Super Admin is already provisioned for this deployment. Use the documented recovery process.');
+
+        return 1;
+    }
+
+    $this->info('Deployment Super Admin created. Sign in and complete mandatory MFA setup before administration.');
+
+    return 0;
+})->purpose('Provision the single deployment Super Admin from a trusted command line');
 
 Artisan::command('talyvane:admin:create {email}', function () {
     $email = strtolower(trim((string) $this->argument('email')));
