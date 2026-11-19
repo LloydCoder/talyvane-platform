@@ -103,6 +103,15 @@ class SuperAdminBreakGlassService
                 $user->forceFill(['mfa_last_used_step' => $step])->save();
             }
 
+            $firstGuardian = $lockedUsers->get((int) $guardians[0]['user_id']);
+            $secondGuardian = $lockedUsers->get((int) $guardians[1]['user_id']);
+
+            if (hash_equals($firstGuardian->mfa_secret, $secondGuardian->mfa_secret)
+                || Hash::check($guardians[0]['password'], $secondGuardian->password)
+                || Hash::check($guardians[1]['password'], $firstGuardian->password)) {
+                throw new RuntimeException('Recovery guardians must use independent authenticator secrets and different passwords.');
+            }
+
             $versionBefore = (int) $superAdmin->admin_session_version;
             $versionAfter = $versionBefore + 1;
             $occurredAt = now();
@@ -219,6 +228,15 @@ class SuperAdminBreakGlassService
                 DB::table('super_admin_recovery_guardians')
                     ->where('user_id', $user->id)
                     ->update(['last_used_at' => $occurredAt, 'updated_at' => $occurredAt]);
+            }
+
+            $firstGuardian = $lockedUsers->get((int) $guardians[0]['user_id']);
+            $secondGuardian = $lockedUsers->get((int) $guardians[1]['user_id']);
+
+            if (hash_equals($firstGuardian->mfa_secret, $secondGuardian->mfa_secret)
+                || Hash::check($guardians[0]['password'], $secondGuardian->password)
+                || Hash::check($guardians[1]['password'], $firstGuardian->password)) {
+                throw new RuntimeException('Recovery guardians must use independent authenticator secrets and different passwords.');
             }
 
             $versionBefore = (int) $superAdmin->admin_session_version;
