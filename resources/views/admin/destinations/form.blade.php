@@ -17,7 +17,7 @@
     <label for="description">Public description</label><textarea id="description" name="description" rows="4" maxlength="2000">{{ old('description', $destination?->description) }}</textarea>
     <label for="sort_order">Display order</label><input id="sort_order" name="sort_order" type="number" min="0" max="65535" value="{{ old('sort_order', $destination?->sort_order ?? 0) }}">
     <label class="remember-row"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $destination?->is_active ?? false))> Publish this destination publicly</label>
-    <div class="settings-section-title"><span>03</span><div><h2>Destination photography</h2><p>Use an image you own or are licensed to use. Upload a landscape photograph of at least 800 × 500 pixels. JPEG, PNG and WebP only; maximum 5 MB.</p></div></div>
+    <div class="settings-section-title"><span>03</span><div><h2>Destination photography</h2><p>Use a landscape, architecture or hospitality photograph you own or are licensed to use. Do not upload people, companion portraits, visible brands/logos or protected artwork. Upload at least 800 × 500 pixels. JPEG, PNG and WebP only; maximum 5 MB.</p></div></div>
     @if ($destination?->image_path)
         <div class="destination-image-preview"><img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($destination->image_path) }}" alt="Current cover for {{ $destination->city_name }}"><span>Current destination cover</span></div>
         <label class="remember-row"><input type="checkbox" name="remove_cover_image" value="1"> Remove current cover image</label>
