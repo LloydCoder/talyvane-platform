@@ -138,7 +138,8 @@ class ModelAgencyApplicationRightsTest extends TestCase
             ->assertOk()
             ->assertSee('Jordan Example')
             ->assertSee('jordan@example.test')
-            ->assertSee('Commercial and editorial modelling experience.');
+            ->assertSee('Commercial and editorial modelling experience.')
+            ->assertHeader('Cache-Control', 'no-store, private, max-age=0');
     }
 
     public function test_access_request_does_not_disclose_whether_reference_or_email_exists(): void
