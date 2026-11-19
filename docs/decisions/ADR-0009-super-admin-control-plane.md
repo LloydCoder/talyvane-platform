@@ -27,7 +27,7 @@ The first commercial release remains deployment-isolated. A future hosted multi-
 - No Super Admin UI may reveal stored secrets, permit public registration of a Super Admin, or alter immutable audit history.
 
 
-The first least-privilege boundary is implemented: `super_admin` alone may change deployment-wide branding, market/currency configuration, destinations, booking rules, payment configuration, site pages and feature controls. `owner` and `admin` retain agency operations such as profile review, enquiries, client records and booking operations. This is route-level role separation. The designated-principal lifecycle guards are implemented at the Eloquent model boundary and covered by regression tests; direct SQL remains outside that guard. Granular per-action permissions and a separately governed recovery/rotation procedure remain follow-up work.
+The first least-privilege boundary is implemented: `super_admin` alone may change deployment-wide branding, market/currency configuration, destinations, booking rules, payment configuration, site pages and feature controls. `owner` and `admin` retain agency operations such as profile review, enquiries, client records and booking operations. This is route-level role separation. The designated-principal lifecycle guards are implemented at the Eloquent model boundary and covered by regression tests; direct SQL remains outside that guard. Granular per-action permissions remain follow-up work. CLI-only recovery enrollment and MFA reset are implemented; dual-control break-glass handling for loss of both password and offline key remains outstanding.
 
 
 ## Recovery and session revocation implementation
