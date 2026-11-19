@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\DestinationController;
 use App\Http\Controllers\Admin\EnquiryAdminController;
 use App\Http\Controllers\Admin\PaymentMethodController;
 use App\Http\Controllers\Admin\PaymentSettingsController;
+use App\Http\Controllers\Admin\SitePageController;
 use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\CompanionBookingController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\DiscoveryController;
 use App\Http\Controllers\EnquiryController;
 use App\Http\Controllers\PortalAuthController;
 use App\Http\Controllers\PortalDashboardController;
+use App\Http\Controllers\PageController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
 
