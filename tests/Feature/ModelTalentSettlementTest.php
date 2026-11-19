@@ -329,6 +329,35 @@ class ModelTalentSettlementTest extends TestCase
         }
     }
 
+    public function test_expense_and_settlement_financial_snapshots_cannot_be_mutated_after_creation(): void
+    {
+        $context = $this->assignment();
+        $service = app(ModelTalentSettlementService::class);
+        $expense = $service->addExpense($context['assignment'], $context['admin']->id, [
+            'description' => 'Transport expense with private receipt evidence.',
+            'amount' => '25.00',
+            'currency_code' => 'GBP',
+            'evidence_reference' => 'private/model-expenses/immutable-expense-receipt.pdf',
+        ]);
+
+        try {
+            $expense->update(['amount' => '1.00']);
+            $this->fail('Submitted expense amounts must be immutable.');
+        } catch (\\RuntimeException $exception) {
+            $this->assertSame('Expense claim terms and evidence are immutable after submission.', $exception->getMessage());
+        }
+
+        $service->reviewExpense($expense, $context['admin']->id, 'approved', 'Receipt and amount verified for reimbursement.');
+        $settlement = $service->createDraft($context['assignment'], $context['admin']->id);
+
+        try {
+            $settlement->update(['gross_amount' => '1.0000']);
+            $this->fail('Settlement financial snapshots must be immutable.');
+        } catch (\\RuntimeException $exception) {
+            $this->assertSame('Settlement financial snapshots are immutable; use a governed state transition.', $exception->getMessage());
+        }
+    }
+
     public function test_paid_settlement_can_be_reversed_only_with_private_evidence_and_keeps_event_history(): void
     {
         $context = $this->assignment();
