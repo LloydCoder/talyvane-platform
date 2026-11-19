@@ -9,8 +9,8 @@ This release implements a separate application and administrator-review workflow
 The feature registry entry `model-agency.applications` is available in code but disabled by default. Do not enable it until all gates below are met.
 
 1. Obtain jurisdiction-specific legal/privacy review for the actual operator entity and intended applicant markets.
-2. Create and publish a CMS page with the exact slug `model-applicant-privacy`. It must identify the controller, purposes and lawful bases, data categories, recipients/processors, international transfers, retention periods, applicant rights, complaint routes and contact details.
-3. Create and publish a CMS page with the exact slug `model-adult-eligibility`. It must describe adult eligibility requirements and make clear that the application checkbox is a self-attestation, not age or identity verification.
+2. Create and publish a CMS page with the exact slug `model-applicant-privacy`. It must identify the controller, purposes and lawful bases, data categories, recipients/processors, international transfers, retention periods, applicant rights, complaint routes and contact details. Include the exact configured privacy-notice version string in the published page body so stale pages cannot satisfy activation.
+3. Create and publish a CMS page with the exact slug `model-adult-eligibility`. It must describe adult eligibility requirements and make clear that the application checkbox is a self-attestation, not age or identity verification. Include the exact configured adult-eligibility policy version string in the published page body.
 4. Configure the following deployment environment values after the pages have been reviewed and published:
 
 ```dotenv
