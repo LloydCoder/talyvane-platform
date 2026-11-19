@@ -81,8 +81,11 @@ class PaymentMethodController
                 throw ValidationException::withMessages(['enabled' => 'Global payments and crypto must both be enabled first.']);
             }
 
-            if (! $paymentMethod->purpose_booking && ! $paymentMethod->purpose_membership) {
-                throw ValidationException::withMessages(['enabled' => 'Select at least one permitted payment purpose.']);
+            $bookingAllowed = $paymentMethod->purpose_booking && $settings->booking_payments_enabled;
+            $membershipAllowed = $paymentMethod->purpose_membership && $settings->membership_payments_enabled;
+
+            if (! $bookingAllowed && ! $membershipAllowed) {
+                throw ValidationException::withMessages(['enabled' => 'At least one matching payment purpose must be enabled globally and on this receiving method.']);
             }
         }
 
