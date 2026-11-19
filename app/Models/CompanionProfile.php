@@ -65,6 +65,6 @@ class CompanionProfile extends Model
             ->whereNotNull('age_verified_at')
             ->whereNotNull('publication_consent_at')
             ->whereNull('consent_withdrawn_at')
-            ->whereHas('destination', fn (Builder $destination) => $destination->where('is_active', true));
+            ->whereHas('destination', fn (Builder $destination) => $destination->operationallyAvailable());
     }
 }
