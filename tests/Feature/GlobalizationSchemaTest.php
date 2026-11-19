@@ -16,6 +16,8 @@ class GlobalizationSchemaTest extends TestCase
         $this->assertTrue(Schema::hasTable('country_markets'));
         $this->assertTrue(Schema::hasTable('exchange_rates'));
         $this->assertTrue(Schema::hasTable('localized_prices'));
+        $this->assertTrue(Schema::hasTable('globalization_settings'));
+        $this->assertTrue(Schema::hasTable('globalization_audit_events'));
     }
 
     public function test_financial_schema_preserves_currency_precision_and_rate_provenance(): void
