@@ -73,7 +73,7 @@ class CompanionProfileController
             'review_note' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        if (! $profile->destination()->where('is_active', true)->exists()) {
+        if (! $profile->destination()->operationallyAvailable()->exists()) {
             return back()->withErrors(['destination' => 'The destination must be active before publication.']);
         }
 
@@ -82,7 +82,7 @@ class CompanionProfileController
 
         DB::transaction(function () use ($profile, $validated, $now, $automaticOptIn): void {
             $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
-            if (! $lockedProfile->destination()->where('is_active', true)->exists()) {
+            if (! $lockedProfile->destination()->operationallyAvailable()->exists()) {
                 throw ValidationException::withMessages(['destination' => 'The destination must be active before publication.']);
             }
             $lockedProfile->forceFill([
