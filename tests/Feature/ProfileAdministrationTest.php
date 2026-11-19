@@ -15,7 +15,7 @@ class ProfileAdministrationTest extends TestCase
 
     private function owner(): User
     {
-        return User::create([
+        return $this->createAdminUser([
             'name' => 'Platform Owner',
             'email' => 'owner@example.test',
             'password' => Hash::make('Strong-Testing-Password-934!'),
