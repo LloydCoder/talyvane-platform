@@ -25,6 +25,8 @@ class DiscoveryTest extends TestCase
         );
 
         $this->assertNotEmpty($urls);
+        $this->assertCount(8, $urls);
+        $this->assertStringNotContainsString('pexels.com', implode(' ', $urls));
 
         foreach ($urls as $url) {
             $this->assertStringStartsWith('https://images.unsplash.com/', $url);
@@ -38,7 +40,8 @@ class DiscoveryTest extends TestCase
             ->assertSee('editorial-gallery')
             ->assertSee('images.unsplash.com/photo-1776763018821')
             ->assertSee('images.unsplash.com/photo-1776761731066')
-            ->assertSee('images.unsplash.com/photo-1768397003905');
+            ->assertSee('images.unsplash.com/photo-1768397003905')
+            ->assertSee('images.unsplash.com/photo-1768346564233');
     }
 
     public function test_public_destination_directory_shows_active_destinations(): void
