@@ -34,6 +34,7 @@ class ModelAgencyApplicationController extends Controller
     public function store(Request $request, FeatureActivationEvaluator $evaluator): RedirectResponse
     {
         $privacyNoticeVersion = config('talyvane.model_agency.privacy_notice_version');
+        abort_if($evaluator->blockers(PlatformFeature::query()->findOrFail('model-agency.applications')) !== [], 503, 'Model agency application safeguards are not configured.');
 
         if (! filled($privacyNoticeVersion)
             || ! config('talyvane.model_agency.privacy_notice_approved')
