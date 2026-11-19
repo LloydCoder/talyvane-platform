@@ -16,6 +16,9 @@ use App\Http\Controllers\Admin\SitePageController;
 use App\Http\Controllers\AccountSecurityController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\CompanionBookingController;
+use App\Http\Controllers\CompanionMediaController;
+use App\Http\Controllers\ProfileMediaController;
+use App\Http\Controllers\Admin\ProfileMediaReviewController;
 use App\Http\Controllers\CompanionPortalController;
 use App\Http\Controllers\DiscoveryController;
 use App\Http\Controllers\EnquiryController;
@@ -37,6 +40,7 @@ Route::get('/destinations', [DiscoveryController::class, 'destinations'])->name(
 Route::get('/destinations/{slug}', [DiscoveryController::class, 'destination'])->name('destinations.show');
 Route::get('/companions', [DiscoveryController::class, 'companions'])->name('companions.index');
 Route::get('/companions/{slug}', [DiscoveryController::class, 'companion'])->name('companions.show');
+Route::get('/profile-media/{media}', [ProfileMediaController::class, 'show'])->name('profile-media.show');
 Route::get('/profile-media/{media}', [ProfileMediaController::class, 'show'])->name('profile-media.show');
 Route::get('/contact', [EnquiryController::class, 'create'])->name('contact');
 Route::get('/pages/{slug}', [PageController::class, 'show'])->name('pages.show');
@@ -71,6 +75,8 @@ Route::middleware('auth')->group(function (): void {
 
     Route::middleware(['verified', 'role:companion'])->group(function (): void {
         Route::get('/companion-portal', [CompanionPortalController::class, 'index'])->name('companion-portal.dashboard');
+        Route::post('/companion-portal/profiles/{profile}/media', [CompanionMediaController::class, 'store'])->middleware('throttle:10,1')->name('companion-portal.profiles.media.store');
+        Route::delete('/companion-portal/profiles/{profile}/media/{media}', [CompanionMediaController::class, 'destroy'])->name('companion-portal.profiles.media.destroy');
         Route::post('/companion-portal/profiles/{profile}/media', [CompanionMediaController::class, 'store'])->middleware('throttle:10,1')->name('companion-portal.profiles.media.store');
         Route::delete('/companion-portal/profiles/{profile}/media/{media}', [CompanionMediaController::class, 'destroy'])->name('companion-portal.profiles.media.destroy');
         Route::post('/companion-portal/profiles/{profile}/automatic-booking', [CompanionPortalController::class, 'updateAutomaticBooking'])->name('companion-portal.profiles.automatic-booking');
@@ -110,6 +116,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/profiles', [CompanionProfileController::class, 'index'])->name('profiles.index');
         Route::get('/profiles/create', [CompanionProfileController::class, 'create'])->name('profiles.create');
         Route::post('/profiles', [CompanionProfileController::class, 'store'])->name('profiles.store');
+        Route::post('/profile-media/{media}/review', [ProfileMediaReviewController::class, 'update'])->name('profile-media.review');
         Route::post('/profile-media/{media}/review', [ProfileMediaReviewController::class, 'update'])->name('profile-media.review');
         Route::post('/profiles/{profile}/publish', [CompanionProfileController::class, 'publish'])->name('profiles.publish');
         Route::post('/profiles/{profile}/unpublish', [CompanionProfileController::class, 'unpublish'])->name('profiles.unpublish');
