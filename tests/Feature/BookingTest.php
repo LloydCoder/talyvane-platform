@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Booking;
+use App\Models\CountryMarket;
 use App\Models\BookingSetting;
 use App\Models\CompanionAvailabilityRule;
 use App\Models\CompanionProfile;
@@ -244,7 +245,7 @@ class BookingTest extends TestCase
             'timezone' => 'Europe/London',
             'duration_minutes' => 60,
         ]);
-        \\App\\Models\\CountryMarket::query()->where('country_code', 'GB')->update([
+        CountryMarket::query()->where('country_code', 'GB')->update([
             'is_enabled' => false,
             'compliance_status' => 'rejected',
         ]);
