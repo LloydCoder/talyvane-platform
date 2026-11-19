@@ -71,8 +71,9 @@ class ModelTalentPortfolioAssetService
     public function review(ModelTalentPortfolioAsset $asset, int $actorId, string $decision, string $note): void
     {
         DB::transaction(function () use ($asset, $actorId, $decision, $note): void {
+            $current = ModelTalentPortfolioAsset::query()->findOrFail($asset->id);
+            $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($current->application_id);
             $locked = ModelTalentPortfolioAsset::query()->lockForUpdate()->findOrFail($asset->id);
-            $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($locked->application_id);
 
             if (! in_array($decision, ['approved', 'rejected'], true)) {
                 throw ValidationException::withMessages(['decision' => 'Choose an allowed review decision.']);
