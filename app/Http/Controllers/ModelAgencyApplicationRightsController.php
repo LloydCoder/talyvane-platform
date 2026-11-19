@@ -47,6 +47,12 @@ class ModelAgencyApplicationRightsController extends Controller
             && hash_equals(Str::lower($application->email), Str::lower(trim($validated['email'])))) {
             $code = $codes->generate();
             $rightsRequest = DB::transaction(function () use ($application, $validated, $code): ModelTalentApplicationRightsRequest {
+                $lockedApplication = ModelTalentApplication::query()->lockForUpdate()->findOrFail($application->id);
+
+                if ($lockedApplication->status === 'erased') {
+                    throw ValidationException::withMessages(['reference' => 'The application is no longer available.']);
+                }
+
                 ModelTalentApplicationRightsRequest::query()
                     ->where('application_id', $application->id)
                     ->where('status', 'pending')
@@ -57,7 +63,7 @@ class ModelAgencyApplicationRightsController extends Controller
                     ]);
 
                 return ModelTalentApplicationRightsRequest::query()->create([
-                    'application_id' => $application->id,
+                    'application_id' => $lockedApplication->id,
                     'request_type' => $validated['request_type'],
                     'status' => 'pending',
                     'code_hash' => Hash::make($code),
@@ -320,6 +326,7 @@ class ModelAgencyApplicationRightsController extends Controller
     {
         abort_unless(
             Schema::hasTable('model_talent_applications')
+                && Schema::hasColumn('model_talent_applications', 'legal_hold_at')
                 && Schema::hasTable('model_talent_application_rights_requests'),
             503,
             'Applicant privacy request services are temporarily unavailable.',
