@@ -167,4 +167,61 @@ class ModelAgencyApplicationTest extends TestCase
             'status' => 'submitted',
         ]);
     }
+    public function test_submission_fails_closed_when_legal_policy_approvals_are_missing(): void
+    {
+        $this->enableApplications();
+        config(['talyvane.model_agency.privacy_notice_approved' => false]);
+
+        $this->post('/models/apply', [
+            'full_name' => 'Jordan Example',
+            'email' => 'jordan@example.test',
+            'country_code' => 'GB',
+            'city' => 'London',
+            'experience_summary' => 'Commercial modelling experience and editorial portfolio.',
+            'adult_eligibility_confirmed' => '1',
+            'privacy_notice_version' => 'model-application-privacy-v1',
+            'privacy_notice_accepted' => '1',
+        ])->assertStatus(503);
+
+        $this->assertDatabaseCount('model_talent_applications', 0);
+    }
+
+    public function test_portfolio_links_must_use_https_and_are_never_fetched_by_the_application_flow(): void
+    {
+        $this->enableApplications();
+
+        $this->from('/models/apply')->post('/models/apply', [
+            'full_name' => 'Jordan Example',
+            'email' => 'jordan@example.test',
+            'country_code' => 'GB',
+            'city' => 'London',
+            'portfolio_url' => 'http://127.0.0.1/private',
+            'experience_summary' => 'Commercial modelling experience and editorial portfolio.',
+            'adult_eligibility_confirmed' => '1',
+            'privacy_notice_version' => 'model-application-privacy-v1',
+            'privacy_notice_accepted' => '1',
+        ])->assertSessionHasErrors('portfolio_url');
+
+        $this->assertDatabaseCount('model_talent_applications', 0);
+    }
+
+    public function test_model_application_audit_events_are_append_only(): void
+    {
+        $this->enableApplications();
+        $this->post('/models/apply', [
+            'full_name' => 'Jordan Example',
+            'email' => 'jordan@example.test',
+            'country_code' => 'GB',
+            'city' => 'London',
+            'experience_summary' => 'Commercial modelling experience and editorial portfolio.',
+            'adult_eligibility_confirmed' => '1',
+            'privacy_notice_version' => 'model-application-privacy-v1',
+            'privacy_notice_accepted' => '1',
+        ])->assertRedirect('/models/apply/received');
+
+        $event = \App\Models\ModelTalentApplicationEvent::query()->firstOrFail();
+        $this->expectException(\LogicException::class);
+        $event->delete();
+    }
+
 }
