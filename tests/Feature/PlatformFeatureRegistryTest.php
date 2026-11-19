@@ -50,6 +50,20 @@ class PlatformFeatureRegistryTest extends TestCase
         ]);
     }
 
+    public function test_model_assignment_feature_cannot_be_effectively_enabled_without_its_model_agency_dependencies(): void
+    {
+        DB::table('platform_features')->where('key', 'model-agency.assignments')->update([
+            'is_enabled' => true,
+        ]);
+
+        $this->assertFalse(app(FeatureRegistry::class)->isEnabled('model-agency.assignments'));
+        $this->assertDatabaseHas('platform_features', [
+            'key' => 'model-agency.assignments',
+            'implementation_status' => 'available',
+            'is_enabled' => true,
+        ]);
+    }
+
     public function test_automatic_booking_fails_closed_when_a_dependency_is_disabled(): void
     {
         DB::table('platform_features')->where('key', 'bookings.companionship')->update(['is_enabled' => false]);
