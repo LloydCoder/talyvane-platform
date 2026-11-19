@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\BookingEvent;
 use App\Models\BookingSetting;
 use App\Models\CompanionProfile;
+use App\Services\FeatureRegistry;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,7 +32,7 @@ class BookingController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, FeatureRegistry $features): RedirectResponse
     {
         $validated = $request->validate([
             'profile_id' => ['required', 'integer', Rule::exists('companion_profiles', 'id')],
@@ -77,7 +78,7 @@ class BookingController extends Controller
         $startsAt = $startLocal->utc();
         $endsAt = $startsAt->addMinutes((int) $validated['duration_minutes']);
 
-        DB::transaction(function () use ($profile, $settings, $validated, $startsAt, $endsAt, $timezone): void {
+        DB::transaction(function () use ($profile, $settings, $validated, $startsAt, $endsAt, $timezone, $features): void {
             $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
 
             if ($lockedProfile->publication_status !== 'published'
@@ -114,7 +115,8 @@ class BookingController extends Controller
                     ->where('ends_at', '>=', $localEnd->format('H:i:s'))
                     ->exists();
 
-            $canAutoConfirm = $settings->booking_mode === 'automatic'
+            $canAutoConfirm = $features->isEnabled('bookings.automatic')
+                && $settings->booking_mode === 'automatic'
                 && $settings->auto_confirm_enabled
                 && $availabilityMatches
                 && $lockedProfile->accepts_automatic_bookings

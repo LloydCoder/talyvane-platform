@@ -9,6 +9,11 @@
         <h1>Platform<br><em>overview.</em></h1>
         <p>Manage the identity and operating foundation of this deployment.</p>
     </div>
+    @if (auth()->user()?->role === 'super_admin')
+        <div class="admin-card-grid">
+            <a class="admin-card" href="{{ route('admin.features.index') }}"><span>00 / PLATFORM CONTROL</span><h2>Feature registry</h2><p>Inspect module readiness, dependencies, risk levels and activation prerequisites.</p><b>Open registry ↗</b></a>
+        </div>
+    @endif
     <div class="admin-card-grid">
         <a class="admin-card" href="{{ route('admin.branding.edit') }}"><span>01 / IDENTITY</span><h2>Brand & identity</h2><p>Update the name, contact details and public-facing brand settings.</p><b>Configure ↗</b></a>
         <a class="admin-card" href="{{ route('admin.destinations.index') }}"><span>02 / DISCOVERY</span><h2>Destinations</h2><p>Manage enabled markets, cities, currencies and local settings.</p><b>Manage ↗</b></a>
