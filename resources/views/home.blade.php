@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#111513">
     <meta name="description" content="{{ $brand['tagline'] ?? 'Exceptional company, thoughtfully arranged.' }}">
     <title>{{ $brand['brand_name'] ?? 'Talyvane' }} — Exceptional company, thoughtfully arranged</title>
+    <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
 <body>
@@ -39,7 +40,7 @@
             </div>
             <div class="hero-art" aria-label="Luxury hospitality photography">
                 <div class="art-frame">
-                    <img class="hero-photo" src="{{ config('stock_photography.hero.url') }}" alt="{{ config('stock_photography.hero.alt') }}" fetchpriority="high" decoding="async">
+                    <img class="hero-photo" src="{{ config('stock_photography.hero.url') }}" alt="{{ config('stock_photography.hero.alt') }}" fetchpriority="high" loading="eager" decoding="async">
                     <div class="art-image-wash"></div>
                     <div class="art-caption"><span>01 / 03</span><span>A WORLD OF DISTINCTION</span></div>
                 </div>
