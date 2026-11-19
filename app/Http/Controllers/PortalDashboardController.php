@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\BookingSetting;
+use App\Models\ClientMembership;
 use Illuminate\View\View;
 
 class PortalDashboardController extends Controller
