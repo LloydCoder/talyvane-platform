@@ -23,8 +23,8 @@ class AdminAccessTest extends TestCase
         ]);
         $admin->forceFill(['admin_session_version' => 8])->save();
 
-        $this->withSession(['admin_session_version' => 7])
-            ->actingAs($admin)
+        $this->actingAs($admin)
+            ->withSession(['admin_session_version' => 7])
             ->get('/admin')
             ->assertRedirect('/admin/login');
 
