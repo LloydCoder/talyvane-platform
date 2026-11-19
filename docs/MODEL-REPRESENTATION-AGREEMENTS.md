@@ -22,7 +22,7 @@ The approval flag is an operator attestation, not legal advice, regulatory appro
 3. Executed: an administrator records that all required parties executed the agreement outside this platform, with effective dates and a reference to the executed document in private storage. The platform does not provide e-signature, identity assurance, delivery proof or enforceability determination.
 4. Terminated: only an executed agreement can be terminated, with administrator, timestamp and reason recorded.
 
-Only one draft, outstanding offer or executed agreement may exist per application at a time. Completed/terminated agreements remain as historical versions. Lifecycle operations serialize under row locks and append to the application event log.
+Each agreement is bound to one country-market code. Drafting, offering and recording execution require that market to remain enabled, compliance-approved and backed by current review evidence. Market approval is rechecked under a row lock at each transition. Multi-country scope requires separate market-approved agreements.\n\nOnly one draft, outstanding offer or executed agreement may exist per application at a time. Completed/terminated agreements remain as historical versions. Lifecycle operations serialize under row locks and append to the application event log.
 
 ## Evidence and privacy
 
