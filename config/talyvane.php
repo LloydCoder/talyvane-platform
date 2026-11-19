@@ -16,4 +16,10 @@ return [
     'privacy' => [
         'profile_consent_version' => env('PROFILE_CONSENT_VERSION', 'profile-publication-v1'),
     ],
+    'model_agency' => [
+        'privacy_notice_version' => env('MODEL_AGENCY_PRIVACY_NOTICE_VERSION'),
+        'privacy_notice_approved' => filter_var(env('MODEL_AGENCY_PRIVACY_NOTICE_APPROVED', false), FILTER_VALIDATE_BOOL),
+        'adult_eligibility_policy_version' => env('MODEL_AGENCY_ADULT_ELIGIBILITY_POLICY_VERSION'),
+        'adult_eligibility_policy_approved' => filter_var(env('MODEL_AGENCY_ADULT_ELIGIBILITY_POLICY_APPROVED', false), FILTER_VALIDATE_BOOL),
+    ],
 ];
