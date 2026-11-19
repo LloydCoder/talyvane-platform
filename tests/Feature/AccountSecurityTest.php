@@ -34,6 +34,38 @@ class AccountSecurityTest extends TestCase
         $this->assertTrue(Hash::check('test-password-two123', $client->fresh()->password));
     }
 
+
+    public function test_admin_password_change_rotates_session_version_and_preserves_the_current_session(): void
+    {
+        $admin = User::create([
+            'name' => 'Security Administrator',
+            'email' => 'security-admin@example.test',
+            'password' => 'test-password-one',
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        $admin->forceFill([
+            'mfa_secret' => 'JBSWY3DPEHPK3PXP',
+            'mfa_enabled_at' => now(),
+            'admin_session_version' => 3,
+            'remember_token' => 'old-admin-remember-token',
+        ])->save();
+
+        $this->actingAs($admin)
+            ->patch('/account/password', [
+                'current_password' => 'test-password-one',
+                'password' => 'test-password-two123',
+                'password_confirmation' => 'test-password-two123',
+            ])
+            ->assertRedirect(route('admin.dashboard'))
+            ->assertSessionHas('status')
+            ->assertSessionHas('admin_session_version', 4);
+
+        $this->assertTrue(Hash::check('test-password-two123', $admin->fresh()->password));
+        $this->assertSame(4, $admin->fresh()->admin_session_version);
+        $this->assertNotSame('old-admin-remember-token', $admin->fresh()->remember_token);
+    }
+
     public function test_password_change_rejects_incorrect_current_password(): void
     {
         $client = User::create([
