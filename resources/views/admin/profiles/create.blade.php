@@ -10,6 +10,7 @@
         @if ($errors->any())<div class="form-alert" role="alert"><ul>@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
         <div class="settings-section-title"><span>01</span><div><h2>Profile details</h2><p>Only non-sensitive public profile information belongs here.</p></div></div>
         <label for="destination_id">Active destination</label><select id="destination_id" name="destination_id" required><option value="">Select destination</option>@foreach ($destinations as $destination)<option value="{{ $destination->id }}" @selected(old('destination_id') == $destination->id)>{{ $destination->name }}</option>@endforeach</select>
+        <label for="user_id">Companion account (optional)</label><select id="user_id" name="user_id"><option value="">Not linked yet</option>@foreach ($companionAccounts as $account)<option value="{{ $account->id }}" @selected(old('user_id') == $account->id)>{{ $account->name }} · {{ $account->email }}</option>@endforeach</select>
         <label for="display_name">Display name</label><input id="display_name" name="display_name" maxlength="80" required value="{{ old('display_name') }}">
         <label for="slug">Public URL slug</label><input id="slug" name="slug" maxlength="120" pattern="[A-Za-z0-9_-]+" required value="{{ old('slug') }}">
         <label for="summary">Public introduction</label><textarea id="summary" name="summary" maxlength="500" rows="4">{{ old('summary') }}</textarea>
