@@ -24,6 +24,6 @@
             <a class="text-link" href="{{ route('login') }}">Sign in to request a booking ↗</a>
         @endauth
         <p class="profile-disclaimer">This profile is displayed following age-status verification and recorded publication consent. Availability and any engagement are subject to direct confirmation and applicable local law.</p>
-        <a class="text-link" href="{{ route('companions.index', ['destination' => $profile->destination->slug]) }}">← Back to profiles</a>
+        <a class="text-link" href="{{ route('companions.index', ['destination' => $profile->destination->slug]) }}">← Back to companions</a>
     </article>
 @endsection
