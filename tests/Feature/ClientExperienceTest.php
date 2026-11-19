@@ -155,6 +155,19 @@ class ClientExperienceTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_view_client_membership_management(): void
+    {
+        $this->client();
+        $admin = $this->createAdminUser(['name' => 'Agency Owner', 'email' => 'owner@example.test', 'role' => 'owner']);
+
+        $this->actingAs($admin)
+            ->get(route('admin.clients.index'))
+            ->assertOk()
+            ->assertSee('Clients &')
+            ->assertSee('Taylor Client')
+            ->assertSee('Assign or update membership');
+    }
+
     public function test_clients_cannot_assign_their_own_membership(): void
     {
         $client = $this->client();
