@@ -182,7 +182,7 @@ class ProfileMediaTest extends TestCase
                 'reason' => 'I withdraw consent for this profile and its images.',
                 'withdraw_confirmed' => '1',
             ])
-            ->assertRedirect('/companion-portal');
+            ->assertRedirect('/companion-portal/privacy');
 
         $this->assertDatabaseHas('profile_media', ['id' => $media->id, 'status' => 'withdrawn']);
         $this->get(route('profile-media.show', $media->fresh()))->assertNotFound();
