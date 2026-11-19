@@ -296,7 +296,8 @@ class ModelAgencyApplicationRightsTest extends TestCase
         $this->actingAs($owner)
             ->get('/admin/model-applications')
             ->assertOk()
-            ->assertSee('Jordan Example');
+            ->assertSee('Jordan Example')
+            ->assertHeader('Cache-Control', 'no-store, private, max-age=0');
     }
 
     public function test_only_owner_or_super_admin_can_place_or_release_an_applicant_legal_hold(): void
