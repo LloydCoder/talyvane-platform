@@ -73,14 +73,20 @@ class ModelTalentPortfolioAssetService
         DB::transaction(function () use ($asset, $actorId, $decision, $note): void {
             $locked = ModelTalentPortfolioAsset::query()->lockForUpdate()->findOrFail($asset->id);
             $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($locked->application_id);
-            $this->assertEligible($application, true);
+
+            if (! in_array($decision, ['approved', 'rejected'], true)) {
+                throw ValidationException::withMessages(['decision' => 'Choose an allowed review decision.']);
+            }
 
             if ($locked->status !== 'pending_review' || ! $locked->storage_path || ! Storage::disk('local')->exists($locked->storage_path)) {
                 throw ValidationException::withMessages(['decision' => 'Only an intact private asset awaiting review can be approved or rejected.']);
             }
 
-            if (! in_array($decision, ['approved', 'rejected'], true)) {
-                throw ValidationException::withMessages(['decision' => 'Choose an allowed review decision.']);
+            if ($decision === 'approved') {
+                $policyVersion = $this->assertEligible($application, true);
+                if ($locked->consent_policy_version !== $policyVersion || $locked->consent_withdrawn_at !== null) {
+                    throw ValidationException::withMessages(['decision' => 'The asset consent is withdrawn or belongs to an outdated policy version. Obtain current, purpose-specific consent before approval.']);
+                }
             }
 
             if ($decision === 'rejected') {
