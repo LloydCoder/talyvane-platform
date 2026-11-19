@@ -63,14 +63,17 @@ Installation wizard; versioned updates and migration tooling; backup/restore; de
 A milestone is not complete because screens exist. Each release requires tests, security review, accessibility checks, privacy review, deployment verification and operator documentation. Production is blocked pending jurisdiction, hosting and payment approvals.
 
 
-## Super Admin control plane (approved architecture; implementation pending)
+## Super Admin control plane (approved architecture; implementation in progress)
 
 - [x] Define and seed a deployment feature registry with stable keys, module ownership, implementation status, dependencies, risk classes and activation prerequisites.
 - [x] Add a distinct `super_admin` principal to privileged authentication, route and MFA gates without silently promoting existing accounts.
 - [x] Add a singleton deployment-control record and transactional CLI bootstrap that provisions at most one Super Admin.
 - [x] Restrict deployment-wide branding, globalization, destinations, booking rules, payment configuration, site pages and feature controls to `super_admin`; retain day-to-day agency operations for `owner` and `admin`.
-- [x] Protect the designated Super Admin against Eloquent-based demotion, deactivation and deletion; prevent a second principal after assignment; add regression tests. (Direct SQL bypass and governed recovery/rotation remain open.)
-- [ ] Implement an audited, authenticated Super Admin recovery/rotation procedure and legacy owner/admin least-privilege migration.
+- [x] Protect the designated Super Admin against Eloquent-based demotion, deactivation and deletion; prevent a second principal after assignment; add regression tests. (Direct SQL bypass remains outside the application boundary.)
+- [x] Implement CLI-only recovery enrollment and MFA reset: verify two notification addresses, issue a hashed single-use offline key, require current password plus key for recovery, rotate the key, invalidate authenticated and pending-MFA sessions and append audit events.
+- [x] Provide an enrollment path for existing deployments using current password and TOTP.
+- [x] Provide verified recovery contact and offline-key rotation, notify old and new addresses, and revoke prior admin sessions.
+- [ ] Implement dual-control break-glass recovery for loss of both password and offline key, and legacy owner/admin least-privilege migration.
 - [ ] Implement membership entitlements and protected-resource authorization; current membership capability is assignment/display only.
 - [x] Build a Super Admin-only read-only feature catalogue showing implementation state, configured/effective state, dependencies, risk and activation prerequisites.
 - [x] Build feature mutation controls with impact preview, prerequisite evaluation, reason capture, password/TOTP step-up and transactional rollback.

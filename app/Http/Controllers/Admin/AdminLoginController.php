@@ -51,15 +51,18 @@ class AdminLoginController
 
         RateLimiter::clear($key);
         $request->session()->regenerate();
+        $request->session()->forget(['pending_admin_mfa_user_id', 'pending_admin_mfa_remember', 'pending_admin_mfa_session_version']);
 
         if ($user->mfa_enabled_at && $user->mfa_secret) {
             $request->session()->put('pending_admin_mfa_user_id', $user->id);
+            $request->session()->put('pending_admin_mfa_session_version', (int) $user->admin_session_version);
             $request->session()->put('pending_admin_mfa_remember', $request->boolean('remember'));
 
             return redirect()->route('admin.mfa.challenge');
         }
 
         Auth::login($user, $request->boolean('remember'));
+        $request->session()->put('admin_session_version', (int) $user->admin_session_version);
 
         if (! $user->mfa_enabled_at || ! $user->mfa_secret) {
             return redirect()->route('admin.mfa.setup');

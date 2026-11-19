@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\EnsureAdminMfa;
+use App\Http\Middleware\EnsureAdminSessionCurrent;
 use App\Http\Middleware\EnsurePlatformFeatureEnabled;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
             'admin.mfa' => EnsureAdminMfa::class,
+            'admin.session-current' => EnsureAdminSessionCurrent::class,
             'feature' => EnsurePlatformFeatureEnabled::class,
         ]);
         $middleware->redirectGuestsTo(fn (Request $request): string => $request->is('admin') || $request->is('admin/*') ? '/admin/login' : '/login');

@@ -3,12 +3,24 @@
 namespace Tests;
 
 use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable as UserContract;
 use App\Models\Destination;
 use App\Models\CountryMarket;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
+
+    public function actingAs(UserContract $user, $guard = null)
+    {
+        parent::actingAs($user, $guard);
+
+        if ($user instanceof User && $user->isPlatformAdministrator()) {
+            $this->withSession(['admin_session_version' => (int) $user->admin_session_version]);
+        }
+
+        return $this;
+    }
 
     protected function approveCountryMarket(Destination $destination): CountryMarket
     {

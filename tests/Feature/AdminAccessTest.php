@@ -14,6 +14,23 @@ class AdminAccessTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_admin_session_with_a_stale_security_version_is_invalidated(): void
+    {
+        $admin = $this->createAdminUser([
+            'name' => 'Protected Administrator',
+            'email' => 'protected-admin@example.test',
+            'role' => 'admin',
+        ]);
+        $admin->forceFill(['admin_session_version' => 8])->save();
+
+        $this->actingAs($admin)
+            ->withSession(['admin_session_version' => 7])
+            ->get('/admin')
+            ->assertRedirect('/admin/login');
+
+        $this->assertGuest();
+    }
+
     public function test_guest_is_redirected_from_admin_dashboard(): void
     {
         $this->get('/admin')

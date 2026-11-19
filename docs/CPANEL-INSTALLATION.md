@@ -24,7 +24,7 @@ The release must include:
 - Migrations and documented release notes.
 - No production `.env`, database dump, customer data, developer secrets or local logs.
 
-Build dependencies and assets in CI or a compatible local build environment. Production hosting does not need Node.js or npm. The repository must commit and validate `composer.lock` before commercial deployment.
+Build dependencies and assets in CI or a compatible local build environment. Production hosting does not need Node.js or npm. The repository commits `composer.lock`; release builds must use `composer install` from that lockfile.
 
 ## 3. Create the database
 
@@ -89,9 +89,9 @@ QUEUE_CONNECTION=sync
 MAIL_MAILER=smtp
 MAIL_HOST=mail.example.com
 MAIL_PORT=587
+# Leave MAIL_SCHEME unset unless the provider explicitly requires smtp or smtps.
 MAIL_USERNAME=REPLACE_WITH_MAIL_USER
 MAIL_PASSWORD=REPLACE_WITH_MAIL_SECRET
-MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS=concierge@example.com
 MAIL_FROM_NAME="Talyvane"
 ```
@@ -123,7 +123,11 @@ php artisan migrate --force
 php artisan talyvane:super-admin:create admin@example.com
 ```
 
-The command prompts interactively for the account name and a strong password, records the unique Super Admin principal in the deployment control row, and refuses a second bootstrap. Sign in immediately and complete mandatory TOTP MFA. Do not place passwords in shell arguments, deployment logs or tickets. Preserve a separately controlled recovery procedure. Never create a public route that executes arbitrary Artisan commands.
+The command requires SMTP, a strong password, and a distinct recovery notification address. It sends separate verification codes to the primary and recovery addresses and requires both to be confirmed in the terminal within five minutes. It then creates the singleton Super Admin, stores only a hash of a new offline recovery key, and displays that key once. Store it offline and separately from the server and database. Sign in immediately and complete mandatory TOTP MFA.
+
+For an existing Super Admin without enrolled recovery credentials, run `php artisan talyvane:super-admin:enroll-recovery`. This requires the current password and TOTP code, verifies both notification addresses, issues an offline recovery key, and invalidates existing administrator sessions. To rotate a recovery mailbox and key later, use `php artisan talyvane:super-admin:rotate-recovery-contacts`; this requires the current password and TOTP, verifies the new address and notifies the previous and new contacts.
+
+If the authenticator is lost but the password and offline recovery key remain available, run `php artisan talyvane:super-admin:recover`. This resets MFA, rotates the offline key, notifies both verified addresses and invalidates all prior administrator sessions. Follow [SUPER-ADMIN-RECOVERY.md](SUPER-ADMIN-RECOVERY.md). Do not place passwords, TOTP codes or recovery keys in shell arguments, deployment logs or tickets. Never create a public route that executes arbitrary Artisan commands.
 
 ### Without SSH/Composer
 
