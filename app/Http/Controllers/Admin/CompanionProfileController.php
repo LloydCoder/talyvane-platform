@@ -27,6 +27,7 @@ class CompanionProfileController
     {
         return view('admin.profiles.create', [
             'destinations' => Destination::query()->where('is_active', true)->orderBy('name')->get(),
+            'companionAccounts' => User::query()->where('role', 'companion')->where('is_active', true)->whereDoesntHave('companionProfile')->orderBy('name')->get(['id', 'name', 'email']),
         ]);
     }
 
@@ -34,6 +35,7 @@ class CompanionProfileController
     {
         $validated = $request->validate([
             'destination_id' => ['required', 'integer', Rule::exists('destinations', 'id')->where('is_active', true)],
+            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->where('role', 'companion')->where('is_active', true), 'unique:companion_profiles,user_id'],
             'display_name' => ['required', 'string', 'min:2', 'max:80'],
             'slug' => ['required', 'alpha_dash', 'max:120', 'unique:companion_profiles,slug'],
             'summary' => ['nullable', 'string', 'max:500'],
