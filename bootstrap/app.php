@@ -17,7 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
-            'admin.mfa' => EnsureAdminMfa::class,
+            'admin.mfa' => EnsureAdminMfa::class,\n            'admin.session-current' => EnsureAdminSessionCurrent::class,
             'feature' => EnsurePlatformFeatureEnabled::class,
         ]);
         $middleware->redirectGuestsTo(fn (Request $request): string => $request->is('admin') || $request->is('admin/*') ? '/admin/login' : '/login');
