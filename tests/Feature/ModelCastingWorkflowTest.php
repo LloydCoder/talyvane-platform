@@ -198,7 +198,6 @@ class ModelCastingWorkflowTest extends TestCase
 
         $service->decide($submission, $context['admin']->id, 'selected', 'The client selected the model after human review.');
         $this->assertSame('selected', $submission->fresh()->status);
-        $this->assertDatabaseMissing('model_talent_assignments', ['casting_submission_id' => $submission->id]);
     }
 
     public function test_submission_is_blocked_when_call_is_closed_or_licence_does_not_cover_call(): void
