@@ -11,7 +11,7 @@ Talyvane must be configurable and resalable as an independently deployed white-l
 
 Each installation has one highest-privilege Super Admin, securely bootstrapped through the trusted CLI process. A singleton deployment-control record points to the provisioned principal; bootstrap is transactional, refuses a second principal, and never silently promotes an existing owner or administrator. The current `talyvane:super-admin:create` command implements this first bootstrap boundary. Super Admin authority covers all configurable business functionality within that installation.
 
-Implement a registry-driven control plane with typed settings, declared dependencies, activation prerequisites, centralized server-side feature enforcement, privileged step-up authentication and append-only audit events. Emergency disable is supported for optional features.
+Implement a registry-driven control plane with typed settings, declared dependencies, activation prerequisites, centralized server-side feature enforcement, privileged step-up authentication and append-only audit events. Feature state changes require the current Super Admin password, a fresh single-use TOTP code, a meaningful reason, transactional persistence and an immutable audit event. Enabling is blocked unless implementation status, dependencies and known activation prerequisites pass. Emergency disable is supported for optional features; re-enable is prerequisite checked.
 
 Super Admin authority does not override hard-coded safety, security, privacy, safeguarding, payment-integrity or jurisdictional eligibility invariants. These constraints are enforced by server-side policy services and domain boundaries, not editable feature flags.
 
