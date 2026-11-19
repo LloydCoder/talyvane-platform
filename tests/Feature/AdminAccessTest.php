@@ -155,4 +155,31 @@ class AdminAccessTest extends TestCase
 
         $this->assertGuest();
     }
+
+    public function test_super_admin_can_sign_in_through_the_privileged_mfa_flow(): void
+    {
+        $superAdmin = $this->createAdminUser([
+            'name' => 'Deployment Super Admin',
+            'email' => 'super-admin@example.test',
+            'password' => 'Strong-Testing-Password-934!',
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+
+        $this->assertTrue($superAdmin->isPlatformAdministrator());
+
+        $this->post('/admin/login', [
+            'email' => 'super-admin@example.test',
+            'password' => 'Strong-Testing-Password-934!',
+        ])->assertRedirect('/admin/mfa/challenge');
+
+        $step = intdiv(time(), 30);
+        $code = (new TotpService())->codeForStep($superAdmin->mfa_secret, $step);
+
+        $this->post('/admin/mfa/challenge', ['code' => $code])
+            ->assertRedirect('/admin');
+
+        $this->assertAuthenticatedAs($superAdmin);
+        $this->get('/admin')->assertOk()->assertSee('Platform overview');
+    }
 }

@@ -65,6 +65,6 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function isPlatformAdministrator(): bool
     {
-        return $this->is_active && in_array($this->role, ['owner', 'admin'], true);
+        return $this->is_active && in_array($this->role, ['super_admin', 'owner', 'admin'], true);
     }
 }

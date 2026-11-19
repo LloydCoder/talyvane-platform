@@ -38,7 +38,7 @@ class AdminLoginController
         $user = User::query()
             ->where('email', $email)
             ->where('is_active', true)
-            ->whereIn('role', ['owner', 'admin'])
+            ->whereIn('role', ['super_admin', 'owner', 'admin'])
             ->first();
 
         if (! $user || ! Hash::check($credentials['password'], $user->password)) {
