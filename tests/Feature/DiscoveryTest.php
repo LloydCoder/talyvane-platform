@@ -7,6 +7,8 @@ use App\Models\Destination;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class DiscoveryTest extends TestCase
@@ -188,6 +190,57 @@ class DiscoveryTest extends TestCase
             'country_code' => 'MX',
             'is_active' => true,
         ]);
+    }
+
+
+    public function test_admin_can_upload_a_destination_cover_image(): void
+    {
+        Storage::fake('public');
+        $admin = $this->createAdminUser();
+
+        $this->actingAs($admin)
+            ->post('/admin/destinations', [
+                'name' => 'Lisbon',
+                'slug' => 'lisbon',
+                'country_code' => 'PT',
+                'country_name' => 'Portugal',
+                'city_name' => 'Lisbon',
+                'currency_code' => 'EUR',
+                'locale' => 'pt-PT',
+                'timezone' => 'Europe/Lisbon',
+                'is_active' => '1',
+                'cover_image' => UploadedFile::fake()->image('lisbon.jpg', 1600, 1000),
+            ])
+            ->assertRedirect('/admin/destinations');
+
+        $destination = Destination::query()->where('slug', 'lisbon')->firstOrFail();
+        $this->assertNotNull($destination->image_path);
+        Storage::disk('public')->assertExists($destination->image_path);
+    }
+
+    public function test_admin_destination_upload_rejects_svg_files(): void
+    {
+        Storage::fake('public');
+        $admin = $this->createAdminUser();
+
+        $this->actingAs($admin)
+            ->from('/admin/destinations/create')
+            ->post('/admin/destinations', [
+                'name' => 'Lisbon',
+                'slug' => 'lisbon',
+                'country_code' => 'PT',
+                'country_name' => 'Portugal',
+                'city_name' => 'Lisbon',
+                'currency_code' => 'EUR',
+                'locale' => 'pt-PT',
+                'timezone' => 'Europe/Lisbon',
+                'cover_image' => UploadedFile::fake()->create('cover.svg', 20, 'image/svg+xml'),
+            ])
+            ->assertRedirect('/admin/destinations/create')
+            ->assertSessionHasErrors('cover_image');
+
+        $this->assertDatabaseMissing('destinations', ['slug' => 'lisbon']);
+        $this->assertSame([], Storage::disk('public')->allFiles('destinations'));
     }
 
     public function test_operator_cannot_manage_destinations(): void
