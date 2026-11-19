@@ -7,6 +7,7 @@ use App\Models\Enquiry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Illuminate\Validation\Rule;
 
 class EnquiryController extends Controller
 {
