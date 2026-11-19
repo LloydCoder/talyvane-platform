@@ -208,6 +208,9 @@ class ModelAgencyApplicationTest extends TestCase
     public function test_submission_fails_closed_when_legal_policy_approvals_are_missing(): void
     {
         $this->enableApplications();
+        DB::table('platform_features')->where('key', 'model-agency.applications')->update([
+            'activation_requirements' => json_encode(['model_agency_workflow', 'applicant_data_lifecycle', 'applicant_privacy_notice', 'adult_eligibility_policy']),
+        ]);
         config(['talyvane.model_agency.privacy_notice_approved' => false]);
 
         $this->post('/models/apply', [
@@ -335,7 +338,7 @@ class ModelAgencyApplicationTest extends TestCase
         SitePage::query()->create(['title' => 'Model Applicant Privacy Notice', 'slug' => 'model-applicant-privacy', 'body' => 'Approved model applicant privacy notice content for test. Version: model-application-privacy-v1.', 'is_published' => true, 'published_at' => now()]);
         SitePage::query()->create(['title' => 'Adult Eligibility Policy', 'slug' => 'model-adult-eligibility', 'body' => 'Approved adult eligibility policy content for test. Version: adult-eligibility-v1.', 'is_published' => true, 'published_at' => now()]);
 
-        $this->assertSame([], app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature));
+        $this->assertContains('Applicant access, correction, withdrawal, erasure and retention execution are not implemented.', app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature));
     }
 
 }
