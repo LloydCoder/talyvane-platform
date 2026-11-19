@@ -220,7 +220,7 @@ class ModelAgencyApplicationAdminController extends Controller
         abort_unless(
             Schema::hasTable('model_talent_applications')
                 && Schema::hasColumns('model_talent_applications', ['reference', 'full_name', 'email', 'status', 'legal_hold_at', 'adult_eligibility_verified_at', 'adult_eligibility_verified_by', 'adult_eligibility_verification_method'])
-                && Schema::hasTable('model_talent_application_events')
+                && Schema::hasTable('model_talent_representation_agreements')\n                && Schema::hasColumns('model_talent_representation_agreements', ['application_id', 'reference', 'version', 'status', 'terms_snapshot', 'terms_policy_version'])\n                && Schema::hasTable('model_talent_application_events')
                 && Schema::hasColumns('model_talent_application_events', ['application_id', 'actor_type', 'event_type', 'occurred_at']),
             503,
             'Model agency application records are unavailable.',
