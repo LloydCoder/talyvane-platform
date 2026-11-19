@@ -96,4 +96,14 @@ class PortalAuthTest extends TestCase
             ->get('/admin')
             ->assertForbidden();
     }
+    public function test_guest_client_portal_redirects_to_client_login(): void
+    {
+        $this->get('/portal')->assertRedirect('/login');
+    }
+
+    public function test_guest_admin_dashboard_redirects_to_admin_login(): void
+    {
+        $this->get('/admin')->assertRedirect('/admin/login');
+    }
+
 }
