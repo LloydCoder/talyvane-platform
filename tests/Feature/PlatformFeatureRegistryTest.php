@@ -116,6 +116,21 @@ class PlatformFeatureRegistryTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_companion_privacy_controls_are_not_disabled_with_the_companion_portal(): void
+    {
+        $router = app('router');
+        $withdrawal = $router->getRoutes()->getByName('companion-portal.profiles.withdraw-consent');
+        $mediaDeletion = $router->getRoutes()->getByName('companion-portal.profiles.media.destroy');
+        $portal = $router->getRoutes()->getByName('companion-portal.dashboard');
+
+        $this->assertNotNull($withdrawal);
+        $this->assertNotNull($mediaDeletion);
+        $this->assertNotNull($portal);
+        $this->assertNotContains('feature:portals.companion', $withdrawal->gatherMiddleware());
+        $this->assertNotContains('feature:portals.companion', $mediaDeletion->gatherMiddleware());
+        $this->assertContains('feature:portals.companion', $portal->gatherMiddleware());
+    }
+
     public function test_only_super_admin_can_view_the_feature_registry(): void
     {
         $owner = $this->createAdminUser([
