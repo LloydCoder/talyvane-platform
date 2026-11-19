@@ -41,6 +41,21 @@ class User extends Authenticatable implements MustVerifyEmail
         ];
     }
 
+    public function favoriteProfiles(): BelongsToMany
+    {
+        return $this->belongsToMany(CompanionProfile::class, 'client_favorites', 'client_id', 'companion_profile_id')->withTimestamps();
+    }
+
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(ClientMembership::class);
+    }
+
+    public function latestMembership(): HasOne
+    {
+        return $this->hasOne(ClientMembership::class)->latestOfMany();
+    }
+
     public function companionProfile(): HasOne
     {
         return $this->hasOne(CompanionProfile::class);
