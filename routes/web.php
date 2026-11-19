@@ -59,7 +59,7 @@ Route::middleware('guest')->group(function (): void {
 
 Route::middleware('auth')->group(function (): void {
     Route::post('/logout', [PortalAuthController::class, 'logout'])->name('logout');
-    Route::patch('/account/password', [AccountSecurityController::class, 'updatePassword'])->name('account.password.update');
+    Route::patch('/account/password', [AccountSecurityController::class, 'updatePassword'])->middleware('admin.session-current')->name('account.password.update');
     Route::get('/email/verify', [PortalAuthController::class, 'verificationNotice'])->name('verification.notice');
     Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
         $request->fulfill();
