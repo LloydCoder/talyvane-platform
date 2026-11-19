@@ -5,6 +5,9 @@ This checklist is not legal advice. Obtain current advice from qualified counsel
 ## Jurisdiction mapping
 Separately identify the contracting entity and incorporation country; operator/staff locations; where services are advertised and supplied; client/provider locations; where data is collected/accessed/stored; and where payment accounts or wallet controllers are located. A target market is not proof that the model is lawful or authorised.
 
+## Current implementation caveat
+The repository currently contains draft privacy and terms pages, not approved legal documents. The current profile publication workflow records a human reviewer's approved-provider reference and consent version; it does not itself perform age assurance or identity verification. The deposit workflow records a human administrator's independent verification attestation; it does not itself query a blockchain or payment processor. Do not market these workflows as automated verification or payment settlement.
+
 ## Pre-production evidence
 - Written legal opinion for the exact business model in each target market.
 - Written hosting-provider approval for the actual content and business model.
