@@ -34,6 +34,10 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'mfa_secret' => 'encrypted',
+            'mfa_enabled_at' => 'immutable_datetime',
+            'mfa_recovery_codes' => 'array',
+            'mfa_last_used_step' => 'integer',
         ];
     }
 
