@@ -181,3 +181,28 @@ class ModelTalentRepresentationAgreementTest extends TestCase
         $this->assertDatabaseCount('model_talent_representation_agreements', 0);
     }
 }
+    public function test_applicant_erasure_is_deferred_when_representation_agreement_records_exist(): void
+    {
+        $application = $this->application();
+        $admin = $this->createAdminUser();
+        ModelTalentRepresentationAgreement::query()->create([
+            'application_id' => $application->id,
+            'reference' => 'MRA-2026-ERASURE01',
+            'version' => 1,
+            'status' => 'draft',
+            'terms_snapshot' => $this->terms(),
+            'terms_policy_version' => 'terms-v1',
+            'created_by' => $admin->id,
+        ]);
+
+        try {
+            app(ModelAgencyApplicationLifecycleService::class)->anonymize($application, 'applicant');
+            $this->fail('Erasure must be deferred until agreement retention has been reviewed.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('status', $exception->errors());
+        }
+
+        $this->assertSame('accepted', $application->fresh()->status);
+        $this->assertSame('jordan@example.test', $application->fresh()->email);
+    }
+
