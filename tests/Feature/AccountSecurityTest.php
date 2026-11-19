@@ -25,13 +25,13 @@ class AccountSecurityTest extends TestCase
         $this->actingAs($client)
             ->patch('/account/password', [
                 'current_password' => 'test-password-one',
-                'password' => 'test-password-two',
-                'password_confirmation' => 'test-password-two',
+                'password' => 'test-password-two123',
+                'password_confirmation' => 'test-password-two123',
             ])
             ->assertRedirect('/portal')
             ->assertSessionHas('status');
 
-        $this->assertTrue(Hash::check('test-password-two', $client->fresh()->password));
+        $this->assertTrue(Hash::check('test-password-two123', $client->fresh()->password));
     }
 
     public function test_password_change_rejects_incorrect_current_password(): void
@@ -49,8 +49,8 @@ class AccountSecurityTest extends TestCase
             ->from('/portal')
             ->patch('/account/password', [
                 'current_password' => 'wrong-test-password',
-                'password' => 'test-password-two',
-                'password_confirmation' => 'test-password-two',
+                'password' => 'test-password-two123',
+                'password_confirmation' => 'test-password-two123',
             ])
             ->assertRedirect('/portal')
             ->assertSessionHasErrors('current_password');
