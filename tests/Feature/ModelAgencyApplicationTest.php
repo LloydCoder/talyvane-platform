@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\ModelTalentApplication;
+use App\Models\SitePage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,8 @@ class ModelAgencyApplicationTest extends TestCase
     private function enableApplications(): void
     {
         config(['talyvane.model_agency.privacy_notice_version' => 'model-application-privacy-v1', 'talyvane.model_agency.privacy_notice_approved' => true, 'talyvane.model_agency.adult_eligibility_policy_version' => 'adult-eligibility-v1', 'talyvane.model_agency.adult_eligibility_policy_approved' => true]);
+        SitePage::query()->create(['title' => 'Model Applicant Privacy Notice', 'slug' => 'model-applicant-privacy', 'body' => 'Approved model applicant privacy notice content for test.', 'is_published' => true, 'published_at' => now()]);
+        SitePage::query()->create(['title' => 'Adult Eligibility Policy', 'slug' => 'model-adult-eligibility', 'body' => 'Approved adult eligibility policy content for test.', 'is_published' => true, 'published_at' => now()]);
         DB::table('platform_features')->where('key', 'model-agency.applications')->update([
             'implementation_status' => 'available',
             'is_enabled' => true,
@@ -238,6 +241,11 @@ class ModelAgencyApplicationTest extends TestCase
             'talyvane.model_agency.adult_eligibility_policy_version' => 'adult-eligibility-v1',
             'talyvane.model_agency.adult_eligibility_policy_approved' => true,
         ]);
+
+        $this->assertNotEmpty(app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature));
+
+        SitePage::query()->create(['title' => 'Model Applicant Privacy Notice', 'slug' => 'model-applicant-privacy', 'body' => 'Approved model applicant privacy notice content for test.', 'is_published' => true, 'published_at' => now()]);
+        SitePage::query()->create(['title' => 'Adult Eligibility Policy', 'slug' => 'model-adult-eligibility', 'body' => 'Approved adult eligibility policy content for test.', 'is_published' => true, 'published_at' => now()]);
 
         $this->assertSame([], app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature));
     }
