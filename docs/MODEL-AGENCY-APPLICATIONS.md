@@ -2,7 +2,7 @@
 
 ## Scope
 
-This release implements a separate application and administrator-review workflow. It does not implement representation agreements, casting, assignments, image rights, model bookings or settlements. The model-agency workflow is separate from companionship accounts, profiles, enquiries and bookings.
+The platform implements a separate application intake, administrator-review workflow, applicant privacy-rights workflow, adult-eligibility gate and representation-agreement register. The model-agency workflow remains separate from companionship accounts, profiles, enquiries and bookings. The register records versioned draft terms, offers, external execution evidence and termination; it does not provide e-signature, grant image rights, publish models, create assignments or process settlements.
 
 ## Default-safe activation
 
@@ -54,7 +54,7 @@ Retention values are deployment/legal decisions, not product defaults. The sched
 
 Every transition requires an administrator reason and is committed with an application-event record in one transaction. Event records reject Eloquent updates and deletes; privileged direct database access remains outside that application-level protection.
 
-**Acceptance is not representation.** Do not publish a model profile, schedule an assignment, use portfolio imagery, or claim an agency relationship from an accepted application. Those require later implementation of independent age/identity assurance, a signed representation agreement and purpose-specific image usage licences.
+**Acceptance is not representation.** Do not publish a model profile, schedule an assignment, use portfolio imagery, or claim an agency relationship from an accepted application. See [Model Representation Agreement Register](MODEL-REPRESENTATION-AGREEMENTS.md) for the separate agreement lifecycle. The platform only records that an externally executed agreement was asserted by an administrator; it does not verify signatures.
 
 ## Outstanding launch requirements
 
@@ -64,7 +64,7 @@ Every transition requires an administrator reason and is committed with an appli
 - A separately verified applicant email-change and account-recovery process; the current rights workflow intentionally cannot change the registered email.
 - Legal review and sign-off of the configured retention periods and successful production cron execution.
 - Secure document and image submission only if later required, with private storage, scanning, consent and rights provenance.
-- Representation agreements, casting, assignment approvals, usage rights and settlements.
+- Casting, assignment approvals, purpose-bound image usage licences, model bookings and settlements. Private executed-document upload/download and access audit are also outstanding.
 - Production legal review, privacy review and safeguarding sign-off.
 
 ## Engineering references
