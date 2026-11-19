@@ -61,6 +61,10 @@ class AdminLoginController
 
         Auth::login($user, $request->boolean('remember'));
 
+        if (! $user->mfa_enabled_at || ! $user->mfa_secret) {
+            return redirect()->route('admin.mfa.setup');
+        }
+
         return redirect()->intended(route('admin.dashboard'));
     }
 
