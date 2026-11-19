@@ -69,7 +69,8 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Add a distinct `super_admin` principal to privileged authentication, route and MFA gates without silently promoting existing accounts.
 - [x] Add a singleton deployment-control record and transactional CLI bootstrap that provisions at most one Super Admin.
 - [x] Restrict deployment-wide branding, globalization, destinations, booking rules, payment configuration, site pages and feature controls to `super_admin`; retain day-to-day agency operations for `owner` and `admin`.
-- [ ] Complete last-Super-Admin protection, recovery governance and the legacy owner/admin least-privilege migration.
+- [x] Protect the designated Super Admin against Eloquent-based demotion, deactivation and deletion; prevent a second principal after assignment; add regression tests. (Direct SQL bypass and governed recovery/rotation remain open.)
+- [ ] Implement an audited, authenticated Super Admin recovery/rotation procedure and legacy owner/admin least-privilege migration.
 - [ ] Implement membership entitlements and protected-resource authorization; current membership capability is assignment/display only.
 - [x] Build a Super Admin-only read-only feature catalogue showing implementation state, configured/effective state, dependencies, risk and activation prerequisites.
 - [x] Build feature mutation controls with impact preview, prerequisite evaluation, reason capture, password/TOTP step-up and transactional rollback.
@@ -82,7 +83,8 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [ ] Add secret set/rotate/clear workflows backed by environment or dedicated secret storage; never reveal stored values.
 - [ ] Add dependency and eligibility validation for market, payment, verification and communication activation.
 - [x] Add audited emergency disable for optional implemented features and prerequisite-checked re-enable workflow.
-- [ ] Test authorization boundaries, last-Super-Admin protection, audit integrity and attempts to bypass feature gates.
+- [x] Test designated Super Admin lifecycle invariants and second-principal rejection at the Eloquent boundary.
+- [ ] Test authorization boundaries, direct-database bypass threat, audit integrity and attempts to bypass feature gates.
 - [ ] Keep hard safeguards outside the feature registry and verify they cannot be disabled by Super Admin settings.
 
 
