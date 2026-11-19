@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\ModelTalentApplication;
 use App\Models\ModelTalentRepresentationAgreement;
 use App\Models\User;
+use App\Services\ModelAgencyApplicationLifecycleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class ModelTalentRepresentationAgreementTest extends TestCase
