@@ -19,7 +19,7 @@ class ModelTalentRepresentationAgreementTest extends TestCase
     {
         $owner = User::query()->create([
             'name' => 'Eligibility Verifier',
-            'email' => 'verifier@example.test',
+            'email' => 'verifier-'.strtolower(bin2hex(random_bytes(4))).'@example.test',
             'password' => 'Strong-Testing-Password-934!',
             'role' => 'owner',
             'is_active' => true,
