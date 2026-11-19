@@ -35,12 +35,12 @@ class ModelAgencyApplicationController extends Controller
         }
 
         $validated = $request->validate([
-            'full_name' => ['required', 'string', 'min:2', 'max:120'],
-            'email' => ['required', 'email:rfc', 'max:254'],
-            'phone' => ['nullable', 'string', 'max:32', 'regex:/^[+0-9(). -]{7,32}$/'],
-            'country_code' => ['required', 'string', 'size:2', 'regex:/^[A-Z]{2}$/'],
-            'city' => ['required', 'string', 'min:2', 'max:100'],
-            'portfolio_url' => [
+                'full_name' => ['required', 'string', 'min:2', 'max:120'],
+                'email' => ['required', 'email:rfc', 'max:254'],
+                'phone' => ['nullable', 'string', 'max:32', 'regex:/^[+0-9(). -]{7,32}$/'],
+                'country_code' => ['required', 'string', 'size:2', 'regex:/^[A-Z]{2}$/'],
+                'city' => ['required', 'string', 'min:2', 'max:100'],
+                'portfolio_url' => [
                 'nullable',
                 'url',
                 'max:2048',
@@ -50,16 +50,16 @@ class ModelAgencyApplicationController extends Controller
                     }
                 },
             ],
-            'experience_summary' => ['required', 'string', 'min:20', 'max:4000'],
+                'experience_summary' => ['required', 'string', 'min:20', 'max:4000'],
             'adult_eligibility_confirmed' => ['required', 'accepted'],
-            'privacy_notice_version' => ['required', 'string', 'in:'.$privacyNoticeVersion],
+                'privacy_notice_version' => ['required', 'string', 'in:'.$privacyNoticeVersion],
             'privacy_notice_accepted' => ['required', 'accepted'],
             'website' => ['prohibited'],
         ]);
 
         DB::transaction(function () use ($validated, $privacyNoticeVersion): void {
             $application = ModelTalentApplication::query()->create([
-            'reference' => 'MTA-'.now()->format('Y').'-'.Str::upper(Str::random(10)),
+                'reference' => 'MTA-'.now()->format('Y').'-'.Str::upper(Str::random(10)),
             'full_name' => trim($validated['full_name']),
             'email' => Str::lower(trim($validated['email'])),
             'phone' => isset($validated['phone']) ? trim($validated['phone']) : null,
@@ -67,11 +67,11 @@ class ModelAgencyApplicationController extends Controller
             'city' => trim($validated['city']),
             'portfolio_url' => $validated['portfolio_url'] ?? null,
             'experience_summary' => trim($validated['experience_summary']),
-            'status' => 'submitted',
-            'adult_eligibility_confirmed_at' => now(),
+                'status' => 'submitted',
+                'adult_eligibility_confirmed_at' => now(),
             'privacy_notice_version' => $privacyNoticeVersion,
-            'privacy_notice_accepted_at' => now(),
-            'submitted_at' => now(),
+                'privacy_notice_accepted_at' => now(),
+                'submitted_at' => now(),
             ]);
 
             ModelTalentApplicationEvent::query()->create([
