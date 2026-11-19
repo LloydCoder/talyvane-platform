@@ -279,6 +279,25 @@ class ModelAgencyApplicationRightsTest extends TestCase
         ]);
     }
 
+
+    public function test_administrators_can_manage_existing_applications_and_legal_holds_after_intake_is_disabled(): void
+    {
+        $this->enableLifecycle();
+        $this->application();
+        DB::table('platform_features')->where('key', 'model-agency.applications')->update(['is_enabled' => false]);
+
+        $owner = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'agency-owner@example.test',
+            'role' => 'owner',
+        ]);
+
+        $this->actingAs($owner)
+            ->get('/admin/model-applications')
+            ->assertOk()
+            ->assertSee('Jordan Example');
+    }
+
     public function test_only_owner_or_super_admin_can_place_or_release_an_applicant_legal_hold(): void
     {
         $this->enableLifecycle();
