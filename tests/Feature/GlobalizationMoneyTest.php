@@ -31,6 +31,14 @@ class GlobalizationMoneyTest extends TestCase
         ];
     }
 
+    public function test_it_constructs_money_from_integer_minor_units_without_rounding(): void
+    {
+        $money = Money::fromMinor(1995, 'USD', 2);
+
+        $this->assertSame(1995, $money->minorUnits());
+        $this->assertSame('19.95', $money->toMajor());
+    }
+
     public function test_it_rejects_precision_that_would_require_implicit_rounding(): void
     {
         $this->expectException(InvalidArgumentException::class);
