@@ -212,7 +212,7 @@ class ModelCastingWorkflowTest extends TestCase
             $service->submit($call, $context['application'], $context['asset'], $context['licence'], $context['admin']->id);
             $this->fail('A closed casting call must reject new submissions.');
         } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('call', $exception->errors());
+            $this->assertArrayHasKey('submission', $exception->errors());
         }
     }
     public function test_revoking_a_casting_distribution_licence_invalidates_live_submissions(): void
