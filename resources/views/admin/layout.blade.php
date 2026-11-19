@@ -28,6 +28,7 @@
         <a class="sidebar-link {{ request()->routeIs('admin.bookings.settings*') ? 'active' : '' }}" href="{{ route('admin.bookings.settings') }}">Booking rules</a>
         <a class="sidebar-link {{ request()->routeIs('admin.payment-*') ? 'active' : '' }}" href="{{ route('admin.payment-settings') }}">Payment settings</a>
         <a class="sidebar-link {{ request()->routeIs('admin.payment-methods*') ? 'active' : '' }}" href="{{ route('admin.payment-methods') }}">Crypto addresses</a>
+        <a class="sidebar-link {{ request()->routeIs('admin.pages.*') ? 'active' : '' }}" href="{{ route('admin.pages.index') }}">Site pages</a>
         <div class="sidebar-bottom">
             <span>{{ auth()->user()->name }}</span>
             <form method="POST" action="{{ route('admin.logout') }}">@csrf <button type="submit">Sign out ↗</button></form>
