@@ -47,6 +47,7 @@ return new class extends Migration
         DB::table('platform_features')->where('key', 'model-agency.applications')->update([
             'implementation_status' => 'available',
             'is_enabled' => false,
+            'dependencies' => json_encode(['cms.pages']),
             'description' => 'Independent adult model-agency application intake and reviewed admissions workflow. This is separate from companionship profiles and bookings.',
             'activation_requirements' => json_encode([
                 'model_agency_workflow',
