@@ -119,4 +119,47 @@ class PaymentConfigurationTest extends TestCase
             ->assertRedirect('/admin/payment-methods')
             ->assertSessionHasErrors('token_contract');
     }
+    public function test_receiving_method_cannot_be_enabled_before_review_and_matching_purpose_switches(): void
+    {
+        $admin = User::create([
+            'name' => 'Platform Admin',
+            'email' => 'admin@example.test',
+            'password' => 'Strong-Admin-Password-934!',
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        PaymentSetting::create([
+            'payments_enabled' => true,
+            'crypto_enabled' => true,
+            'booking_payments_enabled' => true,
+        ]);
+        $method = PaymentMethod::create([
+            'asset' => 'BTC',
+            'network' => 'Bitcoin',
+            'address' => 'bc1qexampleaddressforconfigurationonly000000000000000000000',
+            'confirmations_required' => 3,
+            'purpose_booking' => true,
+            'enabled' => false,
+            'verification_status' => 'pending',
+        ]);
+
+        $this->actingAs($admin)
+            ->patch('/admin/payment-methods/'.$method->id.'/enabled', ['enabled' => '1'])
+            ->assertSessionHasErrors('enabled');
+
+        $this->post('/admin/payment-methods/'.$method->id.'/review', [
+            'verification_reference' => 'network-review-reference-123',
+            'reviewed' => '1',
+        ])->assertRedirect('/admin/payment-methods');
+
+        $this->patch('/admin/payment-methods/'.$method->id.'/enabled', ['enabled' => '1'])
+            ->assertRedirect('/admin/payment-methods');
+
+        $this->assertDatabaseHas('payment_methods', [
+            'id' => $method->id,
+            'enabled' => true,
+            'verification_status' => 'reviewed',
+        ]);
+    }
+
 }
