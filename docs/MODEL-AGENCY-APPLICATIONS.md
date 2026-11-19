@@ -35,7 +35,7 @@ Applicant names, contact details, city, portfolio URL, experience summary and ad
 
 ## Applicant rights and retention
 
-Applicants open /models/application-support, provide the application reference and recorded email address, and choose access, correction, withdrawal or erasure. The response is deliberately generic whether or not the reference/email pair matches. A matching address receives an eight-digit code stored only as a password hash; it expires after 10 minutes and locks after five failed attempts. Successful verification creates a 30-minute session scoped to one rights request. Email cannot be changed through this flow.
+Applicants open /models/application-support, provide the application reference and recorded email address, and choose access, correction, withdrawal or erasure. The response is deliberately generic whether or not the reference/email pair matches. A matching address receives an eight-digit code stored only as a password hash; it expires after 10 minutes and locks after five failed attempts. Successful verification creates a 30-minute session scoped to one rights request. The private applicant data page sends no-store/no-cache headers and a no-referrer policy. Email cannot be changed through this flow.
 
 - Access displays the applicant's stored application data in the verified session.
 - Correction updates only name, phone, city, HTTPS portfolio URL and experience summary; email changes require a separately verified process.
