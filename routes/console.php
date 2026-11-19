@@ -665,4 +665,8 @@ Artisan::command('talyvane:companion:create {email}', function () {
 })->purpose('Provision a companion account from a trusted command line');
 
 
-Schedule::command('talyvane:model-agency:apply-retention')->dailyAt('02:30')->withoutOverlapping();
+if ((int) config('talyvane.model_agency.retention.application_days') > 0
+    && (int) config('talyvane.model_agency.retention.accepted_days') > 0
+    && config('talyvane.model_agency.retention.schedule_approved')) {
+    Schedule::command('talyvane:model-agency:apply-retention')->dailyAt('02:30')->withoutOverlapping();
+}
