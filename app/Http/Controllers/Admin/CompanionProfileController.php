@@ -83,7 +83,7 @@ class CompanionProfileController
         DB::transaction(function () use ($profile, $validated, $now, $automaticOptIn): void {
             $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
             if (! $lockedProfile->destination()->operationallyAvailable()->exists()) {
-                throw ValidationException::withMessages(['destination' => 'The destination must be active before publication.']);
+                throw ValidationException::withMessages(['destination' => 'The destination must be active and its country market approved before publication.']);
             }
             $lockedProfile->forceFill([
                 'age_verified_at' => $now,
