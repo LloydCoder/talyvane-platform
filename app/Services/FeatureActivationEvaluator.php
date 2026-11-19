@@ -84,6 +84,71 @@ class FeatureActivationEvaluator
                 continue;
             }
 
+            if ($requirement === 'model_agency_rights_ledger') {
+                $schemaReady = Schema::hasTable('model_talent_representation_agreements')
+                    && Schema::hasColumns('model_talent_representation_agreements', ['application_id', 'country_code', 'status', 'terms_snapshot', 'terms_policy_version'])
+                    && Schema::hasTable('model_talent_portfolio_assets')
+                    && Schema::hasColumns('model_talent_portfolio_assets', ['application_id', 'storage_path', 'status', 'consent_policy_version', 'consent_withdrawn_at'])
+                    && Schema::hasTable('model_talent_image_licences')
+                    && Schema::hasColumns('model_talent_image_licences', ['application_id', 'portfolio_asset_id', 'representation_agreement_id', 'status', 'purpose', 'channels', 'country_code', 'starts_on', 'ends_on', 'licence_policy_version']);
+
+                if (! $schemaReady) {
+                    $blockers[] = 'The representation, private portfolio and image-licence evidence schemas must all be available.';
+                }
+
+                continue;
+            }
+
+            if ($requirement === 'model_agency_representation_terms') {
+                if (! filled(config('talyvane.model_agency.representation_terms_version'))
+                    || ! config('talyvane.model_agency.representation_terms_approved')) {
+                    $blockers[] = 'A current, jurisdiction-reviewed representation terms version must be configured and explicitly approved.';
+                }
+
+                continue;
+            }
+
+            if ($requirement === 'model_agency_portfolio_consent') {
+                if (! filled(config('talyvane.model_agency.portfolio_consent_version'))
+                    || ! config('talyvane.model_agency.portfolio_consent_approved')) {
+                    $blockers[] = 'A current, purpose-limited portfolio consent policy must be configured and explicitly approved.';
+                }
+
+                continue;
+            }
+
+            if ($requirement === 'model_agency_image_licence_policy') {
+                if (! filled(config('talyvane.model_agency.image_licence_policy_version'))
+                    || ! config('talyvane.model_agency.image_licence_policy_approved')) {
+                    $blockers[] = 'A current image usage licence policy must be configured and explicitly approved.';
+                }
+
+                continue;
+            }
+
+            if ($requirement === 'model_agency_casting_schema') {
+                $schemaReady = Schema::hasTable('model_casting_calls')
+                    && Schema::hasColumns('model_casting_calls', ['reference', 'status', 'country_code', 'opens_at', 'closes_at', 'shoot_starts_at', 'shoot_ends_at', 'casting_policy_version'])
+                    && Schema::hasTable('model_casting_submissions')
+                    && Schema::hasColumns('model_casting_submissions', ['call_id', 'application_id', 'portfolio_asset_id', 'image_licence_id', 'status'])
+                    && Schema::hasTable('model_casting_events');
+
+                if (! $schemaReady) {
+                    $blockers[] = 'The private casting call, submission and audit schemas must all be available.';
+                }
+
+                continue;
+            }
+
+            if ($requirement === 'model_agency_casting_policy') {
+                if (! filled(config('talyvane.model_agency.casting_policy_version'))
+                    || ! config('talyvane.model_agency.casting_policy_approved')) {
+                    $blockers[] = 'A current, jurisdiction-reviewed casting policy must be configured and explicitly approved.';
+                }
+
+                continue;
+            }
+
             if ($requirement === 'adult_eligibility_verification') {
                 $verificationSchemaReady = Schema::hasTable('model_talent_applications')
                     && Schema::hasColumns('model_talent_applications', [
@@ -152,6 +217,8 @@ class FeatureActivationEvaluator
             'cms.pages' => ['Public deployment-managed pages'],
             'memberships' => ['Client membership display and agency assignment'],
             'model-agency.applications' => ['Public adult model-agency application intake', 'Restricted agency review workspace', 'Append-only application status history'],
+            'model-agency.usage-rights' => ['Representation agreement register', 'Private portfolio media and consent', 'Purpose-bound image usage licence ledger'],
+            'model-agency.casting' => ['Private casting briefs', 'Licensed model submissions', 'Manual shortlist and selection controls'],
             'payments.configuration' => ['Payment method configuration and payment-purpose controls'],
             default => [$feature->module.' module surfaces'],
         };
