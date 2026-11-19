@@ -1,15 +1,15 @@
 <?php
 
-namespace App\\Http\\Controllers;
+namespace App\Http\Controllers;
 
-use App\\Models\\CompanionProfile;
-use App\\Models\\ProfileMedia;
-use App\\Services\\ProfileMediaProcessor;
-use Illuminate\\Http\\RedirectResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Storage;
-use Illuminate\\Validation\\ValidationException;
+use App\Models\CompanionProfile;
+use App\Models\ProfileMedia;
+use App\Services\ProfileMediaProcessor;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class CompanionMediaController extends Controller
 {
@@ -42,7 +42,7 @@ class CompanionMediaController extends Controller
                 'rights_confirmed_at' => now(),
                 'consent_version' => config('talyvane.privacy.profile_consent_version'),
             ]);
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             Storage::disk('local')->delete($image['path']);
             throw $exception;
         }
