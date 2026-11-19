@@ -108,6 +108,23 @@ class ModelAgencyApplicationRightsTest extends TestCase
         ])->assertRedirect('/models/application-support/'.$request->id);
     }
 
+
+    public function test_applicant_rights_services_remain_available_after_new_intake_is_disabled(): void
+    {
+        $this->enableLifecycle();
+        $application = $this->application();
+
+        DB::table('platform_features')->where('key', 'model-agency.applications')->update(['is_enabled' => false]);
+
+        $this->get('/models/application-support')->assertOk();
+        $request = $this->requestCode($application, 'access');
+        $this->verifyCode($application, $request);
+
+        $this->get('/models/application-support/'.$request->id)
+            ->assertOk()
+            ->assertSee('Jordan Example');
+    }
+
     public function test_applicant_can_verify_email_and_access_their_application_data(): void
     {
         $this->enableLifecycle();
