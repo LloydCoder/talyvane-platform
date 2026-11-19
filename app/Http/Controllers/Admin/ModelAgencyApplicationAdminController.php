@@ -228,6 +228,8 @@ class ModelAgencyApplicationAdminController extends Controller
                 && Schema::hasColumns('model_talent_portfolio_assets', ['application_id', 'storage_path', 'sha256', 'status', 'consent_policy_version'])
                 && Schema::hasTable('model_talent_image_licences')
                 && Schema::hasColumns('model_talent_image_licences', ['application_id', 'portfolio_asset_id', 'representation_agreement_id', 'status', 'purpose', 'channels', 'country_code', 'starts_on', 'ends_on', 'licence_policy_version'])
+                && Schema::hasTable('model_talent_image_licences')
+                && Schema::hasColumns('model_talent_image_licences', ['application_id', 'portfolio_asset_id', 'representation_agreement_id', 'status', 'purpose', 'channels', 'country_code', 'starts_on', 'ends_on', 'licence_policy_version'])
                 && Schema::hasTable('model_talent_application_events')
                 && Schema::hasColumns('model_talent_application_events', ['application_id', 'actor_type', 'event_type', 'occurred_at']),
             503,
