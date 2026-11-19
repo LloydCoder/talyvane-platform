@@ -208,7 +208,7 @@ class DiscoveryTest extends TestCase
             'timezone' => 'Europe/Lisbon',
             'is_active' => true,
         ]);
-        \\App\\Models\\CompanionProfile::create([
+        \App\Models\CompanionProfile::create([
             'destination_id' => $destination->id,
             'display_name' => 'Taylor',
             'slug' => 'taylor-lisbon',
