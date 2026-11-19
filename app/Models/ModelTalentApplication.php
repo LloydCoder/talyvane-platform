@@ -61,4 +61,9 @@ class ModelTalentApplication extends Model
     {
         return $this->hasMany(ModelTalentApplicationEvent::class, 'application_id');
     }
+
+    public function rightsRequests(): HasMany
+    {
+        return $this->hasMany(ModelTalentApplicationRightsRequest::class, 'application_id');
+    }
 }
