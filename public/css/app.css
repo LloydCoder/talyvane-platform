@@ -335,3 +335,14 @@ h1 em, h2 em { color: var(--gold); font-weight: 400; }
 .profile-card-link{display:flex;width:100%;justify-content:space-between;margin-top:auto;padding-top:17px;border-top:1px solid rgba(23,28,24,.12);color:#826f4d;font-size:9px;letter-spacing:.08em;text-transform:uppercase}
 .profile-card-link span{font-size:13px}
 @media(max-width:640px){.profile-card-body{min-height:190px;padding:20px}}
+
+
+/* Country-market compliance review controls */
+.market-review-details summary{color:#826f4d;font-size:10px;cursor:pointer}
+.market-review-details form{display:grid;min-width:240px;max-width:360px;gap:8px;margin-top:12px;padding:14px;background:#f8f6f0;border:1px solid rgba(23,28,24,.12)}
+.market-review-details label{color:#4d554c;font-size:9px}
+.market-review-details input:not([type=checkbox]),.market-review-details select,.market-review-details textarea{width:100%;min-height:36px;padding:8px;border:1px solid rgba(23,28,24,.2);background:#fffefa;color:#252c26;font:10px var(--sans)}
+.market-review-details textarea{resize:vertical}
+.market-review-details .remember-row{display:flex;align-items:flex-start;gap:8px;line-height:1.5}
+.market-review-details .remember-row input{margin-top:2px}
+.market-review-details button{justify-content:center;min-height:38px;border:0;cursor:pointer}
