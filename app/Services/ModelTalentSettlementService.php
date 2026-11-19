@@ -42,7 +42,7 @@ class ModelTalentSettlementService
                 throw ValidationException::withMessages(['expense' => 'The assignment currency must remain enabled for settlement.']);
             }
 
-            $amount = $this->money((string) ($input['amount'] ?? ''), $currency);
+            $amount = $this->money((string) ($input['amount'] ?? ''), $currency, 'expense');
             $cap = $this->money((string) $lockedAssignment->expense_cap_amount, $currency);
             if ($amount->minorUnits() <= 0) {
                 throw ValidationException::withMessages(['expense' => 'Expense amount must be greater than zero.']);
@@ -367,12 +367,12 @@ class ModelTalentSettlementService
         ];
     }
 
-    private function money(string $amount, Currency $currency): Money
+    private function money(string $amount, Currency $currency, string $errorKey = 'settlement'): Money
     {
         try {
             return Money::fromMajor($this->normalize($amount), $currency->code, $currency->minor_unit);
         } catch (InvalidArgumentException $exception) {
-            throw ValidationException::withMessages(['amount' => $exception->getMessage()]);
+            throw ValidationException::withMessages([$errorKey => $exception->getMessage()]);
         }
     }
 
