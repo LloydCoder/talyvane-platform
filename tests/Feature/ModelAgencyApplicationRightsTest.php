@@ -366,7 +366,8 @@ class ModelAgencyApplicationRightsTest extends TestCase
     {
         $this->enableLifecycle();
         $expired = $this->application('declined', ['submitted_at' => now()->subDays(120)]);
-        $accepted = $this->application('accepted', ['submitted_at' => now()->subDays(400)]);
+        $accepted = $this->application('accepted', ['submitted_at' => now()->subDays(500), 'reviewed_at' => now()->subDays(400)]);
+        $recentlyAccepted = $this->application('accepted', ['submitted_at' => now()->subDays(400), 'reviewed_at' => now()->subDays(100)]);
         $held = $this->application('declined', [
             'submitted_at' => now()->subDays(120),
             'legal_hold_at' => now(),
@@ -378,6 +379,7 @@ class ModelAgencyApplicationRightsTest extends TestCase
 
         $this->assertSame('erased', $expired->fresh()->status);
         $this->assertSame('erased', $accepted->fresh()->status);
+        $this->assertSame('accepted', $recentlyAccepted->fresh()->status);
         $this->assertSame('declined', $held->fresh()->status);
         $this->assertSame('declined', $recent->fresh()->status);
     }
