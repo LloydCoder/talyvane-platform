@@ -15,6 +15,8 @@ class CompanionProfile extends Model
         'summary',
         'languages',
         'publication_status',
+        'accepts_automatic_bookings',
+        'automatic_booking_consent_at',
         'age_verified_at',
         'publication_consent_at',
         'consent_withdrawn_at',
@@ -29,6 +31,8 @@ class CompanionProfile extends Model
             'publication_consent_at' => 'immutable_datetime',
             'consent_withdrawn_at' => 'immutable_datetime',
             'published_at' => 'immutable_datetime',
+            'automatic_booking_consent_at' => 'immutable_datetime',
+            'accepts_automatic_bookings' => 'boolean',
         ];
     }
 
