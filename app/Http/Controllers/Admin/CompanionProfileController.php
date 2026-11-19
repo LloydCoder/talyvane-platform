@@ -82,7 +82,7 @@ class CompanionProfileController
 
         DB::transaction(function () use ($profile, $validated, $now, $automaticOptIn): void {
             $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
-            if (! $lockedProfile->destination()->operationallyAvailable()->exists()) {
+            if (! $lockedProfile->destination()->first()?->lockAndCheckOperationalAvailability()) {
                 throw ValidationException::withMessages(['destination' => 'The destination must be active and its country market approved before publication.']);
             }
             $lockedProfile->forceFill([
