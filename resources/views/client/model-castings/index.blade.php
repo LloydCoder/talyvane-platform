@@ -3,15 +3,16 @@
 @section('title', 'Private model castings')
 
 @section('content')
-    <main class="container">
+    <div class="private-casting-page">
         <section class="page-heading">
             <p class="eyebrow">PRIVATE CLIENT PORTAL</p>
             <h1>Model casting invitations</h1>
             <p>Only casting calls specifically shared with your verified account appear here. Access expires automatically and can be revoked by the agency.</p>
         </section>
 
+        <div class="private-casting-list">
         @forelse($calls as $call)
-            <article class="content-card">
+            <article class="private-casting-card">
                 <p class="eyebrow">{{ $call->reference }} · {{ strtoupper($call->status) }}</p>
                 <h2>{{ $call->title }}</h2>
                 <p>{{ $call->description }}</p>
@@ -22,5 +23,6 @@
         @empty
             <p>No active private casting invitations are assigned to this account.</p>
         @endforelse
-    </main>
+        </div>
+    </div>
 @endsection
