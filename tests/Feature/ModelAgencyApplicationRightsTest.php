@@ -116,7 +116,7 @@ class ModelAgencyApplicationRightsTest extends TestCase
 
         DB::table('platform_features')->where('key', 'model-agency.applications')->update(['is_enabled' => false]);
 
-        $this->get('/models/application-support')->assertOk()->assertHeader('Cache-Control', 'no-store, private, max-age=0');
+        $this->get('/models/application-support')->assertOk()->assertHeader('Cache-Control', 'max-age=0, no-store, private');
         $request = $this->requestCode($application, 'access');
         $this->verifyCode($application, $request);
 
@@ -139,7 +139,7 @@ class ModelAgencyApplicationRightsTest extends TestCase
             ->assertSee('Jordan Example')
             ->assertSee('jordan@example.test')
             ->assertSee('Commercial and editorial modelling experience.')
-            ->assertHeader('Cache-Control', 'no-store, private, max-age=0');
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
 
         $this->post('/models/application-support/'.$request->id.'/finish')
             ->assertRedirect('/models/application-support/verify');
@@ -304,7 +304,7 @@ class ModelAgencyApplicationRightsTest extends TestCase
             ->get('/admin/model-applications')
             ->assertOk()
             ->assertSee('Jordan Example')
-            ->assertHeader('Cache-Control', 'no-store, private, max-age=0');
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
     }
 
     public function test_only_owner_or_super_admin_can_place_or_release_an_applicant_legal_hold(): void
