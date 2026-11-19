@@ -60,7 +60,7 @@ Remaining: configurable content/CMS; jurisdiction-approved legal documents (curr
 - [ ] Implement separate casting calls, client briefs, talent submission/shortlist, assignment states and approvals.
 - [ ] Implement purpose-specific media releases and usage licences with rights holder, channel, territory, term, exclusivity, compensation and withdrawal constraints.
 - [ ] Implement model availability, assignment booking, fees, expenses, commission and settlement ledger.
-- [x] Implement email-verified applicant access, correction, withdrawal and erasure requests with hashed one-time codes, attempt limits and scoped sessions.
+- [x] Implement email-verified applicant access, correction, withdrawal and erasure requests with hashed one-time codes, attempt limits, supersession and scoped sessions that remain available when intake is disabled.
 - [x] Add owner/Super Admin legal holds that block erasure and retention.
 - [x] Implement policy-driven application anonymization and daily scheduled retention command; activation requires positive approved retention periods, SMTP and an explicit scheduler approval.
 
