@@ -9,7 +9,8 @@ The job:
 1. Checks out the exact commit without persisting Git credentials.
 2. Installs production dependencies with `composer install --no-dev` from the committed `composer.lock`.
 3. Verifies actual PHP platform requirements and audits production dependencies.
-4. Packages the application, production `vendor/`, public assets, migrations, configuration, documentation and environment example.
+4. Boots the production-only dependency tree, enumerates routes and compiles Blade views to verify the packaged runtime without development dependencies.
+5. Packages the application, production `vendor/`, public assets, migrations, configuration, documentation and environment example.
 5. Excludes the real `.env`, tests, Git metadata, runtime caches, logs and customer/private uploaded data.
 6. Writes a commit/runtime manifest, creates a normalized tar archive, computes SHA-256 and inspects the archive for forbidden paths.
 7. Uploads the package, checksum and package-content listing as an immutable GitHub Actions artifact with a 14-day retention period.
