@@ -22,6 +22,9 @@ class Booking extends Model
         'client_note',
         'confirmed_at',
         'cancelled_at',
+        'deposit_verified_at',
+        'deposit_verified_by',
+        'deposit_reference_hash',
     ];
 
     protected function casts(): array
@@ -31,6 +34,7 @@ class Booking extends Model
             'ends_at' => 'immutable_datetime',
             'confirmed_at' => 'immutable_datetime',
             'cancelled_at' => 'immutable_datetime',
+            'deposit_verified_at' => 'immutable_datetime',
         ];
     }
 
@@ -42,6 +46,11 @@ class Booking extends Model
     public function profile(): BelongsTo
     {
         return $this->belongsTo(CompanionProfile::class, 'companion_profile_id');
+    }
+
+    public function depositVerifier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deposit_verified_by');
     }
 
     public function destination(): BelongsTo
