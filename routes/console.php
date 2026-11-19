@@ -1,9 +1,17 @@
 <?php
 
 use App\Models\User;
+use App\Models\SuperAdminRecoveryEvent;
+use App\Notifications\SuperAdminEmailVerificationCode;
+use App\Notifications\SuperAdminRecoveryNotice;
+use App\Services\RecoveryCodeGenerator;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
+use Throwable;
 
 Artisan::command('talyvane:about', function () {
     $this->comment('Talyvane platform foundation');
@@ -206,7 +214,7 @@ Artisan::command('talyvane:super-admin:recover', function () {
                 || (int) $lockedControl->super_admin_user_id !== (int) $lockedUser->id
                 || ! Hash::check($password, $lockedUser->password)
                 || ! Hash::check($recoveryKey, (string) $lockedControl->super_admin_recovery_key_hash)) {
-                throw new \\RuntimeException('Recovery state changed or credentials are no longer valid.');
+                throw new \RuntimeException('Recovery state changed or credentials are no longer valid.');
             }
 
             $versionBefore = (int) $lockedUser->admin_session_version;
