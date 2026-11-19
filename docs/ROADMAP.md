@@ -74,6 +74,7 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Build feature mutation controls with impact preview, prerequisite evaluation, reason capture, password/TOTP step-up and transactional rollback.
 - [x] Add dependency-aware server-side feature resolution and route middleware for public discovery, dynamic CMS pages, client/companion portals and companionship booking endpoints.
 - [x] Recheck the automatic-booking feature gate inside the booking transaction before automatic confirmation.
+- [x] Keep companion consent withdrawal and media removal outside the companion-portal feature gate, with a standalone privacy-controls page.
 - [ ] Extend feature enforcement to every relevant policy, application service, scheduled job and integration boundary.
 - [x] Implement current-password plus single-use TOTP step-up, reason capture, atomic feature-state changes and append-only audit writes.
 - [x] Add an append-only feature-audit event schema, model-level update/delete protection and transactional event writes for feature state changes.
