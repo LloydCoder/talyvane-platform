@@ -28,9 +28,9 @@ class ModelAgencyApplicationRetentionService
             ->where('status', '!=', 'erased')
             ->where(function ($query) use ($applicationCutoff, $acceptedCutoff): void {
                 $query->where(function ($query) use ($acceptedCutoff): void {
-                    $query->where('status', 'accepted')->where('submitted_at', '<=', $acceptedCutoff);
+                    $query->where('status', 'accepted')->whereRaw('COALESCE(reviewed_at, submitted_at) <= ?', [$acceptedCutoff]);
                 })->orWhere(function ($query) use ($applicationCutoff): void {
-                    $query->where('status', '!=', 'accepted')->where('submitted_at', '<=', $applicationCutoff);
+                    $query->where('status', '!=', 'accepted')->whereRaw('COALESCE(reviewed_at, submitted_at) <= ?', [$applicationCutoff]);
                 });
             })
             ->orderBy('id')
