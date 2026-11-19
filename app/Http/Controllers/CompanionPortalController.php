@@ -193,7 +193,7 @@ class CompanionPortalController extends Controller
             ]);
         });
 
-        return redirect()->route('companion-portal.dashboard')->with('status', 'Publication consent withdrawn. The profile has been hidden immediately.');
+        return redirect()->route('companion-portal.privacy-status')->with('status', 'Publication consent withdrawn. The profile has been hidden immediately.');
     }
 
     private function assertOwnership(CompanionProfile $profile): void
