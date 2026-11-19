@@ -32,11 +32,13 @@ Booking creation, companion decisions and admin confirmation lock the profile ro
 
 The current admin workflow records a human verification attestation and stores the external transaction reference as a keyed HMAC digest. This is not a blockchain watcher or processor integration. The reviewer must independently inspect the trusted provider/network source. Never accept a screenshot as proof.
 
+Client cancellation is configurable by the admin. Pending requests can be cancelled by the client; confirmed bookings can be cancelled only when the policy switch is enabled and the request is outside the configured cutoff. Refunds are never automated by cancellation and must follow the separately approved payment policy.
+
 ## Remaining work
 
 - Date-specific availability exceptions and blackout periods.
 - Calendar integration and schedule conflict synchronisation.
-- Client cancellation/rescheduling and policy enforcement.
+- Client rescheduling, companion blackout exceptions and calendar synchronisation.
 - Notification delivery and retry handling.
 - Booking event retention and tamper-evident export/backup.
 - Payment invoice/settlement integration.
