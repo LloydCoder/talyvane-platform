@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ModelCastingSubmission extends Model
 {
@@ -46,7 +47,7 @@ class ModelCastingSubmission extends Model
         return $this->belongsTo(ModelTalentImageLicence::class, 'image_licence_id');
     }
 
-    public function clientReviews(): \\Illuminate\\Database\\Eloquent\\Relations\\HasMany
+    public function clientReviews(): HasMany
     {
         return $this->hasMany(ModelCastingClientReview::class, 'submission_id');
     }
