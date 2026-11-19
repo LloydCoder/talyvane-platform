@@ -56,6 +56,9 @@ class ModelTalentSettlementService
             $committedMinor = 0;
             foreach ($existing as $claim) {
                 $claimMoney = $this->money((string) $claim->amount, $currency);
+                if ($claimMoney->minorUnits() <= 0) {
+                    throw ValidationException::withMessages(['expense' => 'Existing expense claims contain an invalid non-positive amount; manual reconciliation is required.']);
+                }
                 if ($committedMinor > PHP_INT_MAX - $claimMoney->minorUnits()) {
                     throw ValidationException::withMessages(['expense' => 'The accumulated expense claims exceed the supported calculation range.']);
                 }
@@ -322,6 +325,9 @@ class ModelTalentSettlementService
                 throw ValidationException::withMessages(['settlement' => 'Expense currency does not match the assignment currency.']);
             }
             $money = $this->money((string) $expense->amount, $currency);
+            if ($money->minorUnits() <= 0) {
+                throw ValidationException::withMessages(['settlement' => 'An approved expense contains an invalid non-positive amount.']);
+            }
             if ($expenseMinor > PHP_INT_MAX - $money->minorUnits()) {
                 throw ValidationException::withMessages(['settlement' => 'Approved expenses exceed the supported calculation range.']);
             }
