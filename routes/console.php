@@ -230,6 +230,10 @@ Artisan::command('talyvane:super-admin:enroll-recovery', function () {
             if (! $lockedControl
                 || ! $lockedUser
                 || (int) $lockedControl->super_admin_user_id !== (int) $lockedUser->id
+                || $lockedUser->role !== 'super_admin'
+                || ! $lockedUser->is_active
+                || ! $lockedUser->mfa_enabled_at
+                || ! $lockedUser->mfa_secret
                 || ! Hash::check($password, $lockedUser->password)) {
                 throw new \RuntimeException('Super Admin recovery enrollment state changed.');
             }
@@ -378,6 +382,11 @@ Artisan::command('talyvane:super-admin:rotate-recovery-contacts', function () {
 
             if (! $lockedControl || ! $lockedUser
                 || (int) $lockedControl->super_admin_user_id !== (int) $lockedUser->id
+                || $lockedUser->role !== 'super_admin'
+                || ! $lockedUser->is_active
+                || ! $lockedUser->email_verified_at
+                || ! $lockedControl->super_admin_recovery_email_verified_at
+                || blank($lockedControl->super_admin_recovery_key_hash)
                 || ! hash_equals(strtolower($oldRecoveryEmail), strtolower($lockedControl->super_admin_recovery_email))
                 || ! Hash::check($password, $lockedUser->password)) {
                 throw new \RuntimeException('Super Admin recovery contact state changed.');
@@ -490,7 +499,7 @@ Artisan::command('talyvane:super-admin:recover', function () {
 
     $reason = trim((string) $this->ask('Reason for recovery (minimum 20 characters)'));
 
-    if (strlen($reason) < 20 || strlen($reason) > 500) {
+    if (strlen($reason) < 20 || strlen($reason) > 500 || preg_match('/[\x00-\x1F\x7F]/', $reason)) {
         $this->error('A recovery reason between 20 and 500 characters is required.');
 
         return 1;
@@ -507,6 +516,11 @@ Artisan::command('talyvane:super-admin:recover', function () {
             if (! $lockedControl
                 || ! $lockedUser
                 || (int) $lockedControl->super_admin_user_id !== (int) $lockedUser->id
+                || $lockedUser->role !== 'super_admin'
+                || ! $lockedUser->is_active
+                || ! $lockedUser->email_verified_at
+                || blank($lockedControl->super_admin_recovery_email)
+                || ! $lockedControl->super_admin_recovery_email_verified_at
                 || ! Hash::check($password, $lockedUser->password)
                 || ! Hash::check($recoveryKey, (string) $lockedControl->super_admin_recovery_key_hash)) {
                 throw new \RuntimeException('Recovery state changed or credentials are no longer valid.');
