@@ -23,6 +23,11 @@ class ModelTalentSettlementTest extends TestCase
 
     private function assignment(string $status = 'completed'): array
     {
+        config([
+            'talyvane.model_agency.settlement_policy_version' => 'settlement-policy-v1',
+            'talyvane.model_agency.settlement_policy_approved' => true,
+        ]);
+
         $admin = $this->createAdminUser(['email' => 'settlement-admin-'.strtolower(bin2hex(random_bytes(4))).'@example.test']);
         $verifier = User::query()->create([
             'name' => 'Eligibility Verifier',
