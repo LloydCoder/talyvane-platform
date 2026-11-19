@@ -37,6 +37,8 @@ return new class extends Migration
             $table->timestamp('accepted_at')->nullable();
             $table->text('executed_document_reference')->nullable();
             $table->text('model_acceptance_evidence_reference')->nullable();
+            $table->text('model_decline_evidence_reference')->nullable();
+            $table->text('decline_reason')->nullable();
             $table->foreignId('confirmed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('confirmed_at')->nullable();
             $table->foreignId('started_by')->nullable()->constrained('users')->nullOnDelete();
