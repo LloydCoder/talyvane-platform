@@ -36,6 +36,11 @@ class User extends Authenticatable implements MustVerifyEmail
         ];
     }
 
+    public function companionProfile(): \\Illuminate\\Database\\Eloquent\\Relations\\HasOne
+    {
+        return $this->hasOne(CompanionProfile::class);
+    }
+
     public function isPlatformAdministrator(): bool
     {
         return $this->is_active && in_array($this->role, ['owner', 'admin'], true);
