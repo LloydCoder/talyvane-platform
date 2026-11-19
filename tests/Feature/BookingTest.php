@@ -56,6 +56,23 @@ class BookingTest extends TestCase
         ]);
     }
 
+    public function test_booking_is_blocked_when_the_destination_market_is_pending(): void
+    {
+        $client = $this->client();
+        $profile = $this->profile();
+        BookingSetting::create(['booking_mode' => 'manual']);
+
+        $this->actingAs($client)
+            ->post('/bookings', [
+                'profile_id' => $profile->id,
+                'start_at' => now()->addDays(3)->setTimezone('Europe/London')->format('Y-m-d\\TH:i'),
+                'duration_minutes' => 60,
+            ])
+            ->assertSessionHasErrors('profile_id');
+
+        $this->assertDatabaseCount('bookings', 0);
+    }
+
     public function test_manual_booking_creates_a_pending_review_request(): void
     {
         $client = $this->client();
