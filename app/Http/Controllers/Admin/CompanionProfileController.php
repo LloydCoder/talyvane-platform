@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\Booking;
 use App\Models\CompanionProfile;
 use App\Models\Destination;
 use App\Models\ProfilePublicationReview;
@@ -9,8 +10,8 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CompanionProfileController
@@ -79,7 +80,7 @@ class CompanionProfileController
         DB::transaction(function () use ($profile, $validated, $now, $automaticOptIn): void {
             $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
             if (! $lockedProfile->destination()->where('is_active', true)->exists()) {
-                throw \\Illuminate\\Validation\\ValidationException::withMessages(['destination' => 'The destination must be active before publication.']);
+                throw ValidationException::withMessages(['destination' => 'The destination must be active before publication.']);
             }
             $lockedProfile->forceFill([
                 'age_verified_at' => $now,
@@ -120,7 +121,7 @@ class CompanionProfileController
                 'published_at' => null,
             ])->save();
 
-            \\App\\Models\\Booking::query()->where('companion_profile_id', $lockedProfile->id)
+            Booking::query()->where('companion_profile_id', $lockedProfile->id)
                 ->where('status', 'pending_review')
                 ->update(['status' => 'cancelled', 'cancelled_at' => now()]);
 
