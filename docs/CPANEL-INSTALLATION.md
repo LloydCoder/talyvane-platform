@@ -116,11 +116,11 @@ php artisan optimize
 
 Only run `key:generate` during first installation when no key exists. For upgrades, back up first, review release notes and run the documented migration command. Do not run destructive migration reset/fresh commands on production.
 
-If the release uses a controlled Super Admin bootstrap command, run it once from CLI and securely record the recovery procedure. Never create a public route that executes arbitrary Artisan commands.
+After configuring the environment and applying migrations, provision the deployment's single Super Admin from a trusted terminal:\n\n```bash\nphp artisan migrate --force\nphp artisan talyvane:super-admin:create admin@example.com\n```\n\nThe command prompts interactively for the account name and a strong password, records the unique Super Admin principal in the deployment control row, and refuses a second bootstrap. Sign in immediately and complete mandatory TOTP MFA. Do not place passwords in shell arguments, deployment logs or tickets. Preserve a separately controlled recovery procedure. Never create a public route that executes arbitrary Artisan commands.
 
 ### Without SSH/Composer
 
-Upload only a complete, prebuilt release containing its production dependencies. The current application uses CLI-only first-owner provisioning; therefore a host without SSH is **not yet fully installable through a supported self-service workflow** until the safe browser installer or a release-specific secure bootstrap alternative is implemented and tested.
+Upload only a complete, prebuilt release containing its production dependencies. The current application provides CLI-only Super Admin provisioning; therefore a host without SSH is **not yet fully installable through a supported self-service workflow** until the safe browser installer or a release-specific secure bootstrap alternative is implemented and tested.
 
 Do not work around this limitation by uploading a web-accessible PHP script that runs migrations, accepts arbitrary commands or creates an administrator from an unauthenticated request. A manual SQL import is acceptable only when supplied and versioned for that exact release, reviewed for the target database engine and accompanied by a secure first-admin provisioning procedure.
 
