@@ -88,6 +88,13 @@
             @endif
         </a>
         <p>{{ $brand['tagline'] ?? '' }}</p>
+        @if ($pages->isNotEmpty())
+            <nav class="footer-pages" aria-label="Information">
+                @foreach ($pages as $page)
+                    <a href="{{ route('pages.show', $page->slug) }}">{{ $page->title }}</a>
+                @endforeach
+            </nav>
+        @endif
         <div class="footer-contact">
             @if (!empty($brand['contact_email'])) <a href="mailto:{{ $brand['contact_email'] }}">{{ $brand['contact_email'] }}</a> @endif
             @if (!empty($brand['contact_phone'])) <a href="tel:{{ preg_replace('/[^0-9+]/', '', $brand['contact_phone']) }}">{{ $brand['contact_phone'] }}</a> @endif
