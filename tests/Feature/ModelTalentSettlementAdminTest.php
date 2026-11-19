@@ -31,11 +31,7 @@ class ModelTalentSettlementAdminTest extends TestCase
         $this->actingAs($admin)->get('/admin/model-settlements')->assertNotFound();
 
         $this->enableSettlementFeature();
-        $this->actingAs($admin)
-            ->get('/admin/model-settlements')
-            ->assertOk()
-            ->assertSee('Expense and settlement ledger')
-            ->assertSee('No settlements have been calculated.');
+        $this->actingAs($admin)->get('/admin/model-settlements')->assertForbidden();
     }
 
     public function test_client_cannot_access_the_model_settlement_register_even_when_enabled(): void
