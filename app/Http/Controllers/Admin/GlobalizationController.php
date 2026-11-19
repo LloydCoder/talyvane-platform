@@ -67,6 +67,21 @@ class GlobalizationController
         return redirect()->route('admin.globalization')->with('status', 'Currency added. Confirm its ISO 4217 metadata before enabling it for transactions.');
     }
 
+    public function toggleCurrency(Request $request, Currency $currency): RedirectResponse
+    {
+        $enabled = $request->boolean('is_enabled');
+
+        if (! $enabled && GlobalizationSetting::current()->base_currency_code === $currency->code) {
+            return redirect()->route('admin.globalization')->withErrors([
+                'currency' => 'Choose another reporting currency before disabling this currency.',
+            ]);
+        }
+
+        $currency->update(['is_enabled' => $enabled]);
+
+        return redirect()->route('admin.globalization')->with('status', 'Currency availability updated.');
+    }
+
     public function storeMarket(Request $request): RedirectResponse
     {
         $validated = $request->validate([
