@@ -12,10 +12,18 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
+use Tests\Feature\Support\EnablesModelAgencyFeatureRoutes;
 
 class ModelTalentPortfolioAssetTest extends TestCase
 {
-    use RefreshDatabase;\n    use EnablesModelAgencyFeatureRoutes;\n\n    protected function setUp(): void\n    {\n        parent::setUp();\n        $this->enableModelAgencyFeatureRoutes();\n    }
+    use RefreshDatabase;
+    use EnablesModelAgencyFeatureRoutes;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->enableModelAgencyFeatureRoutes();
+    }
 
     private function configurePortfolioPolicy(): void
     {
