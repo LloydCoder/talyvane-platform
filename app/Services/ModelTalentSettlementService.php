@@ -222,7 +222,7 @@ class ModelTalentSettlementService
         string $externalReference,
         string $evidenceReference,
     ): void {
-        $methods = ['bank_transfer', 'cash', 'crypto_external', 'other_external'];
+        $methods = ['bank_transfer', 'cash', 'other_external'];
         if (! in_array($method, $methods, true) || ! filled($externalReference) || mb_strlen($externalReference) > 200) {
             throw ValidationException::withMessages(['payment' => 'Provide an allowed external payment method and reference.']);
         }
