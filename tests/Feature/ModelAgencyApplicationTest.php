@@ -370,4 +370,43 @@ class ModelAgencyApplicationTest extends TestCase
         $this->assertSame([], app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature));
     }
 
+
+    public function test_administrator_cannot_accept_a_model_application_before_adult_eligibility_is_manually_verified(): void
+    {
+        $this->enableApplications();
+        $application = ModelTalentApplication::query()->create([
+            'reference' => 'MTA-2026-ADULT01',
+            'full_name' => 'Jordan Example',
+            'email' => 'jordan@example.test',
+            'country_code' => 'GB',
+            'city' => 'London',
+            'experience_summary' => 'Commercial and editorial modelling experience.',
+            'status' => 'submitted',
+            'adult_eligibility_confirmed_at' => now(),
+            'adult_eligibility_policy_version' => 'adult-eligibility-v1',
+            'adult_eligibility_policy_accepted_at' => now(),
+            'privacy_notice_version' => 'model-application-privacy-v1',
+            'privacy_notice_accepted_at' => now(),
+            'submitted_at' => now(),
+        ]);
+        $admin = $this->createAdminUser([
+            'name' => 'Agency Admin',
+            'email' => 'adult-check-admin@example.test',
+            'role' => 'admin',
+        ]);
+
+        $this->actingAs($admin)->patch('/admin/model-applications/'.$application->id, [
+            'status' => 'reviewing',
+            'review_note' => 'Begin the applicant review and eligibility verification.',
+        ])->assertRedirect('/admin/model-applications');
+
+        $this->actingAs($admin)->patch('/admin/model-applications/'.$application->id, [
+            'status' => 'accepted',
+            'review_note' => 'Accept without completing adult eligibility verification.',
+        ])->assertSessionHasErrors('status');
+
+        $this->assertSame('reviewing', $application->fresh()->status);
+        $this->assertNull($application->fresh()->adult_eligibility_verified_at);
+    }
+
 }
