@@ -79,6 +79,7 @@ class ProfileAdministrationTest extends TestCase
                 'verification_provider' => 'approved-provider',
                 'verification_reference' => 'provider-reference-123456',
                 'consent_confirmed' => '1',
+                'automatic_booking_opt_in' => '1',
                 'consent_version' => 'profile-publication-v1',
             ])
             ->assertRedirect('/admin/profiles');
@@ -86,6 +87,7 @@ class ProfileAdministrationTest extends TestCase
         $this->assertDatabaseHas('companion_profiles', [
             'id' => $profile->id,
             'publication_status' => 'published',
+            'accepts_automatic_bookings' => true,
         ]);
 
         $this->assertDatabaseHas('profile_publication_reviews', [
@@ -93,6 +95,7 @@ class ProfileAdministrationTest extends TestCase
             'reviewer_id' => $owner->id,
             'verification_provider' => 'approved-provider',
             'consent_version' => 'profile-publication-v1',
+            'automatic_booking_opt_in' => true,
             'decision' => 'approved',
         ]);
 
