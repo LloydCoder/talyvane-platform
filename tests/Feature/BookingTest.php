@@ -82,6 +82,8 @@ class BookingTest extends TestCase
     {
         $client = $this->client();
         $profile = $this->profile(true);
+        $localStart = now()->addDays(4)->setTimezone('Europe/London');
+        CompanionAvailabilityRule::create(['companion_profile_id' => $profile->id, 'weekday' => $localStart->dayOfWeek, 'starts_at' => '00:00:00', 'ends_at' => '23:59:59']);
         BookingSetting::create(['booking_mode' => 'automatic', 'auto_confirm_enabled' => true, 'auto_requires_verified_deposit' => false]);
 
         $this->actingAs($client)
