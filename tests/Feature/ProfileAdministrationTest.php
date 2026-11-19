@@ -42,6 +42,42 @@ class ProfileAdministrationTest extends TestCase
         return $destination;
     }
 
+    public function test_owner_cannot_publish_profile_in_a_pending_market(): void
+    {
+        $owner = $this->owner();
+        $destination = Destination::create([
+            'name' => 'Lisbon',
+            'slug' => 'lisbon-pending',
+            'country_code' => 'PT',
+            'country_name' => 'Portugal',
+            'city_name' => 'Lisbon',
+            'currency_code' => 'EUR',
+            'locale' => 'pt-PT',
+            'timezone' => 'Europe/Lisbon',
+            'is_active' => true,
+        ]);
+        $profile = CompanionProfile::create([
+            'destination_id' => $destination->id,
+            'display_name' => 'Taylor',
+            'slug' => 'taylor-lisbon',
+            'publication_status' => 'draft',
+        ]);
+
+        $this->actingAs($owner)
+            ->post('/admin/profiles/'.$profile->id.'/publish', [
+                'verification_provider' => config('talyvane.verification.approved_providers.0'),
+                'verification_reference' => 'verified-reference-12345',
+                'consent_confirmed' => '1',
+                'consent_version' => config('talyvane.privacy.profile_consent_version'),
+            ])
+            ->assertSessionHasErrors('destination');
+
+        $this->assertDatabaseHas('companion_profiles', [
+            'id' => $profile->id,
+            'publication_status' => 'draft',
+        ]);
+    }
+
     public function test_owner_can_create_a_draft_profile_without_publication(): void
     {
         $this->actingAs($this->owner())
