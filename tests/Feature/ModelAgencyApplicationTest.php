@@ -224,4 +224,22 @@ class ModelAgencyApplicationTest extends TestCase
         $event->delete();
     }
 
+    public function test_feature_activation_requires_approved_privacy_and_adult_eligibility_policies(): void
+    {
+        $feature = \App\Models\PlatformFeature::query()->findOrFail('model-agency.applications');
+        $blockers = app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature);
+
+        $this->assertContains('A legally reviewed and versioned model-applicant privacy notice must be configured and explicitly approved.', $blockers);
+        $this->assertContains('A legally reviewed, versioned adult-eligibility policy must be configured and explicitly approved.', $blockers);
+
+        config([
+            'talyvane.model_agency.privacy_notice_version' => 'model-application-privacy-v1',
+            'talyvane.model_agency.privacy_notice_approved' => true,
+            'talyvane.model_agency.adult_eligibility_policy_version' => 'adult-eligibility-v1',
+            'talyvane.model_agency.adult_eligibility_policy_approved' => true,
+        ]);
+
+        $this->assertSame([], app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature));
+    }
+
 }
