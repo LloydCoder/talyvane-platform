@@ -12,6 +12,8 @@ class PortalDashboardController extends Controller
     {
         return view('portal.client-dashboard', [
             'settings' => BookingSetting::current(),
+            'membership' => ClientMembership::query()->where('user_id', auth()->id())->current()->latest('starts_at')->first(),
+            'favoriteProfiles' => auth()->user()->favoriteProfiles()->publiclyDiscoverable()->with('destination')->orderBy('display_name')->get(),
             'bookings' => Booking::query()
                 ->with(['profile', 'destination'])
                 ->where('client_id', auth()->id())
