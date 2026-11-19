@@ -19,6 +19,8 @@ class ModelTalentApplication extends Model
         'experience_summary',
         'status',
         'adult_eligibility_confirmed_at',
+        'adult_eligibility_policy_version',
+        'adult_eligibility_policy_accepted_at',
         'privacy_notice_version',
         'privacy_notice_accepted_at',
         'reviewed_by',
@@ -31,6 +33,7 @@ class ModelTalentApplication extends Model
     {
         return [
             'adult_eligibility_confirmed_at' => 'immutable_datetime',
+            'adult_eligibility_policy_accepted_at' => 'immutable_datetime',
             'privacy_notice_accepted_at' => 'immutable_datetime',
             'reviewed_at' => 'immutable_datetime',
             'submitted_at' => 'immutable_datetime',
