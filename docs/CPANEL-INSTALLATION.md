@@ -22,7 +22,7 @@ Use a tagged, tested release artifact from the project release process. Do not d
 
 The standalone release includes production vendor dependencies, compiled public assets, migrations, a private bootstrap directory and the cPanel front-controller templates. CI also publishes dedicated public-root ZIP bundles for the main domain and add-on domain; these contain only public assets, the hardened .htaccess file and the matching guarded index.php wrapper. Production hosting does not need Node.js or Composer for the browser-based first installation.
 
-The browser installer implementation is under review in [PR #62](https://github.com/LloydCoder/talyvane-platform/pull/62) on the `feature/secure-browser-installer-rc` branch. The current PR head (`e4c4e563b18d22eacd78df619420a91f094c4a8e`) passed the PHP 8.3/8.4/8.5 CI matrix (386 tests and 1,884 assertions per version) and the standalone package plus first-request bootstrap smoke build ([workflow run #44750102667](https://github.com/LloydCoder/talyvane-platform/actions/runs/44750102667)). It remains a pre-release capability until the final forensic security and cPanel routing review is complete, the PR is merged to `main`, and a tagged release is published. Do not deploy the feature branch or treat this guide as a released support commitment before that gate.
+The browser installer implementation is under review in [PR #62](https://github.com/LloydCoder/talyvane-platform/pull/62) on the `feature/secure-browser-installer-rc` branch. The current PR head (`3fa047af735973e7d2664162884e859840939b9a`) passed the PHP 8.3/8.4/8.5 CI matrix (387 tests and 1,889 assertions per version) and the standalone package plus first-request bootstrap smoke build ([workflow run #44750629567](https://github.com/LloydCoder/talyvane-platform/actions/runs/44750629567)). It remains a pre-release capability until the final forensic security and cPanel routing review is complete, the PR is merged to `main`, and a tagged release is published. Do not deploy the feature branch or treat this guide as a released support commitment before that gate.
 
 ## 3. Create the database
 
@@ -34,7 +34,7 @@ In cPanel, open MySQL Database Wizard (or the provider's equivalent):
 4. Record the provider-specific database host, database name and username (cPanel commonly prefixes database names and users).
 5. Keep phpMyAdmin private to the hosting account; never expose it through the application.
 
-Use a separate database and credentials for every customer deployment.
+Use a separate database and credentials for every customer deployment. The browser installer accepts a newly created empty database or a recognised interrupted Talyvane first-install schema only. It rejects unknown tables, unrecognised migration history, existing user records and completed installation state. Never point it at an existing production or customer database, even if some table names appear familiar.
 
 ## 4. Keep the application outside the public document root
 
