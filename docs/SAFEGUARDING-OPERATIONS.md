@@ -44,6 +44,22 @@ This application-level hold applies only to the safeguarding case record. It doe
 
 Automated retention and cryptographic erasure are not yet implemented. Do not configure external deletion or promise automatic expiry based on the current fields. A future retention phase must implement per-case cryptographic erasure, approved retention periods, legal-hold exclusion and restore/backup controls before automated purge can be enabled.
 
+## Retention and per-case content keys
+
+Each case receives a random 256-bit content key. The key is wrapped with the Laravel application key; case narratives, related-record references, legal-hold reasons and event notes are encrypted with that per-case key. The migration re-encrypts existing records into this scheme and clears the legacy encrypted content columns. Keep `APP_KEY` stable during migration and take a separately encrypted backup before deploying it.
+
+Retention is disabled by default. The operator must explicitly configure and approve all of the following in the deployment environment:
+
+- `SAFEGUARDING_CASE_RETENTION_SCHEDULE_APPROVED=true`
+- `SAFEGUARDING_CASE_RETENTION_DAYS` as a positive, legally reviewed day count measured from case closure
+- `SAFEGUARDING_CASE_RETENTION_POLICY_VERSION` as the approved policy identifier
+- `SAFEGUARDING_CASE_BACKUP_POLICY_APPROVED=true`
+- `SAFEGUARDING_CASE_BACKUP_EXPIRY_DAYS` as a positive, separately approved backup expiry period
+
+When all gates are satisfied, the scheduler runs `talyvane:safeguarding:apply-retention` daily at 02:45. The command considers only closed cases past the retention cutoff, rechecks each candidate under a database row lock, and excludes every case with an active legal hold. It removes the per-case key from the primary database and preserves case/audit metadata. It does not delete the case row or audit rows.
+
+**Backup limitation:** the wrapped key and ciphertext may remain in database backups created before the live key was removed. Primary-database key removal is not immediate global erasure. Backup copies must expire under the separately approved backup schedule, and restores must not reintroduce erased keys into production. Do not promise complete cryptographic erasure until the backup expiry or an independently managed external key-vault destruction process has been verified. Migration rollback is blocked after retention erasure.
+
 ## Operational requirements before production
 
 1. Name and verify safeguarding specialists, deputies and out-of-hours escalation contacts.
