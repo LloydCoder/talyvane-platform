@@ -134,6 +134,30 @@ class ProfileMediaTest extends TestCase
         ]);
     }
 
+    public function test_companion_can_separately_opt_in_to_members_only_distribution_with_a_versioned_policy(): void
+    {
+        Storage::fake('local');
+        config([
+            'talyvane.privacy.private_gallery_consent_version' => 'private-gallery-v1',
+            'talyvane.privacy.private_gallery_consent_approved' => true,
+        ]);
+        [$companion, $profile] = $this->companionWithProfile();
+
+        $this->actingAs($companion)
+            ->post('/companion-portal/profiles/'.$profile->id.'/media', [
+                'media' => UploadedFile::fake()->image('private-gallery.jpg', 900, 1200),
+                'rights_confirmed' => '1',
+                'publication_confirmed' => '1',
+                'members_only_confirmed' => '1',
+            ])
+            ->assertRedirect('/companion-portal');
+
+        $media = ProfileMedia::query()->firstOrFail();
+        $this->assertNotNull($media->members_only_consent_at);
+        $this->assertSame('private-gallery-v1', $media->members_only_consent_version);
+        $this->assertNull($media->members_only_consent_withdrawn_at);
+    }
+
     public function test_only_profile_owner_can_upload_media(): void
     {
         Storage::fake('local');
