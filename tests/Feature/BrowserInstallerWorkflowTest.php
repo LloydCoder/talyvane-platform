@@ -132,6 +132,8 @@ class BrowserInstallerWorkflowTest extends TestCase
             'recovery_code' => '222222',
         ])->assertRedirect('https://agency.example.test/install/success');
 
+        $this->assertDirectoryDoesNotExist($this->temporaryRoot.'/package/install');
+
         $admin = User::query()->where('email', 'admin@example.test')->firstOrFail();
         $this->assertNotNull($admin->must_change_password_at);
 
