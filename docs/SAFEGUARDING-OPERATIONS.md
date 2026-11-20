@@ -60,6 +60,18 @@ When all gates are satisfied, the scheduler runs `talyvane:safeguarding:apply-re
 
 **Backup limitation:** the wrapped key and ciphertext may remain in database backups created before the live key was removed. Primary-database key removal is not immediate global erasure. Backup copies must expire under the separately approved backup schedule, and restores must not reintroduce erased keys into production. Do not promise complete cryptographic erasure until the backup expiry or an independently managed external key-vault destruction process has been verified. Migration rollback is blocked after retention erasure.
 
+## Notification and escalation outbox
+
+Case creation writes notification intents to a transactional outbox. Email delivery is disabled by default and requires `SAFEGUARDING_NOTIFICATIONS_ENABLED=true`, a real configured mail transport (not `log` or `array`), and deployment verification. The cPanel scheduler dispatches pending notices every five minutes.
+
+Assignment notices go to the assigned active safeguarding specialist. Critical cases and minor-safety concerns also enqueue notices to the configured `SAFEGUARDING_EMERGENCY_CONTACT_EMAILS` list. If no valid emergency contacts are configured, the case receives an explicit `case.escalation_contact_unconfigured` event and access-audit record; the system does not pretend escalation occurred.
+
+Outbound email contains only the opaque case reference, category, severity and an authenticated internal link. It does not include summary, narrative, applicant contact details, identity-document data or evidence. The recipient must sign in with their own account and complete MFA. Emergency contacts without an account receive no case-content access from the email.
+
+The outbox encrypts stored recipient email addresses, uses a keyed recipient fingerprint for deduplication, retries transient failures with bounded exponential backoff, and marks a stuck processing claim eligible for recovery after 15 minutes. It records only the exception class as a failure code, not raw SMTP error text. Delivery is not guaranteed; operators must monitor failed notices and maintain an independent emergency response path.
+
+The current implementation provides email only. SMS, Telegram, provider webhooks, delivery receipts, on-call rotations and independent response drills remain separate work.
+
 ## Operational requirements before production
 
 1. Name and verify safeguarding specialists, deputies and out-of-hours escalation contacts.
