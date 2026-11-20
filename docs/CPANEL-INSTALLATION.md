@@ -98,7 +98,7 @@ This path is available only in a tagged release that has passed the installer re
 8. The installer writes the production environment configuration, tests the database, runs the fixed migrations and sends separate verification codes to the Super Admin and recovery email addresses.
 9. Enter both codes within the verification window. The installer creates the canonical Super Admin and durable installation lock.
 10. The success screen displays the actual Super Admin sign-in URL and generated initial password exactly once. Store the password securely, sign in, change it immediately and complete mandatory MFA enrollment before privileged administration.
-11. The installer attempts to remove its private install/ directory before showing the success screen. If it reports that automatic removal failed, use cPanel File Manager to delete the entire talyvane-app/install/ directory immediately. The durable installation lock blocks installer routes even if the directory remains.
+11. The installer attempts to remove its private install/ directory and one-time access-key file before showing the success screen. If it reports that cleanup was incomplete, use cPanel File Manager to delete the entire talyvane-app/install/ directory and storage/app/private/INSTALLER-ACCESS-KEY.txt if present. The durable installation lock blocks installer routes even if either artifact remains.
 
 The browser installer session expires after 15 minutes. Only one pending verification flow can modify deployment configuration at a time. Credentials are not sent by email or placed in URLs. Never share the initial password, recovery key, database password or SMTP password with support personnel.
 
