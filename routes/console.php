@@ -11,6 +11,7 @@ use App\Services\ModelTalentImageLicenceService;
 use App\Services\TotpService;
 use App\Services\SafeguardingCaseRetentionService;
 use App\Services\SafeguardingNotificationDispatcher;
+use App\Services\SafeguardingCaseKeyVault;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,7 @@ Artisan::command('talyvane:safeguarding:vault-check', function () {
 
     try {
         app(SafeguardingCaseKeyVault::class)->verify();
-    } catch (\\Throwable $exception) {
+    } catch (\Throwable $exception) {
         $this->error('External safeguarding key-vault preflight failed: '.$exception->getMessage());
 
         return 1;
