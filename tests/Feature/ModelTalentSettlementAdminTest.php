@@ -16,7 +16,7 @@ class ModelTalentSettlementAdminTest extends TestCase
     private function enableSettlementFeature(): void
     {
         $this->enableModelAgencyFeatureRoutes();
-        $destination = \\App\\Models\\Destination::query()->firstOrCreate(
+        $destination = \App\Models\Destination::query()->firstOrCreate(
             ['slug' => 'settlement-feature-admin-market'],
             [
                 'name' => 'London',
