@@ -21,16 +21,16 @@ class PlatformSecretResolver
             throw new RuntimeException('The requested runtime secret is not approved.');
         }
 
-        $configured = PlatformSecret::query()
+        $record = PlatformSecret::query()
             ->where('secret_key', $secretKey)
             ->where('status', 'configured')
             ->where('vault_version', '>', 0)
-            ->exists();
+            ->first();
 
-        if (! $configured) {
+        if (! $record) {
             throw new RuntimeException('The requested runtime secret is not configured.');
         }
 
-        return $this->vault->read($secretKey);
+        return $this->vault->read($secretKey, (int) $record->vault_version);
     }
 }
