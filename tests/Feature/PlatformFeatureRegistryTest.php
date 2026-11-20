@@ -215,6 +215,16 @@ class PlatformFeatureRegistryTest extends TestCase
         $this->get('/destinations')->assertNotFound();
     }
 
+    public function test_payment_configuration_remains_available_for_provider_review_workflows(): void
+    {
+        DB::table('platform_features')->where('key', 'payments.configuration')->update([
+            'implementation_status' => 'available',
+            'is_enabled' => true,
+        ]);
+
+        $this->assertTrue(app(FeatureRegistry::class)->isOperationallyEnabled('payments.configuration'));
+    }
+
     public function test_dependency_prerequisites_are_checked_recursively_at_runtime(): void
     {
         DB::table('platform_features')->where('key', 'public.discovery')->update([
