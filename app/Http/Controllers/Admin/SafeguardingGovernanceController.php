@@ -11,10 +11,9 @@ use Illuminate\Http\Response;
 
 class SafeguardingGovernanceController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request, SafeguardingCaseService $service): Response
     {
-        return response()->view('admin.safeguarding.governance.index', [
-            'cases' => SafeguardingCase::query()
+        $cases = SafeguardingCase::query()
                 ->latest('created_at')
                 ->paginate(30, [
                     'id',
@@ -28,7 +27,14 @@ class SafeguardingGovernanceController extends Controller
                     'legal_hold_by',
                     'legal_hold_released_at',
                     'legal_hold_released_by',
-                ]),
+                ]);
+
+        foreach ($cases as $case) {
+            $service->recordGovernanceView($case, $request->user());
+        }
+
+        return response()->view('admin.safeguarding.governance.index', [
+            'cases' => $cases,
         ])->header('Cache-Control', 'no-store, private, max-age=0')
             ->header('Pragma', 'no-cache')
             ->header('Referrer-Policy', 'no-referrer');
