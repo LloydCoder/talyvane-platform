@@ -406,6 +406,7 @@ class ModelAgencyApplicationTest extends TestCase
             'talyvane.model_agency.retention.schedule_approved' => true,
         ]);
 
+        $this->provisionVerifier();
         $this->assertSame([], app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature));
     }
 
