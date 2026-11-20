@@ -6,6 +6,7 @@ use App\Models\SafeguardingCase;
 use Illuminate\Encryption\Encrypter;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class SafeguardingCaseContentService
@@ -77,7 +78,7 @@ class SafeguardingCaseContentService
             ->first();
 
         if (! $row || ! $row->key_ciphertext) {
-            throw new RuntimeException('Safeguarding case content is unavailable or has passed retention erasure.');
+            throw ValidationException::withMessages(['legal_hold' => 'This case content is unavailable after retention erasure and cannot be placed under a new hold.']);
         }
 
         $encrypter = $this->encrypterFromCiphertext($row->key_ciphertext);
