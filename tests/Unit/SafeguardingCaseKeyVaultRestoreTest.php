@@ -24,6 +24,16 @@ class SafeguardingCaseKeyVaultRestoreTest extends TestCase
         ]);
     }
 
+    public function test_vault_key_operations_fail_closed_without_an_explicit_deployment_namespace(): void
+    {
+        config(['talyvane.safeguarding.key_namespace' => null]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('A unique SAFEGUARDING_KEY_NAMESPACE is required for Vault-backed safeguarding.');
+
+        app(SafeguardingCaseKeyVault::class)->newCaseKeyReference();
+    }
+
     public function test_new_case_keys_are_scoped_to_this_deployment_namespace(): void
     {
         $vault = app(SafeguardingCaseKeyVault::class);
