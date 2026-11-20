@@ -33,7 +33,7 @@
                             <label class="remember-row"><input type="checkbox" name="publication_confirmed" value="1" required> I explicitly consent to this image being displayed on my profile if approved; I may withdraw consent at any time</label>
                             @if (filled(config('talyvane.privacy.private_gallery_consent_version')) && config('talyvane.privacy.private_gallery_consent_approved'))
                                 <p class="field-help">Optional and separate from public profile publication.</p>
-                                <label class="remember-row"><input type="checkbox" name="members_only_confirmed" value="1"> I separately agree that this image may be shown only to eligible clients with an active paid or agency-approved membership. This does not authorize public display beyond my separate publication consent, and I can withdraw this permission independently.</label>
+                                <label class="remember-row"><input type="checkbox" name="members_only_confirmed" value="1"> {{ \\App\\Services\\MembershipEntitlementCatalog::privateGalleryConsentStatement() }}</label>
                             @endif
                             <button class="button button-dark" type="submit">Submit image for review</button>
                         </form>
