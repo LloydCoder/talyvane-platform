@@ -17,7 +17,7 @@ A general public-profile publication attestation does not establish consent for 
 3. Evaluate access using an active, in-date membership, an in-date grant, an active email-verified client account, and the effective platform feature state.
 4. Deliver private gallery media only when the media has a separate, positive, versioned, non-withdrawn companion opt-in to the current approved members-only consent statement.
 5. Keep private media URLs out of public companion and destination listings. Recheck all conditions at final media delivery.
-6. Record companion consent grant and withdrawal events with actor identity snapshot, media reference, policy version, exact statement SHA-256, correlation ID and timestamp. Application model guards reject ordinary Eloquent mutation/deletion; database administrators remain outside this application-level guarantee.
+6. Record companion consent grant and withdrawal events with actor identity snapshot, media reference, policy version, exact statement text and SHA-256, correlation ID and timestamp. Application model guards reject ordinary Eloquent mutation/deletion; database administrators remain outside this application-level guarantee.
 7. Keep the feature disabled by default. Super Admin activation requires the schema/runtime checks and an explicitly approved policy version. Changing the policy version invalidates older private-gallery consent until the companion opts in again.
 8. Companion consent withdrawal is available independently from general public-profile publication withdrawal and immediately blocks members-only delivery.
 
