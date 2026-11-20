@@ -16,7 +16,7 @@ class ModelTalentAssignmentAdminTest extends TestCase
     private function enableAssignmentFeature(): void
     {
         $this->enableModelAgencyFeatureRoutes();
-        $destination = \\App\\Models\\Destination::query()->firstOrCreate(
+        $destination = \App\Models\Destination::query()->firstOrCreate(
             ['slug' => 'assignment-feature-admin-market'],
             [
                 'name' => 'London',
