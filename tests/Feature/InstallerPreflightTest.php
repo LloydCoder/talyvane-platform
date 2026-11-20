@@ -133,6 +133,41 @@ class InstallerPreflightTest extends TestCase
             'recovery_email' => 'recovery@example.test',
         ])->assertSessionHasErrors('installer');
     }
+    public function test_validation_errors_never_flash_installer_secrets_into_session_input(): void
+    {
+        config(['talyvane.installer.enforce' => false]);
+
+        $this->get('/install')->assertOk();
+
+        $this->from('/install')->post('/install', [
+            'installer_token' => str_repeat('A', 43),
+            'app_name' => '',
+            'app_url' => 'https://localhost',
+            'db_host' => 'localhost',
+            'db_port' => 3306,
+            'db_database' => 'talyvane_test',
+            'db_username' => 'talyvane',
+            'db_password' => 'db-secret-must-not-flash',
+            'mail_scheme' => 'smtp',
+            'mail_host' => 'mail.example.test',
+            'mail_port' => 587,
+            'mail_username' => 'installer@example.test',
+            'mail_password' => 'smtp-secret-must-not-flash',
+            'mail_from_address' => 'installer@example.test',
+            'mail_from_name' => 'Talyvane',
+            'admin_name' => 'Deployment Super Admin',
+            'admin_email' => 'admin@example.test',
+            'recovery_email' => 'recovery@example.test',
+            'primary_code' => '123456',
+            'recovery_code' => '654321',
+        ])->assertSessionHasErrors('app_name')
+            ->assertSessionMissing('_old_input.db_password')
+            ->assertSessionMissing('_old_input.mail_password')
+            ->assertSessionMissing('_old_input.installer_token')
+            ->assertSessionMissing('_old_input.primary_code')
+            ->assertSessionMissing('_old_input.recovery_code');
+    }
+
     public function test_installer_configuration_endpoint_is_rate_limited(): void
     {
         config(['talyvane.installer.enforce' => false]);
