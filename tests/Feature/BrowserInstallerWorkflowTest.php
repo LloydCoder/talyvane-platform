@@ -8,7 +8,6 @@ use App\Install\InstallationLock;
 use App\Models\User;
 use App\Notifications\SuperAdminEmailVerificationCode;
 use App\Services\RecoveryCodeGenerator;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -18,14 +17,14 @@ use Tests\TestCase;
 
 class BrowserInstallerWorkflowTest extends TestCase
 {
-    use RefreshDatabase;
-
     private string $temporaryRoot;
     private string $databasePath;
+    private string $originalDefaultConnection;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->originalDefaultConnection = (string) config('database.default');
 
         $this->temporaryRoot = sys_get_temp_dir().'/talyvane-installer-'.bin2hex(random_bytes(6));
         File::ensureDirectoryExists($this->temporaryRoot, 0700, true);
@@ -81,6 +80,8 @@ class BrowserInstallerWorkflowTest extends TestCase
     {
         @unlink(storage_path('app/private/talyvane.install.lock'));
         DB::disconnect('mysql');
+        DB::purge('mysql');
+        config(['database.default' => $this->originalDefaultConnection]);
         File::deleteDirectory($this->temporaryRoot);
 
         parent::tearDown();
@@ -88,7 +89,7 @@ class BrowserInstallerWorkflowTest extends TestCase
 
     public function test_browser_install_verifies_emails_creates_lock_shows_password_once_and_enforces_first_login_change(): void
     {
-        $this->post('/install', [
+        $this->post('https://agency.example.test/install', [
             'app_name' => 'Talyvane Agency',
             'app_url' => 'https://agency.example.test',
             'db_host' => 'localhost',
@@ -106,14 +107,14 @@ class BrowserInstallerWorkflowTest extends TestCase
             'admin_name' => 'Deployment Super Admin',
             'admin_email' => 'admin@example.test',
             'recovery_email' => 'recovery@example.test',
-        ])->assertRedirect('/install/verify');
+        ])->assertRedirect('https://agency.example.test/install/verify');
 
         Notification::assertSentOnDemandTimes(SuperAdminEmailVerificationCode::class, 2);
 
-        $this->post('/install/verify', [
+        $this->post('https://agency.example.test/install/verify', [
             'primary_code' => '111111',
             'recovery_code' => '222222',
-        ])->assertRedirect('/install/success');
+        ])->assertRedirect('https://agency.example.test/install/success');
 
         $admin = User::query()->where('email', 'admin@example.test')->firstOrFail();
         $this->assertNotNull($admin->must_change_password_at);
@@ -130,7 +131,7 @@ class BrowserInstallerWorkflowTest extends TestCase
         $recoveryKey = Crypt::decryptString($control->super_admin_recovery_key_handoff);
         $this->assertNotSame($recoveryKey, $control->super_admin_recovery_key_hash);
 
-        $success = $this->get('/install/success')
+        $success = $this->get('https://agency.example.test/install/success')
             ->assertOk()
             ->assertSee('https://agency.example.test/admin/login')
             ->assertSee('The private installer directory was automatically removed.')
@@ -145,18 +146,18 @@ class BrowserInstallerWorkflowTest extends TestCase
 
         $this->assertDirectoryDoesNotExist($this->temporaryRoot.'/package/install');
         $this->get('/install/success')->assertNotFound();
-        $this->get('/install')->assertNotFound();
-        $this->get('/admin/login')->assertOk();
+        $this->get('https://agency.example.test/install')->assertNotFound();
+        $this->get('https://agency.example.test/admin/login')->assertOk();
 
-        $this->post('/admin/login', [
+        $this->post('https://agency.example.test/admin/login', [
             'email' => 'admin@example.test',
             'password' => $initialPassword,
-        ])->assertRedirect('/admin/first-login/password');
+        ])->assertRedirect('https://agency.example.test/admin/first-login/password');
 
-        $this->post('/admin/first-login/password', [
+        $this->post('https://agency.example.test/admin/first-login/password', [
             'password' => 'New-Strong-Password-934!',
             'password_confirmation' => 'New-Strong-Password-934!',
-        ])->assertRedirect('/admin/mfa/setup');
+        ])->assertRedirect('https://agency.example.test/admin/mfa/setup');
 
         $this->assertAuthenticatedAs($admin);
         $this->assertNull($admin->fresh()->must_change_password_at);
