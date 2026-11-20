@@ -30,13 +30,6 @@ class FeatureRegistry
         return true;
     }
 
-    public function assertEnabled(string $key): void
-    {
-        if (! $this->isEnabled($key)) {
-            abort(404);
-        }
-    }
-
     public function isOperationallyEnabled(string $key): bool
     {
         if (! $this->isEnabled($key)) {
