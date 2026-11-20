@@ -9,7 +9,7 @@ use Throwable;
 
 final class InstallSuccessController
 {
-    public function show(Request $request, \App\Install\InstallationDirectoryRemover $remover): Response
+    public function show(Request $request): Response
     {
         $handoff = $request->session()->pull('install.success.handoff');
         if (! is_string($handoff)) {
