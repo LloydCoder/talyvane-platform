@@ -12,10 +12,12 @@ use App\Models\ProfileMediaConsentEvent;
 use App\Models\User;
 use App\Services\FeatureRegistry;
 use App\Services\MembershipEntitlementService;
+use App\Services\MembershipEntitlementCatalog;
 use App\Services\ClientMembershipService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -220,12 +222,12 @@ class MembershipEntitlementTest extends TestCase
             'actor_email' => 'audit@example.test',
             'action' => 'members_only_consent.granted',
             'consent_policy_version' => 'private-gallery-v1',
-            'statement_sha256' => hash('sha256', \\App\\Services\\MembershipEntitlementCatalog::privateGalleryConsentStatement()),
-            'correlation_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'statement_sha256' => hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement()),
+            'correlation_id' => (string) Str::uuid(),
             'created_at' => now(),
         ]);
 
-        $this->expectException(\\LogicException::class);
+        $this->expectException(\LogicException::class);
         $event->update(['action' => 'tampered']);
     }
 
