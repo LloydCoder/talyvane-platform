@@ -48,7 +48,7 @@ class SafeguardingCaseController extends Controller
 
         return redirect()->route('admin.dashboard')->with(
             'status',
-            'Confidential safeguarding report '.$case->reference.' submitted. Case contents are accessible only to the assigned safeguarding specialist.',
+            'Confidential safeguarding report submitted. Case contents are accessible only to the assigned safeguarding specialist.',
         );
     }
 
