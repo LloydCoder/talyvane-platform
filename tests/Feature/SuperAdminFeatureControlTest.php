@@ -61,6 +61,46 @@ class SuperAdminFeatureControlTest extends TestCase
         $this->assertSame($step, $admin->fresh()->mfa_last_used_step);
     }
 
+    public function test_super_admin_cannot_toggle_a_reserved_hard_safeguard(): void
+    {
+        \Illuminate\Support\Facades\DB::table('platform_features')->insert([
+            'key' => 'safeguarding.retention',
+            'name' => 'Safeguarding retention',
+            'module' => 'safeguarding',
+            'description' => 'Reserved non-toggleable retention control.',
+            'implementation_status' => 'available',
+            'is_enabled' => true,
+            'risk_level' => 'critical',
+            'dependencies' => json_encode([]),
+            'activation_requirements' => json_encode([]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $admin = $this->createAdminUser([
+            'name' => 'Deployment Super Admin',
+            'email' => 'super-admin@example.test',
+            'role' => 'super_admin',
+        ]);
+        $step = intdiv(time(), 30);
+
+        $this->actingAs($admin)
+            ->patch('/admin/features/safeguarding.retention', [
+                'enabled' => false,
+                'reason' => 'Attempt to disable a reserved safeguarding retention control.',
+                'password' => 'Strong-Testing-Password-934!',
+                'code' => (new TotpService())->codeForStep($admin->mfa_secret, $step),
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('platform_features', [
+            'key' => 'safeguarding.retention',
+            'is_enabled' => true,
+        ]);
+        $this->assertDatabaseMissing('platform_feature_audit_events', [
+            'feature_key' => 'safeguarding.retention',
+        ]);
+    }
+
     public function test_safe_feature_can_be_reenabled_after_prerequisites_pass_with_a_new_totp_step(): void
     {
         $admin = $this->createAdminUser([
