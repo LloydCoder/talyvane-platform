@@ -222,6 +222,17 @@ class ModelTalentSettlementTest extends TestCase
         return compact('admin', 'reviewer', 'application', 'agreement', 'asset', 'licence', 'call', 'submission', 'assignment');
     }
 
+    public function test_new_settlement_creation_is_blocked_when_the_settlement_feature_is_paused(): void
+    {
+        $context = $this->assignment('completed');
+        \\Illuminate\\Support\\Facades\\DB::table('platform_features')
+            ->where('key', 'model-agency.settlements')
+            ->update(['is_enabled' => false]);
+
+        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException::class);
+        app(ModelTalentSettlementService::class)->createDraft($context['assignment'], $context['admin']->id);
+    }
+
     public function test_settlement_snapshots_gross_commission_approved_expenses_and_manual_payment_evidence(): void
     {
         $context = $this->assignment();
