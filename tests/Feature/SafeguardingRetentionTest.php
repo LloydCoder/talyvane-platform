@@ -60,11 +60,11 @@ class SafeguardingRetentionTest extends TestCase
         DB::table('safeguarding_case_contents')->where('case_id', $case->id)->delete();
         DB::table('safeguarding_case_events')->where('case_id', $case->id)->update(['note' => null]);
         DB::table('safeguarding_cases')->where('id', $case->id)->update([
-            'summary' => Crypt::encrypt('Legacy encrypted summary'),
-            'details' => Crypt::encrypt('Legacy encrypted details'),
-            'subject_reference' => Crypt::encrypt('MTA-LEGACY-REF'),
-            'legal_hold_reason' => Crypt::encrypt('Legacy legal hold rationale'),
-            'legal_hold_release_reason' => Crypt::encrypt('Legacy release rationale'),
+            'summary' => Crypt::encryptString('Legacy encrypted summary'),
+            'details' => Crypt::encryptString('Legacy encrypted details'),
+            'subject_reference' => Crypt::encryptString('MTA-LEGACY-REF'),
+            'legal_hold_reason' => Crypt::encryptString('Legacy legal hold rationale'),
+            'legal_hold_release_reason' => Crypt::encryptString('Legacy release rationale'),
         ]);
 
         $migration = require base_path('database/migrations/2026_11_20_000045_create_safeguarding_case_contents.php');
