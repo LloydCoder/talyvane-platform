@@ -56,6 +56,20 @@ class EnvFileSecretWriterTest extends TestCase
         }
     }
 
+    public function test_it_refuses_to_write_when_runtime_credentials_are_overridden_outside_dotenv(): void
+    {
+        $path = $this->temporaryEnvFile("SAFEGUARDING_VAULT_TOKEN=file-token\nSAFEGUARDING_VAULT_RETENTION_TOKEN=file-retention\n");
+        try {
+            $this->expectException(\\RuntimeException::class);
+            (new EnvFileSecretWriter($path))->assertRuntimeMatches([
+                'SAFEGUARDING_VAULT_TOKEN' => 'injected-runtime-token',
+                'SAFEGUARDING_VAULT_RETENTION_TOKEN' => 'file-retention',
+            ]);
+        } finally {
+            @unlink($path);
+        }
+    }
+
     public function test_it_refuses_duplicate_secret_keys_in_the_environment_file(): void
     {
         $path = $this->temporaryEnvFile("SAFEGUARDING_VAULT_TOKEN=first\nSAFEGUARDING_VAULT_TOKEN=second\n");
