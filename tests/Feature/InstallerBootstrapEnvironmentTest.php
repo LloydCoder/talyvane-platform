@@ -93,11 +93,14 @@ class InstallerBootstrapEnvironmentTest extends TestCase
 
     public function test_installed_lock_prevents_bootstrap_environment_mutation(): void
     {
-        file_put_contents($this->basePath.'/storage/app/private/talyvane.install.lock', 'installed');
+        $environment = "APP_ENV=production\nAPP_KEY=base64:".base64_encode(random_bytes(32))."\nDB_PASSWORD=preserve-me\n";
+        file_put_contents($this->basePath.'/.env', $environment);
+        file_put_contents($this->basePath.'/storage/app/private/talyvane.install.lock', 'signed-lock-placeholder');
+
         $created = (new BootstrapEnvironment($this->basePath))->ensure();
 
         $this->assertFalse($created);
-        $this->assertFileDoesNotExist($this->basePath.'/.env');
+        $this->assertSame($environment, file_get_contents($this->basePath.'/.env'));
     }
 
     public function test_environment_symlink_is_rejected(): void

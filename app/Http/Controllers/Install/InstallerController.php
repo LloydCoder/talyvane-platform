@@ -137,7 +137,6 @@ final class InstallerController
         }
 
         try {
-            $environment = new EnvironmentWriter(base_path());
             $environment->update([
                 'APP_NAME' => $validated['app_name'],
                 'APP_ENV' => 'production',

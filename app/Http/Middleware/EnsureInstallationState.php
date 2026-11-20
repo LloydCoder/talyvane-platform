@@ -23,6 +23,10 @@ final class EnsureInstallationState
         }
 
         if (! config('talyvane.installer.enforce')) {
+            if ($lockExists && ! $this->lockMatchesDatabase($lock)) {
+                abort(503, 'The installation lock could not be verified. Public application access is disabled.');
+            }
+
             if ($installerRequest && ($lockExists || $this->databaseHasCompletionMarker())) {
                 abort(404);
             }
