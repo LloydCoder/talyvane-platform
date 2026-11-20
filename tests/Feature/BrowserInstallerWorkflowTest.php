@@ -64,6 +64,23 @@ class BrowserInstallerWorkflowTest extends TestCase
         ]);
         DB::purge('mysql');
 
+        // This feature class owns the dedicated MySQL CI database. Reset it
+        // before every test so completed installations and foreign-schema
+        // fixtures cannot leak between test cases.
+        $connection = DB::connection('mysql');
+        $schema = $connection->getSchemaBuilder();
+        $existingTables = $schema->getTableListing();
+        if ($existingTables !== []) {
+            $connection->statement('SET FOREIGN_KEY_CHECKS=0');
+            try {
+                foreach ($existingTables as $table) {
+                    $schema->drop($table);
+                }
+            } finally {
+                $connection->statement('SET FOREIGN_KEY_CHECKS=1');
+            }
+        }
+
         app()->instance(EnvironmentWriter::class, new EnvironmentWriter($environmentRoot));
 
         $packageRoot = $this->temporaryRoot.'/package';
@@ -91,47 +108,54 @@ class BrowserInstallerWorkflowTest extends TestCase
         @unlink(storage_path('app/private/INSTALLER-ACCESS-KEY.txt'));
         @unlink(storage_path('app/private/talyvane.install.pending.json'));
 
-        // The successful installer test commits real installation state. Reset
-        // its fixture so later tests start uninstalled instead of inheriting a
-        // completion marker and receiving an expected 404.
-        $connection = DB::connection('mysql');
-        $schema = $connection->getSchemaBuilder();
-
-        if ($schema->hasTable('users') && $schema->hasTable('platform_control')) {
-            $adminId = $connection->table('users')
-                ->where('email', 'admin@example.test')
-                ->value('id');
-
-            if ($adminId !== null && $schema->hasTable('super_admin_recovery_events')) {
-                $connection->table('super_admin_recovery_events')
-                    ->where('super_admin_user_id', $adminId)
-                    ->delete();
-            }
-
-            $connection->table('platform_control')->where('id', 1)->update([
-                'super_admin_user_id' => null,
-                'super_admin_recovery_key_hash' => null,
-                'super_admin_recovery_key_rotated_at' => null,
-                'super_admin_recovery_email' => null,
-                'super_admin_recovery_email_verified_at' => null,
-                'super_admin_recovery_key_handoff' => null,
-                'super_admin_recovery_key_handoff_expires_at' => null,
-                'installation_id' => null,
-                'installation_lock_hash' => null,
-                'installation_completed_at' => null,
-            ]);
-
-            if ($adminId !== null) {
-                $connection->table('users')->where('id', $adminId)->delete();
-            }
-        }
-
         DB::disconnect('mysql');
         DB::purge('mysql');
         config(['database.default' => $this->originalDefaultConnection]);
         File::deleteDirectory($this->temporaryRoot);
 
         parent::tearDown();
+    }
+
+    public function test_installer_refuses_foreign_non_empty_database_before_running_migrations(): void
+    {
+        $connection = DB::connection('mysql');
+        $connection->statement('CREATE TABLE platform_control (id TINYINT PRIMARY KEY, super_admin_user_id BIGINT NULL, created_at TIMESTAMP NULL, updated_at TIMESTAMP NULL)');
+        $connection->statement('CREATE TABLE migrations (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, migration VARCHAR(255) NOT NULL, batch INT NOT NULL)');
+        $connection->statement('CREATE TABLE foreign_customer_data (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, payload TEXT NULL)');
+        $connection->table('platform_control')->insert([
+            'id' => 1,
+            'super_admin_user_id' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->get('https://agency.example.test/install')->assertOk();
+        $privateInstallerKey = trim((string) file_get_contents(storage_path('app/private/INSTALLER-ACCESS-KEY.txt')));
+
+        $this->post('https://agency.example.test/install', [
+            'installer_token' => $privateInstallerKey,
+            'app_name' => 'Talyvane Agency',
+            'app_url' => 'https://agency.example.test',
+            'db_host' => '127.0.0.1',
+            'db_port' => 3306,
+            'db_database' => 'talyvane_test',
+            'db_username' => 'talyvane',
+            'db_password' => 'test-password',
+            'mail_scheme' => 'smtp',
+            'mail_host' => 'smtp.example.test',
+            'mail_port' => 587,
+            'mail_username' => 'installer@example.test',
+            'mail_password' => 'test-mail-password',
+            'mail_from_address' => 'installer@example.test',
+            'mail_from_name' => 'Talyvane Agency',
+            'admin_name' => 'Deployment Super Admin',
+            'admin_email' => 'admin@example.test',
+            'recovery_email' => 'recovery@example.test',
+        ])->assertSessionHasErrors('installer');
+
+        $this->assertFalse($connection->getSchemaBuilder()->hasTable('users'));
+        $this->assertTrue($connection->getSchemaBuilder()->hasTable('foreign_customer_data'));
+        $this->assertSame(0, $connection->table('migrations')->count());
     }
 
     public function test_browser_install_verifies_emails_creates_lock_shows_password_once_and_enforces_first_login_change(): void
