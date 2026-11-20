@@ -6,6 +6,8 @@ use App\Models\CompanionProfile;
 use App\Models\CountryMarket;
 use App\Models\Destination;
 use App\Models\ProfileMedia;
+use App\Models\ProfileMediaConsentEvent;
+use App\Services\MembershipEntitlementCatalog;
 use App\Models\User;
 use App\Services\ProfileMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -156,6 +158,11 @@ class ProfileMediaTest extends TestCase
         $this->assertNotNull($media->members_only_consent_at);
         $this->assertSame('private-gallery-v1', $media->members_only_consent_version);
         $this->assertNull($media->members_only_consent_withdrawn_at);
+        $event = ProfileMediaConsentEvent::query()->where('profile_media_id', $media->id)->firstOrFail();
+        $this->assertSame('members_only_consent.granted', $event->action);
+        $this->assertSame('private-gallery-v1', $event->consent_policy_version);
+        $this->assertSame($companion->id, $event->actor_id);
+        $this->assertSame(hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement()), $event->statement_sha256);
     }
 
     public function test_only_profile_owner_can_upload_media(): void
