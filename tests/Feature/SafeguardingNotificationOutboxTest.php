@@ -9,6 +9,7 @@ use App\Services\SafeguardingNotificationDispatcher;
 use App\Services\SafeguardingNotificationOutboxService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 use RuntimeException;
 
@@ -41,6 +42,7 @@ class SafeguardingNotificationOutboxTest extends TestCase
             'mail.default' => 'smtp',
         ]);
         Notification::fake();
+        Mail::fake();
 
         $owner = $this->createAdminUser([
             'name' => 'Agency Owner',
