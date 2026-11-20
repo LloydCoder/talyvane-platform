@@ -36,6 +36,7 @@ class EnvFileSecretWriterTest extends TestCase
             $this->assertSame('mail-secret', $parsed['MAIL_PASSWORD']);
             $this->assertSame(0600, fileperms($path) & 0777);
         } finally {
+            @unlink($path.'.secret-update.lock');
             @unlink($path);
         }
     }
@@ -52,6 +53,7 @@ class EnvFileSecretWriterTest extends TestCase
             $this->assertSame('', $parsed['SAFEGUARDING_VAULT_RETENTION_TOKEN']);
             $this->assertSame('Talyvane', $parsed['APP_NAME']);
         } finally {
+            @unlink($path.'.secret-update.lock');
             @unlink($path);
         }
     }
@@ -66,6 +68,7 @@ class EnvFileSecretWriterTest extends TestCase
                 'SAFEGUARDING_VAULT_RETENTION_TOKEN' => 'file-retention',
             ]);
         } finally {
+            @unlink($path.'.secret-update.lock');
             @unlink($path);
         }
     }
@@ -77,6 +80,7 @@ class EnvFileSecretWriterTest extends TestCase
             $this->expectException(\RuntimeException::class);
             (new EnvFileSecretWriter($path))->putMany(['SAFEGUARDING_VAULT_TOKEN' => 'replacement-token']);
         } finally {
+            @unlink($path.'.secret-update.lock');
             @unlink($path);
         }
     }
@@ -88,6 +92,7 @@ class EnvFileSecretWriterTest extends TestCase
             $this->expectException(\InvalidArgumentException::class);
             (new EnvFileSecretWriter($path))->putMany(['SAFEGUARDING_VAULT_TOKEN' => "first-line\nsecond-line"]);
         } finally {
+            @unlink($path.'.secret-update.lock');
             @unlink($path);
         }
     }
