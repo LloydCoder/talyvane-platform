@@ -60,7 +60,7 @@ Recovery email delivery is a required operational dependency. Operators must tes
 ## Remaining work
 
 - Independent review of the complete Super Admin control plane and every privileged command.
-- Verify the canonical principal check at login, pending-MFA completion and authenticated authorization boundaries; regression tests simulate a direct SQL role escalation in the users table.
+- The canonical principal check at login, pending-MFA completion and authenticated authorization boundaries is implemented and regression-tested, including direct SQL role escalation in the users table.
 - Restrict and audit direct database access: an attacker with authority to alter both the canonical platform_control pointer and user records, or to modify application code/host state, remains outside this application authorization boundary.
 - Database-level constraints or separately controlled database procedures for invariants that must resist ordinary application SQL paths, where supported by the target database.
 - Granular per-action permissions and a documented privileged-access review process.
