@@ -119,8 +119,29 @@ jobs:
           find "$staging/storage/framework/views" -type f ! -name '.gitkeep' -delete
           mkdir -p dist
           tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -C dist -cf - talyvane | gzip -n > "dist/talyvane-${GITHUB_SHA}.tar.gz"
-          sha256sum "dist/talyvane-${GITHUB_SHA}.tar.gz" > "dist/talyvane-${GITHUB_SHA}.tar.gz.sha256"
+          (cd dist && zip -X -r "talyvane-${GITHUB_SHA}.zip" talyvane)
+          mkdir -p dist/cpanel-main-public dist/cpanel-addon-public
+          cp -a "$staging/public/." dist/cpanel-main-public/
+          cp -a "$staging/public/." dist/cpanel-addon-public/
+          cp "$staging/cpanel-public-root/main-domain/index.php" dist/cpanel-main-public/index.php
+          cp "$staging/cpanel-public-root/addon-domain/index.php" dist/cpanel-addon-public/index.php
+          (cd dist/cpanel-main-public && zip -X -r "../talyvane-cpanel-main-public-${GITHUB_SHA}.zip" .)
+          (cd dist/cpanel-addon-public && zip -X -r "../talyvane-cpanel-addon-public-${GITHUB_SHA}.zip" .)
+          sha256sum "dist/talyvane-${GITHUB_SHA}.tar.gz" "dist/talyvane-${GITHUB_SHA}.zip" "dist/talyvane-cpanel-main-public-${GITHUB_SHA}.zip" "dist/talyvane-cpanel-addon-public-${GITHUB_SHA}.zip" > "dist/SHA256SUMS"
           archive="dist/talyvane-${GITHUB_SHA}.tar.gz"
+          zip_archive="dist/talyvane-${GITHUB_SHA}.zip"
+          unzip -Z1 "$zip_archive" > dist/package-contents-zip.txt
+          grep -Fq 'talyvane/public/.htaccess' dist/package-contents-zip.txt
+          unzip -Z1 "dist/talyvane-cpanel-main-public-${GITHUB_SHA}.zip" > dist/cpanel-main-public-contents.txt
+          unzip -Z1 "dist/talyvane-cpanel-addon-public-${GITHUB_SHA}.zip" > dist/cpanel-addon-public-contents.txt
+          grep -Fq '.htaccess' dist/cpanel-main-public-contents.txt
+          grep -Fq 'index.php' dist/cpanel-main-public-contents.txt
+          grep -Fq '.htaccess' dist/cpanel-addon-public-contents.txt
+          grep -Fq 'index.php' dist/cpanel-addon-public-contents.txt
+          if grep -E '(^|/)(app|bootstrap|config|database|install|storage|vendor)/|(^|/)\.env($|\.)|composer\.(json|lock)' dist/cpanel-main-public-contents.txt dist/cpanel-addon-public-contents.txt; then
+            echo "cPanel public-root archive contains private application files."
+            exit 1
+          fi
           tar -tzf "$archive" > dist/package-contents.txt
           grep -Fq 'talyvane/vendor/autoload.php' dist/package-contents.txt
           grep -Fq 'talyvane/.env.example' dist/package-contents.txt
@@ -173,7 +194,13 @@ jobs:
           name: talyvane-standalone-package-${{ github.sha }}
           path: |
             dist/talyvane-${{ github.sha }}.tar.gz
-            dist/talyvane-${{ github.sha }}.tar.gz.sha256
+            dist/talyvane-${{ github.sha }}.zip
+            dist/talyvane-cpanel-main-public-${{ github.sha }}.zip
+            dist/talyvane-cpanel-addon-public-${{ github.sha }}.zip
+            dist/SHA256SUMS
             dist/package-contents.txt
+            dist/package-contents-zip.txt
+            dist/cpanel-main-public-contents.txt
+            dist/cpanel-addon-public-contents.txt
           if-no-files-found: error
           retention-days: 14
