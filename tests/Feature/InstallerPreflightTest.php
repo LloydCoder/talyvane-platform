@@ -26,7 +26,9 @@ class InstallerPreflightTest extends TestCase
             ->assertHeader('Referrer-Policy', 'no-referrer')
             ->assertSee('FIRST-TIME SETUP')
             ->assertSee('Hosting preflight')
-            ->assertSee('PHP 8.3 or later');
+            ->assertSee('PHP 8.3 or later')
+            ->assertSee('GD WebP image support')
+            ->assertSee('Session storage is writable');
     }
 
     public function test_installer_post_cannot_bypass_https_and_private_document_root_preflight(): void
