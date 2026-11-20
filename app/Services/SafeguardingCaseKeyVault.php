@@ -119,11 +119,17 @@ class SafeguardingCaseKeyVault
         $timeout = max(1, min((int) config('services.safeguarding_vault.timeout', 5), 15));
 
         $parts = parse_url($address);
-        if (! is_array($parts) || ($parts['scheme'] ?? null) !== 'https' || empty($parts['host'])) {
-            throw new RuntimeException('External safeguarding key storage requires a valid HTTPS endpoint.');
+        if (! is_array($parts)
+            || ($parts['scheme'] ?? null) !== 'https'
+            || empty($parts['host'])
+            || isset($parts['user'])
+            || isset($parts['pass'])
+            || isset($parts['query'])
+            || isset($parts['fragment'])) {
+            throw new RuntimeException('External safeguarding key storage requires a valid HTTPS endpoint without embedded credentials or query parameters.');
         }
 
-        if (! preg_match('/^[a-zA-Z0-9_-]+$/', $mount) || $token === '') {
+        if (! preg_match('/^[a-zA-Z0-9_-]+$/', $mount) || $token === '' || preg_match('/[\\r\\n]/', $token)) {
             throw new RuntimeException('External safeguarding key storage is not fully configured.');
         }
 
