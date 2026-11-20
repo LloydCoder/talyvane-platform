@@ -99,7 +99,12 @@ class BrowserInstallerWorkflowTest extends TestCase
 
     public function test_browser_install_verifies_emails_creates_lock_shows_password_once_and_enforces_first_login_change(): void
     {
+        $installerPage = $this->get('https://agency.example.test/install')->assertOk();
+        preg_match('/name="installer_token" value="([A-Za-z0-9_-]{43})"/', $installerPage->getContent(), $tokenMatch);
+        $this->assertNotEmpty($tokenMatch[1] ?? null);
+
         $this->post('https://agency.example.test/install', [
+            'installer_token' => $tokenMatch[1],
             'app_name' => 'Talyvane Agency',
             'app_url' => 'https://agency.example.test',
             'db_host' => '127.0.0.1',
