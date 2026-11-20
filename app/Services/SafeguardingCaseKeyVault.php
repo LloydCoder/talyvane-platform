@@ -8,6 +8,28 @@ use RuntimeException;
 
 class SafeguardingCaseKeyVault
 {
+    public function verify(): void
+    {
+        $keyName = 'preflight-'.str_replace('-', '', (string) \Illuminate\Support\Str::uuid());
+        $plaintext = random_bytes(32);
+        $created = false;
+
+        try {
+            $this->createKey($keyName);
+            $created = true;
+            $ciphertext = $this->encrypt($keyName, $plaintext);
+            $decrypted = $this->decrypt($keyName, $ciphertext);
+
+            if (! hash_equals($plaintext, $decrypted)) {
+                throw new RuntimeException('External safeguarding key round-trip verification failed.');
+            }
+        } finally {
+            if ($created) {
+                $this->destroyKey($keyName);
+            }
+        }
+    }
+
     public function createKey(string $keyName): void
     {
         $this->assertKeyName($keyName);
