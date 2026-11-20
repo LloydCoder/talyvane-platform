@@ -84,6 +84,8 @@ The implementation is not complete until automated tests cover at least:
 - Re-running or retrying interrupted steps cannot duplicate the Super Admin, corrupt configuration or silently rerun destructive operations.
 - A private, expiring pending-install marker prevents concurrent setup sessions from changing database/mail configuration during email verification; the marker is bound to a random session nonce and stored with restrictive permissions.
 - Runtime directories are created/validated before Laravel session middleware runs; symlinked storage ancestors are rejected and private runtime directories are restricted to owner-only permissions.
+- cPanel main-domain and add-on-domain front-controller wrappers keep the full Laravel application outside public_html, resolve the actual public document root using Laravel's supported usePublicPath API, and are linted and included in the standalone package.
+- The public release contains a hardened Apache/LiteSpeed rewrite file; cPanel public-root wrappers preserve route rewriting, authorization/XSRF headers, deny hidden/private files and disable directory listing.
 - The full PHP compatibility matrix, complete application test suite, static/security checks and release packaging workflow pass.
 
 ## 5. cPanel operator success screen
