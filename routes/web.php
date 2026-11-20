@@ -133,12 +133,12 @@ Route::middleware('auth')->group(function (): void {
 });
 
 Route::prefix('admin')->name('admin.')->group(function (): void {
-    Route::get('/first-login/password', [AdminFirstLoginPasswordController::class, 'create'])->name('first-login.password');
-    Route::post('/first-login/password', [AdminFirstLoginPasswordController::class, 'update'])->middleware('throttle:5,1')->name('first-login.password.update');
-    Route::get('/first-login/recover', [AdminInitialPasswordRecoveryController::class, 'create'])->name('first-login.recover');
-    Route::post('/first-login/recover', [AdminInitialPasswordRecoveryController::class, 'send'])->middleware('throttle:5,1')->name('first-login.recover.send');
-    Route::get('/first-login/recover/verify', [AdminInitialPasswordRecoveryController::class, 'verifyForm'])->name('first-login.recover.verify');
-    Route::post('/first-login/recover/verify', [AdminInitialPasswordRecoveryController::class, 'complete'])->middleware('throttle:5,1')->name('first-login.recover.complete');
+    Route::get('/first-login/password', [AdminFirstLoginPasswordController::class, 'create'])->middleware(NoStoreSensitiveResponses::class)->name('first-login.password');
+    Route::post('/first-login/password', [AdminFirstLoginPasswordController::class, 'update'])->middleware(['throttle:5,1', NoStoreSensitiveResponses::class])->name('first-login.password.update');
+    Route::get('/first-login/recover', [AdminInitialPasswordRecoveryController::class, 'create'])->middleware(NoStoreSensitiveResponses::class)->name('first-login.recover');
+    Route::post('/first-login/recover', [AdminInitialPasswordRecoveryController::class, 'send'])->middleware(['throttle:5,1', NoStoreSensitiveResponses::class])->name('first-login.recover.send');
+    Route::get('/first-login/recover/verify', [AdminInitialPasswordRecoveryController::class, 'verifyForm'])->middleware(NoStoreSensitiveResponses::class)->name('first-login.recover.verify');
+    Route::post('/first-login/recover/verify', [AdminInitialPasswordRecoveryController::class, 'complete'])->middleware(['throttle:5,1', NoStoreSensitiveResponses::class])->name('first-login.recover.complete');
 
     Route::middleware('guest')->group(function (): void {
         Route::get('/login', [AdminLoginController::class, 'create'])->name('login');
