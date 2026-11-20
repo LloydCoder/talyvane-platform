@@ -9,10 +9,18 @@ use App\Services\ModelTalentRepresentationAgreementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
+use Tests\Feature\Support\EnablesModelAgencyFeatureRoutes;
 
 class ModelTalentImageLicenceTest extends TestCase
 {
     use RefreshDatabase;
+    use EnablesModelAgencyFeatureRoutes;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->enableModelAgencyFeatureRoutes();
+    }
 
     public function test_licence_can_only_be_activated_after_external_execution_and_model_consent_are_recorded(): void
     {
