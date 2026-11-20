@@ -221,6 +221,7 @@ class MembershipEntitlementTest extends TestCase
             'actor_email' => 'audit@example.test',
             'action' => 'members_only_consent.granted',
             'consent_policy_version' => 'private-gallery-v1',
+            'consent_statement' => MembershipEntitlementCatalog::privateGalleryConsentStatement(),
             'statement_sha256' => hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement()),
             'correlation_id' => (string) Str::uuid(),
             'created_at' => now(),
