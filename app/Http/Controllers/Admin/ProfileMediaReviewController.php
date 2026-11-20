@@ -34,6 +34,21 @@ class ProfileMediaReviewController
             }
 
             if ($validated['decision'] === 'approved') {
+                if ($accessLevel === 'members_only') {
+                    $requiredConsentVersion = config('talyvane.privacy.private_gallery_consent_version');
+                    if (
+                        ! config('talyvane.privacy.private_gallery_consent_approved')
+                        || ! filled($requiredConsentVersion)
+                        || ! $lockedMedia->members_only_consent_at
+                        || $lockedMedia->members_only_consent_withdrawn_at
+                        || ! hash_equals((string) $requiredConsentVersion, (string) $lockedMedia->members_only_consent_version)
+                    ) {
+                        throw ValidationException::withMessages([
+                            'access_level' => 'The companion has not provided current, separate consent for members-only distribution.',
+                        ]);
+                    }
+                }
+
                 if (
                     $profile->publication_status !== 'published'
                     || ! $profile->age_verified_at
