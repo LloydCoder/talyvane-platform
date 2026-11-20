@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\PlatformSecret;
 use App\Models\User;
+use App\Services\PlatformSecretResolver;
 use App\Services\TotpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -132,6 +133,40 @@ class SecretManagementControllerTest extends TestCase
             ->get('/admin/secrets')
             ->assertOk()
             ->assertSee('Secret storage is not configured');
+    }
+
+    public function test_runtime_secret_resolver_requires_configured_metadata_before_vault_access(): void
+    {
+        PlatformSecret::query()->create([
+            'secret_key' => 'mail.smtp.password',
+            'vault_path' => 'talyvane/mail/smtp_password',
+            'status' => 'pending',
+            'vault_version' => 0,
+        ]);
+
+        try {
+            app(PlatformSecretResolver::class)->resolve('mail.smtp.password');
+            $this->fail('Pending secret metadata must not be resolved by runtime adapters.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('not configured', $exception->getMessage());
+        }
+
+        Http::assertNothingSent();
+
+        PlatformSecret::query()->where('secret_key', 'mail.smtp.password')->update([
+            'status' => 'configured',
+            'vault_version' => 2,
+        ]);
+        Http::fake([
+            'vault.example.test/v1/secret/data/talyvane/mail/smtp_password' => Http::response([
+                'data' => [
+                    'data' => ['value' => 'runtime-only-secret'],
+                    'metadata' => ['version' => 2],
+                ],
+            ], 200),
+        ]);
+
+        $this->assertSame('runtime-only-secret', app(PlatformSecretResolver::class)->resolve('mail.smtp.password'));
     }
 
     public function test_non_designated_super_admin_role_escalation_cannot_open_secret_management(): void
