@@ -15,6 +15,8 @@ return [
     ],
     'privacy' => [
         'profile_consent_version' => env('PROFILE_CONSENT_VERSION', 'profile-publication-v1'),
+        'private_gallery_consent_version' => env('PRIVATE_GALLERY_CONSENT_VERSION'),
+        'private_gallery_consent_approved' => filter_var(env('PRIVATE_GALLERY_CONSENT_APPROVED', false), FILTER_VALIDATE_BOOL),
     ],
     'safeguarding' => [
         'key_provider' => env('SAFEGUARDING_CASE_KEY_PROVIDER', 'local'),
