@@ -293,7 +293,7 @@ class SafeguardingCaseKeyVault
     {
         $uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
         $namespace = preg_quote($this->keyNamespace(), '/');
-        $currentNamespace = preg_match('/^(?:case-'.$namespace.'-[a-z0-9][a-z0-9-]{0,63}|preflight-'.$namespace.'-[a-z0-9][a-z0-9-]{0,63})$/', $keyName);
+        $currentNamespace = preg_match('/^(?:case-'.$namespace.'-[a-z0-9][a-z0-9-]{0,47}|preflight-'.$namespace.'-[a-z0-9][a-z0-9-]{0,47})$/', $keyName);
         $legacyNamespace = $allowLegacy ? preg_match('/^(?:case-'.$uuid.'|preflight-'.$uuid.')$/', $keyName) : false;
         $valid = $currentNamespace || $legacyNamespace;
 
