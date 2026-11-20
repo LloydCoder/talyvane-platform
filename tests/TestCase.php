@@ -56,6 +56,13 @@ abstract class TestCase extends BaseTestCase
             'mfa_recovery_codes' => [],
         ])->save();
 
+        if ($user->role === 'super_admin') {
+            DB::table('platform_control')
+                ->where('id', 1)
+                ->whereNull('super_admin_user_id')
+                ->update(['super_admin_user_id' => $user->id]);
+        }
+
         return $user;
     }
 }
