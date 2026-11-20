@@ -21,7 +21,7 @@ class ModelCastingWorkflowService
 {
     public function createDraft(int $actorId, array $terms): ModelCastingCall
     {
-        app(FeatureRegistry::class)->assertEnabled('model-agency.casting');
+        app(FeatureRegistry::class)->assertOperationallyEnabled('model-agency.casting');
         $this->assertCallTerms($terms);
 
         return DB::transaction(function () use ($actorId, $terms): ModelCastingCall {
@@ -72,7 +72,7 @@ class ModelCastingWorkflowService
 
     public function publish(ModelCastingCall $call, int $actorId): void
     {
-        app(FeatureRegistry::class)->assertEnabled('model-agency.casting');
+        app(FeatureRegistry::class)->assertOperationallyEnabled('model-agency.casting');
         DB::transaction(function () use ($call, $actorId): void {
             $locked = ModelCastingCall::query()->lockForUpdate()->findOrFail($call->id);
             $this->assertPublishable($locked);
@@ -186,7 +186,7 @@ class ModelCastingWorkflowService
     public function decide(ModelCastingSubmission $submission, int $actorId, string $decision, string $note): void
     {
         if (in_array($decision, ['shortlisted', 'selected'], true)) {
-            app(FeatureRegistry::class)->assertEnabled('model-agency.casting');
+            app(FeatureRegistry::class)->assertOperationallyEnabled('model-agency.casting');
         }
         DB::transaction(function () use ($submission, $actorId, $decision, $note): void {
             $current = ModelCastingSubmission::query()->findOrFail($submission->id);
