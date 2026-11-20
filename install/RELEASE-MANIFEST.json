@@ -1,0 +1,8 @@
+{
+  "component": "talyvane-private-installer-bootstrap",
+  "schema_version": 1,
+  "entrypoint": "bootstrap.php",
+  "http_entrypoint": false,
+  "must_be_outside_document_root": true,
+  "remove_after_verified_install": true
+}
