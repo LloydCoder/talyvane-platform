@@ -14,9 +14,15 @@
                         <p>Uploads are converted to metadata-stripped WebP, stored privately and held for agency review. Nothing is public until approved.</p>
                         @foreach ($profile->media as $media)
                             <div class="availability-row">
-                                <span>{{ strtoupper($media->status) }} · {{ $media->width }} × {{ $media->height }}</span>
+                                <span>{{ strtoupper($media->status) }} · {{ $media->width }} × {{ $media->height }} · {{ str_replace('_', ' ', $media->access_level) }}</span>
+                                @if ($media->members_only_consent_at && !$media->members_only_consent_withdrawn_at)
+                                    <span>Separate members-only consent recorded</span>
+                                    <form method="POST" action="{{ route('companion-portal.profiles.media.withdraw-members-only-consent', [$profile, $media]) }}">@csrf @method('PATCH')<button type="submit">Withdraw members-only consent</button></form>
+                                @elseif ($media->members_only_consent_withdrawn_at)
+                                    <span>Members-only consent withdrawn</span>
+                                @endif
                                 @if ($media->status === 'pending_review')
-                                    <form method="POST" action="{{ route('companion-portal.profiles.media.destroy', [$profile, $media]) }}">@csrf @method('DELETE')<button type="submit">Remove</button></form>
+                                    <form method="POST" action="{{ route('companion-portal.profiles.media.destroy', [$profile, $media]) }}">@csrf @method('DELETE')<button type="submit">Remove image</button></form>
                                 @endif
                             </div>
                         @endforeach
@@ -25,6 +31,10 @@
                             <label>Choose a profile image</label><input type="file" name="media" accept="image/jpeg,image/png,image/webp" required>
                             <label class="remember-row"><input type="checkbox" name="rights_confirmed" value="1" required> I own or have documented rights to this image and it contains no person whose identity or likeness is used without their permission</label>
                             <label class="remember-row"><input type="checkbox" name="publication_confirmed" value="1" required> I explicitly consent to this image being displayed on my profile if approved; I may withdraw consent at any time</label>
+                            @if (filled(config('talyvane.privacy.private_gallery_consent_version')) && config('talyvane.privacy.private_gallery_consent_approved'))
+                                <p class="field-help">Optional and separate from public profile publication.</p>
+                                <label class="remember-row"><input type="checkbox" name="members_only_confirmed" value="1"> I separately agree that this image may be shown only to eligible clients with an active paid or agency-approved membership. This does not authorize public display beyond my separate publication consent, and I can withdraw this permission independently.</label>
+                            @endif
                             <button class="button button-dark" type="submit">Submit image for review</button>
                         </form>
                     </div>
