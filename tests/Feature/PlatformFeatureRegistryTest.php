@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Services\FeatureActivationEvaluator;
 use App\Services\FeatureRegistry;
 use App\Models\User;
+use App\Models\PlatformFeature;
 use App\Models\CountryMarket;
 use App\Models\PlatformFeatureAuditEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -253,6 +254,47 @@ class PlatformFeatureRegistryTest extends TestCase
             ->assertSee('Model agency applications')
             ->assertSee('Planned');
     }
+    public function test_adult_eligibility_verification_activation_requires_an_active_verified_mfa_verifier(): void
+    {
+        $feature = new PlatformFeature([
+            'key' => 'model-agency.applications',
+            'name' => 'Model agency applications',
+            'module' => 'model-agency',
+            'description' => 'Test activation prerequisite.',
+            'implementation_status' => 'available',
+            'is_enabled' => true,
+            'risk_level' => 'high',
+            'dependencies' => [],
+            'activation_requirements' => ['adult_eligibility_verification'],
+        ]);
+
+        $evaluator = app(FeatureActivationEvaluator::class);
+        $blockers = $evaluator->blockers($feature);
+
+        $this->assertContains(
+            'At least one active, email-verified verifier with MFA must be provisioned before adult-eligibility verification can be activated.',
+            $blockers,
+        );
+
+        $verifier = User::query()->create([
+            'name' => 'Independent Verifier',
+            'email' => 'independent-verifier@example.test',
+            'password' => 'Strong-Verifier-Password-934!',
+            'role' => 'verifier',
+            'is_active' => true,
+        ]);
+        $verifier->forceFill([
+            'email_verified_at' => now(),
+            'mfa_secret' => 'JBSWY3DPEHPK3PXP',
+            'mfa_enabled_at' => now(),
+        ])->save();
+
+        $this->assertNotContains(
+            'At least one active, email-verified verifier with MFA must be provisioned before adult-eligibility verification can be activated.',
+            $evaluator->blockers($feature),
+        );
+    }
+
     public function test_activation_prerequisites_are_enforced_by_the_runtime_feature_gate(): void
     {
         DB::table('platform_features')->where('key', 'public.discovery')->update([
