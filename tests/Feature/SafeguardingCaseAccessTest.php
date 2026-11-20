@@ -137,6 +137,42 @@ class SafeguardingCaseAccessTest extends TestCase
         $this->actingAs($specialist)->get('/admin/adult-eligibility')->assertForbidden();
     }
 
+    public function test_invalid_case_transition_is_rejected_without_mutating_the_case(): void
+    {
+        $reporter = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'safety-owner-invalid-transition@example.test',
+            'role' => 'owner',
+        ]);
+        $specialist = $this->safeguardingUser('safeguarding-invalid-transition@example.test');
+        $case = $this->createReport($reporter, $specialist, 'MTA-2026-SAFE06');
+
+        $this->actingAs($specialist)
+            ->from('/admin/safeguarding/cases/'.$case->id)
+            ->patch('/admin/safeguarding/cases/'.$case->id, [
+                'status' => 'closed',
+                'note' => 'Attempt to close a case without completing triage.',
+            ])
+            ->assertSessionHasErrors('status');
+
+        $this->assertSame('open', $case->fresh()->status);
+    }
+
+    public function test_safeguarding_case_events_are_append_only(): void
+    {
+        $reporter = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'safety-owner-append-only@example.test',
+            'role' => 'owner',
+        ]);
+        $specialist = $this->safeguardingUser('safeguarding-append-only@example.test');
+        $case = $this->createReport($reporter, $specialist, 'MTA-2026-SAFE07');
+        $event = $case->events()->firstOrFail();
+
+        $this->expectException(\\LogicException::class);
+        $event->forceFill(['event_type' => 'case.tampered'])->save();
+    }
+
     public function test_case_cannot_be_assigned_to_an_inactive_or_mfa_unenrolled_specialist(): void
     {
         $reporter = $this->createAdminUser([
