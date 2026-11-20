@@ -2,46 +2,83 @@
 
 namespace App\Models;
 
+use App\Services\SafeguardingCaseContentService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SafeguardingCase extends Model
 {
+    private ?array $decryptedContentCache = null;
     protected $fillable = [
         'reference',
         'case_type',
         'severity',
         'status',
         'subject_type',
-        'subject_reference',
-        'summary',
-        'details',
         'assigned_to',
         'created_by',
         'resolved_at',
         'closed_at',
         'legal_hold_at',
         'legal_hold_by',
-        'legal_hold_reason',
         'legal_hold_released_at',
         'legal_hold_released_by',
-        'legal_hold_release_reason',
     ];
 
     protected function casts(): array
     {
         return [
-            'subject_reference' => 'encrypted',
-            'summary' => 'encrypted',
-            'details' => 'encrypted',
-            'legal_hold_reason' => 'encrypted',
-            'legal_hold_release_reason' => 'encrypted',
             'resolved_at' => 'immutable_datetime',
             'closed_at' => 'immutable_datetime',
             'legal_hold_at' => 'immutable_datetime',
             'legal_hold_released_at' => 'immutable_datetime',
         ];
+    }
+
+    public function content(): HasOne
+    {
+        return $this->hasOne(SafeguardingCaseContent::class, 'case_id');
+    }
+
+    public function getSummaryAttribute(): ?string
+    {
+        return $this->decryptedContent()['summary'];
+    }
+
+    public function getDetailsAttribute(): ?string
+    {
+        return $this->decryptedContent()['details'];
+    }
+
+    public function getSubjectReferenceAttribute(): ?string
+    {
+        return $this->decryptedContent()['subject_reference'];
+    }
+
+    public function getLegalHoldReasonAttribute(): ?string
+    {
+        return $this->decryptedContent()['legal_hold_reason'];
+    }
+
+    public function getLegalHoldReleaseReasonAttribute(): ?string
+    {
+        return $this->decryptedContent()['legal_hold_release_reason'];
+    }
+
+    public function getContentErasedAttribute(): bool
+    {
+        return $this->decryptedContent()['content_erased'];
+    }
+
+    private function decryptedContent(): array
+    {
+        if ($this->decryptedContentCache === null) {
+            $this->decryptedContentCache = app(SafeguardingCaseContentService::class)->read($this);
+        }
+
+        return $this->decryptedContentCache;
     }
 
     public function assignee(): BelongsTo

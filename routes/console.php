@@ -9,6 +9,7 @@ use App\Notifications\SuperAdminRecoveryContactsRotatedNotice;
 use App\Services\RecoveryCodeGenerator;
 use App\Services\ModelTalentImageLicenceService;
 use App\Services\TotpService;
+use App\Services\SafeguardingCaseRetentionService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -686,4 +687,26 @@ if ((int) config('talyvane.model_agency.retention.application_days') > 0
     && (int) config('talyvane.model_agency.retention.accepted_days') > 0
     && config('talyvane.model_agency.retention.schedule_approved')) {
     Schedule::command('talyvane:model-agency:apply-retention')->dailyAt('02:30')->withoutOverlapping();
+}
+
+Artisan::command('talyvane:safeguarding:apply-retention', function () {
+    try {
+        $erased = app(SafeguardingCaseRetentionService::class)->apply();
+    } catch (RuntimeException $exception) {
+        $this->error($exception->getMessage());
+
+        return 1;
+    }
+
+    $this->info('Removed primary-database content keys for '.$erased.' safeguarding case(s). Encrypted backup copies remain subject to the separately approved backup expiry policy.');
+
+    return 0;
+})->purpose('Apply an approved safeguarding case retention schedule without deleting case audit metadata');
+
+if (config('talyvane.safeguarding.retention.schedule_approved')
+    && (int) config('talyvane.safeguarding.retention.days') > 0
+    && filled(config('talyvane.safeguarding.retention.policy_version'))
+    && config('talyvane.safeguarding.retention.backup_policy_approved')
+    && (int) config('talyvane.safeguarding.retention.backup_expiry_days') > 0) {
+    Schedule::command('talyvane:safeguarding:apply-retention')->dailyAt('02:45')->withoutOverlapping();
 }
