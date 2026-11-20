@@ -400,6 +400,26 @@ class MembershipEntitlementTest extends TestCase
         ]);
     }
 
+    public function test_private_media_is_hidden_when_the_approved_consent_policy_version_changes(): void
+    {
+        Storage::fake('local');
+        $this->enableEntitlements();
+        $profile = $this->profile();
+        $media = $this->privateMedia($profile);
+        $client = $this->client();
+        $membership = $this->membership($client);
+        $this->grantPrivateGallery($membership);
+
+        $this->actingAs($client)->get(route('profile-media.show', $media))->assertOk();
+
+        config(['talyvane.privacy.private_gallery_consent_version' => 'private-gallery-v2']);
+
+        $this->actingAs($client)->get(route('profile-media.show', $media))->assertNotFound();
+        $this->get('/companions/'.$profile->slug)
+            ->assertOk()
+            ->assertDontSee(route('profile-media.show', $media), false);
+    }
+
     public function test_companion_can_withdraw_members_only_consent_without_changing_publication_consent(): void
     {
         Storage::fake('local');
