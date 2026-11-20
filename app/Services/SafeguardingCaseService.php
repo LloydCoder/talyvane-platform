@@ -149,6 +149,91 @@ class SafeguardingCaseService
         });
     }
 
+    public function recordGovernanceView(SafeguardingCase $case, User $actor): void
+    {
+        $this->assertGovernanceActor($actor);
+        SafeguardingCaseAccessEvent::query()->create([
+            'case_id' => $case->id,
+            'actor_id' => $actor->id,
+            'action' => 'case.governance_viewed',
+            'accessed_at' => now(),
+        ]);
+    }
+
+    public function placeLegalHold(SafeguardingCase $case, User $actor, string $reason): void
+    {
+        $this->assertGovernanceActor($actor);
+        $this->assertHoldReason($reason);
+
+        DB::transaction(function () use ($case, $actor, $reason): void {
+            $locked = SafeguardingCase::query()->lockForUpdate()->findOrFail($case->id);
+            if ($locked->legal_hold_at !== null) {
+                throw ValidationException::withMessages(['legal_hold' => 'This case is already under legal hold.']);
+            }
+
+            $locked->forceFill([
+                'legal_hold_at' => now(),
+                'legal_hold_by' => $actor->id,
+                'legal_hold_reason' => trim($reason),
+                'legal_hold_released_at' => null,
+                'legal_hold_released_by' => null,
+                'legal_hold_release_reason' => null,
+            ])->save();
+
+            $this->event($locked, $actor->id, 'case.legal_hold_placed', $locked->status, $locked->status, trim($reason));
+            SafeguardingCaseAccessEvent::query()->create([
+                'case_id' => $locked->id,
+                'actor_id' => $actor->id,
+                'action' => 'case.legal_hold_placed',
+                'accessed_at' => now(),
+            ]);
+        });
+    }
+
+    public function releaseLegalHold(SafeguardingCase $case, User $actor, string $reason): void
+    {
+        $this->assertGovernanceActor($actor);
+        $this->assertHoldReason($reason);
+
+        DB::transaction(function () use ($case, $actor, $reason): void {
+            $locked = SafeguardingCase::query()->lockForUpdate()->findOrFail($case->id);
+            if ($locked->legal_hold_at === null) {
+                throw ValidationException::withMessages(['legal_hold' => 'This case is not currently under legal hold.']);
+            }
+
+            abort_unless((int) $locked->legal_hold_by !== (int) $actor->id, 403);
+
+            $locked->forceFill([
+                'legal_hold_at' => null,
+                'legal_hold_by' => null,
+                'legal_hold_reason' => null,
+                'legal_hold_released_at' => now(),
+                'legal_hold_released_by' => $actor->id,
+                'legal_hold_release_reason' => trim($reason),
+            ])->save();
+
+            $this->event($locked, $actor->id, 'case.legal_hold_released', $locked->status, $locked->status, trim($reason));
+            SafeguardingCaseAccessEvent::query()->create([
+                'case_id' => $locked->id,
+                'actor_id' => $actor->id,
+                'action' => 'case.legal_hold_released',
+                'accessed_at' => now(),
+            ]);
+        });
+    }
+
+    private function assertGovernanceActor(User $actor): void
+    {
+        abort_unless($actor->is_active && in_array($actor->role, ['super_admin', 'owner'], true), 403);
+    }
+
+    private function assertHoldReason(string $reason): void
+    {
+        if (mb_strlen(trim($reason)) < 20 || mb_strlen(trim($reason)) > 1000) {
+            throw ValidationException::withMessages(['reason' => 'A reason between 20 and 1,000 characters is required.']);
+        }
+    }
+
     private function assertSpecialist(User $specialist): void
     {
         abort_unless(

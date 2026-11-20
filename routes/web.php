@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\ModelCastingAdminController;
 use App\Http\Controllers\Admin\ModelTalentAssignmentAdminController;
 use App\Http\Controllers\Admin\ModelTalentSettlementAdminController;
 use App\Http\Controllers\Admin\SafeguardingCaseController;
+use App\Http\Controllers\Admin\SafeguardingGovernanceController;
 use App\Http\Controllers\ModelAgencyApplicationController;
 use App\Http\Controllers\ModelAgencyApplicationRightsController;
 use App\Http\Controllers\AccountSecurityController;
@@ -241,6 +242,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/', [SafeguardingCaseController::class, 'index'])->name('index');
         Route::get('/{case}', [SafeguardingCaseController::class, 'show'])->name('show');
         Route::patch('/{case}', [SafeguardingCaseController::class, 'update'])->middleware('throttle:10,1')->name('update');
+    });
+
+    // Governance users may manage preservation metadata but never read confidential case content.
+    Route::middleware(['auth', 'role:super_admin,owner', 'admin.session-current', 'admin.mfa'])->prefix('safeguarding/governance')->name('safeguarding.governance.')->group(function (): void {
+        Route::get('/', [SafeguardingGovernanceController::class, 'index'])->name('index');
+        Route::post('/{case}/legal-hold', [SafeguardingGovernanceController::class, 'placeLegalHold'])->middleware('throttle:5,1')->name('place-hold');
+        Route::post('/{case}/release-legal-hold', [SafeguardingGovernanceController::class, 'releaseLegalHold'])->middleware('throttle:5,1')->name('release-hold');
     });
 
     // Finance specialists are isolated to the model settlement workspace.
