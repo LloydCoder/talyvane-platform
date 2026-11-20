@@ -57,7 +57,7 @@ class SafeguardingNotificationOutboxTest extends TestCase
         ]);
         $case = $this->createCase($owner, $specialist);
 
-        $this->assertDatabaseHas('safeguarding_notification_outbox', [
+        $this->assertDatabaseHas('safeguarding_notification_outboxes', [
             'case_id' => $case->id,
             'recipient_user_id' => $specialist->id,
             'notification_type' => 'case_assigned',
@@ -74,7 +74,7 @@ class SafeguardingNotificationOutboxTest extends TestCase
                 && ! property_exists($notification, 'summary');
         });
 
-        $this->assertDatabaseHas('safeguarding_notification_outbox', [
+        $this->assertDatabaseHas('safeguarding_notification_outboxes', [
             'case_id' => $case->id,
             'recipient_user_id' => $specialist->id,
             'status' => 'delivered',
@@ -102,7 +102,7 @@ class SafeguardingNotificationOutboxTest extends TestCase
         ]);
         $case = $this->createCase($owner, $specialist, 'critical');
 
-        $this->assertDatabaseCount('safeguarding_notification_outbox', 2);
+        $this->assertDatabaseCount('safeguarding_notification_outboxes', 2);
 
         $sent = app(SafeguardingNotificationDispatcher::class)->dispatchPending();
 
@@ -138,7 +138,7 @@ class SafeguardingNotificationOutboxTest extends TestCase
             app(SafeguardingNotificationDispatcher::class)->dispatchPending();
             $this->fail('Disabled safeguarding notifications must not be dispatched.');
         } catch (RuntimeException) {
-            $this->assertDatabaseHas('safeguarding_notification_outbox', [
+            $this->assertDatabaseHas('safeguarding_notification_outboxes', [
                 'case_id' => $case->id,
                 'status' => 'pending',
             ]);
@@ -162,7 +162,7 @@ class SafeguardingNotificationOutboxTest extends TestCase
 
         app(SafeguardingNotificationOutboxService::class)->enqueueCaseCreated($case, $specialist);
 
-        $this->assertDatabaseCount('safeguarding_notification_outbox', 1);
+        $this->assertDatabaseCount('safeguarding_notification_outboxes', 1);
     }
 
     public function test_notification_dispatcher_does_not_include_case_content_in_outbox_payload(): void
@@ -180,7 +180,7 @@ class SafeguardingNotificationOutboxTest extends TestCase
         ]);
         $case = $this->createCase($owner, $specialist);
 
-        $outbox = \DB::table('safeguarding_notification_outbox')->where('case_id', $case->id)->first();
+        $outbox = \DB::table('safeguarding_notification_outboxes')->where('case_id', $case->id)->first();
         $this->assertNull($outbox->payload ?? null);
         $this->assertNull($outbox->summary ?? null);
         $this->assertNull($outbox->details ?? null);
