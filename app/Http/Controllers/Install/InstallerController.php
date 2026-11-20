@@ -259,20 +259,16 @@ final class InstallerController
                 'attempts' => 0,
             ]);
         } catch (Throwable $exception) {
-            $diagnostic = $exception->getPrevious()?->getMessage() ?? $exception->getMessage();
-            $safeDiagnostic = preg_replace('/(password|passwd|secret)\\s*[=:]\\s*[^;\\s]+/i', '$1=[redacted]', $diagnostic) ?? 'unavailable';
-
+            // Database and SMTP exception messages can contain credentials.
+            // Log only non-secret classification data; never persist driver diagnostics.
             logger()->warning('Talyvane browser installer configuration step failed.', [
                 'stage' => $stage,
                 'exception_class' => $exception::class,
                 'exception_code' => (string) $exception->getCode(),
-                'diagnostic' => $safeDiagnostic,
             ]);
 
-            $testDiagnostic = app()->environment('testing') ? ' '.$safeDiagnostic : '';
-
             throw ValidationException::withMessages([
-                'installer' => 'Configuration could not be verified during the '.$stage.' step ('.$exception::class.', code '.(string) $exception->getCode().'). Check the database and SMTP settings, then retry. Secret values are not displayed.'.$testDiagnostic,
+                'installer' => 'Configuration could not be verified during the '.$stage.' step. Check the database and SMTP settings, then retry. Secret values and internal diagnostics are not displayed.',
             ]);
         }
 
