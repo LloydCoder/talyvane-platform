@@ -240,12 +240,12 @@ class SafeguardingExternalKeyVaultTest extends TestCase
 
         $path = tempnam(sys_get_temp_dir(), 'talyvane-vault-clear-');
         file_put_contents($path, "SAFEGUARDING_VAULT_TOKEN=application-token\nSAFEGUARDING_VAULT_RETENTION_TOKEN=retention-token\n");
-        app()->instance(\\App\\Services\\EnvFileSecretWriter::class, new \\App\\Services\\EnvFileSecretWriter($path));
+        app()->instance(\App\Services\EnvFileSecretWriter::class, new \App\Services\EnvFileSecretWriter($path));
 
         try {
             $this->expectException(RuntimeException::class);
             $this->expectExceptionMessage('active safeguarding case keys still depend on the external vault');
-            app(\\App\\Services\\SafeguardingVaultCredentialLifecycle::class)->clear();
+            app(\App\Services\SafeguardingVaultCredentialLifecycle::class)->clear();
         } finally {
             @unlink($path.'.secret-update.lock');
             @unlink($path);
