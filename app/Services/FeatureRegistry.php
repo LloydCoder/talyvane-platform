@@ -45,8 +45,12 @@ class FeatureRegistry
 
     public function assertOperationallyEnabled(string $key): void
     {
-        if (! $this->isOperationallyEnabled($key)) {
+        if (! $this->isEnabled($key)) {
             abort(404);
+        }
+
+        if (! $this->isOperationallyEnabled($key)) {
+            abort(503, 'Feature activation prerequisites are not satisfied.');
         }
     }
 
