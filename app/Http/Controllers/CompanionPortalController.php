@@ -38,6 +38,9 @@ class CompanionPortalController extends Controller
             'bookings' => $bookings,
             'weekdays' => $weekdays,
             'privateGalleryConsentStatement' => MembershipEntitlementCatalog::privateGalleryConsentStatement((string) ($brandSettings->publicBrand()['brand_name'] ?? 'Talyvane')),
+            'privateGalleryConsentAvailable' => filled($brandSettings->publicBrand()['brand_name'] ?? null)
+                && filled(config('talyvane.privacy.private_gallery_consent_version'))
+                && config('talyvane.privacy.private_gallery_consent_approved'),
         ]);
     }
 
