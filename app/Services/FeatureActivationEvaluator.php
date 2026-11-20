@@ -32,6 +32,10 @@ class FeatureActivationEvaluator
     {
         $blockers = [];
 
+        if (HardSafeguards::contains($feature->key)) {
+            return [HardSafeguards::blocker()];
+        }
+
         if ($feature->implementation_status !== 'available') {
             $blockers[] = 'This feature has not reached an available implementation state.';
         }
