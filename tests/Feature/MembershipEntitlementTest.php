@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\BrandSetting;
 use App\Models\ClientMembership;
 use App\Models\ClientMembershipEvent;
 use App\Models\ClientMembershipEntitlement;
@@ -522,6 +523,28 @@ class MembershipEntitlementTest extends TestCase
         $this->get('/companions/'.$profile->slug)
             ->assertOk()
             ->assertDontSee(route('profile-media.show', $media), false);
+    }
+
+    public function test_brand_identity_change_invalidates_private_gallery_consent_until_reconsent(): void
+    {
+        Storage::fake('local');
+        $this->enableEntitlements();
+        $profile = $this->profile();
+        $media = $this->privateMedia($profile);
+        $client = $this->client();
+        $membership = $this->membership($client);
+        $this->grantPrivateGallery($membership);
+
+        $this->actingAs($client)->get(route('profile-media.show', $media))->assertOk();
+
+        BrandSetting::query()->create([
+            'key' => 'brand_name',
+            'value' => 'New Agency Identity',
+            'group' => 'branding',
+            'is_public' => true,
+        ]);
+
+        $this->actingAs($client)->get(route('profile-media.show', $media))->assertNotFound();
     }
 
     public function test_companion_can_withdraw_members_only_consent_without_changing_publication_consent(): void
