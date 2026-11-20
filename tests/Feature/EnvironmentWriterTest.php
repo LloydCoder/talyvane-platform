@@ -36,6 +36,8 @@ class EnvironmentWriterTest extends TestCase
         $contents = file_get_contents($this->basePath.'/.env');
         $this->assertStringContainsString('DB_PASSWORD="p@ss\\"word\\\\path\\$HOME#fragment"', $contents);
         $this->assertStringContainsString('DB_HOST="localhost"', $contents);
+        $parsed = \Dotenv\Dotenv::parse($contents);
+        $this->assertSame('p@ss"word\\path$HOME#fragment', $parsed['DB_PASSWORD']);
         $this->assertStringContainsString('UNRELATED=value', $contents);
         $this->assertSame(0600, fileperms($this->basePath.'/.env') & 0777);
     }

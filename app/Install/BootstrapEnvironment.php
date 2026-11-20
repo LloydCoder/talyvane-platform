@@ -34,9 +34,9 @@ final class BootstrapEnvironment
         if (is_link($lockPath)) {
             throw new RuntimeException('The installation lock must not be a symbolic link.');
         }
-
-        if (is_file($lockPath)) {
-            return false;
+        $lockExists = file_exists($lockPath);
+        if ($lockExists && ! is_file($lockPath)) {
+            throw new RuntimeException('The installation lock is not a regular file.');
         }
 
         $environmentPath = $basePath.'/.env';
@@ -57,7 +57,21 @@ final class BootstrapEnvironment
             throw new RuntimeException('The environment file could not be read.');
         }
 
-        if (preg_match('/^APP_KEY=(?!\s*$).+$/m', $contents) === 1) {
+        preg_match_all('/^APP_KEY=/m', $contents, $appKeyLines);
+        if (count($appKeyLines[0]) > 1) {
+            throw new RuntimeException('The environment file contains duplicate application key settings.');
+        }
+
+        $hasApplicationKey = preg_match('/^APP_KEY=(?!\s*$).+$/m', $contents) === 1;
+        if ($lockExists) {
+            if (! $hasApplicationKey) {
+                throw new RuntimeException('A completed installation requires its original application key.');
+            }
+
+            return false;
+        }
+
+        if ($hasApplicationKey) {
             return false;
         }
 
@@ -124,9 +138,9 @@ final class BootstrapEnvironment
     {
         $pattern = '/^'.preg_quote($key, '/').'=.*$/m';
         $replacement = $key.'='.$value;
-        $updated = preg_replace($pattern, $replacement, $contents, 1, $count);
+        $updated = preg_replace($pattern, $replacement, $contents, -1, $count);
 
-        if (! is_string($updated)) {
+        if (! is_string($updated) || $count > 1) {
             throw new RuntimeException('The bootstrap environment could not be normalized.');
         }
 

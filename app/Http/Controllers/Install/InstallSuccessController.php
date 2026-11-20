@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Install;
 
-use App\Install\InstallationDirectoryRemover;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Symfony\Component\HttpFoundation\Response;
@@ -10,7 +9,7 @@ use Throwable;
 
 final class InstallSuccessController
 {
-    public function show(Request $request): Response
+    public function show(Request $request, \App\Install\InstallationDirectoryRemover $remover): Response
     {
         $handoff = $request->session()->pull('install.success.handoff');
         if (! is_string($handoff)) {
@@ -32,7 +31,7 @@ final class InstallSuccessController
 
         $loginPath = route('admin.login', [], false);
         $loginUrl = rtrim((string) config('app.url'), '/').$loginPath;
-        $installerRemoved = (new InstallationDirectoryRemover(base_path()))->remove();
+        $installerRemoved = $remover->remove();
 
         $response = response()->view('install.success', [
             'loginUrl' => $loginUrl,

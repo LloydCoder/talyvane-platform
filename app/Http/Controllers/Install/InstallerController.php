@@ -53,7 +53,17 @@ final class InstallerController
                 && is_writable(storage_path('app/private')),
             'Framework cache is writable' => is_writable(base_path('bootstrap/cache')),
             'Unique application key is initialized' => is_string(config('app.key')) && config('app.key') !== '',
+            'Production environment is enabled' => config('app.env') === 'production',
             'Production debug mode is disabled' => config('app.debug') === false,
+            'Encrypted file-backed sessions are configured' => config('session.driver') === 'file'
+                && config('session.encrypt') === true
+                && config('session.secure') === true
+                && config('session.http_only') === true
+                && config('session.same_site') === 'lax',
+            'File-backed cache and synchronous setup queue are configured' => config('cache.default') === 'file'
+                && config('queue.default') === 'sync',
+            'Configuration cache is absent' => ! is_file(base_path('bootstrap/cache/config.php')),
+            'Private installer directory is present' => is_dir(base_path('install')) && ! is_link(base_path('install')),
         ];
     }
 
@@ -62,7 +72,8 @@ final class InstallerController
         $pending = $request->session()->get('installer.pending_admin');
 
         if (! is_array($pending) || ! isset($pending['email'], $pending['recovery_email'], $pending['started_at'])
-            || time() - (int) $pending['started_at'] > 300) {
+            || time() - (int) $pending['started_at'] > 300
+            || (int) ($pending['attempts'] ?? 0) >= 5) {
             $request->session()->forget('installer.pending_admin');
 
             return redirect()->route('install.index')->withErrors([
@@ -76,7 +87,7 @@ final class InstallerController
         ]);
     }
 
-    public function store(Request $request, RecoveryCodeGenerator $codes): RedirectResponse
+    public function store(Request $request, EnvironmentWriter $environment, RecoveryCodeGenerator $codes): RedirectResponse
     {
         $validated = $request->validate([
             'app_name' => ['required', 'string', 'max:80'],
@@ -111,8 +122,15 @@ final class InstallerController
             ]);
         }
 
-        $submittedHost = parse_url($validated['app_url'], PHP_URL_HOST);
-        if (! is_string($submittedHost) || ! hash_equals(strtolower($request->getHost()), strtolower($submittedHost))) {
+        $urlParts = parse_url($validated['app_url']);
+        $submittedHost = is_array($urlParts) ? ($urlParts['host'] ?? null) : null;
+        if (! is_string($submittedHost)
+            || isset($urlParts['user'])
+            || isset($urlParts['pass'])
+            || isset($urlParts['query'])
+            || isset($urlParts['fragment'])
+            || ! in_array($urlParts['path'] ?? '', ['', '/'], true)
+            || ! hash_equals(strtolower($request->getHost()), strtolower($submittedHost))) {
             throw ValidationException::withMessages([
                 'app_url' => 'The canonical application URL host must match the HTTPS host serving this installer.',
             ]);
@@ -148,6 +166,16 @@ final class InstallerController
             ]);
 
             config([
+                'talyvane.installer.enforce' => true,
+                'app.env' => 'production',
+                'app.debug' => false,
+                'session.driver' => 'file',
+                'session.encrypt' => true,
+                'session.secure' => true,
+                'session.http_only' => true,
+                'session.same_site' => 'lax',
+                'cache.default' => 'file',
+                'queue.default' => 'sync',
                 'app.name' => $validated['app_name'],
                 'app.url' => rtrim($validated['app_url'], '/'),
                 'database.default' => 'mysql',
@@ -170,7 +198,7 @@ final class InstallerController
             DB::purge('mysql');
             DB::connection('mysql')->select('SELECT 1');
 
-            $tables = DB::connection('mysql')->select('SHOW TABLES');
+            $tables = DB::connection('mysql')->getSchemaBuilder()->getTableListing();
             $schema = DB::connection('mysql')->getSchemaBuilder();
             $hasPlatformControl = $schema->hasTable('platform_control');
             $hasMigrations = $schema->hasTable('migrations');

@@ -28,6 +28,10 @@ final class InstallationLock
             throw new RuntimeException('The installation lock must not be a symbolic link.');
         }
 
+        if (file_exists($path) && ! is_file($path)) {
+            throw new RuntimeException('The installation lock is not a regular file.');
+        }
+
         return is_file($path);
     }
 

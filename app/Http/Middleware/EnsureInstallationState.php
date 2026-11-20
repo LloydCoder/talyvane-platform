@@ -13,9 +13,7 @@ final class EnsureInstallationState
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! config('talyvane.installer.enforce')) {
-            return $next($request);
-        }
+        $installerRequest = $request->is('install') || $request->is('install/*');
 
         try {
             $lock = new InstallationLock(base_path(), (string) config('app.key'));
@@ -24,7 +22,13 @@ final class EnsureInstallationState
             abort(503, 'The installation state is unsafe. Contact the deployment administrator.');
         }
 
-        $installerRequest = $request->is('install') || $request->is('install/*');
+        if (! config('talyvane.installer.enforce')) {
+            if ($installerRequest && ($lockExists || $this->databaseHasCompletionMarker())) {
+                abort(404);
+            }
+
+            return $next($request);
+        }
 
         if ($installerRequest) {
             if (! $lockExists) {
@@ -64,12 +68,15 @@ final class EnsureInstallationState
         try {
             $control = DB::table('platform_control')->where('id', 1)->first();
 
-            return $control !== null && (
+            $controlCompleted = $control !== null && (
                 ! empty($control->super_admin_user_id)
                 || ! empty($control->installation_id)
                 || ! empty($control->installation_lock_hash)
                 || ! empty($control->installation_completed_at)
             );
+
+            return $controlCompleted
+                || DB::table('users')->where('role', 'super_admin')->exists();
         } catch (Throwable) {
             // A fresh installation has not configured or migrated its database yet.
             return false;
