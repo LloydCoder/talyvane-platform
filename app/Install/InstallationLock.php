@@ -23,6 +23,7 @@ final class InstallationLock
     public function exists(): bool
     {
         $path = $this->path();
+        $this->assertSafePrivateDirectory(false);
 
         if (is_link($path)) {
             throw new RuntimeException('The installation lock must not be a symbolic link.');
@@ -45,6 +46,7 @@ final class InstallationLock
     {
         $directory = dirname($this->path());
         $this->ensurePrivateDirectory($directory);
+        $this->assertSafePrivateDirectory(true);
 
         $path = $this->path();
         if (file_exists($path) || is_link($path)) {
@@ -107,6 +109,12 @@ final class InstallationLock
     public function verify(string $installationId, string $expectedHash): bool
     {
         $path = $this->path();
+        try {
+            $this->assertSafePrivateDirectory(false);
+        } catch (RuntimeException) {
+            return false;
+        }
+
         if (is_link($path) || ! is_file($path) || ! is_readable($path)) {
             return false;
         }
@@ -145,6 +153,37 @@ final class InstallationLock
         }
 
         return @unlink($this->path());
+    }
+
+
+    private function assertSafePrivateDirectory(bool $mustExist): void
+    {
+        $configuredRoot = rtrim($this->basePath, DIRECTORY_SEPARATOR);
+        $basePath = realpath($configuredRoot);
+
+        if ($basePath === false || $basePath !== $configuredRoot) {
+            throw new RuntimeException('The private installation application root is unsafe.');
+        }
+
+        $storage = $basePath.'/storage';
+        $applicationStorage = $storage.'/app';
+        $directory = $applicationStorage.'/private';
+
+        if (is_link($storage) || is_link($applicationStorage) || is_link($directory)) {
+            throw new RuntimeException('The private installation state directory must not traverse symbolic links.');
+        }
+
+        if (! is_dir($directory)) {
+            if ($mustExist) {
+                throw new RuntimeException('The private installation state directory is unavailable.');
+            }
+
+            return;
+        }
+
+        if (realpath($directory) !== $directory) {
+            throw new RuntimeException('The private installation state directory escapes its expected path.');
+        }
     }
 
     private function ensurePrivateDirectory(string $directory): void
