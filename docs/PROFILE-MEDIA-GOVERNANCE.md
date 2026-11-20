@@ -7,9 +7,9 @@
 3. The upload is validated as JPEG, PNG or WebP, capped at 8 MiB, checked for dimensions/pixel count before decode, then re-encoded to WebP.
 4. Re-encoding removes embedded EXIF/GPS/camera metadata and the original filename. The sanitized output is stored on Laravel's private local disk.
 5. New media remains `pending_review`; it is not reachable through the public media endpoint.
-6. An owner/admin with MFA reviews the private preview and records approve/reject.
-7. Approved media is served through an application route that checks both media approval and the profile's current publication, age-verification and consent state on every request.
-8. Withdrawing profile consent or suspending the profile immediately makes the media route return 404. Media is never placed in the public storage symlink.
+6. An owner/admin with MFA reviews the private preview and records approve/reject plus an access level. `public` media may appear in public discovery; `members_only` media requires the separately enabled membership-entitlements feature and a current `media.private_gallery` grant.
+7. Approved media is served through an application route that checks media approval and the profile's current publication, age-verification and consent state on every request. Members-only delivery additionally checks an active, in-date membership, an in-date immutable grant, an active verified client account and the effective entitlement feature state.
+8. Public discovery and destination listings query public media only; they never expose members-only media URLs. The profile-detail projection includes members-only media only for an entitled client. Withdrawing profile consent or suspending the profile immediately makes the media route return 404. Media is never placed in the public storage symlink.
 9. The profile's country market must also be explicitly enabled and evidence-approved before media submission, moderation approval or public delivery is permitted.
 
 ## Operational requirements
