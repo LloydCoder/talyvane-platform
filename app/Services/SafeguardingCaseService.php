@@ -34,6 +34,7 @@ class SafeguardingCaseService
 
     public function create(User $reporter, array $input): SafeguardingCase
     {
+        abort_unless($reporter->is_active && in_array($reporter->role, ['super_admin', 'owner', 'admin'], true), 403);
         if (! in_array($input['case_type'] ?? null, self::CASE_TYPES, true)) {
             throw ValidationException::withMessages(['case_type' => 'Choose a supported safeguarding case category.']);
         }
@@ -79,6 +80,7 @@ class SafeguardingCaseService
 
     public function assignedCases(User $specialist)
     {
+        $this->assertSpecialist($specialist);
         return SafeguardingCase::query()
             ->where('assigned_to', $specialist->id)
             ->latest('created_at')
@@ -87,6 +89,7 @@ class SafeguardingCaseService
 
     public function findAssigned(User $specialist, SafeguardingCase $case): SafeguardingCase
     {
+        $this->assertSpecialist($specialist);
         return SafeguardingCase::query()
             ->where('assigned_to', $specialist->id)
             ->whereKey($case->id)
@@ -95,6 +98,7 @@ class SafeguardingCaseService
 
     public function recordView(SafeguardingCase $case, User $specialist): void
     {
+        $this->assertSpecialist($specialist);
         SafeguardingCaseAccessEvent::query()->create([
             'case_id' => $case->id,
             'actor_id' => $specialist->id,
@@ -105,6 +109,7 @@ class SafeguardingCaseService
 
     public function transition(SafeguardingCase $case, User $specialist, string $target, string $note): void
     {
+        $this->assertSpecialist($specialist);
         DB::transaction(function () use ($case, $specialist, $target, $note): void {
             $locked = SafeguardingCase::query()
                 ->where('assigned_to', $specialist->id)
@@ -129,6 +134,17 @@ class SafeguardingCaseService
 
             $this->event($locked, $specialist->id, 'case.status_changed', $from, $target, trim($note));
         });
+    }
+
+    private function assertSpecialist(User $specialist): void
+    {
+        abort_unless(
+            $specialist->is_active
+                && $specialist->role === 'safeguarding'
+                && $specialist->mfa_enabled_at !== null
+                && filled($specialist->mfa_secret),
+            403,
+        );
     }
 
     private function event(
