@@ -33,12 +33,17 @@ class CompanionPortalController extends Controller
 
         $weekdays = [0 => 'Sunday', 1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday'];
 
+        $agencyName = (string) ($brandSettings->publicBrand()['brand_name'] ?? '');
+        $privateGalleryConsentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement($agencyName);
+
         return view('portal.companion-dashboard', [
             'profiles' => $profiles,
             'bookings' => $bookings,
             'weekdays' => $weekdays,
-            'privateGalleryConsentStatement' => MembershipEntitlementCatalog::privateGalleryConsentStatement((string) ($brandSettings->publicBrand()['brand_name'] ?? 'Talyvane')),
-            'privateGalleryConsentAvailable' => filled($brandSettings->publicBrand()['brand_name'] ?? null)
+            'privateGalleryConsentStatement' => $privateGalleryConsentStatement,
+            'privateGalleryConsentStatementHash' => hash('sha256', $privateGalleryConsentStatement),
+            'privateGalleryConsentVersion' => config('talyvane.privacy.private_gallery_consent_version'),
+            'privateGalleryConsentAvailable' => filled($agencyName)
                 && filled(config('talyvane.privacy.private_gallery_consent_version'))
                 && config('talyvane.privacy.private_gallery_consent_approved'),
         ]);
