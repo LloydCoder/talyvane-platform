@@ -77,7 +77,7 @@ Partially implemented: client and companion account authentication; verified ema
 Payment adapter contract; manual instructions; crypto invoice snapshots and server-side chain verification for approved networks; ledger and reconciliation; card adapters only after written underwriting.
 
 ## Release 4 — Commercial packaging
-Installation wizard; versioned updates and migration tooling; backup/restore; deployment entitlement; customer deployment records; reseller documentation and support boundaries.
+Secure cPanel browser installer and first Super Admin bootstrap (approved design: [ADR-0014](decisions/ADR-0014-secure-browser-installer.md), security/acceptance contract: [SECURE-BROWSER-INSTALLER.md](SECURE-BROWSER-INSTALLER.md)); versioned updates and migration tooling; backup/restore; deployment entitlement; customer deployment records; reseller documentation and support boundaries.
 
 A milestone is not complete because screens exist. Each release requires tests, security review, accessibility checks, privacy review, deployment verification and operator documentation. Production is blocked pending jurisdiction, hosting and payment approvals.
 
@@ -143,7 +143,7 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [ ] Produce signed, versioned/tagged customer release artifacts with provenance/attestation, retention policy and release notes; CI smoke artifacts are temporary validation outputs, not production releases.
 - [x] Retire the privileged lockfile-bootstrap workflow after the committed lockfile became mandatory; missing lockfiles now fail normal CI rather than granting automation repository write permissions.
 - [x] Add automated PHP 8.3/8.4/8.5 compatibility and actual extension/platform checks in CI.
-- [ ] Build a secure no-SSH installer and first Super Admin bootstrap, with no arbitrary command execution or public setup backdoor.
+- [ ] Implement and verify the secure no-SSH browser installer and first Super Admin bootstrap against [ADR-0014](decisions/ADR-0014-secure-browser-installer.md) and [the installer acceptance specification](SECURE-BROWSER-INSTALLER.md); no arbitrary command execution or public setup backdoor.
 - [ ] Add preflight diagnostics for PHP web/CLI mismatch, extensions, GD WebP, database, writable paths, HTTPS, document-root exposure and hosting limits.
 - [ ] Test supported cPanel/Apache/LiteSpeed configurations and document provider-specific exceptions.
 - [ ] Add deployment smoke tests, restore drills and a per-installation compatibility report.
