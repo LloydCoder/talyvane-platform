@@ -43,7 +43,7 @@ class AdminMfaTest extends TestCase
         $this->get('/admin/mfa/recovery-codes')
             ->assertOk()
             ->assertSee('Recovery')
-            ->assertHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+            ->assertHeader('Cache-Control', 'must-revalidate, no-cache, no-store, private');
         $this->get('/admin/mfa/recovery-codes')->assertRedirect('/admin');
         $this->get('/admin')->assertOk();
     }
