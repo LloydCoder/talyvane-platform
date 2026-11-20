@@ -125,6 +125,114 @@ class SecretManagementControllerTest extends TestCase
             && str_ends_with($request->url(), '/v1/secret/metadata/talyvane/mail/smtp_password'));
     }
 
+    public function test_failed_rotation_keeps_the_previous_version_active_and_resolvable(): void
+    {
+        $admin = $this->superAdmin();
+        PlatformSecret::query()->create([
+            'secret_key' => 'mail.smtp.password',
+            'vault_path' => 'talyvane/mail/smtp_password',
+            'status' => 'configured',
+            'vault_version' => 2,
+            'configured_by' => $admin->id,
+            'last_rotated_at' => now()->subDay(),
+        ]);
+        Http::fake([
+            'vault.example.test/v1/secret/metadata/talyvane/mail/smtp_password' => Http::response([
+                'data' => ['current_version' => 2],
+            ], 200),
+            'vault.example.test/v1/secret/data/talyvane/mail/smtp_password' => Http::response([
+                'errors' => ['simulated Vault write failure'],
+            ], 500),
+        ]);
+
+        $this->actingAs($admin)
+            ->from('/admin/secrets')
+            ->post('/admin/secrets/mail.smtp.password', [
+                'secret_value' => 'replacement-secret-value-123',
+                'reason' => 'Rotate the SMTP credential after the scheduled provider key renewal.',
+                'password' => 'Strong-Testing-Password-934!',
+                'code' => $this->stepUpCode($admin),
+            ])
+            ->assertRedirect('/admin/secrets')
+            ->assertSessionHasErrors('secret_value');
+
+        $this->assertDatabaseHas('platform_secrets', [
+            'secret_key' => 'mail.smtp.password',
+            'status' => 'configured',
+            'vault_version' => 2,
+        ]);
+        $this->assertDatabaseHas('platform_secret_audit_events', [
+            'secret_key' => 'mail.smtp.password',
+            'action' => 'secret.write_failed',
+        ]);
+
+        Http::fake([
+            'vault.example.test/v1/secret/data/talyvane/mail/smtp_password*' => Http::response([
+                'data' => [
+                    'data' => ['value' => 'previous-version-secret'],
+                    'metadata' => ['version' => 2],
+                ],
+            ], 200),
+        ]);
+
+        $this->assertSame('previous-version-secret', app(PlatformSecretResolver::class)->resolve('mail.smtp.password'));
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'GET'
+            && str_contains($request->url(), 'version=2'));
+    }
+
+    public function test_secret_audit_events_cannot_be_updated_or_deleted_through_the_model(): void
+    {
+        $admin = $this->superAdmin();
+        PlatformSecret::query()->create([
+            'secret_key' => 'mail.smtp.password',
+            'vault_path' => 'talyvane/mail/smtp_password',
+            'status' => 'configured',
+            'vault_version' => 1,
+            'configured_by' => $admin->id,
+        ]);
+        $event = PlatformSecretAuditEvent::query()->create([
+            'secret_key' => 'mail.smtp.password',
+            'actor_id' => $admin->id,
+            'actor_email' => $admin->email,
+            'action' => 'secret.set',
+            'vault_version' => 1,
+            'reason' => 'Initial approved deployment credential configuration.',
+            'correlation_id' => 'test-correlation-id',
+            'created_at' => now(),
+        ]);
+
+        try {
+            $event->update(['reason' => 'tampered']);
+            $this->fail('Secret audit events must be append-only.');
+        } catch (LogicException) {
+            $this->assertDatabaseHas('platform_secret_audit_events', [
+                'id' => $event->id,
+                'reason' => 'Initial approved deployment credential configuration.',
+            ]);
+        }
+
+        try {
+            $event->delete();
+            $this->fail('Secret audit events must not be deleted.');
+        } catch (LogicException) {
+            $this->assertDatabaseHas('platform_secret_audit_events', ['id' => $event->id]);
+        }
+    }
+
+    public function test_unknown_secret_identifier_is_not_routable(): void
+    {
+        $admin = $this->superAdmin();
+
+        $this->actingAs($admin)
+            ->post('/admin/secrets/arbitrary.path.injected', [
+                'secret_value' => 'never-accepted-secret-value',
+                'reason' => 'Attempt to set a secret outside the approved catalog.',
+                'password' => 'Strong-Testing-Password-934!',
+                'code' => $this->stepUpCode($admin),
+            ])
+            ->assertNotFound();
+    }
+
     public function test_secret_management_is_unavailable_when_vault_is_not_configured(): void
     {
         config(['services.secrets_vault.token' => null]);
