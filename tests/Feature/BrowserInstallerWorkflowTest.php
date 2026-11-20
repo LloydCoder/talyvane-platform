@@ -18,7 +18,6 @@ use Tests\TestCase;
 class BrowserInstallerWorkflowTest extends TestCase
 {
     private string $temporaryRoot;
-    private string $databasePath;
     private string $originalDefaultConnection;
 
     protected function setUp(): void
@@ -33,13 +32,24 @@ class BrowserInstallerWorkflowTest extends TestCase
         File::ensureDirectoryExists($environmentRoot, 0700, true);
         file_put_contents($environmentRoot.'/.env', 'APP_KEY='.config('app.key').PHP_EOL);
 
-        $this->databasePath = $this->temporaryRoot.'/installer.sqlite';
-        touch($this->databasePath);
-        $sqlite = config('database.connections.sqlite');
-        $sqlite['database'] = $this->databasePath;
         config([
             'database.default' => 'mysql',
-            'database.connections.mysql' => $sqlite,
+            'database.connections.mysql' => [
+                'driver' => 'mysql',
+                'host' => '127.0.0.1',
+                'port' => 3306,
+                'database' => 'talyvane_test',
+                'username' => 'talyvane',
+                'password' => 'test-password',
+                'unix_socket' => '',
+                'charset' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+                'prefix' => '',
+                'prefix_indexes' => true,
+                'strict' => true,
+                'engine' => null,
+                'options' => [],
+            ],
             'app.env' => 'production',
             'app.debug' => false,
             'app.url' => 'https://agency.example.test',
@@ -94,7 +104,7 @@ class BrowserInstallerWorkflowTest extends TestCase
             'app_url' => 'https://agency.example.test',
             'db_host' => 'localhost',
             'db_port' => 3306,
-            'db_database' => $this->databasePath,
+            'db_database' => 'talyvane_test',
             'db_username' => 'talyvane',
             'db_password' => 'test-database-password',
             'mail_scheme' => 'smtp',
