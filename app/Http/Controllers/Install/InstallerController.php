@@ -6,6 +6,7 @@ use App\Install\EnvironmentWriter;
 use App\Install\InstallerAccessToken;
 use App\Install\InstallationDirectoryRemover;
 use App\Install\InstallationLock;
+use App\Install\InstallerPendingState;
 use App\Models\SuperAdminRecoveryEvent;
 use App\Models\User;
 use App\Notifications\SuperAdminEmailVerificationCode;
@@ -109,7 +110,7 @@ final class InstallerController
         return is_dir($path) && realpath($path) === $path && is_writable($path);
     }
 
-    public function verifyForm(Request $request): View|RedirectResponse
+    public function verifyForm(Request $request, InstallerPendingState $pendingState): View|RedirectResponse
     {
         $installerStartedAt = filter_var($request->session()->get('installer.started_at'), FILTER_VALIDATE_INT);
         if ($installerStartedAt === false || $installerStartedAt === null || $installerStartedAt < time() - 900) {
@@ -121,12 +122,28 @@ final class InstallerController
             ]);
         }
 
+        $pendingNonce = $request->session()->get('installer.pending_nonce');
+        if (! is_string($pendingNonce) || ! $pendingState->verify($pendingNonce)) {
+            if (is_string($pendingNonce)) {
+                $pendingState->release($pendingNonce);
+            }
+            $request->session()->forget(['installer.pending_admin', 'installer.pending_nonce']);
+
+            return redirect()->route('install.index')->withErrors([
+                'installer' => 'The pending installation state expired or is inconsistent. Restart the installation process.',
+            ]);
+        }
+
         $pending = $request->session()->get('installer.pending_admin');
 
         if (! is_array($pending) || ! isset($pending['email'], $pending['recovery_email'], $pending['started_at'])
             || time() - (int) $pending['started_at'] > 300
             || (int) ($pending['attempts'] ?? 0) >= 5) {
-            $request->session()->forget('installer.pending_admin');
+            $pendingNonce = $request->session()->get('installer.pending_nonce');
+            if (is_string($pendingNonce)) {
+                $pendingState->release($pendingNonce);
+            }
+            $request->session()->forget(['installer.pending_admin', 'installer.pending_nonce']);
 
             return redirect()->route('install.index')->withErrors([
                 'installer' => 'The verification session expired. Restart the installation verification step.',
@@ -139,7 +156,7 @@ final class InstallerController
         ]);
     }
 
-    public function store(Request $request, EnvironmentWriter $environment, RecoveryCodeGenerator $codes, InstallerAccessToken $accessToken): RedirectResponse
+    public function store(Request $request, EnvironmentWriter $environment, RecoveryCodeGenerator $codes, InstallerAccessToken $accessToken, InstallerPendingState $pendingState): RedirectResponse
     {
         $validated = $request->validate([
             'installer_token' => ['required', 'string', 'size:43', 'regex:/^[A-Za-z0-9_-]+$/'],
@@ -204,6 +221,14 @@ final class InstallerController
             || ! hash_equals(strtolower($request->getHost()), strtolower($submittedHost))) {
             throw ValidationException::withMessages([
                 'app_url' => 'The canonical application URL host must match the HTTPS host serving this installer.',
+            ]);
+        }
+
+        try {
+            $pendingNonce = $pendingState->acquire();
+        } catch (RuntimeException) {
+            throw ValidationException::withMessages([
+                'installer' => 'Another installation verification is already in progress. Continue that session or wait for it to expire before restarting.',
             ]);
         }
 
@@ -316,7 +341,9 @@ final class InstallerController
                 'started_at' => time(),
                 'attempts' => 0,
             ]);
+            $request->session()->put('installer.pending_nonce', $pendingNonce);
         } catch (Throwable $exception) {
+            $pendingState->release($pendingNonce);
             // Database and SMTP exception messages can contain credentials.
             // Log only non-secret classification data; never persist driver diagnostics.
             logger()->warning('Talyvane browser installer configuration step failed.', [
@@ -333,7 +360,7 @@ final class InstallerController
         return redirect()->route('install.verify');
     }
 
-    public function verify(Request $request, InstallerAccessToken $accessToken, InstallationDirectoryRemover $remover): RedirectResponse
+    public function verify(Request $request, InstallerAccessToken $accessToken, InstallationDirectoryRemover $remover, InstallerPendingState $pendingState): RedirectResponse
     {
         $validated = $request->validate([
             'primary_code' => ['required', 'digits:6'],
@@ -350,12 +377,25 @@ final class InstallerController
             ]);
         }
 
+        $pendingNonce = $request->session()->get('installer.pending_nonce');
+        if (! is_string($pendingNonce) || ! $pendingState->verify($pendingNonce)) {
+            if (is_string($pendingNonce)) {
+                $pendingState->release($pendingNonce);
+            }
+            $request->session()->forget(['installer.pending_admin', 'installer.pending_nonce']);
+
+            throw ValidationException::withMessages([
+                'installer' => 'The pending installation state expired or is inconsistent. Restart the installation process.',
+            ]);
+        }
+
         $pending = $request->session()->get('installer.pending_admin');
         if (! is_array($pending)
             || ! isset($pending['started_at'], $pending['attempts'], $pending['primary_code_hash'], $pending['recovery_code_hash'])
             || time() - (int) $pending['started_at'] > 300
             || (int) $pending['attempts'] >= 5) {
-            $request->session()->forget('installer.pending_admin');
+            $pendingState->release($pendingNonce);
+            $request->session()->forget(['installer.pending_admin', 'installer.pending_nonce']);
             throw ValidationException::withMessages(['installer' => 'The verification session expired. Restart the installation verification step.']);
         }
 
@@ -438,6 +478,7 @@ final class InstallerController
             $accessTokenRemoved = false;
         }
 
+        $pendingState->release($pendingNonce);
         $installerRemoved = false;
         try {
             $installerRemoved = $remover->remove();
@@ -445,7 +486,7 @@ final class InstallerController
             $installerRemoved = false;
         }
 
-        $request->session()->forget('installer.pending_admin');
+        $request->session()->forget(['installer.pending_admin', 'installer.pending_nonce']);
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         $request->session()->put('install.success.handoff', Crypt::encryptString(json_encode([
