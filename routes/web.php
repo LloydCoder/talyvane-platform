@@ -48,7 +48,7 @@ use App\Models\SitePage;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('install')->name('install.')->group(function (): void {
+Route::middleware(NoStoreInstallerResponses::class)->prefix('install')->name('install.')->group(function (): void {
     Route::get('/', [InstallerController::class, 'index'])->name('index');
     Route::post('/', [InstallerController::class, 'store'])->middleware('throttle:5,1')->name('store');
     Route::get('/verify', [InstallerController::class, 'verifyForm'])->name('verify');
