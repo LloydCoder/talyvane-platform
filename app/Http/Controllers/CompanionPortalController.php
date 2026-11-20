@@ -89,12 +89,13 @@ class CompanionPortalController extends Controller
         return redirect()->route('companion-portal.dashboard')->with('status', 'Availability window removed.');
     }
 
-    public function updateAutomaticBooking(Request $request, CompanionProfile $profile): RedirectResponse
+    public function updateAutomaticBooking(Request $request, CompanionProfile $profile, \App\Services\FeatureRegistry $features): RedirectResponse
     {
         $this->assertOwnership($profile);
         $enabled = $request->boolean('enabled');
 
         if ($enabled) {
+            $features->assertOperationallyEnabled('bookings.automatic');
             $request->validate([
                 'consent_confirmed' => ['required', 'accepted'],
             ]);
