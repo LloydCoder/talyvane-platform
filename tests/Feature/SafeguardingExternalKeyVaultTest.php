@@ -155,6 +155,78 @@ class SafeguardingExternalKeyVaultTest extends TestCase
         ]);
     }
 
+    public function test_credential_rotation_preflight_verifies_existing_case_keys_without_deleting_them(): void
+    {
+        $plaintextKey = null;
+        $activeKeyReference = null;
+
+        Http::fake(function (Request $request) use (&$plaintextKey, &$activeKeyReference) {
+            if (str_contains($request->url(), '/encrypt/')) {
+                $plaintextKey = base64_decode((string) $request['plaintext'], true);
+
+                return Http::response(['data' => ['ciphertext' => 'vault:v1:preflight-ciphertext']]);
+            }
+
+            if (str_contains($request->url(), '/decrypt/')) {
+                $key = str_contains($request->url(), '/decrypt/'.$activeKeyReference)
+                    ? str_repeat('k', 32)
+                    : (string) $plaintextKey;
+
+                return Http::response(['data' => ['plaintext' => base64_encode($key)]]);
+            }
+
+            if ($request->method() === 'LIST') {
+                return Http::response(['data' => ['keys' => [$activeKeyReference]]]);
+            }
+
+            return Http::response([], 204);
+        });
+
+        [$owner, $specialist] = $this->actors('rotation');
+        $case = $this->createCase($owner, $specialist);
+        $stored = DB::table('safeguarding_case_contents')->where('case_id', $case->id)->first();
+        $activeKeyReference = $stored->key_reference;
+
+        $result = app(\\App\\Services\\SafeguardingCaseKeyVault::class)->verifyCredentialsForRotation();
+
+        $this->assertSame(1, $result['active_case_keys_verified']);
+        $this->assertTrue($result['retention_inventory_verified']);
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'LIST'
+            && $request->hasHeader('X-Vault-Token', 'retention-token'));
+        Http::assertNotSent(fn (Request $request): bool => $request->method() === 'DELETE'
+            && str_ends_with($request->url(), '/keys/'.$activeKeyReference));
+    }
+
+    public function test_credential_rotation_preflight_fails_when_an_existing_case_key_is_missing(): void
+    {
+        $plaintextKey = null;
+
+        Http::fake(function (Request $request) use (&$plaintextKey) {
+            if (str_contains($request->url(), '/encrypt/')) {
+                $plaintextKey = base64_decode((string) $request['plaintext'], true);
+
+                return Http::response(['data' => ['ciphertext' => 'vault:v1:preflight-ciphertext']]);
+            }
+
+            if (str_contains($request->url(), '/decrypt/')) {
+                return Http::response(['data' => ['plaintext' => base64_encode(str_repeat('k', 32))]]);
+            }
+
+            if ($request->method() === 'LIST') {
+                return Http::response(['data' => ['keys' => []]]);
+            }
+
+            return Http::response([], 204);
+        });
+
+        [$owner, $specialist] = $this->actors('rotation-missing');
+        $case = $this->createCase($owner, $specialist);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('An active safeguarding case key is missing from the external vault.');
+        app(\\App\\Services\\SafeguardingCaseKeyVault::class)->verifyCredentialsForRotation();
+    }
+
     public function test_unknown_stored_key_provider_fails_closed(): void
     {
         config(['talyvane.safeguarding.key_provider' => 'local']);
