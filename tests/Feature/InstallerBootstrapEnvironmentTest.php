@@ -76,6 +76,18 @@ class InstallerBootstrapEnvironmentTest extends TestCase
         $this->assertSame($environment, file_get_contents($this->basePath.'/.env'));
     }
 
+    public function test_bootstrap_rejects_symlinked_session_storage_before_framework_boot(): void
+    {
+        $sessions = $this->basePath.'/storage/framework/sessions';
+        mkdir($this->basePath.'/storage/framework', 0700, true);
+        $target = $this->basePath.'/outside-sessions';
+        mkdir($target, 0700, true);
+        symlink($target, $sessions);
+
+        $this->expectException(RuntimeException::class);
+        (new BootstrapEnvironment($this->basePath))->ensure();
+    }
+
     public function test_existing_application_key_must_be_valid_and_environment_permissions_are_restricted(): void
     {
         $environment = "APP_ENV=production\nAPP_KEY=not-a-valid-key\n";
