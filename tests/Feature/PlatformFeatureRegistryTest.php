@@ -184,4 +184,64 @@ class PlatformFeatureRegistryTest extends TestCase
             ->assertSee('Model agency applications')
             ->assertSee('Planned');
     }
+    public function test_activation_prerequisites_are_enforced_by_the_runtime_feature_gate(): void
+    {
+        DB::table('platform_features')->where('key', 'public.discovery')->update([
+            'activation_requirements' => json_encode(['unrecognized_security_prerequisite']),
+        ]);
+
+        $registry = app(FeatureRegistry::class);
+
+        $this->assertFalse($registry->isOperationallyEnabled('public.discovery'));
+        $this->assertFalse($registry->catalog()->firstWhere('key', 'public.discovery')->effective_enabled);
+        $this->get('/destinations')->assertNotFound();
+    }
+
+    public function test_dependency_prerequisites_are_checked_recursively_at_runtime(): void
+    {
+        DB::table('platform_features')->where('key', 'public.discovery')->update([
+            'activation_requirements' => json_encode(['unrecognized_security_prerequisite']),
+        ]);
+
+        $registry = app(FeatureRegistry::class);
+
+        $this->assertFalse($registry->isOperationallyEnabled('bookings.companionship'));
+        $this->assertFalse($registry->isOperationallyEnabled('bookings.automatic'));
+    }
+
+    public function test_existing_booking_cancellation_and_companion_opt_out_survive_feature_disablement(): void
+    {
+        $routes = app('router')->getRoutes();
+        $cancel = $routes->getByName('bookings.cancel');
+        $optOut = $routes->getByName('companion-portal.profiles.automatic-booking');
+
+        $this->assertNotNull($cancel);
+        $this->assertNotNull($optOut);
+        $this->assertNotContains('feature:bookings.companionship', $cancel->gatherMiddleware());
+        $this->assertNotContains('feature:portals.client', $cancel->gatherMiddleware());
+        $this->assertNotContains('feature:bookings.automatic', $optOut->gatherMiddleware());
+        $this->assertNotContains('feature:portals.companion', $optOut->gatherMiddleware());
+    }
+
+    public function test_existing_assignment_and_settlement_safety_transitions_survive_feature_disablement(): void
+    {
+        $routes = app('router')->getRoutes();
+
+        foreach ([
+            'admin.model-assignments.complete',
+            'admin.model-assignments.decline',
+            'admin.model-assignments.cancel',
+            'admin.model-assignments.dispute',
+            'admin.model-settlements.reviewExpense',
+            'admin.model-settlements.approve',
+            'admin.model-settlements.payment',
+            'admin.model-settlements.reverse',
+            'admin.model-settlements.dispute',
+        ] as $name) {
+            $route = $routes->getByName($name);
+            $this->assertNotNull($route, 'Expected route '.$name.' to exist.');
+            $this->assertStringNotContainsString('feature:model-agency.', implode('|', $route->gatherMiddleware()));
+        }
+    }
+
 }
