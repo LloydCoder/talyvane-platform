@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\PaymentMethodController;
 use App\Http\Controllers\Admin\PaymentSettingsController;
 use App\Http\Controllers\Admin\SitePageController;
 use App\Http\Controllers\Admin\PlatformFeatureController;
+use App\Http\Controllers\Admin\SecretManagementController;
 use App\Http\Controllers\Admin\ModelAgencyApplicationAdminController;
 use App\Http\Controllers\Admin\ModelTalentRepresentationAgreementController;
 use App\Http\Controllers\Admin\ModelTalentPortfolioAssetController;
