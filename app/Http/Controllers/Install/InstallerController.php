@@ -68,7 +68,10 @@ final class InstallerController
             'Required PHP extensions' => count(array_filter($extensions, 'extension_loaded')) === count($extensions),
             'GD WebP image support' => ($gdInfo['WebP Support'] ?? false) === true,
             'HTTPS request' => $request->isSecure(),
-            'Document root serves public/' => $rootIsPrivate && $public !== false && $documentRoot === $public,
+            'Document root is isolated and serves only public files' => $rootIsPrivate
+                && $public !== false
+                && $documentRoot === $public
+                && $this->documentRootContainsNoPrivateApplicationFiles($documentRoot),
             'Private application storage is writable' => $this->isSafeWritableDirectory('storage/app/private'),
             'Session storage is writable' => $this->isSafeWritableDirectory('storage/framework/sessions'),
             'Framework cache storage is writable' => $this->isSafeWritableDirectory('storage/framework/cache'),
@@ -91,6 +94,35 @@ final class InstallerController
         ];
     }
 
+
+
+    private function documentRootContainsNoPrivateApplicationFiles(string $documentRoot): bool
+    {
+        $forbidden = [
+            '.env', '.env.example', '.git', 'app', 'artisan', 'bootstrap',
+            'composer.json', 'composer.lock', 'config', 'database', 'install',
+            'phpunit.xml', 'resources', 'routes', 'tests', 'vendor',
+        ];
+
+        foreach ($forbidden as $entry) {
+            if (file_exists($documentRoot.DIRECTORY_SEPARATOR.$entry)
+                || is_link($documentRoot.DIRECTORY_SEPARATOR.$entry)) {
+                return false;
+            }
+        }
+
+        $publicStorage = $documentRoot.DIRECTORY_SEPARATOR.'storage';
+        if (file_exists($publicStorage) || is_link($publicStorage)) {
+            $expectedStorage = realpath(storage_path('app/public'));
+            if (! is_link($publicStorage)
+                || $expectedStorage === false
+                || realpath($publicStorage) !== $expectedStorage) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     private function isSafeWritableDirectory(string $relativePath): bool
     {
