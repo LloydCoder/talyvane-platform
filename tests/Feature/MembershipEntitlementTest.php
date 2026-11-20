@@ -9,6 +9,7 @@ use App\Models\CompanionProfile;
 use App\Models\Destination;
 use App\Models\ProfileMedia;
 use App\Models\User;
+use App\Services\FeatureRegistry;
 use App\Services\MembershipEntitlementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -338,14 +339,14 @@ class MembershipEntitlementTest extends TestCase
             'talyvane.privacy.private_gallery_consent_approved' => false,
         ]);
 
-        $this->assertFalse(app(\\App\\Services\\FeatureRegistry::class)->isOperationallyEnabled('memberships.entitlements'));
+        $this->assertFalse(app(FeatureRegistry::class)->isOperationallyEnabled('memberships.entitlements'));
 
         config([
             'talyvane.privacy.private_gallery_consent_version' => 'private-gallery-v1',
             'talyvane.privacy.private_gallery_consent_approved' => true,
         ]);
 
-        $this->assertTrue(app(\\App\\Services\\FeatureRegistry::class)->isOperationallyEnabled('memberships.entitlements'));
+        $this->assertTrue(app(FeatureRegistry::class)->isOperationallyEnabled('memberships.entitlements'));
     }
 
     public function test_membership_entitlements_feature_becomes_operational_only_after_the_runtime_gate_is_present(): void
@@ -356,6 +357,6 @@ class MembershipEntitlementTest extends TestCase
             'activation_requirements' => json_encode(['server_side_entitlement_checks']),
         ]);
 
-        $this->assertTrue(app(\App\Services\FeatureRegistry::class)->isOperationallyEnabled('memberships.entitlements'));
+        $this->assertTrue(app(FeatureRegistry::class)->isOperationallyEnabled('memberships.entitlements'));
     }
 }
