@@ -25,12 +25,24 @@ class CompanionMediaController extends Controller
             'media' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
             'rights_confirmed' => ['required', 'accepted'],
             'publication_confirmed' => ['required', 'accepted'],
+            'members_only_confirmed' => ['sometimes', 'accepted'],
         ]);
+
+        $membersOnlyConsentVersion = config('talyvane.privacy.private_gallery_consent_version');
+        $membersOnlyConsentConfirmed = isset($validated['members_only_confirmed']);
+        if ($membersOnlyConsentConfirmed && (
+            ! filled($membersOnlyConsentVersion)
+            || ! config('talyvane.privacy.private_gallery_consent_approved')
+        )) {
+            throw ValidationException::withMessages([
+                'members_only_confirmed' => 'The separate private-gallery consent policy is not currently approved.',
+            ]);
+        }
 
         $image = $processor->storeSanitized($validated['media']);
 
         try {
-            DB::transaction(function () use ($profile, $request, $image): void {
+            DB::transaction(function () use ($profile, $request, $image, $membersOnlyConsentConfirmed, $membersOnlyConsentVersion): void {
                 $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
                 abort_unless((int) $lockedProfile->user_id === (int) $request->user()->id, 403);
 
@@ -55,6 +67,8 @@ class CompanionMediaController extends Controller
                     'status' => 'pending_review',
                     'rights_confirmed_at' => now(),
                     'consent_version' => config('talyvane.privacy.profile_consent_version'),
+                    'members_only_consent_at' => $membersOnlyConsentConfirmed ? now() : null,
+                    'members_only_consent_version' => $membersOnlyConsentConfirmed ? $membersOnlyConsentVersion : null,
                 ]);
             });
         } catch (\Throwable $exception) {
@@ -62,7 +76,7 @@ class CompanionMediaController extends Controller
             throw $exception;
         }
 
-        return redirect()->route('companion-portal.dashboard')->with('status', 'Image received privately. It will not appear publicly unless the agency approves it.');
+        return redirect()->route('companion-portal.dashboard')->with('status', $membersOnlyConsentConfirmed ? 'Image received privately with a separate members-only access opt-in recorded.' : 'Image received privately. It will not appear publicly unless the agency approves it.');
     }
 
     public function destroy(Request $request, CompanionProfile $profile, ProfileMedia $media): RedirectResponse
