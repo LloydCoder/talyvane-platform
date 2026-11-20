@@ -31,7 +31,7 @@
                             <label>Choose a profile image</label><input type="file" name="media" accept="image/jpeg,image/png,image/webp" required>
                             <label class="remember-row"><input type="checkbox" name="rights_confirmed" value="1" required> I own or have documented rights to this image and it contains no person whose identity or likeness is used without their permission</label>
                             <label class="remember-row"><input type="checkbox" name="publication_confirmed" value="1" required> I explicitly consent to this image being displayed on my profile if approved; I may withdraw consent at any time</label>
-                            @if (filled(config('talyvane.privacy.private_gallery_consent_version')) && config('talyvane.privacy.private_gallery_consent_approved'))
+                            @if ($privateGalleryConsentAvailable)
                                 <p class="field-help">Optional and separate from public profile publication.</p>
                                 <label class="remember-row"><input type="checkbox" name="members_only_confirmed" value="1"> {{ $privateGalleryConsentStatement }}</label>
                             @endif
