@@ -117,7 +117,8 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [ ] Complete scheduled-job and integration-boundary feature enforcement, direct-database bypass testing, audit-integrity verification and comprehensive feature-gate bypass tests.
 - [x] Implement current-password plus single-use TOTP step-up, reason capture, atomic feature-state changes and append-only audit writes.
 - [x] Add an append-only feature-audit event schema, model-level update/delete protection and transactional event writes for feature state changes.
-- [ ] Add secret set/rotate/clear workflows backed by environment or dedicated secret storage; never reveal stored values.
+- [x] Add Super Admin secret set/rotate/clear workflows backed by a dedicated Vault KV v2 store; never reveal or persist secret values in the application database.
+- [ ] Wire each implemented integration adapter to the version-pinned PlatformSecretResolver and validate provider-specific activation; storing a credential does not activate an integration.
 - [ ] Add dependency and eligibility validation for market, payment, verification and communication activation.
 - [x] Add audited emergency disable for optional implemented features and prerequisite-checked re-enable workflow.
 - [x] Test designated Super Admin lifecycle invariants and second-principal rejection at the Eloquent boundary.
