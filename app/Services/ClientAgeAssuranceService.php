@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 final class ClientAgeAssuranceService
 {
@@ -23,12 +24,20 @@ final class ClientAgeAssuranceService
             $provider !== 'yoti'
             || ! filled($providerClass)
             || ! class_exists($providerClass)
-            || ! method_exists($providerClass, 'isConfigured')
-            || ! app($providerClass)->isConfigured()
             || ! filled($policyVersion)
             || ! config('talyvane.age_assurance.client_policy_approved')
             || (int) config('talyvane.age_assurance.client_minimum_age', 0) < 18
         ) {
+            return false;
+        }
+
+        try {
+            $providerAdapter = app($providerClass);
+
+            if (! method_exists($providerAdapter, 'isConfigured') || $providerAdapter->isConfigured() !== true) {
+                return false;
+            }
+        } catch (Throwable) {
             return false;
         }
 
@@ -41,7 +50,7 @@ final class ClientAgeAssuranceService
             || ! Schema::hasTable('client_age_verifications')
             || ! Schema::hasColumns('client_age_verifications', ['user_id', 'provider', 'provider_reference_hash', 'country_code', 'market_code', 'age_threshold', 'policy_version', 'status', 'verified_at', 'expires_at', 'revoked_at'])
             || ! Schema::hasTable('client_age_verification_events')
-            || ! Schema::hasColumns('client_age_verification_events', ['verification_id', 'user_id', 'actor_id', 'event_type', 'provider_reference_hash', 'occurred_at'])
+            || ! Schema::hasColumns('client_age_verification_events', ['verification_id', 'user_id', 'actor_id', 'event_type', 'provider_reference_hash', 'policy_version', 'occurred_at'])
         ) {
             return false;
         }
@@ -82,10 +91,23 @@ final class ClientAgeAssuranceService
             ->where('verification.market_code', $marketCode)
             ->where('verification.status', 'verified')
             ->where('verification.age_threshold', '>=', $minimumAge)
+            ->whereColumn('verification.age_threshold', '>=', 'policy.minimum_age')
+            ->whereNotNull('verification.provider_reference_hash')
+            ->where('verification.provider_reference_hash', '<>', '')
             ->whereNotNull('verification.verified_at')
             ->whereNotNull('verification.expires_at')
             ->where('verification.expires_at', '>', $now)
             ->whereNull('verification.revoked_at')
+            ->whereExists(function ($events): void {
+                $events->selectRaw('1')
+                    ->from('client_age_verification_events as evidence')
+                    ->whereColumn('evidence.verification_id', 'verification.id')
+                    ->whereColumn('evidence.user_id', 'verification.user_id')
+                    ->whereColumn('evidence.provider_reference_hash', 'verification.provider_reference_hash')
+                    ->whereColumn('evidence.policy_version', 'verification.policy_version')
+                    ->where('evidence.event_type', 'verified')
+                    ->whereNotNull('evidence.occurred_at');
+            })
             ->where('policy.is_approved', true)
             ->where('policy.is_active', true)
             ->where('policy.minimum_age', '>=', $minimumAge)
