@@ -191,7 +191,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
         Route::post('/model-applications/{application}/portfolio-assets', [ModelTalentPortfolioAssetController::class, 'store'])->middleware(['feature:model-agency.usage-rights', 'throttle:10,1'])->name('model-applications.portfolio-assets.store');
         Route::get('/model-portfolio-assets/{asset}/preview', [ModelTalentPortfolioAssetController::class, 'preview'])->middleware('feature:model-agency.usage-rights')->name('model-portfolio-assets.preview');
-        Route::post('/model-portfolio-assets/{asset}/review', [ModelTalentPortfolioAssetController::class, 'review'])->middleware(['feature:model-agency.usage-rights', 'throttle:10,1'])->name('model-portfolio-assets.review');
+        Route::post('/model-portfolio-assets/{asset}/review', [ModelTalentPortfolioAssetController::class, 'review'])->middleware('throttle:10,1')->name('model-portfolio-assets.review');
         Route::post('/model-portfolio-assets/{asset}/withdraw-consent', [ModelTalentPortfolioAssetController::class, 'withdrawConsent'])->middleware('throttle:5,1')->name('model-portfolio-assets.withdraw-consent');
 
         Route::post('/model-portfolio-assets/{asset}/licences', [ModelTalentImageLicenceController::class, 'store'])->middleware(['feature:model-agency.usage-rights', 'throttle:10,1'])->name('model-portfolio-assets.licences.store');
