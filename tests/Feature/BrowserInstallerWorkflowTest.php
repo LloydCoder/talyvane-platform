@@ -128,6 +128,10 @@ class BrowserInstallerWorkflowTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        $connection->table('migrations')->insert([
+            'migration' => '2026_11_19_000024_create_platform_control_table',
+            'batch' => 1,
+        ]);
 
         $this->get('https://agency.example.test/install')->assertOk();
         $privateInstallerKey = trim((string) file_get_contents(storage_path('app/private/INSTALLER-ACCESS-KEY.txt')));
@@ -155,7 +159,7 @@ class BrowserInstallerWorkflowTest extends TestCase
 
         $this->assertFalse($connection->getSchemaBuilder()->hasTable('users'));
         $this->assertTrue($connection->getSchemaBuilder()->hasTable('foreign_customer_data'));
-        $this->assertSame(0, $connection->table('migrations')->count());
+        $this->assertSame(1, $connection->table('migrations')->count());
     }
 
     public function test_browser_install_verifies_emails_creates_lock_shows_password_once_and_enforces_first_login_change(): void
