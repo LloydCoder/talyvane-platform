@@ -268,7 +268,7 @@ class SecretManagementControllerTest extends TestCase
             'vault_version' => 2,
         ]);
         Http::fake([
-            'vault.example.test/v1/secret/data/talyvane/mail/smtp_password' => Http::response([
+            'vault.example.test/v1/secret/data/talyvane/mail/smtp_password*' => Http::response([
                 'data' => [
                     'data' => ['value' => 'runtime-only-secret'],
                     'metadata' => ['version' => 2],
