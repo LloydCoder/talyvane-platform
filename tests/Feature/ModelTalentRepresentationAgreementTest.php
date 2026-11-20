@@ -241,7 +241,7 @@ class ModelTalentRepresentationAgreementTest extends TestCase
         $admin = $this->createAdminUser();
 
         $this->actingAs($admin)->post('/admin/model-applications/'.$application->id.'/agreements', $this->terms())
-            ->assertSessionHasErrors('agreement');
+            ->assertStatus(503);
 
         $this->assertDatabaseCount('model_talent_representation_agreements', 0);
     }
