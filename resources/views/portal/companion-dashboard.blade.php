@@ -33,6 +33,8 @@
                             <label class="remember-row"><input type="checkbox" name="publication_confirmed" value="1" required> I explicitly consent to this image being displayed on my profile if approved; I may withdraw consent at any time</label>
                             @if ($privateGalleryConsentAvailable)
                                 <p class="field-help">Optional and separate from public profile publication.</p>
+                                <input type="hidden" name="members_only_consent_statement_hash" value="{{ $privateGalleryConsentStatementHash }}">
+                                <input type="hidden" name="members_only_consent_policy_version" value="{{ $privateGalleryConsentVersion }}">
                                 <label class="remember-row"><input type="checkbox" name="members_only_confirmed" value="1"> {{ $privateGalleryConsentStatement }}</label>
                             @endif
                             <button class="button button-dark" type="submit">Submit image for review</button>
