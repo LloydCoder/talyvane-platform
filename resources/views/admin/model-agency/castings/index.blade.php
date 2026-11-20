@@ -12,6 +12,7 @@
         </div>
     </div>
 
+    @if($canCreateCasting)
     <section class="admin-panel">
         <h2>Create casting brief</h2>
         <form method="POST" action="{{ route('admin.model-castings.store') }}" class="admin-form-grid">
@@ -39,6 +40,9 @@
             <div class="full-width"><button class="button button-dark" type="submit">Save private casting draft</button></div>
         </form>
     </section>
+    @else
+        <section class="admin-panel"><h2>New casting paused</h2><p class="field-help">New casting calls, submissions and positive selection decisions are disabled. Existing calls can still be closed or cancelled, and submissions can still be declined or withdrawn.</p></section>
+    @endif
 
     <section class="admin-panel">
         <h2>Casting register</h2>
@@ -53,7 +57,7 @@
                         @if($call->compensation_amount !== null)<p>Compensation: {{ $call->compensation_amount }} {{ $call->currency_code }}</p>@endif
                     </div>
                     <div class="record-actions">
-                        @if($call->status === 'draft')
+                        @if($call->status === 'draft' && $canCreateCasting)
                             <form method="POST" action="{{ route('admin.model-castings.publish', $call) }}">@csrf<button class="button button-dark" type="submit">Open call</button></form>
                         @elseif($call->status === 'open')
                             <form method="POST" action="{{ route('admin.model-castings.close', $call) }}">@csrf<label>Close reason<input name="reason" minlength="20" maxlength="1000" required></label><button class="button button-dark" type="submit">Close to submissions</button></form>
@@ -64,7 +68,7 @@
                     </div>
                 </div>
 
-                @if($call->status === 'open')
+                @if($call->status === 'open' && $canCreateCasting)
                     <details class="admin-details">
                         <summary>Submit an eligible model</summary>
                         <p class="field-help">Only approved private portfolio assets with an active casting-distribution licence covering this territory and shoot dates can be submitted. The model's per-use consent must already be recorded.</p>
@@ -96,7 +100,7 @@
                         @if(in_array($submission->status, ['submitted','shortlisted'], true))
                             <form method="POST" action="{{ route('admin.model-casting-submissions.decision', $submission) }}" class="inline-form">
                                 @csrf
-                                <select name="decision" required><option value="shortlisted">Shortlist</option><option value="selected">Select</option><option value="declined">Decline</option></select>
+                                <select name="decision" required>@if($canCreateCasting)<option value="shortlisted">Shortlist</option><option value="selected">Select</option>@endif<option value="declined">Decline</option></select>
                                 <input name="note" minlength="20" maxlength="1500" placeholder="Human review rationale" required>
                                 <button class="button button-dark" type="submit">Record decision</button>
                             </form>
