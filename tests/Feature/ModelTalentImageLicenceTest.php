@@ -278,8 +278,8 @@ class ModelTalentImageLicenceTest extends TestCase
                 ],
             );
             $this->fail('An unapproved licence policy must fail closed.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('licence', $exception->errors());
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            $this->assertSame(503, $exception->getStatusCode());
         }
     }
 }
