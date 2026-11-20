@@ -11,7 +11,7 @@ class ProfileMedia extends Model
 
     protected $fillable = [
         'companion_profile_id', 'uploaded_by', 'storage_path', 'mime_type',
-        'width', 'height', 'file_size', 'status', 'rights_confirmed_at',
+        'width', 'height', 'file_size', 'status', 'access_level', 'rights_confirmed_at,
         'consent_version', 'reviewed_by', 'reviewed_at', 'review_note',
     ];
 
