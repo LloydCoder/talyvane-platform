@@ -76,7 +76,7 @@ class SafeguardingRetentionTest extends TestCase
         $this->assertSame('MTA-LEGACY-REF', $fresh->subject_reference);
         $this->assertSame('Legacy legal hold rationale', $fresh->legal_hold_reason);
         $this->assertSame('Legacy release rationale', $fresh->legal_hold_release_reason);
-        $this->assertNull(DB::table('safeguarding_cases')->where('id', $case->id)->value('summary'));
+        $this->assertSame('', DB::table('safeguarding_cases')->where('id', $case->id)->value('summary'));
         $this->assertNotNull(DB::table('safeguarding_case_contents')->where('case_id', $case->id)->value('key_ciphertext'));
     }
 
