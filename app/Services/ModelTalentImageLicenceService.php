@@ -64,6 +64,7 @@ class ModelTalentImageLicenceService
         string $executionEvidenceReference,
         string $modelConsentEvidenceReference,
     ): void {
+        app(FeatureRegistry::class)->assertOperationallyEnabled('model-agency.usage-rights');
         $this->assertPrivateEvidenceReference($executionEvidenceReference, 'private/model-licences/');
         $this->assertPrivateEvidenceReference($modelConsentEvidenceReference, 'private/model-consent/');
 
