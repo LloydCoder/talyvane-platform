@@ -96,7 +96,10 @@ class SafeguardingVaultCredentialLifecycle
             throw new RuntimeException('Two non-empty, distinct, single-line Vault credentials are required.');
         }
 
-        $this->environment->assertWritable();
+        $this->environment->assertRuntimeMatches([
+            'SAFEGUARDING_VAULT_TOKEN' => config('services.safeguarding_vault.token', ''),
+            'SAFEGUARDING_VAULT_RETENTION_TOKEN' => config('services.safeguarding_vault.retention_token', ''),
+        ]);
 
         $original = [
             'services.safeguarding_vault.token' => config('services.safeguarding_vault.token'),
