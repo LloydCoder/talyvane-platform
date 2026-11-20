@@ -183,4 +183,76 @@ class ClientExperienceTest extends TestCase
 
         $this->assertDatabaseCount('client_memberships', 0);
     }
+
+    public function test_membership_assignment_records_append_only_lifecycle_events(): void
+    {
+        $client = $this->client();
+        $admin = $this->createAdminUser(['name' => 'Agency Owner', 'email' => 'owner@example.test', 'role' => 'owner']);
+        $previous = ClientMembership::create([
+            'user_id' => $client->id,
+            'tier_name' => 'Private',
+            'benefits_summary' => 'Existing benefits.',
+            'status' => 'active',
+            'starts_at' => now()->subMonth(),
+            'assigned_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)->post(route('admin.clients.membership', $client), [
+            'tier_name' => 'Signature',
+            'benefits_summary' => 'Dedicated concierge contact and priority coordination.',
+            'status' => 'active',
+            'starts_at' => now()->format('Y-m-d'),
+        ])->assertRedirect(route('admin.clients.index'));
+
+        $this->assertDatabaseHas('client_membership_events', [
+            'membership_id' => $previous->id,
+            'actor_id' => $admin->id,
+            'event_type' => 'membership.superseded',
+        ]);
+        $this->assertDatabaseHas('client_membership_events', [
+            'actor_id' => $admin->id,
+            'event_type' => 'membership.assigned',
+        ]);
+        $this->assertSame(2, DB::table('client_membership_events')->count());
+    }
+
+    public function test_membership_lifecycle_events_reject_eloquent_mutation_and_deletion(): void
+    {
+        $client = $this->client();
+        $admin = $this->createAdminUser(['name' => 'Agency Owner', 'email' => 'owner@example.test', 'role' => 'owner']);
+        $membership = ClientMembership::create([
+            'user_id' => $client->id,
+            'tier_name' => 'Signature',
+            'benefits_summary' => 'A dedicated concierge contact.',
+            'status' => 'active',
+            'starts_at' => now()->subDay(),
+            'assigned_by' => $admin->id,
+        ]);
+        $eventId = DB::table('client_membership_events')->insertGetId([
+            'membership_id' => $membership->id,
+            'client_id' => $client->id,
+            'actor_id' => $admin->id,
+            'event_type' => 'membership.assigned',
+            'before_state' => null,
+            'after_state' => json_encode(['status' => 'active']),
+            'reason' => 'Initial assignment',
+            'created_at' => now(),
+        ]);
+
+        $event = \\App\\Models\\ClientMembershipEvent::query()->findOrFail($eventId);
+        try {
+            $event->reason = 'tampered';
+            $event->save();
+            $this->fail('Membership events must reject updates.');
+        } catch (\\LogicException $exception) {
+            $this->assertSame('Membership lifecycle events are append-only.', $exception->getMessage());
+        }
+
+        try {
+            $event->delete();
+            $this->fail('Membership events must reject deletion.');
+        } catch (\\LogicException $exception) {
+            $this->assertSame('Membership lifecycle events are append-only.', $exception->getMessage());
+        }
+    }
 }
