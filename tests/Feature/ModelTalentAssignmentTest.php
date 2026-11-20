@@ -316,8 +316,8 @@ class ModelTalentAssignmentTest extends TestCase
                 $this->assignmentTerms(),
             );
             $this->fail('Assignment creation must fail closed when the current policy is not approved.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('assignment', $exception->errors());
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            $this->assertSame(503, $exception->getStatusCode());
         }
     }
 
