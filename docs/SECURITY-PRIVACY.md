@@ -145,3 +145,11 @@ The settlement service enforces independent actors for financial state transitio
 - Rejected attempts do not mutate the expense or settlement. Successful decisions retain the actor identifiers and append-only event records.
 
 These controls are application-level authorization. They do not verify external bank transfers, prevent privileged direct database writes, or replace independent bank/payment-provider dual authorization. Operators must independently reconcile external payment evidence and restrict database credentials.
+
+## External safeguarding key custody
+
+An optional HashiCorp Vault Transit adapter supports per-case, non-exportable keys. The application token performs key creation and encrypt/decrypt only; irreversible key deletion requires a separate retention credential. Vault endpoints must use HTTPS with certificate verification and redirects disabled. The two credentials are environment-backed and are never serialized into application records.
+
+Vault mode is opt-in. Existing local-key records remain marked `local` and continue to use the existing application-key wrapper. New records use the configured provider. Do not switch providers in a live deployment until Vault connectivity, least-privilege policies, key lifecycle, token rotation, audit logging and recovery have been tested. A Vault backup may restore deleted keys, so Vault backup retention and restore controls must be independently verified before claiming complete erasure.
+
+References: [OWASP Secrets Management Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html), [NIST SP 800-57 Part 1 Rev. 5](https://doi.org/10.6028/NIST.SP.800-57pt1r5), and [HashiCorp Vault Transit API](https://developer.hashicorp.com/vault/api-docs/secret/transit).
