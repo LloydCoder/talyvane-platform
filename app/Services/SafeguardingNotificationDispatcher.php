@@ -77,7 +77,8 @@ class SafeguardingNotificationDispatcher
                     $case->reference,
                     $case->case_type,
                     $case->severity,
-                    route('admin.safeguarding.cases.show', $case),
+                    $outbox->recipient_user_id !== null ? route('admin.safeguarding.cases.show', $case) : '',
+                    $outbox->recipient_user_id !== null,
                 ));
 
                 $outbox->forceFill([
