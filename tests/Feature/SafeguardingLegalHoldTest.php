@@ -84,6 +84,7 @@ class SafeguardingLegalHoldTest extends TestCase
 
         $this->assertNotNull($case->fresh()->legal_hold_at);
         $this->assertSame($owner->id, $case->fresh()->legal_hold_by);
+        $this->assertSame('Preserve records for an active legal and safeguarding review.', $case->fresh()->legal_hold_reason);
 
         $this->actingAs($owner)
             ->post('/admin/safeguarding/governance/'.$case->id.'/release-legal-hold', [
@@ -101,6 +102,8 @@ class SafeguardingLegalHoldTest extends TestCase
         $this->assertNull($fresh->legal_hold_at);
         $this->assertSame($superAdmin->id, $fresh->legal_hold_released_by);
         $this->assertNotNull($fresh->legal_hold_released_at);
+        $this->assertNull($fresh->legal_hold_reason);
+        $this->assertSame('Independent review confirms the preservation hold can now be released.', $fresh->legal_hold_release_reason);
 
         $this->assertDatabaseHas('safeguarding_case_events', [
             'case_id' => $case->id,
