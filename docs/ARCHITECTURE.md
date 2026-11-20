@@ -67,3 +67,7 @@ Bootstrap the first Super Admin through a one-time CLI/installation process. Do 
 
 ## Release artifact and installation
 Commercial releases must be reproducible from a committed `composer.lock`, include production dependencies and compiled frontend assets, and exclude secrets and customer data. Build steps belong in CI or a trusted build environment, not on the production shared host. The no-SSH/no-Composer tier requires a prebuilt artifact and a safe, release-specific installation and Super Admin bootstrap path; never expose an unrestricted web-based Artisan runner.
+
+## Hard safeguards and continuity-safe operations
+
+The feature registry is not an authority over hard safeguards. Reserved safety, privacy, safeguarding, financial-integrity and audit keys are rejected by the runtime feature resolver and cannot be changed by Super Admin feature controls. Optional feature pauses stop new work while preserving protective and close-out operations. Approved safeguarding retention, configured safeguarding notifications and model image-licence expiry continue under their independent operational prerequisites. See [ADR-0011](decisions/ADR-0011-hard-safeguards-not-feature-flags.md).
