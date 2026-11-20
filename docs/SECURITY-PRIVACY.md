@@ -153,3 +153,8 @@ An optional HashiCorp Vault Transit adapter supports per-case, non-exportable ke
 Vault mode is opt-in. Existing local-key records remain marked `local` and continue to use the existing application-key wrapper. New records use the configured provider. Do not switch providers in a live deployment until Vault connectivity, least-privilege policies, key lifecycle, token rotation, audit logging and recovery have been tested. A Vault backup may restore deleted keys, so Vault backup retention and restore controls must be independently verified before claiming complete erasure.
 
 References: [OWASP Secrets Management Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html), [NIST SP 800-57 Part 1 Rev. 5](https://doi.org/10.6028/NIST.SP.800-57pt1r5), and [HashiCorp Vault Transit API](https://developer.hashicorp.com/vault/api-docs/secret/transit).
+## Safeguarding database restore gate
+
+Vault-backed safeguarding restores have a maintenance-only reconciliation command. It reapplies approved retention to due closed cases, inventories only Talyvane-managed Vault key prefixes, verifies every active case key exists, deletes orphaned case/preflight keys with the separate retention token, and records aggregate counts. It refuses to run outside maintenance mode and fails closed on missing active keys or Vault errors.
+
+This is an application-level restore gate, not proof of backup expiry or complete recovery. A restored database cannot reveal case state that was absent from its snapshot; a restored Vault backup may also reintroduce deleted keys. Independent backup lifecycle evidence, Vault backup controls and human restore drills remain release gates.
