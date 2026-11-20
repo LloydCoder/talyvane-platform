@@ -82,6 +82,9 @@
         @if (in_array(auth()->user()->role, ['super_admin', 'owner', 'admin'], true))
             <a class="sidebar-link {{ request()->routeIs('admin.safeguarding.reports.*') ? 'active' : '' }}" href="{{ route('admin.safeguarding.reports.create') }}">Report safeguarding concern</a>
         @endif
+        @if (in_array(auth()->user()->role, ['super_admin', 'owner'], true))
+            <a class="sidebar-link {{ request()->routeIs('admin.safeguarding.governance.*') ? 'active' : '' }}" href="{{ route('admin.safeguarding.governance.index') }}">Safeguarding governance</a>
+        @endif
 
         @endif
         <div class="sidebar-bottom">
