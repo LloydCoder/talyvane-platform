@@ -20,7 +20,13 @@
                     <p>Rights and publication consent recorded · {{ $media->consent_version }}</p>
                 </div>
                 <div class="companion-booking-actions">
-                    <form method="POST" action="{{ route('admin.profile-media.review', $media) }}">@csrf<input type="hidden" name="decision" value="approved"><button class="button button-dark" type="submit">Approve image</button></form>
+                    <form method="POST" action="{{ route('admin.profile-media.review', $media) }}">@csrf<input type="hidden" name="decision" value="approved">
+                        <label class="field-help" for="access-level-{{ $media->id }}">Image access</label>
+                        <select id="access-level-{{ $media->id }}" name="access_level">
+                            <option value="public">Public profile gallery</option>
+                            @if ($membershipEntitlementsEnabled)<option value="members_only">Members-only private gallery</option>@endif
+                        </select>
+                        <button class="button button-dark" type="submit">Approve image</button></form>
                     <form method="POST" action="{{ route('admin.profile-media.review', $media) }}">@csrf<input type="hidden" name="decision" value="rejected"><label class="sr-only" for="review-note-{{ $media->id }}">Reason</label><input id="review-note-{{ $media->id }}" name="review_note" maxlength="1000" placeholder="Reason (optional)"><button class="text-link" type="submit">Reject</button></form>
                 </div>
             </article>
