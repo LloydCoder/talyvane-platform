@@ -6,6 +6,7 @@ use App\Models\CompanionProfile;
 use App\Models\ProfileMedia;
 use App\Models\ProfileMediaConsentEvent;
 use App\Services\MembershipEntitlementCatalog;
+use App\Services\BrandSettings;
 use App\Services\ProfileMediaProcessor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 
 class CompanionMediaController extends Controller
 {
-    public function store(Request $request, CompanionProfile $profile, ProfileMediaProcessor $processor): RedirectResponse
+    public function store(Request $request, CompanionProfile $profile, ProfileMediaProcessor $processor, BrandSettings $brandSettings): RedirectResponse
     {
         abort_unless((int) $profile->user_id === (int) $request->user()->id, 403);
 
@@ -32,6 +33,7 @@ class CompanionMediaController extends Controller
         ]);
 
         $membersOnlyConsentVersion = config('talyvane.privacy.private_gallery_consent_version');
+        $consentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement((string) ($brandSettings->publicBrand()['brand_name'] ?? 'Talyvane'));
         $membersOnlyConsentConfirmed = isset($validated['members_only_confirmed']);
         if ($membersOnlyConsentConfirmed && (
             ! filled($membersOnlyConsentVersion)
@@ -83,8 +85,8 @@ class CompanionMediaController extends Controller
                         'actor_email' => $request->user()->email,
                         'action' => 'members_only_consent.granted',
                         'consent_policy_version' => $membersOnlyConsentVersion,
-                        'consent_statement' => MembershipEntitlementCatalog::privateGalleryConsentStatement(),
-                        'statement_sha256' => hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement()),
+                        'consent_statement' => $consentStatement,
+                        'statement_sha256' => hash('sha256', $consentStatement),
                         'correlation_id' => (string) Str::uuid(),
                         'created_at' => now(),
                     ]);
