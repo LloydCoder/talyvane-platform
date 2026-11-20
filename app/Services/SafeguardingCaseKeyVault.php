@@ -4,6 +4,8 @@ namespace App\Services;
 
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 class SafeguardingCaseKeyVault
@@ -83,6 +85,80 @@ class SafeguardingCaseKeyVault
         }
 
         return $decoded;
+    }
+
+    public function verifyCredentialsForRotation(): array
+    {
+        $this->assertDistinctRetentionCredential();
+
+        if (! Schema::hasTable('safeguarding_case_contents')) {
+            throw new RuntimeException('Safeguarding case storage is not migrated; credential rotation cannot be verified safely.');
+        }
+
+        $this->verify();
+
+        $rows = DB::table('safeguarding_case_contents')
+            ->where('key_provider', 'vault')
+            ->whereNotNull('key_ciphertext')
+            ->whereNull('retention_erased_at')
+            ->get(['key_reference', 'key_ciphertext']);
+
+        $activeReferences = [];
+
+        foreach ($rows as $row) {
+            if (! is_string($row->key_reference) || $row->key_reference === '') {
+                throw new RuntimeException('An active safeguarding case key reference is missing; credential rotation is unsafe.');
+            }
+
+            $this->assertKeyName($row->key_reference);
+            $dataKey = $this->decrypt($row->key_reference, (string) $row->key_ciphertext);
+
+            if (strlen($dataKey) !== 32) {
+                throw new RuntimeException('An active safeguarding case data key could not be verified with the candidate application credential.');
+            }
+
+            $activeReferences[] = $row->key_reference;
+        }
+
+        $activeReferences = array_values(array_unique($activeReferences));
+        $this->verifyRetentionInventory($activeReferences);
+
+        return [
+            'active_case_keys_verified' => count($activeReferences),
+            'retention_inventory_verified' => true,
+        ];
+    }
+
+    public function activeCaseKeyCount(): int
+    {
+        if (! Schema::hasTable('safeguarding_case_contents')) {
+            return 0;
+        }
+
+        return DB::table('safeguarding_case_contents')
+            ->where('key_provider', 'vault')
+            ->whereNotNull('key_ciphertext')
+            ->whereNull('retention_erased_at')
+            ->count();
+    }
+
+    private function verifyRetentionInventory(array $activeKeyReferences): void
+    {
+        $retentionToken = trim((string) config('services.safeguarding_vault.retention_token'));
+        $this->assertDistinctRetentionCredential();
+
+        $response = $this->client($retentionToken)->send('LIST', $this->path('keys'));
+        $remoteKeys = $response->json('data.keys');
+
+        if (! $response->successful() || ! is_array($remoteKeys)) {
+            throw new RuntimeException('The candidate retention credential could not verify the external safeguarding key inventory.');
+        }
+
+        $missing = array_values(array_diff($activeKeyReferences, $remoteKeys));
+
+        if ($missing !== []) {
+            throw new RuntimeException('An active safeguarding case key is missing from the external vault.');
+        }
     }
 
     public function reconcile(array $activeKeyReferences): array
