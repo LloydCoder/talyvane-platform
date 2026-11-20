@@ -102,7 +102,7 @@ class BrowserInstallerWorkflowTest extends TestCase
         $this->post('https://agency.example.test/install', [
             'app_name' => 'Talyvane Agency',
             'app_url' => 'https://agency.example.test',
-            'db_host' => 'localhost',
+            'db_host' => '127.0.0.1',
             'db_port' => 3306,
             'db_database' => 'talyvane_test',
             'db_username' => 'talyvane',
