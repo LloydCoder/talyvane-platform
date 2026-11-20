@@ -108,6 +108,8 @@ class MembershipEntitlementTest extends TestCase
             'access_level' => 'members_only',
             'rights_confirmed_at' => now(),
             'consent_version' => 'profile-publication-v1',
+            'members_only_consent_at' => now(),
+            'members_only_consent_version' => 'private-gallery-v1',
             'reviewed_at' => now(),
         ]);
     }
@@ -319,6 +321,31 @@ class MembershipEntitlementTest extends TestCase
         $this->grantPrivateGallery($unverifiedMembership);
 
         $this->assertFalse(app(MembershipEntitlementService::class)->has($unverified, 'media.private_gallery'));
+    }
+
+    public function test_entitlement_activation_requires_an_approved_private_gallery_consent_policy(): void
+    {
+        DB::table('platform_features')->where('key', 'memberships.entitlements')->update([
+            'implementation_status' => 'available',
+            'is_enabled' => true,
+            'activation_requirements' => json_encode([
+                'server_side_entitlement_checks',
+                'private_gallery_consent_policy',
+            ]),
+        ]);
+        config([
+            'talyvane.privacy.private_gallery_consent_version' => null,
+            'talyvane.privacy.private_gallery_consent_approved' => false,
+        ]);
+
+        $this->assertFalse(app(\\App\\Services\\FeatureRegistry::class)->isOperationallyEnabled('memberships.entitlements'));
+
+        config([
+            'talyvane.privacy.private_gallery_consent_version' => 'private-gallery-v1',
+            'talyvane.privacy.private_gallery_consent_approved' => true,
+        ]);
+
+        $this->assertTrue(app(\\App\\Services\\FeatureRegistry::class)->isOperationallyEnabled('memberships.entitlements'));
     }
 
     public function test_membership_entitlements_feature_becomes_operational_only_after_the_runtime_gate_is_present(): void
