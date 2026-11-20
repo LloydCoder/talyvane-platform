@@ -12,6 +12,7 @@ use App\Services\TotpService;
 use App\Services\SafeguardingCaseRetentionService;
 use App\Services\SafeguardingNotificationDispatcher;
 use App\Services\SafeguardingCaseKeyVault;
+use App\Models\SafeguardingRestoreVerification;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -710,6 +711,73 @@ if ((int) config('talyvane.model_agency.retention.application_days') > 0
     && config('talyvane.model_agency.retention.schedule_approved')) {
     Schedule::command('talyvane:model-agency:apply-retention')->dailyAt('02:30')->withoutOverlapping();
 }
+
+Artisan::command('talyvane:safeguarding:restore-reconcile {backup_reference}', function () {
+    if (! app()->isDownForMaintenance()) {
+        $this->error('Restore reconciliation is permitted only while the application is in maintenance mode.');
+
+        return 1;
+    }
+
+    $backupReference = trim((string) $this->argument('backup_reference'));
+    if (! preg_match('/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/', $backupReference)) {
+        $this->error('Provide a non-sensitive backup reference using letters, numbers, dots, underscores, colons or hyphens.');
+
+        return 1;
+    }
+
+    if (config('talyvane.safeguarding.key_provider') !== 'vault') {
+        $this->error('Restore reconciliation requires SAFEGUARDING_CASE_KEY_PROVIDER=vault.');
+
+        return 1;
+    }
+
+    if (DB::table('safeguarding_case_contents')
+        ->whereNotIn('key_provider', ['local', 'vault'])
+        ->whereNotNull('key_ciphertext')
+        ->exists()
+        || DB::table('safeguarding_case_contents')
+            ->where('key_provider', 'vault')
+            ->whereNotNull('key_ciphertext')
+            ->whereNull('key_reference')
+            ->exists()) {
+        $this->error('Safeguarding key metadata is inconsistent. Keep the application in maintenance mode and investigate.');
+
+        return 1;
+    }
+
+    try {
+        $erased = app(SafeguardingCaseRetentionService::class)->apply();
+        $activeKeys = DB::table('safeguarding_case_contents')
+            ->where('key_provider', 'vault')
+            ->whereNotNull('key_ciphertext')
+            ->pluck('key_reference')
+            ->all();
+        $vaultResult = app(SafeguardingCaseKeyVault::class)->reconcile($activeKeys);
+
+        SafeguardingRestoreVerification::query()->create([
+            'backup_reference' => $backupReference,
+            'retention_cases_erased' => $erased,
+            'active_keys_verified' => $vaultResult['active_keys_verified'],
+            'orphan_keys_destroyed' => $vaultResult['orphan_keys_destroyed'],
+            'verified_at' => now(),
+            'created_at' => now(),
+        ]);
+    } catch (\Throwable $exception) {
+        $this->error('Safeguarding restore reconciliation failed: '.$exception->getMessage());
+        $this->warn('Keep the application in maintenance mode. Do not restore public traffic until the issue is resolved and reconciliation succeeds.');
+
+        return 1;
+    }
+
+    $this->info('Restore reconciliation completed for backup reference '.$backupReference.'.');
+    $this->line('Closed cases erased under policy: '.$erased);
+    $this->line('Active Vault keys verified: '.$vaultResult['active_keys_verified']);
+    $this->line('Orphaned Vault keys destroyed: '.$vaultResult['orphan_keys_destroyed']);
+    $this->warn('This command does not verify backup-provider expiry or recover records missing from the restored database. Complete the independent backup and Vault restore checklist before leaving maintenance mode.');
+
+    return 0;
+})->purpose('Reconcile safeguarding retention and external case keys after a database restore');
 
 Artisan::command('talyvane:safeguarding:apply-retention', function () {
     try {

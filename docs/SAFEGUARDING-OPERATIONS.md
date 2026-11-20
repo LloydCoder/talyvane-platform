@@ -111,6 +111,7 @@ Application token:
 
 Retention token:
 ```hcl
+ path "transit/keys" { capabilities = ["list"] }
  path "transit/keys/case-*/config" { capabilities = ["update"] }
  path "transit/keys/case-*" { capabilities = ["delete"] }
  path "transit/keys/preflight-*/config" { capabilities = ["update"] }
@@ -130,3 +131,20 @@ Required environment:
 Before enabling Vault mode, run `php artisan talyvane:safeguarding:vault-check` from the private application directory. It creates a temporary non-exportable key, verifies encrypt/decrypt round trip, and destroys the temporary key with the separate retention credential. Do not enable Vault mode until the operator has also verified the Transit mount, token policies, irreversible key deletion, Vault audit logging, token rotation, backup expiry and restore behavior. A Vault backup that contains a deleted Transit key can reintroduce decryption capability if restored; Vault backup retention and disaster recovery are therefore part of the same privacy control. Do not claim end-to-end cryptographic erasure until independent Vault backup/restore controls and a restore drill have been evidenced.
 
 Vault Transit API reference: https://developer.hashicorp.com/vault/api-docs/secret/transit. Key lifecycle and backup/restore controls should follow the principles in [OWASP Secrets Management](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) and [NIST SP 800-57 Part 1 Rev. 5](https://doi.org/10.6028/NIST.SP.800-57pt1r5). These engineering controls do not replace jurisdiction-specific retention, safeguarding or privacy review.
+## Post-restore safeguarding reconciliation
+
+After restoring a database backup, keep the application in Laravel maintenance mode. Do not restore public traffic until the following operation succeeds:
+
+```bash
+php artisan down
+php artisan migrate --force
+php artisan talyvane:safeguarding:restore-reconcile BACKUP-REFERENCE
+```
+
+The backup reference is a non-sensitive operator label, not a filesystem path, object URL or credential. The command refuses to run unless maintenance mode is active, Vault mode is selected, the safeguarding retention policy and backup expiry policy are approved, and the key metadata is structurally valid.
+
+The command reapplies the approved retention schedule to due closed cases, inventories keys in the dedicated Transit mount using the separate retention credential, verifies that every active Vault-backed case key still exists, and destroys orphaned `case-*` and `preflight-*` keys. It writes an append-only application-level verification record with counts and the operator-supplied backup reference. If an active case key is missing or any Vault operation fails, the command exits non-zero; keep the application in maintenance mode and investigate. Do not generate replacement keys or silently fall back to the Laravel application key.
+
+Only after this command succeeds should the operator complete the independent database-backup expiry and Vault-backup/restore checks, review the restore verification record, verify mail/scheduler operation, and explicitly bring the site back with `php artisan up`.
+
+**Limitations:** reconciliation can remove orphaned Vault keys and reapply retention to cases present in the restored database. It cannot reconstruct records missing from the backup, infer case closures or legal holds that occurred after the restored snapshot, prove that historical Vault snapshots have expired, or guarantee that a restored Vault backup does not reintroduce previously destroyed keys. Independent Vault backup expiry, a tested Vault restore policy and a human-reviewed restore drill remain mandatory. The verification record itself is in the application database and can be rolled back by restoring an older database backup; retain external backup/restore evidence separately.
