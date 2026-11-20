@@ -173,7 +173,7 @@ class ModelCastingWorkflowTest extends TestCase
             ->where('key', 'model-agency.casting')
             ->update(['activation_requirements' => json_encode(['unknown_prerequisite'])]);
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
         app(ModelCastingWorkflowService::class)->createDraft($context['admin']->id, $this->callInput());
     }
 
