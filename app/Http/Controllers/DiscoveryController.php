@@ -7,6 +7,7 @@ use App\Models\Destination;
 use App\Services\FeatureRegistry;
 use App\Services\MembershipEntitlementService;
 use App\Services\MembershipEntitlementCatalog;
+use App\Services\BrandSettings;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -81,8 +82,10 @@ class DiscoveryController extends Controller
         string $slug,
         FeatureRegistry $features,
         MembershipEntitlementService $entitlements,
+        BrandSettings $brandSettings,
     ): View {
         $viewer = auth()->user();
+        $expectedConsentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement((string) ($brandSettings->publicBrand()['brand_name'] ?? 'Talyvane'));
         $canViewPrivateGallery = $viewer
             && $viewer->role === 'client'
             && $features->isOperationallyEnabled('memberships.entitlements')
@@ -105,8 +108,8 @@ class DiscoveryController extends Controller
                                 ->whereHas('consentEvents', fn ($events) => $events
                                     ->where('action', 'members_only_consent.granted')
                                     ->where('consent_policy_version', config('talyvane.privacy.private_gallery_consent_version'))
-                                    ->where('consent_statement', MembershipEntitlementCatalog::privateGalleryConsentStatement())
-                                    ->where('statement_sha256', hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement())));
+                                    ->where('consent_statement', $expectedConsentStatement)
+                                    ->where('statement_sha256', hash('sha256', $expectedConsentStatement)));
                         });
                     }
                 })
