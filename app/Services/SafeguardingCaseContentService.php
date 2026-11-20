@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 use RuntimeException;
 
 class SafeguardingCaseContentService
@@ -19,30 +21,45 @@ class SafeguardingCaseContentService
         $provider = strtolower(trim((string) config('talyvane.safeguarding.key_provider', 'local')));
         $keyReference = null;
 
-        if ($provider === 'vault') {
-            $keyReference = 'case-'.Str::uuid()->toString();
-            $vault = app(SafeguardingCaseKeyVault::class);
-            $vault->createKey($keyReference);
-            $keyCiphertext = $vault->encrypt($keyReference, $dataKey);
-        } elseif ($provider === 'local') {
-            $keyCiphertext = Crypt::encryptString(base64_encode($dataKey));
-        } else {
-            throw new RuntimeException('Unsupported safeguarding case key provider.');
-        }
+        try {
+            if ($provider === 'vault') {
+                $keyReference = 'case-'.Str::uuid()->toString();
+                $vault = app(SafeguardingCaseKeyVault::class);
+                $vault->createKey($keyReference);
+                $keyCiphertext = $vault->encrypt($keyReference, $dataKey);
+            } elseif ($provider === 'local') {
+                $keyCiphertext = Crypt::encryptString(base64_encode($dataKey));
+            } else {
+                throw new RuntimeException('Unsupported safeguarding case key provider.');
+            }
 
-        DB::table('safeguarding_case_contents')->insert([
-            'case_id' => $case->id,
-            'key_provider' => $provider,
-            'key_reference' => $keyReference,
-            'key_ciphertext' => $keyCiphertext,
-            'summary_ciphertext' => $this->encryptNullable($encrypter, $content['summary'] ?? null),
-            'details_ciphertext' => $this->encryptNullable($encrypter, $content['details'] ?? null),
-            'subject_reference_ciphertext' => $this->encryptNullable($encrypter, $content['subject_reference'] ?? null),
-            'legal_hold_reason_ciphertext' => null,
-            'legal_hold_release_reason_ciphertext' => null,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+            DB::table('safeguarding_case_contents')->insert([
+                'case_id' => $case->id,
+                'key_provider' => $provider,
+                'key_reference' => $keyReference,
+                'key_ciphertext' => $keyCiphertext,
+                'summary_ciphertext' => $this->encryptNullable($encrypter, $content['summary'] ?? null),
+                'details_ciphertext' => $this->encryptNullable($encrypter, $content['details'] ?? null),
+                'subject_reference_ciphertext' => $this->encryptNullable($encrypter, $content['subject_reference'] ?? null),
+                'legal_hold_reason_ciphertext' => null,
+                'legal_hold_release_reason_ciphertext' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } catch (Throwable $exception) {
+            if ($provider === 'vault' && is_string($keyReference)) {
+                try {
+                    app(SafeguardingCaseKeyVault::class)->destroyKey($keyReference);
+                } catch (Throwable) {
+                    Log::critical('A safeguarding Vault key may be orphaned after case-content persistence failed.', [
+                        'case_id' => $case->id,
+                        'key_reference' => $keyReference,
+                    ]);
+                }
+            }
+
+            throw $exception;
+        }
     }
 
     public function read(SafeguardingCase $case): array
