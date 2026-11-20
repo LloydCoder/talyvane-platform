@@ -133,6 +133,36 @@ jobs:
           fi
           test ! -e "$staging/.env"
           test -f "$staging/vendor/autoload.php"
+      - name: Smoke-test first-request bootstrap from the packaged release
+        run: |
+          set -euo pipefail
+          smoke="$(mktemp -d)"
+          trap 'rm -rf "$smoke"' EXIT
+          tar -xzf "$archive" -C "$smoke"
+          php -r '
+            $root = $argv[1];
+            require $root."/vendor/autoload.php";
+            require $root."/install/bootstrap.php";
+            $env = file_get_contents($root."/.env");
+            $key = file_get_contents($root."/storage/app/private/INSTALLER-ACCESS-KEY.txt");
+            if (! is_string($env)
+                || ! preg_match("/^APP_KEY=base64:[A-Za-z0-9+\\/=]+$/m", $env)
+                || ! str_contains($env, "APP_ENV=production")
+                || ! str_contains($env, "APP_DEBUG=false")
+                || ! str_contains($env, "SESSION_ENCRYPT=true")
+                || ! str_contains($env, "SESSION_SECURE_COOKIE=true")
+                || ! str_contains($env, "TALYVANE_INSTALLER_ENFORCE=true")
+                || ! is_string($key)
+                || ! preg_match("/\\A[A-Za-z0-9_-]{43}\\z/D", trim($key))
+                || (fileperms($root."/.env") & 0777) !== 0600
+                || (fileperms($root."/storage/app/private/INSTALLER-ACCESS-KEY.txt") & 0777) !== 0600
+                || ! is_dir($root."/storage/framework/sessions")
+                || ! is_dir($root."/storage/framework/cache/data")
+                || ! is_dir($root."/storage/framework/views")) {
+                fwrite(STDERR, "Packaged first-request bootstrap verification failed.\\n");
+                exit(1);
+            }
+          ' "$smoke/talyvane"
       - name: Upload verified standalone package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
