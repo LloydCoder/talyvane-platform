@@ -90,6 +90,7 @@ class BrowserInstallerWorkflowTest extends TestCase
     {
         @unlink(storage_path('app/private/talyvane.install.lock'));
         @unlink(storage_path('app/private/INSTALLER-ACCESS-KEY.txt'));
+        @unlink(storage_path('app/private/talyvane.install.pending.json'));
         DB::disconnect('mysql');
         DB::purge('mysql');
         config(['database.default' => $this->originalDefaultConnection]);
