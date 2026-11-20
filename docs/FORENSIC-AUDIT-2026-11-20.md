@@ -7,7 +7,7 @@
 
 ## 1. Evidence and scope
 
-The repository tree API returned 494 entries with `truncated=false`. The inventory includes the Laravel application, 52 migration files, with the latest numbered migration 000062, Blade views, routes, cPanel wrappers, installer bootstrap, documentation, Composer lockfile and feature/unit tests.
+The repository tree API returned 494 entries with `truncated=false`. The inventory includes the Laravel application, 56 migration files, with the latest numbered migration 000062, Blade views, routes, cPanel wrappers, installer bootstrap, documentation, Composer lockfile and feature/unit tests.
 
 The review inspected repository metadata, the recursive tree, the CI workflow, product requirements, architecture, roadmap, security/privacy and compliance documents, release/hosting/installer documentation, Composer metadata, the licence history, and representative authentication, booking, payment configuration, globalization, safeguarding, settlement and installer code.
 
