@@ -232,7 +232,7 @@ class PlatformFeatureRegistryTest extends TestCase
             'admin.model-assignments.decline',
             'admin.model-assignments.cancel',
             'admin.model-assignments.dispute',
-            'admin.model-settlements.reviewExpense',
+            'admin.model-settlements.expenses.review',
             'admin.model-settlements.approve',
             'admin.model-settlements.payment',
             'admin.model-settlements.reverse',
