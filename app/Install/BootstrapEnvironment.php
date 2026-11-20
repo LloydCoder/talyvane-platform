@@ -165,7 +165,7 @@ final class BootstrapEnvironment
                 }
             }
 
-            if (realpath($path) !== $path || ! is_writable($path)) {
+            if (realpath($path) !== $path || ! chmod($path, 0700) || ! is_writable($path)) {
                 throw new RuntimeException('A required private runtime directory is unsafe or not writable.');
             }
         }
