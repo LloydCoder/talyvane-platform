@@ -30,6 +30,32 @@ class FeatureRegistry
         return true;
     }
 
+    public function assertEnabled(string $key): void
+    {
+        if (! $this->isEnabled($key)) {
+            abort(404);
+        }
+    }
+
+    public function isOperationallyEnabled(string $key): bool
+    {
+        if (! $this->isEnabled($key)) {
+            return false;
+        }
+
+        $feature = PlatformFeature::query()->find($key);
+
+        return $feature !== null
+            && app(FeatureActivationEvaluator::class)->blockers($feature) === [];
+    }
+
+    public function assertOperationallyEnabled(string $key): void
+    {
+        if (! $this->isOperationallyEnabled($key)) {
+            abort(404);
+        }
+    }
+
     public function catalog(): Collection
     {
         return PlatformFeature::query()
@@ -37,7 +63,7 @@ class FeatureRegistry
             ->orderBy('name')
             ->get()
             ->each(function (PlatformFeature $feature): void {
-                $feature->setAttribute('effective_enabled', $this->isEnabled($feature->key));
+                $feature->setAttribute('effective_enabled', $this->isOperationallyEnabled($feature->key));
             });
     }
 }
