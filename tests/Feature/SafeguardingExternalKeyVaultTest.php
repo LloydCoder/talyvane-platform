@@ -64,6 +64,27 @@ class SafeguardingExternalKeyVaultTest extends TestCase
         ];
     }
 
+    public function test_each_safeguarding_case_must_have_a_unique_external_key_reference(): void
+    {
+        Http::fake(function (Request $request) {
+            if (str_contains($request->url(), '/encrypt/')) {
+                return Http::response(['data' => ['ciphertext' => 'vault:v1:case-key-ciphertext']]);
+            }
+
+            return Http::response([], 204);
+        });
+
+        [$owner, $specialist] = $this->actors('unique-key');
+        $first = $this->createCase($owner, $specialist);
+        $second = $this->createCase($owner, $specialist);
+        $firstReference = DB::table('safeguarding_case_contents')->where('case_id', $first->id)->value('key_reference');
+
+        $this->expectException(QueryException::class);
+        DB::table('safeguarding_case_contents')->where('case_id', $second->id)->update([
+            'key_reference' => $firstReference,
+        ]);
+    }
+
     public function test_case_content_uses_a_vault_managed_key_and_remains_readable(): void
     {
         $plaintextKey = null;
