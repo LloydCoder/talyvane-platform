@@ -64,20 +64,12 @@ final class InstallerController
             'GD WebP image support' => ($gdInfo['WebP Support'] ?? false) === true,
             'HTTPS request' => $request->isSecure(),
             'Document root serves public/' => $rootIsPrivate && $public !== false && $documentRoot === $public,
-            'Private application storage is writable' => is_dir(storage_path('app/private'))
-                && ! is_link(storage_path('app/private'))
-                && is_writable(storage_path())
-                && is_writable(storage_path('app/private')),
-            'Session storage is writable' => is_dir(storage_path('framework/sessions'))
-                && is_writable(storage_path('framework/sessions')),
-            'Framework cache storage is writable' => is_dir(storage_path('framework/cache'))
-                && is_writable(storage_path('framework/cache')),
-            'Compiled view storage is writable' => is_dir(storage_path('framework/views'))
-                && is_writable(storage_path('framework/views')),
-            'Application log storage is writable' => is_dir(storage_path('logs'))
-                && is_writable(storage_path('logs')),
-            'Framework cache is writable' => is_dir(base_path('bootstrap/cache'))
-                && is_writable(base_path('bootstrap/cache')),
+            'Private application storage is writable' => $this->isSafeWritableDirectory('storage/app/private'),
+            'Session storage is writable' => $this->isSafeWritableDirectory('storage/framework/sessions'),
+            'Framework cache storage is writable' => $this->isSafeWritableDirectory('storage/framework/cache'),
+            'Compiled view storage is writable' => $this->isSafeWritableDirectory('storage/framework/views'),
+            'Application log storage is writable' => $this->isSafeWritableDirectory('storage/logs'),
+            'Framework cache is writable' => $this->isSafeWritableDirectory('bootstrap/cache'),
             'Unique application key is initialized' => is_string(config('app.key')) && config('app.key') !== '',
             'Production environment is enabled' => config('app.env') === 'production',
             'Production debug mode is disabled' => config('app.debug') === false,
@@ -92,6 +84,29 @@ final class InstallerController
             'Private installer directory is present' => is_dir(base_path('install')) && ! is_link(base_path('install')),
             'One-time private installer access key is available' => $accessToken->isAvailable(),
         ];
+    }
+
+
+    private function isSafeWritableDirectory(string $relativePath): bool
+    {
+        $basePath = realpath(base_path());
+        if ($basePath === false || str_starts_with($relativePath, '/') || str_contains($relativePath, '..')) {
+            return false;
+        }
+
+        $path = $basePath;
+        foreach (explode('/', $relativePath) as $segment) {
+            if ($segment === '' || $segment === '.') {
+                return false;
+            }
+
+            $path .= DIRECTORY_SEPARATOR.$segment;
+            if (is_link($path)) {
+                return false;
+            }
+        }
+
+        return is_dir($path) && realpath($path) === $path && is_writable($path);
     }
 
     public function verifyForm(Request $request): View|RedirectResponse
