@@ -44,8 +44,8 @@ class EnvFileSecretWriter
         }
 
         try {
-            $parsed = \\Dotenv\\Dotenv::parse($contents);
-        } catch (\\Throwable) {
+            $parsed = \Dotenv\Dotenv::parse($contents);
+        } catch (\Throwable) {
             throw new RuntimeException('The project environment file could not be parsed safely.');
         }
 
