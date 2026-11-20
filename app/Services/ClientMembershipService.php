@@ -31,6 +31,13 @@ class ClientMembershipService
                 $features->assertOperationallyEnabled('memberships.entitlements');
             }
 
+            $lockedActor = User::query()->lockForUpdate()->findOrFail($actor->id);
+            abort_unless(
+                $lockedActor->is_active
+                && in_array($lockedActor->role, ['super_admin', 'owner', 'admin'], true),
+                403,
+            );
+
             $lockedClient = User::query()->lockForUpdate()->findOrFail($client->id);
             abort_unless($lockedClient->role === 'client', 404);
 
@@ -48,7 +55,7 @@ class ClientMembershipService
                 $this->recordEvent(
                     $previous,
                     $lockedClient,
-                    $actor,
+                    $lockedActor,
                     'membership.superseded',
                     $before,
                     $this->snapshot($previous),
@@ -60,7 +67,7 @@ class ClientMembershipService
             $membership = ClientMembership::query()->create([
                 ...$attributes,
                 'user_id' => $lockedClient->id,
-                'assigned_by' => $actor->id,
+                'assigned_by' => $lockedActor->id,
                 'starts_at' => $attributes['starts_at'],
                 'ends_at' => $attributes['ends_at'] ?? null,
             ]);
@@ -69,7 +76,7 @@ class ClientMembershipService
                 ClientMembershipEntitlement::query()->create([
                     'membership_id' => $membership->id,
                     'entitlement_key' => $entitlementKey,
-                    'granted_by' => $actor->id,
+                    'granted_by' => $lockedActor->id,
                     'starts_at' => $membership->starts_at,
                     'ends_at' => $membership->ends_at,
                 ]);
@@ -78,7 +85,7 @@ class ClientMembershipService
             $this->recordEvent(
                 $membership,
                 $lockedClient,
-                $actor,
+                $lockedActor,
                 $membership->status === 'suspended' ? 'membership.suspended' : 'membership.assigned',
                 null,
                 $this->snapshot($membership),
