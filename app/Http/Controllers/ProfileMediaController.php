@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProfileMedia;
+use App\Services\MembershipEntitlementCatalog;
 use App\Services\FeatureRegistry;
 use App\Services\MembershipEntitlementService;
 use Illuminate\Http\Response;
@@ -33,12 +34,21 @@ class ProfileMediaController extends Controller
         abort_unless($media->status === 'approved', 404);
         if ($media->access_level === 'members_only') {
             $currentConsentVersion = config('talyvane.privacy.private_gallery_consent_version');
+            $expectedStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement();
+            $grantEvent = $media->consentEvents()
+                ->where('action', 'members_only_consent.granted')
+                ->oldest('id')
+                ->first();
             abort_unless(
                 $media->members_only_consent_at
                 && ! $media->members_only_consent_withdrawn_at
                 && config('talyvane.privacy.private_gallery_consent_approved')
                 && filled($currentConsentVersion)
-                && hash_equals((string) $currentConsentVersion, (string) $media->members_only_consent_version),
+                && hash_equals((string) $currentConsentVersion, (string) $media->members_only_consent_version)
+                && $grantEvent
+                && hash_equals((string) $expectedStatement, (string) $grantEvent->consent_statement)
+                && hash_equals(hash('sha256', $expectedStatement), (string) $grantEvent->statement_sha256)
+                && hash_equals((string) $currentConsentVersion, (string) $grantEvent->consent_policy_version),
                 404,
             );
             $client = auth()->user();
