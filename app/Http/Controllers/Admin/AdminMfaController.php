@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\User;
+use App\Models\SuperAdminRecoveryEvent;
 use App\Services\TotpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -72,7 +75,65 @@ class AdminMfaController
             return redirect()->route(match ($request->user()->role) { 'finance' => 'admin.model-settlements.index', 'verifier' => 'admin.adult-eligibility.index', 'safeguarding' => 'admin.safeguarding.cases.index', default => 'admin.dashboard' });
         }
 
-        return view('admin.auth.mfa-recovery', ['codes' => $codes]);
+        $recoveryKey = null;
+
+        if ($request->user()->isDesignatedDeploymentSuperAdmin()
+            && $request->user()->mfa_enabled_at
+            && filled($request->user()->mfa_secret)) {
+            $recoveryKey = DB::transaction(function (): ?string {
+                $control = DB::table('platform_control')->where('id', 1)->lockForUpdate()->first();
+
+                if (! $control || blank($control->super_admin_recovery_key_hash)) {
+                    return null;
+                }
+
+                $handoff = $control->super_admin_recovery_key_handoff;
+                $expiresAt = $control->super_admin_recovery_key_handoff_expires_at;
+
+                if (blank($handoff) || ! $expiresAt || now()->greaterThan($expiresAt)) {
+                    $handoffKey = bin2hex(random_bytes(32));
+                    $occurredAt = now();
+
+                    DB::table('platform_control')->where('id', 1)->update([
+                        'super_admin_recovery_key_hash' => Hash::make($handoffKey),
+                        'super_admin_recovery_key_rotated_at' => $occurredAt,
+                        'super_admin_recovery_key_handoff' => Crypt::encryptString($handoffKey),
+                        'super_admin_recovery_key_handoff_expires_at' => $occurredAt->copy()->addDay(),
+                        'updated_at' => $occurredAt,
+                    ]);
+
+                    SuperAdminRecoveryEvent::query()->create([
+                        'super_admin_user_id' => auth()->id(),
+                        'event_type' => 'bootstrap_recovery_key_issued',
+                        'reason' => 'Initial offline recovery key handoff was absent or expired before first MFA completion',
+                        'session_version_before' => (int) auth()->user()->admin_session_version,
+                        'session_version_after' => (int) auth()->user()->admin_session_version,
+                        'metadata' => ['source' => 'post_mfa_recovery_handoff_reissue'],
+                        'occurred_at' => $occurredAt,
+                    ]);
+
+                    $handoff = Crypt::encryptString($handoffKey);
+                }
+
+                try {
+                    $key = Crypt::decryptString($handoff);
+                } catch (\Throwable) {
+                    return null;
+                }
+
+                DB::table('platform_control')->where('id', 1)->update([
+                    'super_admin_recovery_key_handoff' => null,
+                    'super_admin_recovery_key_handoff_expires_at' => null,
+                    'updated_at' => now(),
+                ]);
+
+                return $key;
+            });
+        }
+
+        $request->session()->forget('mfa_recovery_codes');
+
+        return view('admin.auth.mfa-recovery', ['codes' => $codes, 'recoveryKey' => $recoveryKey]);
     }
 
     public function challenge(Request $request): View|RedirectResponse

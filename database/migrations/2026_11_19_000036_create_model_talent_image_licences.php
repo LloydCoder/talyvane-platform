@@ -41,7 +41,7 @@ return new class extends Migration
             $table->foreign('country_code')->references('country_code')->on('country_markets')->restrictOnDelete();
             $table->foreign('currency_code')->references('code')->on('currencies')->nullOnDelete();
             $table->index(['portfolio_asset_id', 'status']);
-            $table->index(['representation_agreement_id', 'status']);
+            $table->index(['representation_agreement_id', 'status'], 'model_image_licences_agreement_status_index');
             $table->index(['country_code', 'purpose', 'status']);
             $table->index(['status', 'ends_on']);
         });

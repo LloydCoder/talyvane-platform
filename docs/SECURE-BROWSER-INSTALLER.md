@@ -1,7 +1,6 @@
 # Secure browser installer: security and acceptance specification
 
-**Status:** Approved product requirement; implementation pending  
-**Scope:** First installation of a single Talyvane deployment on compatible cPanel/shared hosting, including hosts without SSH or Composer.  
+**Status:** Approved requirement; implementation in [PR #62](https://github.com/LloydCoder/talyvane-platform/pull/62). The current implementation passed the PHP 8.3/8.4/8.5 CI matrix (387 tests and 1,889 assertions per version), package checksum verification, and the standalone release-package plus first-request bootstrap smoke build on commit `f35485610166d4930d529a0479c85a4f9392cbe6` ([workflow run #44751493918](https://github.com/LloydCoder/talyvane-platform/actions/runs/44751493918)). Final forensic security review, cPanel deployment review, merge and tagged-release gates remain open.  
 **Normative language:** MUST, MUST NOT, SHOULD and MAY are used as engineering requirements.
 
 ## 1. Product outcome
@@ -14,7 +13,7 @@ The installer is a first-install bootstrap only. It is not a general-purpose com
 
 1. **Release and entry-point validation**
    - Accept only a complete, versioned release artifact produced by the approved release process.
-   - Verify the release manifest/checksum and supported application, PHP, database and extension versions.
+   - CI/release automation MUST package and smoke-check the versioned release manifest, archive contents and first-request bootstrap. The operator MUST verify the downloaded archive against the `SHA256SUMS` file from the same release bundle before upload or extraction, using a trusted local checksum utility. The browser installer runs after extraction and MUST NOT claim to verify an archive checksum it cannot access. Confirm supported application, PHP, database and extension versions.
    - Refuse development branches, incomplete packages and unsupported host layouts.
 2. **Preflight**
    - Validate HTTPS, canonical application URL, PHP runtime and required extensions, database reachability/privileges, writable private storage, bootstrap/cache, session support, entropy, and the ability to keep application files outside the public document root.
@@ -46,14 +45,15 @@ The installer is a first-install bootstrap only. It is not a general-purpose com
 8. **Installer lockdown and removal**
    - Installer endpoints MUST refuse access whenever the durable install lock exists, regardless of browser session or directory presence.
    - Rotate/invalidate installer session state and CSRF tokens after completion.
-   - Attempt automatic removal of the installer directory only after the durable lock is committed and credential handoff is safely prepared. Never make successful installation depend on self-deletion.
-   - If filesystem permissions prevent removal, show a prominent instruction to delete the entire installer directory immediately using cPanel File Manager or the host's equivalent. Keep every installer route blocked while it remains present.
+   - Attempt removal of the installer directory and the one-time private installer access-key file only after the durable lock is committed and credential handoff is safely prepared. Never make successful installation depend on self-deletion.
+   - Treat cleanup as incomplete if either artifact remains. Show a prominent instruction to delete the entire installer directory and `storage/app/private/INSTALLER-ACCESS-KEY.txt` if present, using cPanel File Manager or the host's equivalent. Keep every installer route blocked while any artifact remains.
    - The application MUST fail closed if the lock is missing, malformed or inconsistent with the completed installation state. Provide a documented, authenticated recovery procedure rather than a public reset route.
 
 ## 3. Required security controls
 
 - Installer code and temporary state MUST be outside the public document root wherever the supported hosting layout permits. If the hosting provider cannot isolate application code and private state from public access, reject the host as incompatible.
 - Never place an executable installer script directly in public_html as a workaround.
+- The installer access key MUST be generated and stored outside the public document root with owner-only permissions. It MUST be retrieved by the deployment operator through the hosting control panel's private file manager (or a trusted CLI path) and entered manually. It MUST NEVER be rendered into HTML, returned by an API, included in a hidden field, exposed in a URL, or logged. A public GET request must not disclose or derive the key.
 - Use secure, HttpOnly, SameSite cookies; Secure cookies on HTTPS; session ID rotation; CSRF protection; strict origin/host validation; request throttling; and short installer-session expiry.
 - Protect database and mail credentials in transit and at rest as far as the hosting model permits. Never echo secrets in validation errors.
 - Restrict file writes to known application paths. Prevent path traversal, symlink escapes, archive traversal, arbitrary upload extraction and overwrite of unrelated files.
@@ -73,6 +73,7 @@ The implementation is not complete until automated tests cover at least:
 - Missing, malformed or inconsistent lock state fails closed.
 - Invalid PHP version, missing extensions, unsupported database, insufficient privileges, non-HTTPS production URL and unsafe document-root layout block installation.
 - CSRF failures, expired sessions, replayed steps, throttled attempts and invalid Host headers are rejected.
+- The private installer access key is never present in the HTML response, page source, URL, logs or analytics; a missing or invalid operator-supplied key is rejected.
 - Path traversal, symlink escape and archive traversal attempts cannot write outside approved paths.
 - Database and migration failures do not provision credentials or report success.
 - Super Admin creation is singleton-safe under concurrent requests and retry scenarios.
@@ -82,6 +83,10 @@ The implementation is not complete until automated tests cover at least:
 - Successful installation creates a durable lock and disables installer routes before the success response.
 - Automatic installer-directory deletion is attempted safely; deletion failure leaves the application locked and displays the manual-removal instruction.
 - Re-running or retrying interrupted steps cannot duplicate the Super Admin, corrupt configuration or silently rerun destructive operations.
+- A private, expiring pending-install marker prevents concurrent setup sessions from changing database/mail configuration during email verification; the marker is bound to a random session nonce and stored with restrictive permissions.
+- Runtime directories are created/validated before Laravel session middleware runs; symlinked storage ancestors are rejected and private runtime directories are restricted to owner-only permissions.
+- cPanel main-domain and add-on-domain front-controller wrappers keep the full Laravel application outside public_html, resolve the actual public document root using Laravel's supported usePublicPath API, and are linted and included in the standalone package.
+- The public release contains a hardened Apache/LiteSpeed rewrite file; cPanel public-root wrappers preserve route rewriting, authorization/XSRF headers, deny hidden/private files and disable directory listing.
 - The full PHP compatibility matrix, complete application test suite, static/security checks and release packaging workflow pass.
 
 ## 5. cPanel operator success screen
@@ -101,4 +106,4 @@ It MUST NOT display database passwords, application keys, recovery keys, environ
 
 The browser installer is a release blocker for the promised no-SSH cPanel self-service installation experience. Until its implementation, tests, security review and package verification are complete, documentation and sales material MUST describe no-SSH first installation as unsupported or pending. A visual mockup or documentation-only specification is not evidence of a working installer.
 
-The existing CLI provisioning workflow remains a separate supported path and must continue to preserve the platform's current Super Admin verification, recovery-key, MFA and audit controls.
+The existing CLI provisioning workflow remains a separate supported path and must continue to preserve the platform's current Super Admin verification, recovery-key, MFA and audit controls. Browser provisioning verifies two distinct email addresses and stores the generated offline recovery key only as a hash plus a short-lived encrypted handoff. That key is revealed only on the authenticated post-MFA recovery-code screen, never on the installer success page.

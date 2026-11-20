@@ -4,5 +4,10 @@
     <a class="wordmark" href="{{ route('home') }}">TALYVANE<span>®</span></a>
     <p class="eyebrow">SAVE THESE ONCE</p><h1>Recovery<br><em>codes.</em></h1><p class="admin-muted">Store these codes in a secure password manager or offline vault. Each code can be used once. They will not be shown again.</p>
     <ul class="mfa-recovery-codes">@foreach ($codes as $code)<li>{{ $code }}</li>@endforeach</ul>
+    @if ($recoveryKey)
+        <h2>Offline deployment recovery key</h2>
+        <p class="admin-muted">Store this key separately from the server and database. It is shown once and is required for the documented Super Admin MFA recovery procedure.</p>
+        <p class="install-secret"><code>{{ $recoveryKey }}</code></p>
+    @endif
     <a class="button button-dark admin-submit" href="{{ route('admin.dashboard') }}">Continue to administration ↗</a>
 </main></body></html>

@@ -3,6 +3,11 @@
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\AdminMfaController;
+use App\Http\Controllers\Admin\AdminFirstLoginPasswordController;
+use App\Http\Controllers\Admin\AdminInitialPasswordRecoveryController;
+use App\Http\Controllers\Install\InstallerController;
+use App\Http\Controllers\Install\InstallSuccessController;
+use App\Http\Middleware\NoStoreSensitiveResponses;
 use App\Http\Controllers\Admin\BookingAdminController;
 use App\Http\Controllers\Admin\ClientManagementController;
 use App\Http\Controllers\Admin\BookingSettingsController;
@@ -43,6 +48,14 @@ use App\Http\Controllers\PageController;
 use App\Models\SitePage;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
+
+Route::middleware(NoStoreSensitiveResponses::class)->prefix('install')->name('install.')->group(function (): void {
+    Route::get('/', [InstallerController::class, 'index'])->name('index');
+    Route::post('/', [InstallerController::class, 'store'])->middleware('throttle:5,1')->name('store');
+    Route::get('/verify', [InstallerController::class, 'verifyForm'])->name('verify');
+    Route::post('/verify', [InstallerController::class, 'verify'])->middleware('throttle:5,1')->name('verify.submit');
+    Route::get('/success', [InstallSuccessController::class, 'show'])->name('success');
+});
 
 Route::get('/', function (\App\Services\BrandSettings $settings) {
     return view('home', [
@@ -120,6 +133,13 @@ Route::middleware('auth')->group(function (): void {
 });
 
 Route::prefix('admin')->name('admin.')->group(function (): void {
+    Route::get('/first-login/password', [AdminFirstLoginPasswordController::class, 'create'])->middleware(NoStoreSensitiveResponses::class)->name('first-login.password');
+    Route::post('/first-login/password', [AdminFirstLoginPasswordController::class, 'update'])->middleware(['throttle:5,1', NoStoreSensitiveResponses::class])->name('first-login.password.update');
+    Route::get('/first-login/recover', [AdminInitialPasswordRecoveryController::class, 'create'])->middleware(NoStoreSensitiveResponses::class)->name('first-login.recover');
+    Route::post('/first-login/recover', [AdminInitialPasswordRecoveryController::class, 'send'])->middleware(['throttle:5,1', NoStoreSensitiveResponses::class])->name('first-login.recover.send');
+    Route::get('/first-login/recover/verify', [AdminInitialPasswordRecoveryController::class, 'verifyForm'])->middleware(NoStoreSensitiveResponses::class)->name('first-login.recover.verify');
+    Route::post('/first-login/recover/verify', [AdminInitialPasswordRecoveryController::class, 'complete'])->middleware(['throttle:5,1', NoStoreSensitiveResponses::class])->name('first-login.recover.complete');
+
     Route::middleware('guest')->group(function (): void {
         Route::get('/login', [AdminLoginController::class, 'create'])->name('login');
         Route::post('/login', [AdminLoginController::class, 'store'])->middleware('throttle:10,1')->name('login.store');
@@ -130,9 +150,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::post('/mfa/recovery', [AdminMfaController::class, 'verifyRecovery'])->middleware('throttle:5,1')->name('mfa.recovery.verify');
 
     Route::middleware(['auth', 'role:super_admin,owner,admin,finance,verifier,safeguarding', 'admin.session-current'])->group(function (): void {
-        Route::get('/mfa/setup', [AdminMfaController::class, 'setup'])->name('mfa.setup');
+        Route::get('/mfa/setup', [AdminMfaController::class, 'setup'])->middleware(NoStoreSensitiveResponses::class)->name('mfa.setup');
         Route::post('/mfa/setup', [AdminMfaController::class, 'confirmSetup'])->middleware('throttle:5,1')->name('mfa.setup.confirm');
-        Route::get('/mfa/recovery-codes', [AdminMfaController::class, 'recoveryCodes'])->name('mfa.recovery-codes');
+        Route::get('/mfa/recovery-codes', [AdminMfaController::class, 'recoveryCodes'])->middleware(NoStoreSensitiveResponses::class)->name('mfa.recovery-codes');
     });
 
     // Eligibility verifiers receive a dedicated, purpose-limited queue only. They cannot enter agency or finance workspaces.

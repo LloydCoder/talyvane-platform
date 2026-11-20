@@ -29,7 +29,7 @@ return new class extends Migration
             $table->foreignId('terminated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->text('termination_reason')->nullable();
             $table->timestamps();
-            $table->index(['application_id', 'status']);
+            $table->index(['application_id', 'status'], 'model_rep_agreements_application_status_index');
         });
     }
 

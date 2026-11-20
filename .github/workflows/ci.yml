@@ -19,6 +19,21 @@ jobs:
     name: PHP ${{ matrix.php-version }} / Laravel feature suite
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: talyvane_test
+          MYSQL_USER: talyvane
+          MYSQL_PASSWORD: test-password
+          MYSQL_ROOT_PASSWORD: root-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     strategy:
       fail-fast: false
       matrix:
@@ -44,7 +59,7 @@ jobs:
       - name: Validate Composer configuration
         run: composer validate --no-check-publish
       - name: Lint PHP source
-        run: find app bootstrap config database routes tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: find app bootstrap config cpanel-public-root database install public routes tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Validate routes and compile Blade views
         env:
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -89,7 +104,7 @@ jobs:
           set -euo pipefail
           staging="dist/talyvane"
           mkdir -p "$staging"
-          for path in app artisan bootstrap config database docs public resources routes storage vendor composer.json composer.lock .env.example README.md LICENSE COMMERCIAL-LICENSING.md; do
+          for path in app artisan bootstrap config cpanel-public-root database docs install public resources routes storage vendor composer.json composer.lock .env.example README.md LICENSE COMMERCIAL-LICENSING.md; do
             test -e "$path"
             cp -a "$path" "$staging/"
           done
@@ -104,24 +119,112 @@ jobs:
           find "$staging/storage/framework/views" -type f ! -name '.gitkeep' -delete
           mkdir -p dist
           tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -C dist -cf - talyvane | gzip -n > "dist/talyvane-${GITHUB_SHA}.tar.gz"
-          sha256sum "dist/talyvane-${GITHUB_SHA}.tar.gz" > "dist/talyvane-${GITHUB_SHA}.tar.gz.sha256"
+          (cd dist && zip -X -r "talyvane-${GITHUB_SHA}.zip" talyvane)
+          mkdir -p dist/cpanel-main-public dist/cpanel-addon-public
+          cp -a "$staging/public/." dist/cpanel-main-public/
+          cp -a "$staging/public/." dist/cpanel-addon-public/
+          cp "$staging/cpanel-public-root/main-domain/index.php" dist/cpanel-main-public/index.php
+          cp "$staging/cpanel-public-root/addon-domain/index.php" dist/cpanel-addon-public/index.php
+          (cd dist/cpanel-main-public && zip -X -r "../talyvane-cpanel-main-public-${GITHUB_SHA}.zip" .)
+          (cd dist/cpanel-addon-public && zip -X -r "../talyvane-cpanel-addon-public-${GITHUB_SHA}.zip" .)
+          (
+            cd dist
+            sha256sum "talyvane-${GITHUB_SHA}.tar.gz" "talyvane-${GITHUB_SHA}.zip" "talyvane-cpanel-main-public-${GITHUB_SHA}.zip" "talyvane-cpanel-addon-public-${GITHUB_SHA}.zip" > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
           archive="dist/talyvane-${GITHUB_SHA}.tar.gz"
+          zip_archive="dist/talyvane-${GITHUB_SHA}.zip"
+          unzip -Z1 "$zip_archive" > dist/package-contents-zip.txt
+          grep -Fq 'talyvane/public/.htaccess' dist/package-contents-zip.txt
+          unzip -Z1 "dist/talyvane-cpanel-main-public-${GITHUB_SHA}.zip" > dist/cpanel-main-public-contents.txt
+          unzip -Z1 "dist/talyvane-cpanel-addon-public-${GITHUB_SHA}.zip" > dist/cpanel-addon-public-contents.txt
+          grep -Fq '.htaccess' dist/cpanel-main-public-contents.txt
+          grep -Fq 'index.php' dist/cpanel-main-public-contents.txt
+          grep -Fq '.htaccess' dist/cpanel-addon-public-contents.txt
+          grep -Fq 'index.php' dist/cpanel-addon-public-contents.txt
+          if grep -E '(^|/)(app|bootstrap|config|database|install|storage|vendor)/|(^|/)\.env($|\.)|composer\.(json|lock)' dist/cpanel-main-public-contents.txt dist/cpanel-addon-public-contents.txt; then
+            echo "cPanel public-root archive contains private application files."
+            exit 1
+          fi
           tar -tzf "$archive" > dist/package-contents.txt
-          grep -q '^talyvane/vendor/autoload.php$' dist/package-contents.txt
-          grep -q '^talyvane/.env.example$' dist/package-contents.txt
+          grep -Fq 'talyvane/vendor/autoload.php' dist/package-contents.txt
+          grep -Fq 'talyvane/.env.example' dist/package-contents.txt
+          grep -Fq 'talyvane/install/bootstrap.php' dist/package-contents.txt
+          grep -Fq 'talyvane/cpanel-public-root/main-domain/index.php' dist/package-contents.txt
+          grep -Fq 'talyvane/cpanel-public-root/addon-domain/index.php' dist/package-contents.txt
+          grep -Fq 'talyvane/public/.htaccess' dist/package-contents.txt
+          test -f "$staging/install/RELEASE-MANIFEST.json"
+          test ! -d "$staging/public/install"
           if grep -E '(^|/)\.env$|(^|/)\.git/|^talyvane/tests/|^talyvane/storage/(logs|app/private)/[^.]|^talyvane/bootstrap/cache/[^.]' dist/package-contents.txt; then
             echo "Release package contains a forbidden environment, test, private-storage or runtime-cache path."
             exit 1
           fi
           test ! -e "$staging/.env"
           test -f "$staging/vendor/autoload.php"
+      - name: Smoke-test first-request bootstrap from the packaged release
+        run: |
+          set -euo pipefail
+          archive="dist/talyvane-${GITHUB_SHA}.tar.gz"
+          smoke="$(mktemp -d)"
+          trap 'rm -rf "$smoke"' EXIT
+          tar -xzf "$archive" -C "$smoke"
+          php -r '
+            $root = $argv[1];
+            require $root."/vendor/autoload.php";
+            require $root."/install/bootstrap.php";
+            $env = file_get_contents($root."/.env");
+            $key = file_get_contents($root."/storage/app/private/INSTALLER-ACCESS-KEY.txt");
+            if (! is_string($env)
+                || ! preg_match("/^APP_KEY=base64:[A-Za-z0-9+\\/=]+$/m", $env)
+                || ! str_contains($env, "APP_ENV=production")
+                || ! str_contains($env, "APP_DEBUG=false")
+                || ! str_contains($env, "SESSION_ENCRYPT=true")
+                || ! str_contains($env, "SESSION_SECURE_COOKIE=true")
+                || ! str_contains($env, "TALYVANE_INSTALLER_ENFORCE=true")
+                || ! is_string($key)
+                || ! preg_match("/\\A[A-Za-z0-9_-]{43}\\z/D", trim($key))
+                || (fileperms($root."/.env") & 0777) !== 0600
+                || (fileperms($root."/storage/app/private/INSTALLER-ACCESS-KEY.txt") & 0777) !== 0600
+                || ! is_dir($root."/storage/framework/sessions")
+                || ! is_dir($root."/storage/framework/cache/data")
+                || ! is_dir($root."/storage/framework/views")) {
+                fwrite(STDERR, "Packaged first-request bootstrap verification failed.\\n");
+                exit(1);
+            }
+          ' "$smoke/talyvane"
+
+          main_smoke="$smoke/main"
+          mkdir -p "$main_smoke/public_html" "$main_smoke/talyvane-app/public" "$main_smoke/talyvane-app/storage"
+          cp "$smoke/talyvane/cpanel-public-root/main-domain/index.php" "$main_smoke/public_html/index.php"
+          printf '<?php echo "MAIN_FRONT_CONTROLLER_OK";' > "$main_smoke/talyvane-app/public/index.php"
+          main_output="$(php -r '$_SERVER["DOCUMENT_ROOT"] = $argv[1]; require $argv[2];' "$main_smoke/public_html" "$main_smoke/public_html/index.php")"
+          grep -Fq "MAIN_FRONT_CONTROLLER_OK" <<< "$main_output"
+          unsafe_output="$(php -r '$_SERVER["DOCUMENT_ROOT"] = $argv[1]; require $argv[2];' "$main_smoke/talyvane-app/storage" "$main_smoke/public_html/index.php")"
+          grep -Fq "Talyvane is not configured safely" <<< "$unsafe_output"
+          if grep -Fq "MAIN_FRONT_CONTROLLER_OK" <<< "$unsafe_output"; then
+            echo "Main-domain wrapper accepted a private storage document root."
+            exit 1
+          fi
+
+          addon_smoke="$smoke/addon"
+          mkdir -p "$addon_smoke/public_html/addon-domain" "$addon_smoke/talyvane-app/public"
+          cp "$smoke/talyvane/cpanel-public-root/addon-domain/index.php" "$addon_smoke/public_html/addon-domain/index.php"
+          printf '<?php echo "ADDON_FRONT_CONTROLLER_OK";' > "$addon_smoke/talyvane-app/public/index.php"
+          addon_output="$(php -r '$_SERVER["DOCUMENT_ROOT"] = $argv[1]; require $argv[2];' "$addon_smoke/public_html/addon-domain" "$addon_smoke/public_html/addon-domain/index.php")"
+          grep -Fq "ADDON_FRONT_CONTROLLER_OK" <<< "$addon_output"
       - name: Upload verified standalone package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: talyvane-standalone-package-${{ github.sha }}
           path: |
             dist/talyvane-${{ github.sha }}.tar.gz
-            dist/talyvane-${{ github.sha }}.tar.gz.sha256
+            dist/talyvane-${{ github.sha }}.zip
+            dist/talyvane-cpanel-main-public-${{ github.sha }}.zip
+            dist/talyvane-cpanel-addon-public-${{ github.sha }}.zip
+            dist/SHA256SUMS
             dist/package-contents.txt
+            dist/package-contents-zip.txt
+            dist/cpanel-main-public-contents.txt
+            dist/cpanel-addon-public-contents.txt
           if-no-files-found: error
           retention-days: 14
