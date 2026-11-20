@@ -6,6 +6,7 @@ use App\Models\ProfileMedia;
 use App\Models\CompanionProfile;
 use App\Services\FeatureRegistry;
 use App\Services\MembershipEntitlementCatalog;
+use App\Services\BrandSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -14,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 
 class ProfileMediaReviewController
 {
-    public function update(Request $request, ProfileMedia $media): RedirectResponse
+    public function update(Request $request, ProfileMedia $media, BrandSettings $brandSettings): RedirectResponse
     {
         $validated = $request->validate([
             'decision' => ['required', 'in:approved,rejected'],
@@ -37,7 +38,7 @@ class ProfileMediaReviewController
             if ($validated['decision'] === 'approved') {
                 if ($accessLevel === 'members_only') {
                     $requiredConsentVersion = config('talyvane.privacy.private_gallery_consent_version');
-                    $expectedConsentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement();
+                    $expectedConsentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement((string) ($brandSettings->publicBrand()['brand_name'] ?? 'Talyvane'));
                     $grantEvent = $lockedMedia->consentEvents()->where('action', 'members_only_consent.granted')->oldest('id')->first();
                     if (
                         ! config('talyvane.privacy.private_gallery_consent_approved')
