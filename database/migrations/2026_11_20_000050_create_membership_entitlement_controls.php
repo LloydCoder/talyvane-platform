@@ -37,6 +37,7 @@ return new class extends Migration
             $table->foreignId('actor_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('actor_email', 254);
             $table->string('action', 32);
+            $table->string('capture_method', 80);
             $table->string('consent_policy_version', 80);
             $table->text('consent_statement');
             $table->char('statement_sha256', 64);
