@@ -59,7 +59,7 @@ jobs:
       - name: Validate Composer configuration
         run: composer validate --no-check-publish
       - name: Lint PHP source
-        run: find app bootstrap config cpanel-public-root database install routes tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: find app bootstrap config cpanel-public-root database install public routes tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Validate routes and compile Blade views
         env:
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
