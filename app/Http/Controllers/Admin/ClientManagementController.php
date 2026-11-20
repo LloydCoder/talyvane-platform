@@ -24,8 +24,9 @@ class ClientManagementController extends Controller
         ]);
     }
 
-    public function assignMembership(Request $request, User $client): RedirectResponse
+    public function assignMembership(Request $request, User $client, \App\Services\FeatureRegistry $features): RedirectResponse
     {
+        $features->assertOperationallyEnabled('memberships');
         abort_unless($client->role === 'client', 404);
 
         $validated = $request->validate([
