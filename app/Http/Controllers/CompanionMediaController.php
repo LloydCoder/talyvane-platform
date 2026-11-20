@@ -30,16 +30,21 @@ class CompanionMediaController extends Controller
             'rights_confirmed' => ['required', 'accepted'],
             'publication_confirmed' => ['required', 'accepted'],
             'members_only_confirmed' => ['sometimes', 'accepted'],
+            'members_only_consent_statement_hash' => ['required_with:members_only_confirmed', 'string', 'size:64'],
+            'members_only_consent_policy_version' => ['required_with:members_only_confirmed', 'string', 'max:80'],
         ]);
 
         $membersOnlyConsentVersion = config('talyvane.privacy.private_gallery_consent_version');
         $agencyName = trim((string) ($brandSettings->publicBrand()['brand_name'] ?? ''));
         $consentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement($agencyName);
+        $consentStatementHash = hash('sha256', $consentStatement);
         $membersOnlyConsentConfirmed = isset($validated['members_only_confirmed']);
         if ($membersOnlyConsentConfirmed && (
             ! filled($membersOnlyConsentVersion)
             || ! config('talyvane.privacy.private_gallery_consent_approved')
             || ! filled($agencyName)
+            || ! hash_equals($consentStatementHash, (string) ($validated['members_only_consent_statement_hash'] ?? ''))
+            || ! hash_equals((string) $membersOnlyConsentVersion, (string) ($validated['members_only_consent_policy_version'] ?? ''))
         )) {
             throw ValidationException::withMessages([
                 'members_only_confirmed' => 'The separate private-gallery consent policy is not currently approved.',
@@ -89,7 +94,7 @@ class CompanionMediaController extends Controller
                         'capture_method' => 'authenticated_companion_portal_checkbox',
                         'consent_policy_version' => $membersOnlyConsentVersion,
                         'consent_statement' => $consentStatement,
-                        'statement_sha256' => hash('sha256', $consentStatement),
+                        'statement_sha256' => $consentStatementHash,
                         'correlation_id' => (string) Str::uuid(),
                         'created_at' => now(),
                     ]);
