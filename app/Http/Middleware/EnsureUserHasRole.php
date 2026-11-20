@@ -16,6 +16,10 @@ class EnsureUserHasRole
             abort(403);
         }
 
+        if ($user->role === 'super_admin' && ! $user->isDesignatedDeploymentSuperAdmin()) {
+            abort(403);
+        }
+
         return $next($request);
     }
 }
