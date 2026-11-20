@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\ClientMembership;
+use App\Models\ClientMembershipEvent;
 use App\Models\ClientMembershipEntitlement;
 use App\Models\CompanionProfile;
 use App\Models\Destination;
