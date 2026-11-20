@@ -229,15 +229,10 @@ class BrowserInstallerWorkflowTest extends TestCase
         $privateInstallerKey = trim((string) file_get_contents(storage_path('app/private/INSTALLER-ACCESS-KEY.txt')));
         $this->assertStringNotContainsString($privateInstallerKey, $page->getContent());
 
-        $this->withServerVariables([
-            'HTTPS' => 'on',
-            'HTTP_HOST' => 'attacker.example.test',
-            'SERVER_PORT' => 443,
-            'DOCUMENT_ROOT' => realpath(public_path()),
-        ])->post('/install', [
+        $this->post('/install', [
                 'installer_token' => $privateInstallerKey,
                 'app_name' => 'Talyvane Agency',
-                'app_url' => 'https://agency.example.test',
+                'app_url' => 'https://attacker.example.test',
                 'db_host' => '127.0.0.1',
                 'db_port' => 3306,
                 'db_database' => 'talyvane_test',
