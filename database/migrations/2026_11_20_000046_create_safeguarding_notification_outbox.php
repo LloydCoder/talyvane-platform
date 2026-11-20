@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('safeguarding_notification_outbox', function (Blueprint $table): void {
+        Schema::create('safeguarding_notification_outboxes', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('case_id')->constrained('safeguarding_cases')->restrictOnDelete();
             $table->foreignId('recipient_user_id')->nullable()->constrained('users')->nullOnDelete();
@@ -29,6 +29,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('safeguarding_notification_outbox');
+        Schema::dropIfExists('safeguarding_notification_outboxes');
     }
 };
