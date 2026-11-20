@@ -39,6 +39,7 @@ class ProfileMediaController extends Controller
             $expectedStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement((string) ($brandSettings->publicBrand()['brand_name'] ?? 'Talyvane'));
             $grantEvent = $media->consentEvents()
                 ->where('action', 'members_only_consent.granted')
+                ->where('capture_method', 'authenticated_companion_portal_checkbox')
                 ->oldest('id')
                 ->first();
             abort_unless(
