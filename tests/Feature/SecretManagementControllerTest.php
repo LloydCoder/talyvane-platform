@@ -221,6 +221,25 @@ class SecretManagementControllerTest extends TestCase
         }
     }
 
+    public function test_secret_value_is_never_flashed_into_the_session_after_validation_failure(): void
+    {
+        $admin = $this->superAdmin();
+
+        $this->actingAs($admin)
+            ->from('/admin/secrets')
+            ->post('/admin/secrets/mail.smtp.password', [
+                'secret_value' => 'sensitive-secret-value-123',
+                'reason' => '                    ',
+                'password' => 'Strong-Testing-Password-934!',
+                'code' => $this->stepUpCode($admin),
+            ])
+            ->assertRedirect('/admin/secrets')
+            ->assertSessionHasErrors('reason')
+            ->assertSessionMissing('_old_input.secret_value');
+
+        Http::assertNothingSent();
+    }
+
     public function test_unknown_secret_identifier_is_not_routable(): void
     {
         $admin = $this->superAdmin();
