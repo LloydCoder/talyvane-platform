@@ -18,9 +18,11 @@ final class MembershipEntitlementCatalog
         ];
     }
 
-    public static function privateGalleryConsentStatement(): string
+    public static function privateGalleryConsentStatement(?string $agencyName = null): string
     {
-        return 'I separately agree that this image may be displayed only in the members-only gallery to eligible clients with a current agency-approved membership. This permission is separate from public profile publication and may be withdrawn at any time.';
+        $agency = trim((string) ($agencyName ?? config('talyvane.brand.brand_name', 'Talyvane')));
+
+        return 'I separately agree that '.$agency.' may display this image only in its members-only gallery to eligible clients with a current agency-approved membership, as described in the current privacy notice. This permission is separate from public profile publication and may be withdrawn at any time.';
     }
 
     public static function keys(): array
