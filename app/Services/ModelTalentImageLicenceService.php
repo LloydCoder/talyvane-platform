@@ -22,7 +22,7 @@ class ModelTalentImageLicenceService
         int $actorId,
         array $terms,
     ): ModelTalentImageLicence {
-        app(FeatureRegistry::class)->assertEnabled('model-agency.usage-rights');
+        app(FeatureRegistry::class)->assertOperationallyEnabled('model-agency.usage-rights');
         return DB::transaction(function () use ($asset, $agreement, $actorId, $terms): ModelTalentImageLicence {
             $this->assertDraftTerms($terms);
             $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($asset->application_id);
