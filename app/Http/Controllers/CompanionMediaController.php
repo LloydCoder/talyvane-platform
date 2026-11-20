@@ -79,6 +79,36 @@ class CompanionMediaController extends Controller
         return redirect()->route('companion-portal.dashboard')->with('status', $membersOnlyConsentConfirmed ? 'Image received privately with a separate members-only access opt-in recorded.' : 'Image received privately. It will not appear publicly unless the agency approves it.');
     }
 
+    public function withdrawMembersOnlyConsent(
+        Request $request,
+        CompanionProfile $profile,
+        ProfileMedia $media,
+    ): RedirectResponse {
+        abort_unless((int) $profile->user_id === (int) $request->user()->id, 403);
+        abort_unless((int) $media->companion_profile_id === (int) $profile->id, 404);
+
+        DB::transaction(function () use ($profile, $media, $request): void {
+            CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
+            $lockedMedia = ProfileMedia::query()->lockForUpdate()->findOrFail($media->id);
+            abort_unless(
+                (int) $lockedMedia->companion_profile_id === (int) $profile->id
+                && $lockedMedia->members_only_consent_at
+                && ! $lockedMedia->members_only_consent_withdrawn_at,
+                404,
+            );
+
+            $lockedMedia->forceFill([
+                'members_only_consent_withdrawn_at' => now(),
+                'members_only_consent_withdrawn_by' => $request->user()->id,
+            ])->save();
+        });
+
+        return redirect()->route('companion-portal.dashboard')->with(
+            'status',
+            'Members-only gallery consent withdrawn. This image is no longer available to members; its separate public-publication consent is unchanged.',
+        );
+    }
+
     public function destroy(Request $request, CompanionProfile $profile, ProfileMedia $media): RedirectResponse
     {
         abort_unless((int) $profile->user_id === (int) $request->user()->id, 403);
