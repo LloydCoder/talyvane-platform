@@ -130,6 +130,7 @@ class MembershipEntitlementTest extends TestCase
                 'actor_id' => $uploader->id,
                 'actor_email' => $uploader->email,
                 'action' => 'members_only_consent.granted',
+                'capture_method' => 'authenticated_companion_portal_checkbox',
                 'consent_policy_version' => $media->members_only_consent_version,
                 'consent_statement' => $statement,
                 'statement_sha256' => hash('sha256', $statement),
@@ -241,6 +242,7 @@ class MembershipEntitlementTest extends TestCase
             'media_reference' => 'profile-media:'.$media->id,
             'actor_email' => 'audit@example.test',
             'action' => 'members_only_consent.granted',
+            'capture_method' => 'test_fixture',
             'consent_policy_version' => 'private-gallery-v1',
             'consent_statement' => MembershipEntitlementCatalog::privateGalleryConsentStatement(),
             'statement_sha256' => hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement()),
@@ -553,6 +555,7 @@ class MembershipEntitlementTest extends TestCase
         $this->assertDatabaseHas('profile_media_consent_events', [
             'profile_media_id' => $media->id,
             'action' => 'members_only_consent.withdrawn',
+            'capture_method' => 'authenticated_companion_portal_withdrawal',
             'actor_id' => $companion->id,
             'consent_policy_version' => 'private-gallery-v1',
         ]);
