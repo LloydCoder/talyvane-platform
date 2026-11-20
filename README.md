@@ -38,6 +38,7 @@ See COMMERCIAL-LICENSING.md for the intended commercial model.
 - docs/SUPER-ADMIN-RECOVERY.md
 - docs/HOSTING-COMPATIBILITY.md
 - docs/CPANEL-INSTALLATION.md
+- cpanel-public-root/README.md (safe cPanel public_html front-controller layouts)
 - docs/SECURE-BROWSER-INSTALLER.md (approved browser installer security and acceptance specification)
 - docs/DEPLOYMENT-OPERATIONS.md
 - docs/BOOKING.md
