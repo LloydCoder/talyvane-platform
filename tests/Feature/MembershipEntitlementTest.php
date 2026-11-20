@@ -158,6 +158,7 @@ class MembershipEntitlementTest extends TestCase
 
     public function test_only_a_current_active_membership_with_a_current_grant_has_an_entitlement(): void
     {
+        $this->enableEntitlements();
         $client = $this->client();
         $membership = $this->membership($client);
         $this->grantPrivateGallery($membership);
@@ -586,6 +587,33 @@ class MembershipEntitlementTest extends TestCase
         ]);
         $this->assertNotNull($profile->fresh()->publication_consent_at);
         $this->actingAs($client)->get(route('profile-media.show', $media))->assertNotFound();
+    }
+
+    public function test_entitlement_service_fails_closed_when_feature_is_paused_even_if_called_directly(): void
+    {
+        $this->enableEntitlements();
+        $client = $this->client('paused-entitlement@example.test');
+        $membership = $this->membership($client);
+        $this->grantPrivateGallery($membership);
+
+        DB::table('platform_features')->where('key', 'memberships.entitlements')->update(['is_enabled' => false]);
+
+        $this->assertFalse(app(MembershipEntitlementService::class)->has($client, 'media.private_gallery'));
+    }
+
+    public function test_direct_database_enable_cannot_activate_an_unavailable_entitlement_service(): void
+    {
+        $this->enableEntitlements();
+        $client = $this->client('unavailable-entitlement@example.test');
+        $membership = $this->membership($client);
+        $this->grantPrivateGallery($membership);
+
+        DB::table('platform_features')->where('key', 'memberships.entitlements')->update([
+            'implementation_status' => 'planned',
+            'is_enabled' => true,
+        ]);
+
+        $this->assertFalse(app(MembershipEntitlementService::class)->has($client, 'media.private_gallery'));
     }
 
     public function test_membership_entitlements_feature_becomes_operational_only_after_the_runtime_gate_is_present(): void
