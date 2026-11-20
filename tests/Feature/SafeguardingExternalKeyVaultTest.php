@@ -97,6 +97,64 @@ class SafeguardingExternalKeyVaultTest extends TestCase
         Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/decrypt/'));
     }
 
+    public function test_vault_destruction_failure_prevents_local_retention_tombstone(): void
+    {
+        $plaintextKey = null;
+
+        Http::fake(function (Request $request) use (&$plaintextKey) {
+            if (str_contains($request->url(), '/keys/') && str_ends_with($request->url(), '/config')) {
+                return Http::response([], 403);
+            }
+
+            if (str_contains($request->url(), '/keys/')) {
+                return Http::response([], 204);
+            }
+
+            if (str_contains($request->url(), '/encrypt/')) {
+                $plaintextKey = base64_decode((string) $request['plaintext'], true);
+
+                return Http::response(['data' => ['ciphertext' => 'vault:v1:case-key-ciphertext']]);
+            }
+
+            if (str_contains($request->url(), '/decrypt/')) {
+                return Http::response(['data' => ['plaintext' => base64_encode((string) $plaintextKey)]]);
+            }
+
+            return Http::response([], 404);
+        });
+
+        config([
+            'talyvane.safeguarding.retention.schedule_approved' => true,
+            'talyvane.safeguarding.retention.days' => 30,
+            'talyvane.safeguarding.retention.policy_version' => 'vault-retention-v1',
+            'talyvane.safeguarding.retention.backup_expiry_days' => 7,
+            'talyvane.safeguarding.retention.backup_policy_approved' => true,
+        ]);
+
+        [$owner, $specialist] = $this->actors('erase-failure');
+        $case = $this->createCase($owner, $specialist);
+        $case->forceFill([
+            'status' => 'closed',
+            'resolved_at' => now()->subDays(45),
+            'closed_at' => now()->subDays(40),
+        ])->save();
+
+        try {
+            app(SafeguardingCaseRetentionService::class)->apply();
+            $this->fail('Retention must not mark content erased when Vault key destruction fails.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('External safeguarding key deletion could not be authorized.', $exception->getMessage());
+        }
+
+        $stored = DB::table('safeguarding_case_contents')->where('case_id', $case->id)->first();
+        $this->assertSame('vault:v1:case-key-ciphertext', $stored->key_ciphertext);
+        $this->assertNull($stored->retention_erased_at);
+        $this->assertDatabaseMissing('safeguarding_case_events', [
+            'case_id' => $case->id,
+            'event_type' => 'case.retention_erased',
+        ]);
+    }
+
     public function test_unknown_stored_key_provider_fails_closed(): void
     {
         config(['talyvane.safeguarding.key_provider' => 'local']);
