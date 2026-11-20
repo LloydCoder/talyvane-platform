@@ -38,6 +38,18 @@ Official references:
 - Verification records are immutable through the application workflow and record the verifier actor and event. A verifier cannot accept, decline, or otherwise change application status.
 - Safeguarding case access is not included in the verifier role and remains a separate specialist-role implementation.
 
+## Safeguarding case access
+
+- `safeguarding` is a dedicated privileged role with TOTP MFA and current-session-version enforcement. It cannot access the general agency dashboard, verifier queue, finance, booking, client, model-agency or deployment workspaces.
+- Agency `super_admin`, `owner` and `admin` users may submit a confidential report and assign it only to an active safeguarding specialist whose MFA is already enrolled. The reporter cannot read the case after submission.
+- A safeguarding specialist can read and transition only cases assigned to that exact user ID. Case queries are resource-scoped; guessing another case identifier returns not found.
+- Case summaries, details, subject references, legal-hold reasons and case-event notes use Laravel encrypted casts. The encryption key and backups therefore require the same strict protection as production secrets and sensitive data.
+- Case creation and state transitions append case events. Every case detail view appends an access event. These application-level append-only model guards do not prevent direct SQL or privileged database tampering.
+- The register stores no uploaded identity documents or evidence files. Related records are linked only by an opaque application reference or other approved record reference. Do not place identity-document numbers, credentials, payment secrets or unnecessary personal data in case narratives.
+- Current case states are `open`, `triaged`, `investigating`, `action_required`, `resolved` and `closed`; transitions are constrained in the service layer. Closed cases are terminal in this release.
+- This release provides authenticated internal reporting only. It is not an emergency response service, public/anonymous reporting channel, hotline, notification dispatcher, statutory reporting integration or guarantee of safeguarding intervention. Operators must maintain independent emergency contacts, trained human responders, jurisdiction-specific procedures and documented response-time commitments.
+- Retention schedules, legal-hold administration, export controls, notification/escalation, independent response drills and external safeguarding oversight remain release gates.
+
 ## Sensitive data
 Collect only necessary data for documented purposes. Never expose legal names, identity documents, private addresses, phone numbers or verification evidence publicly. Store verification evidence separately with restricted access, encryption where supported and access audit. Record consent purpose, version, actor, timestamp and withdrawal. Profile publication and automatic-booking opt-in/out are recorded as separate review events. Provider references and external payment transaction references are stored as keyed HMAC digests, not raw identifiers; no identity document is stored in public profile tables. Define retention/deletion schedules. Do not infer age, identity or sensitive traits.
 
