@@ -239,19 +239,19 @@ class ClientExperienceTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $event = \\App\\Models\\ClientMembershipEvent::query()->findOrFail($eventId);
+        $event = \App\Models\ClientMembershipEvent::query()->findOrFail($eventId);
         try {
             $event->reason = 'tampered';
             $event->save();
             $this->fail('Membership events must reject updates.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertSame('Membership lifecycle events are append-only.', $exception->getMessage());
         }
 
         try {
             $event->delete();
             $this->fail('Membership events must reject deletion.');
-        } catch (\\LogicException $exception) {
+        } catch (\LogicException $exception) {
             $this->assertSame('Membership lifecycle events are append-only.', $exception->getMessage());
         }
     }
