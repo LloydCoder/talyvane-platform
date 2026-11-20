@@ -62,7 +62,7 @@ jobs:
         run: find app bootstrap config cpanel-public-root database install public routes tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Validate routes and compile Blade views
         env:
-          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          APP_KEY: 0123456789abcdef0123456789abcdef
         run: |
           php artisan route:list --except-vendor
           php artisan view:cache
@@ -86,20 +86,20 @@ jobs:
       - name: Install production dependencies from the committed lockfile
         run: composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
         env:
-          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          APP_KEY: 0123456789abcdef0123456789abcdef
       - name: Verify production platform requirements and dependency advisories
         run: |
           composer check-platform-reqs --no-dev
           composer audit --no-dev --no-interaction
       - name: Smoke-test routes and Blade compilation with production dependencies
         env:
-          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          APP_KEY: 0123456789abcdef0123456789abcdef
         run: |
           php artisan route:list --except-vendor
           php artisan view:cache
       - name: Assemble standalone release package
         env:
-          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          APP_KEY: 0123456789abcdef0123456789abcdef
         run: |
           set -euo pipefail
           staging="dist/talyvane"
