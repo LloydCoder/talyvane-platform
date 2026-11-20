@@ -9,6 +9,13 @@ class InstallerPreflightTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function tearDown(): void
+    {
+        @unlink(storage_path('app/private/INSTALLER-ACCESS-KEY.txt'));
+        @unlink(storage_path('app/private/talyvane.install.lock'));
+        parent::tearDown();
+    }
+
     public function test_installer_screen_displays_hosting_preflight_before_configuration(): void
     {
         config(['talyvane.installer.enforce' => false]);
