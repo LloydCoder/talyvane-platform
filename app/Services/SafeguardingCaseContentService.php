@@ -15,10 +15,23 @@ class SafeguardingCaseContentService
     {
         $dataKey = random_bytes(32);
         $encrypter = new Encrypter($dataKey, (string) config('app.cipher'));
+        $provider = strtolower(trim((string) config('talyvane.safeguarding.key_provider', 'local')));
+        $keyReference = null;
+
+        if ($provider === 'vault') {
+            $keyReference = 'case-'.Str::uuid()->toString();
+            $keyCiphertext = app(SafeguardingCaseKeyVault::class)->createAndEncrypt($keyReference, $dataKey);
+        } elseif ($provider === 'local') {
+            $keyCiphertext = Crypt::encryptString(base64_encode($dataKey));
+        } else {
+            throw new RuntimeException('Unsupported safeguarding case key provider.');
+        }
 
         DB::table('safeguarding_case_contents')->insert([
             'case_id' => $case->id,
-            'key_ciphertext' => Crypt::encryptString(base64_encode($dataKey)),
+            'key_provider' => $provider,
+            'key_reference' => $keyReference,
+            'key_ciphertext' => $keyCiphertext,
             'summary_ciphertext' => $this->encryptNullable($encrypter, $content['summary'] ?? null),
             'details_ciphertext' => $this->encryptNullable($encrypter, $content['details'] ?? null),
             'subject_reference_ciphertext' => $this->encryptNullable($encrypter, $content['subject_reference'] ?? null),
@@ -43,7 +56,7 @@ class SafeguardingCaseContentService
             ];
         }
 
-        $encrypter = $this->encrypterFromCiphertext($row->key_ciphertext);
+        $encrypter = $this->encrypterFromRow($row);
 
         return [
             'summary' => $this->decryptNullable($encrypter, $row->summary_ciphertext),
@@ -67,7 +80,7 @@ class SafeguardingCaseContentService
             return null;
         }
 
-        return $this->encrypterFromCiphertext($row->key_ciphertext)->decryptString($ciphertext);
+        return $this->encrypterFromRow($row)->decryptString($ciphertext);
     }
 
     public function updateFields(int $caseId, array $values): void
@@ -81,7 +94,7 @@ class SafeguardingCaseContentService
             throw ValidationException::withMessages(['legal_hold' => 'This case content is unavailable after retention erasure and cannot be placed under a new hold.']);
         }
 
-        $encrypter = $this->encrypterFromCiphertext($row->key_ciphertext);
+        $encrypter = $this->encrypterFromRow($row);
         $allowed = [
             'legal_hold_reason' => 'legal_hold_reason_ciphertext',
             'legal_hold_release_reason' => 'legal_hold_release_reason_ciphertext',
@@ -110,6 +123,14 @@ class SafeguardingCaseContentService
             return false;
         }
 
+        if (($row->key_provider ?? 'local') === 'vault') {
+            if (! is_string($row->key_reference) || $row->key_reference === '') {
+                throw new RuntimeException('External safeguarding key reference is missing; retention erasure is unsafe.');
+            }
+
+            app(SafeguardingCaseKeyVault::class)->destroyKey($row->key_reference);
+        }
+
         DB::table('safeguarding_case_contents')->where('case_id', $caseId)->update([
             'key_ciphertext' => null,
             'retention_erased_at' => now(),
@@ -131,9 +152,18 @@ class SafeguardingCaseContentService
         return $this->encrypterFromCiphertext($row->key_ciphertext);
     }
 
-    private function encrypterFromCiphertext(string $keyCiphertext): Encrypter
+    private function encrypterFromRow(object $row): Encrypter
     {
-        $dataKey = base64_decode(Crypt::decryptString($keyCiphertext), true);
+        if (($row->key_provider ?? 'local') === 'vault') {
+            if (! is_string($row->key_reference) || $row->key_reference === '') {
+                throw new RuntimeException('External safeguarding key reference is missing.');
+            }
+
+            $dataKey = app(SafeguardingCaseKeyVault::class)->decrypt($row->key_reference, (string) $row->key_ciphertext);
+        } else {
+            $dataKey = base64_decode(Crypt::decryptString((string) $row->key_ciphertext), true);
+        }
+
         if (! is_string($dataKey) || strlen($dataKey) !== 32) {
             throw new RuntimeException('Safeguarding case content key is invalid.');
         }
