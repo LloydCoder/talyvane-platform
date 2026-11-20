@@ -11,9 +11,11 @@ use App\Models\ProfileMedia;
 use App\Models\User;
 use App\Services\FeatureRegistry;
 use App\Services\MembershipEntitlementService;
+use App\Services\ClientMembershipService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class MembershipEntitlementTest extends TestCase
@@ -199,9 +201,9 @@ class MembershipEntitlementTest extends TestCase
         $client = $this->client('service-target@example.test');
         $untrustedActor = $this->client('service-actor@example.test');
 
-        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\HttpException::class);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
 
-        app(\\App\\Services\\ClientMembershipService::class)->assign($client, $untrustedActor, [
+        app(\App\Services\ClientMembershipService::class)->assign($client, $untrustedActor, [
             'tier_name' => 'Signature',
             'benefits_summary' => 'A private membership benefit.',
             'status' => 'active',
