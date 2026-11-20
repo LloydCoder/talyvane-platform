@@ -254,6 +254,40 @@ class PlatformFeatureRegistryTest extends TestCase
             ->assertSee('Model agency applications')
             ->assertSee('Planned');
     }
+    public function test_unimplemented_payment_communication_and_calendar_prerequisites_remain_fail_closed(): void
+    {
+        $requirements = [
+            'chain_verification',
+            'network_validation',
+            'legal_approval',
+            'written_underwriting_approval',
+            'approved_processor_adapter',
+            'secure_message_storage',
+            'retention_policy',
+            'oauth_secret_storage',
+            'provider_review',
+        ];
+
+        foreach ($requirements as $requirement) {
+            $feature = new PlatformFeature([
+                'key' => 'integration.readiness.test',
+                'name' => 'Integration readiness test',
+                'module' => 'integrations',
+                'description' => 'Verifies unknown external activation prerequisites fail closed.',
+                'implementation_status' => 'available',
+                'is_enabled' => true,
+                'risk_level' => 'high',
+                'dependencies' => [],
+                'activation_requirements' => [$requirement],
+            ]);
+
+            $this->assertContains(
+                'Activation prerequisite is not satisfied or has no verified evaluator: '.$requirement.'.',
+                app(FeatureActivationEvaluator::class)->blockers($feature),
+            );
+        }
+    }
+
     public function test_adult_eligibility_verification_activation_requires_an_active_verified_mfa_verifier(): void
     {
         $feature = new PlatformFeature([
