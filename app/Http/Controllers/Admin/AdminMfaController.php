@@ -19,7 +19,7 @@ class AdminMfaController
     {
         $user = $request->user();
         if ($user->mfa_enabled_at && $user->mfa_secret) {
-            return redirect()->route($user->role === 'finance' ? 'admin.model-settlements.index' : 'admin.dashboard');
+            return redirect()->route(match ($user->role) { 'finance' => 'admin.model-settlements.index', 'verifier' => 'admin.adult-eligibility.index', default => 'admin.dashboard' });
         }
 
         $secret = $request->session()->get('mfa_setup_secret');
@@ -69,7 +69,7 @@ class AdminMfaController
     {
         $codes = $request->session()->get('mfa_recovery_codes');
         if (! is_array($codes)) {
-            return redirect()->route($request->user()->role === 'finance' ? 'admin.model-settlements.index' : 'admin.dashboard');
+            return redirect()->route(match ($request->user()->role) { 'finance' => 'admin.model-settlements.index', 'verifier' => 'admin.adult-eligibility.index', default => 'admin.dashboard' });
         }
 
         return view('admin.auth.mfa-recovery', ['codes' => $codes]);
@@ -147,7 +147,7 @@ class AdminMfaController
         $user = User::query()
             ->whereKey($id)
             ->where('is_active', true)
-            ->whereIn('role', ['super_admin', 'owner', 'admin', 'finance'])
+            ->whereIn('role', ['super_admin', 'owner', 'admin', 'finance', 'verifier'])
             ->whereNotNull('mfa_enabled_at')
             ->first();
 
@@ -170,7 +170,7 @@ class AdminMfaController
         $request->session()->regenerate();
         $request->session()->put('admin_session_version', (int) $user->admin_session_version);
 
-        $destination = route($user->role === 'finance' ? 'admin.model-settlements.index' : 'admin.dashboard');
+        $destination = route(match ($user->role) { 'finance' => 'admin.model-settlements.index', 'verifier' => 'admin.adult-eligibility.index', default => 'admin.dashboard' });
 
         return $user->role === 'finance' ? redirect($destination) : redirect()->intended($destination);
     }
