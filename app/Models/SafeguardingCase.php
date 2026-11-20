@@ -24,6 +24,9 @@ class SafeguardingCase extends Model
         'legal_hold_at',
         'legal_hold_by',
         'legal_hold_reason',
+        'legal_hold_released_at',
+        'legal_hold_released_by',
+        'legal_hold_release_reason',
     ];
 
     protected function casts(): array
@@ -33,9 +36,11 @@ class SafeguardingCase extends Model
             'summary' => 'encrypted',
             'details' => 'encrypted',
             'legal_hold_reason' => 'encrypted',
+            'legal_hold_release_reason' => 'encrypted',
             'resolved_at' => 'immutable_datetime',
             'closed_at' => 'immutable_datetime',
             'legal_hold_at' => 'immutable_datetime',
+            'legal_hold_released_at' => 'immutable_datetime',
         ];
     }
 
