@@ -29,6 +29,7 @@
 
     <form method="POST" action="{{ route('install.store') }}" autocomplete="off">
         @csrf
+        <input type="hidden" name="installer_token" value="{{ $installerToken }}">
         <h2>Application</h2>
         <label>Deployment name<input name="app_name" required maxlength="80" value="{{ old('app_name', 'Talyvane') }}"></label>
         <label>Canonical HTTPS URL<input type="url" name="app_url" required placeholder="https://agency.example.com" value="{{ old('app_url') }}"></label>
