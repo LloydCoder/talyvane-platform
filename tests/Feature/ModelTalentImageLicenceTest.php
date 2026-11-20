@@ -256,6 +256,21 @@ class ModelTalentImageLicenceTest extends TestCase
         $this->assertSame('expired', $licence->fresh()->status);
     }
 
+    public function test_expiry_scheduler_closes_existing_licence_obligations_when_usage_rights_feature_is_paused(): void
+    {
+        $context = $this->makeApprovedAssetAndAgreement();
+        $licence = $this->activeLicence($context);
+        $licence->forceFill(['ends_on' => now()->subDay()->toDateString()])->save();
+
+        \Illuminate\Support\Facades\DB::table('platform_features')
+            ->where('key', 'model-agency.usage-rights')
+            ->update(['is_enabled' => false]);
+
+        $this->artisan('talyvane:model-agency:expire-image-licences')->assertExitCode(0);
+
+        $this->assertSame('expired', $licence->fresh()->status);
+    }
+
     public function test_image_licence_requires_a_current_approved_policy_and_market(): void
     {
         $context = $this->makeApprovedAssetAndAgreement();

@@ -26,6 +26,7 @@ The first commercial release remains deployment-isolated. A future hosted multi-
 - The designated Super Admin cannot be demoted, deactivated or deleted through Eloquent model operations; a second principal cannot be assigned after the singleton principal is set. These model guards are defense in depth, not a database-level boundary: privileged direct SQL can bypass them.
 - Assigned break-glass guardians are protected against Eloquent-based role, activation, email-verification, MFA-enrollment and deletion changes until the assignment is cleared. Guardian assignment records and recovery events reject Eloquent updates/deletes. These are application-layer safeguards; database administrators retain direct-SQL authority.
 - Tests must cover feature states, role/resource boundaries and attempts to bypass server-side gates.
+- Hard safety, privacy, safeguarding, payment-integrity and audit controls are reserved outside the feature registry; see [ADR-0011](ADR-0011-hard-safeguards-not-feature-flags.md).
 - No Super Admin UI may reveal stored secrets, permit public registration of a Super Admin, or alter immutable audit history.
 
 ## Implemented privilege boundary

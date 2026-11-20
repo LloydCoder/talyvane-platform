@@ -124,7 +124,9 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Exclude MFA secret, recovery-code hashes and TOTP replay state from User model serialization, with regression coverage.
 - [x] Test authorization boundaries and direct SQL role-escalation attempts against the canonical Super Admin authentication boundary.
 - [ ] Complete broader direct-database bypass threat modelling, database privilege review, audit-integrity verification and comprehensive feature-gate bypass tests.
-- [ ] Keep hard safeguards outside the feature registry and verify they cannot be disabled by Super Admin settings.
+- [x] Keep hard safeguards outside the feature registry and verify they cannot be disabled by Super Admin settings; reserved safeguard keys fail closed even if inserted into the registry.
+- [x] Verify approved retention, safeguarding notification dispatch and existing image-licence expiry continue when optional feature flags are paused.
+- [ ] Complete comprehensive feature-gate bypass testing across every controller, service, scheduled command and integration adapter.
 
 
 ## cPanel shared-hosting compatibility and deployment documentation

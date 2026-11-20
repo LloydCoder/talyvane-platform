@@ -10,7 +10,9 @@ class FeatureRegistry
 {
     public function isEnabled(string $key, array $visited = []): bool
     {
-        if (! Schema::hasTable('platform_features') || in_array($key, $visited, true)) {
+        if (HardSafeguards::contains($key)
+            || ! Schema::hasTable('platform_features')
+            || in_array($key, $visited, true)) {
             return false;
         }
 
@@ -65,6 +67,7 @@ class FeatureRegistry
             ->orderBy('name')
             ->get()
             ->each(function (PlatformFeature $feature): void {
+                $feature->setAttribute('hard_safeguard', HardSafeguards::contains($feature->key));
                 $feature->setAttribute('effective_enabled', $this->isOperationallyEnabled($feature->key));
             });
     }

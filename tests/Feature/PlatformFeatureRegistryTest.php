@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Services\FeatureActivationEvaluator;
 use App\Services\FeatureRegistry;
 use App\Models\User;
 use App\Models\CountryMarket;
@@ -39,6 +40,56 @@ class PlatformFeatureRegistryTest extends TestCase
         ]);
 
         $this->get('/destinations')->assertOk();
+    }
+
+    public function test_reserved_hard_safeguards_cannot_be_enabled_through_the_feature_registry(): void
+    {
+        DB::table('platform_features')->insert([
+            'key' => 'safeguarding.case-access',
+            'name' => 'Safeguarding case access',
+            'module' => 'safeguarding',
+            'description' => 'Reserved non-toggleable safety control.',
+            'implementation_status' => 'available',
+            'is_enabled' => true,
+            'risk_level' => 'critical',
+            'dependencies' => json_encode([]),
+            'activation_requirements' => json_encode([]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $registry = app(FeatureRegistry::class);
+        $feature = $registry->catalog()->firstWhere('key', 'safeguarding.case-access');
+
+        $this->assertFalse($registry->isEnabled('safeguarding.case-access'));
+        $this->assertFalse($registry->isOperationallyEnabled('safeguarding.case-access'));
+        $this->assertFalse($feature->effective_enabled);
+        $this->assertTrue($feature->hard_safeguard);
+        $this->assertContains('Hard safeguards are not configurable feature flags.', app(FeatureActivationEvaluator::class)->blockers($feature));
+    }
+
+    public function test_optional_features_cannot_depend_on_a_reserved_hard_safeguard_flag(): void
+    {
+        $this->approveDiscoveryMarket();
+
+        DB::table('platform_features')->insert([
+            'key' => 'consent.withdrawal',
+            'name' => 'Consent withdrawal',
+            'module' => 'privacy',
+            'description' => 'Reserved non-toggleable privacy control.',
+            'implementation_status' => 'available',
+            'is_enabled' => true,
+            'risk_level' => 'critical',
+            'dependencies' => json_encode([]),
+            'activation_requirements' => json_encode([]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('platform_features')->where('key', 'public.discovery')->update([
+            'dependencies' => json_encode(['consent.withdrawal']),
+        ]);
+
+        $this->assertFalse(app(FeatureRegistry::class)->isOperationallyEnabled('public.discovery'));
     }
 
     public function test_disabling_public_discovery_blocks_the_public_route_server_side(): void

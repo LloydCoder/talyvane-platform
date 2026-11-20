@@ -151,6 +151,32 @@ class SafeguardingRetentionTest extends TestCase
         $this->assertNull($case->fresh()->events()->where('event_type', 'case.retention_erased')->firstOrFail()->note);
     }
 
+    public function test_approved_retention_runs_even_when_all_optional_features_are_disabled(): void
+    {
+        $this->approveRetentionPolicy();
+        $owner = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'retention-paused-owner@example.test',
+            'role' => 'owner',
+        ]);
+        $specialist = $this->createAdminUser([
+            'name' => 'Safeguarding Specialist',
+            'email' => 'retention-paused-specialist@example.test',
+            'role' => 'safeguarding',
+        ]);
+        $case = $this->caseFor($owner, $specialist, 'PAUSED');
+        $case->forceFill([
+            'status' => 'closed',
+            'resolved_at' => now()->subDays(45),
+            'closed_at' => now()->subDays(40),
+        ])->save();
+
+        DB::table('platform_features')->update(['is_enabled' => false]);
+
+        $this->assertSame(1, app(SafeguardingCaseRetentionService::class)->apply());
+        $this->assertTrue($case->fresh()->content_erased);
+    }
+
     public function test_legal_hold_and_open_cases_are_excluded_from_retention(): void
     {
         $this->approveRetentionPolicy();

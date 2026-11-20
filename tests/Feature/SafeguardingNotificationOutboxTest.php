@@ -81,6 +81,37 @@ class SafeguardingNotificationOutboxTest extends TestCase
         ]);
     }
 
+    public function test_safeguarding_alert_dispatch_continues_when_optional_features_are_disabled(): void
+    {
+        config([
+            'talyvane.safeguarding.emergency_contact_emails' => [],
+            'talyvane.safeguarding.notifications_enabled' => true,
+            'mail.default' => 'smtp',
+        ]);
+        Notification::fake();
+
+        $owner = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'notify-paused-owner@example.test',
+            'role' => 'owner',
+        ]);
+        $specialist = $this->createAdminUser([
+            'name' => 'Safeguarding Specialist',
+            'email' => 'notify-paused-specialist@example.test',
+            'role' => 'safeguarding',
+        ]);
+        $case = $this->createCase($owner, $specialist);
+
+        \Illuminate\Support\Facades\DB::table('platform_features')->update(['is_enabled' => false]);
+
+        $this->assertSame(1, app(SafeguardingNotificationDispatcher::class)->dispatchPending());
+        Notification::assertSentOnDemand(SafeguardingCaseAlert::class);
+        $this->assertDatabaseHas('safeguarding_notification_outboxes', [
+            'case_id' => $case->id,
+            'status' => 'delivered',
+        ]);
+    }
+
     public function test_critical_case_enqueues_a_separate_escalation_notice_for_configured_contacts(): void
     {
         config([
