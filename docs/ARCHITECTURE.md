@@ -85,3 +85,8 @@ Optional feature activation is checked at route and domain-service boundaries. A
 Scheduled work is classified by effect. New optional work must be feature-gated at execution time and rechecked inside its state-changing transaction. Existing obligations and protective transitions—including consent withdrawal, licence expiry/revocation, approved retention, safeguarding escalation, dispute handling and financial close-out—must continue while optional features are paused. A scheduler must never silently turn a paused feature back on or start new optional work.
 
 Feature audit Eloquent models reject updates and deletes, but that is not a database-level immutability guarantee. Production audit integrity additionally requires restricted database principals, independently controlled audit export, integrity verification and tested restore procedures.
+
+
+## Safeguarding key custody decision
+
+Vault-backed safeguarding uses an immutable per-deployment key namespace, a unique per-case key reference, separate application and retention credentials, active-ciphertext decrypt verification during restore, and namespace-scoped orphan cleanup. See [ADR-0013](decisions/ADR-0013-safeguarding-vault-namespace-and-restore-verification.md) and [Safeguarding Operations](SAFEGUARDING-OPERATIONS.md). Historical Vault backup expiry remains an independent operational release gate.
