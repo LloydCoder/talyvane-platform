@@ -37,6 +37,8 @@ class SafeguardingRetentionTest extends TestCase
             'talyvane.safeguarding.retention.schedule_approved' => true,
             'talyvane.safeguarding.retention.days' => 30,
             'talyvane.safeguarding.retention.policy_version' => 'safeguarding-retention-v1',
+            'talyvane.safeguarding.retention.backup_expiry_days' => 7,
+            'talyvane.safeguarding.retention.backup_policy_approved' => true,
         ]);
     }
 
@@ -93,6 +95,7 @@ class SafeguardingRetentionTest extends TestCase
             'case_id' => $case->id,
             'event_type' => 'case.retention_erased',
         ]);
+        $this->assertNull($case->fresh()->events()->where('event_type', 'case.retention_erased')->firstOrFail()->note);
     }
 
     public function test_legal_hold_and_open_cases_are_excluded_from_retention(): void
