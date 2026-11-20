@@ -59,7 +59,7 @@ jobs:
       - name: Validate Composer configuration
         run: composer validate --no-check-publish
       - name: Lint PHP source
-        run: find app bootstrap config database install routes tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: find app bootstrap config cpanel-public-root database install routes tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Validate routes and compile Blade views
         env:
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -104,7 +104,7 @@ jobs:
           set -euo pipefail
           staging="dist/talyvane"
           mkdir -p "$staging"
-          for path in app artisan bootstrap config database docs install public resources routes storage vendor composer.json composer.lock .env.example README.md LICENSE COMMERCIAL-LICENSING.md; do
+          for path in app artisan bootstrap config cpanel-public-root database docs install public resources routes storage vendor composer.json composer.lock .env.example README.md LICENSE COMMERCIAL-LICENSING.md; do
             test -e "$path"
             cp -a "$path" "$staging/"
           done
@@ -125,6 +125,8 @@ jobs:
           grep -Fq 'talyvane/vendor/autoload.php' dist/package-contents.txt
           grep -Fq 'talyvane/.env.example' dist/package-contents.txt
           grep -Fq 'talyvane/install/bootstrap.php' dist/package-contents.txt
+          grep -Fq 'talyvane/cpanel-public-root/main-domain/index.php' dist/package-contents.txt
+          grep -Fq 'talyvane/cpanel-public-root/addon-domain/index.php' dist/package-contents.txt
           test -f "$staging/install/RELEASE-MANIFEST.json"
           test ! -d "$staging/public/install"
           if grep -E '(^|/)\.env$|(^|/)\.git/|^talyvane/tests/|^talyvane/storage/(logs|app/private)/[^.]|^talyvane/bootstrap/cache/[^.]' dist/package-contents.txt; then
