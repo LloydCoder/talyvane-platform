@@ -21,7 +21,7 @@ class CompanionPortalController extends Controller
     public function index(BrandSettings $brandSettings): View
     {
         $profiles = CompanionProfile::query()
-            ->with(['destination', 'availabilityRules', 'media'])
+            ->with(['destination', 'availabilityRules', 'media.consentEvents'])
             ->where('user_id', auth()->id())
             ->get();
 
@@ -33,7 +33,28 @@ class CompanionPortalController extends Controller
 
         $weekdays = [0 => 'Sunday', 1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday'];
 
-        $agencyName = (string) ($brandSettings->publicBrand()['brand_name'] ?? '');
+        $publicBrand = $brandSettings->publicBrand();
+        $agencyName = (string) ($publicBrand['brand_name'] ?? '');
+        $privateGalleryConsentVersion = config('talyvane.privacy.private_gallery_consent_version');
+        $privateGalleryConsentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement($agencyName);
+        $privateGalleryConsentStatementHash = hash('sha256', $privateGalleryConsentStatement);
+
+        $profiles->each(function (CompanionProfile $profile) use ($agencyName, $privateGalleryConsentVersion, $privateGalleryConsentStatement, $privateGalleryConsentStatementHash): void {
+            foreach ($profile->media as $media) {
+                $grantEvent = $media->consentEvents->firstWhere('action', 'members_only_consent.granted');
+                $media->setAttribute('members_only_consent_current', (bool) (
+                    filled($agencyName)
+                    && filled($privateGalleryConsentVersion)
+                    && $media->members_only_consent_at
+                    && ! $media->members_only_consent_withdrawn_at
+                    && hash_equals((string) $privateGalleryConsentVersion, (string) $media->members_only_consent_version)
+                    && $grantEvent
+                    && hash_equals($privateGalleryConsentStatement, (string) $grantEvent->consent_statement)
+                    && hash_equals($privateGalleryConsentStatementHash, (string) $grantEvent->statement_sha256)
+                    && hash_equals((string) $privateGalleryConsentVersion, (string) $grantEvent->consent_policy_version)
+                ));
+            }
+        });
         $privateGalleryConsentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement($agencyName);
 
         return view('portal.companion-dashboard', [
@@ -41,8 +62,8 @@ class CompanionPortalController extends Controller
             'bookings' => $bookings,
             'weekdays' => $weekdays,
             'privateGalleryConsentStatement' => $privateGalleryConsentStatement,
-            'privateGalleryConsentStatementHash' => hash('sha256', $privateGalleryConsentStatement),
-            'privateGalleryConsentVersion' => config('talyvane.privacy.private_gallery_consent_version'),
+            'privateGalleryConsentStatementHash' => $privateGalleryConsentStatementHash,
+            'privateGalleryConsentVersion' => $privateGalleryConsentVersion,
             'privateGalleryConsentAvailable' => filled($agencyName)
                 && filled(config('talyvane.privacy.private_gallery_consent_version'))
                 && config('talyvane.privacy.private_gallery_consent_approved'),
