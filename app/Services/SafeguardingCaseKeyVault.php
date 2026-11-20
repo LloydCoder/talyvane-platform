@@ -114,7 +114,7 @@ class SafeguardingCaseKeyVault
         foreach ($activeKeyCiphertexts as $keyReference => $ciphertext) {
             try {
                 $plaintext = $this->decrypt($keyReference, $ciphertext);
-            } catch (\\Throwable $exception) {
+            } catch (\Throwable $exception) {
                 throw new RuntimeException(
                     'An active safeguarding case key could not decrypt its stored ciphertext.',
                     0,
