@@ -47,7 +47,7 @@ class PlatformFeatureRegistryTest extends TestCase
             'is_enabled' => false,
         ]);
 
-        $this->get('/destinations')->assertStatus(503);
+        $this->get('/destinations')->assertNotFound();
         $this->get('/')->assertNotFound();
     }
 
@@ -212,7 +212,7 @@ class PlatformFeatureRegistryTest extends TestCase
 
         $this->assertFalse($registry->isOperationallyEnabled('public.discovery'));
         $this->assertFalse($registry->catalog()->firstWhere('key', 'public.discovery')->effective_enabled);
-        $this->get('/destinations')->assertNotFound();
+        $this->get('/destinations')->assertStatus(503);
     }
 
     public function test_payment_configuration_remains_available_for_provider_review_workflows(): void
