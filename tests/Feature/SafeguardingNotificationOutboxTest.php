@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\SafeguardingCase;
 use App\Models\User;
 use App\Notifications\SafeguardingCaseAlert;
+use App\Models\SafeguardingNotificationOutbox;
 use App\Services\SafeguardingNotificationDispatcher;
 use App\Services\SafeguardingNotificationOutboxService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -107,7 +108,7 @@ class SafeguardingNotificationOutboxTest extends TestCase
 
         $this->assertSame(2, $sent);
         Notification::assertSentOnDemandTimes(SafeguardingCaseAlert::class, 2);
-        $this->assertNull(\\App\\Models\\SafeguardingNotificationOutbox::query()
+        $this->assertNull(SafeguardingNotificationOutbox::query()
             ->where('case_id', $case->id)
             ->where('notification_type', 'critical_escalation')
             ->firstOrFail()
