@@ -23,6 +23,7 @@ class FeatureActivationEvaluator
         'email_verification',
         'verified_account',
         'consent_controls',
+        'payment_provider_review',
     ];
 
     public function blockers(PlatformFeature $feature): array
