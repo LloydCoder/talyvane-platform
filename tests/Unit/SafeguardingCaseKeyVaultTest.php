@@ -113,6 +113,14 @@ class SafeguardingCaseKeyVaultTest extends TestCase
         app(SafeguardingCaseKeyVault::class)->destroyKey('case-42');
     }
 
+    public function test_it_rejects_vault_endpoints_with_embedded_credentials(): void
+    {
+        config(['services.safeguarding_vault.address' => 'https://embedded-token@vault.example.test']);
+
+        $this->expectException(RuntimeException::class);
+        app(SafeguardingCaseKeyVault::class)->createKey('case-42');
+    }
+
     public function test_it_rejects_non_https_vault_endpoints(): void
     {
         config(['services.safeguarding_vault.address' => 'http://vault.example.test']);
