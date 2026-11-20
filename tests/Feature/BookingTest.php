@@ -95,7 +95,7 @@ class BookingTest extends TestCase
         ])->assertRedirect('/portal');
 
         $booking = Booking::query()->firstOrFail();
-        \\Illuminate\\Support\\Facades\\DB::table('platform_features')
+        \Illuminate\Support\Facades\DB::table('platform_features')
             ->whereIn('key', ['portals.client', 'bookings.companionship'])
             ->update(['is_enabled' => false]);
 
