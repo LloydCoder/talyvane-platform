@@ -25,10 +25,14 @@ use Throwable;
 
 final class InstallerController
 {
-    public function index(Request $request, InstallerAccessToken $accessToken): View
+    public function index(Request $request, InstallerAccessToken $accessToken, InstallerPendingState $pendingState): View
     {
         $startedAt = filter_var($request->session()->get('installer.started_at'), FILTER_VALIDATE_INT);
         if ($startedAt === false || $startedAt === null || $startedAt < time() - 900) {
+            $pendingNonce = $request->session()->get('installer.pending_nonce');
+            if (is_string($pendingNonce)) {
+                $pendingState->release($pendingNonce);
+            }
             if ($startedAt !== false && $startedAt !== null) {
                 $request->session()->invalidate();
             } else {
@@ -114,6 +118,10 @@ final class InstallerController
     {
         $installerStartedAt = filter_var($request->session()->get('installer.started_at'), FILTER_VALIDATE_INT);
         if ($installerStartedAt === false || $installerStartedAt === null || $installerStartedAt < time() - 900) {
+            $pendingNonce = $request->session()->get('installer.pending_nonce');
+            if (is_string($pendingNonce)) {
+                $pendingState->release($pendingNonce);
+            }
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
