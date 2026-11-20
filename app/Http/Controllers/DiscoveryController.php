@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\CompanionProfile;
 use App\Models\Destination;
+use App\Services\FeatureRegistry;
+use App\Services\MembershipEntitlementService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -32,7 +34,10 @@ class DiscoveryController extends Controller
         $profiles = CompanionProfile::query()
             ->publiclyDiscoverable()
             ->where('destination_id', $destination->id)
-            ->with(['destination:id,name,slug,country_name', 'media' => fn ($query) => $query->where('status', 'approved')->latest()])
+            ->with(['destination:id,name,slug,country_name', 'media' => fn ($query) => $query
+                ->where('status', 'approved')
+                ->where('access_level', 'public')
+                ->latest()])
             ->orderByDesc('published_at')
             ->paginate(12);
 
@@ -53,7 +58,10 @@ class DiscoveryController extends Controller
 
         $profiles = CompanionProfile::query()
             ->publiclyDiscoverable()
-            ->with(['destination:id,name,slug,country_name', 'media' => fn ($query) => $query->where('status', 'approved')->latest()])
+            ->with(['destination:id,name,slug,country_name', 'media' => fn ($query) => $query
+                ->where('status', 'approved')
+                ->where('access_level', 'public')
+                ->latest()])
             ->when(! empty($filters['destination']), function ($query) use ($filters): void {
                 $query->whereHas('destination', fn ($destination) => $destination
                     ->where('slug', $filters['destination']));
@@ -68,11 +76,28 @@ class DiscoveryController extends Controller
         return view('discovery.companions', compact('destinations', 'profiles'));
     }
 
-    public function companion(string $slug): View
-    {
+    public function companion(
+        string $slug,
+        FeatureRegistry $features,
+        MembershipEntitlementService $entitlements,
+    ): View {
+        $viewer = auth()->user();
+        $canViewPrivateGallery = $viewer
+            && $viewer->role === 'client'
+            && $features->isOperationallyEnabled('memberships.entitlements')
+            && $entitlements->has($viewer, 'media.private_gallery');
+
         $profile = CompanionProfile::query()
             ->publiclyDiscoverable()
-            ->with(['destination', 'media' => fn ($query) => $query->where('status', 'approved')->latest()])
+            ->with(['destination', 'media' => fn ($query) => $query
+                ->where('status', 'approved')
+                ->where(function ($media) use ($canViewPrivateGallery): void {
+                    $media->where('access_level', 'public');
+                    if ($canViewPrivateGallery) {
+                        $media->orWhere('access_level', 'members_only');
+                    }
+                })
+                ->latest()])
             ->where('slug', $slug)
             ->firstOrFail();
 
