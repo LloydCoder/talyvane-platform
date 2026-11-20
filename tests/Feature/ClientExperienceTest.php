@@ -7,6 +7,7 @@ use App\Models\CompanionProfile;
 use App\Models\Destination;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ClientExperienceTest extends TestCase
