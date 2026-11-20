@@ -98,7 +98,8 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Add a dedicated safeguarding specialist role with MFA, assigned-case-only access, encrypted case content, immutable case events and detail-view access auditing.
 - [x] Add metadata-only legal-hold governance with independent maker-checker release and append-only case/access audit events.
 - [x] Implement disabled-by-default, policy-gated removal of per-case content keys from the primary database for closed cases, excluding active legal holds and preserving case/audit metadata.
-- [ ] Verify backup expiry and restore controls or move per-case keys to an independently managed external key vault before claiming end-to-end cryptographic erasure; add emergency notification/escalation and independent response drills.
+- [x] Add a privacy-minimized safeguarding email outbox with MFA-gated internal links, critical/minor-safety escalation contacts, bounded retries and cPanel-compatible scheduled delivery.
+- [ ] Verify backup expiry and restore controls or move per-case keys to an independently managed external key vault before claiming end-to-end cryptographic erasure; complete independent safeguarding response drills.
 - [ ] Complete legacy owner/admin least-privilege migration and independent human custodian identity-proofing/operational drills.
 - [ ] Implement membership entitlements and protected-resource authorization; current membership capability is assignment/display only.
 - [x] Build a Super Admin-only read-only feature catalogue showing implementation state, configured/effective state, dependencies, risk and activation prerequisites.
