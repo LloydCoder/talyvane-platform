@@ -41,7 +41,7 @@ class CompanionPortalController extends Controller
 
         $profiles->each(function (CompanionProfile $profile) use ($agencyName, $privateGalleryConsentVersion, $privateGalleryConsentStatement, $privateGalleryConsentStatementHash): void {
             foreach ($profile->media as $media) {
-                $grantEvent = $media->consentEvents->firstWhere('action', 'members_only_consent.granted');
+                $grantEvent = $media->consentEvents->first(fn ($event) => $event->action === 'members_only_consent.granted' && $event->capture_method === 'authenticated_companion_portal_checkbox');
                 $media->setAttribute('members_only_consent_current', (bool) (
                     filled($agencyName)
                     && filled($privateGalleryConsentVersion)
