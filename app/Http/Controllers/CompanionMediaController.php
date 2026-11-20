@@ -54,7 +54,7 @@ class CompanionMediaController extends Controller
         $image = $processor->storeSanitized($validated['media']);
 
         try {
-            DB::transaction(function () use ($profile, $request, $image, $membersOnlyConsentConfirmed, $membersOnlyConsentVersion, $consentStatement): void {
+            DB::transaction(function () use ($profile, $request, $image, $membersOnlyConsentConfirmed, $membersOnlyConsentVersion, $consentStatement, $consentStatementHash): void {
                 $lockedProfile = CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
                 abort_unless((int) $lockedProfile->user_id === (int) $request->user()->id, 403);
 
