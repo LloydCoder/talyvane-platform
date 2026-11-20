@@ -10,7 +10,7 @@ The job:
 2. Installs production dependencies with `composer install --no-dev` from the committed `composer.lock`.
 3. Verifies actual PHP platform requirements and audits production dependencies.
 4. Boots the production-only dependency tree, enumerates routes and compiles Blade views to verify the packaged runtime without development dependencies.
-5. Packages the application, production `vendor/`, public assets, migrations, configuration, documentation and environment example.
+5. Packages the application, production `vendor/`, public assets, migrations, configuration, documentation, environment example and the private top-level `install/` bootstrap directory.
 5. Excludes the real `.env`, tests, Git metadata, runtime caches, logs and customer/private uploaded data.
 6. Writes a commit/runtime manifest, creates a normalized tar archive, computes SHA-256 and inspects the archive for forbidden paths.
 7. Uploads the package, checksum and package-content listing as an immutable GitHub Actions artifact with a 14-day retention period.
@@ -19,7 +19,7 @@ The package uses the tracked public assets. No Node.js or npm build is currently
 
 ## Important release boundary
 
-The CI artifact is a packaging and installability smoke-test output. It is **not** a signed, versioned customer release, does not constitute a security certification, and must not be deployed directly to production. A successful package job proves only the checks actually executed by that job.
+The CI artifact is a packaging and installability smoke-test output. It verifies that `install/bootstrap.php` is present at the private project root and absent from `public/`. It is **not** a signed, versioned customer release, does not constitute a security certification, and must not be deployed directly to production. A successful package job proves only the checks actually executed by that job.
 
 Production release engineering remains open:
 
@@ -27,7 +27,7 @@ Production release engineering remains open:
 - Build provenance/SBOM and artifact attestation.
 - Release notes, migration compatibility declaration and rollback plan.
 - Supported cPanel provider test matrix and deployment smoke tests.
-- Secure no-SSH installation and first Super Admin provisioning.
+- Secure no-SSH installation and first Super Admin provisioning, including one-time credentials, first-login password replacement, MFA and post-MFA offline recovery-key handoff.
 - Backup/restore and upgrade/rollback drills.
 
 Until those gates are completed, use the documented SSH/Composer installation path only on a verified compatible host, and obtain written hosting, payment and legal approvals for the actual deployment model.

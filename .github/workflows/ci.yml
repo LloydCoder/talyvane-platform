@@ -44,7 +44,7 @@ jobs:
       - name: Validate Composer configuration
         run: composer validate --no-check-publish
       - name: Lint PHP source
-        run: find app bootstrap config database routes tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: find app bootstrap config database install routes tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Validate routes and compile Blade views
         env:
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -89,7 +89,7 @@ jobs:
           set -euo pipefail
           staging="dist/talyvane"
           mkdir -p "$staging"
-          for path in app artisan bootstrap config database docs public resources routes storage vendor composer.json composer.lock .env.example README.md LICENSE COMMERCIAL-LICENSING.md; do
+          for path in app artisan bootstrap config database docs install public resources routes storage vendor composer.json composer.lock .env.example README.md LICENSE COMMERCIAL-LICENSING.md; do
             test -e "$path"
             cp -a "$path" "$staging/"
           done
@@ -108,7 +108,44 @@ jobs:
           archive="dist/talyvane-${GITHUB_SHA}.tar.gz"
           tar -tzf "$archive" > dist/package-contents.txt
           grep -q '^talyvane/vendor/autoload.php$' dist/package-contents.txt
-          grep -q '^talyvane/.env.example$' dist/package-contents.txt
+          grep -q '^talyvane/.env.example
+          if grep -E '(^|/)\.env$|(^|/)\.git/|^talyvane/tests/|^talyvane/storage/(logs|app/private)/[^.]|^talyvane/bootstrap/cache/[^.]' dist/package-contents.txt; then
+            echo "Release package contains a forbidden environment, test, private-storage or runtime-cache path."
+            exit 1
+          fi
+          test ! -e "$staging/.env"
+          test -f "$staging/vendor/autoload.php"
+      - name: Upload verified standalone package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: talyvane-standalone-package-${{ github.sha }}
+          path: |
+            dist/talyvane-${{ github.sha }}.tar.gz
+            dist/talyvane-${{ github.sha }}.tar.gz.sha256
+            dist/package-contents.txt
+          if-no-files-found: error
+          retention-days: 14
+ dist/package-contents.txt
+          grep -q '^talyvane/install/bootstrap.php
+          if grep -E '(^|/)\.env$|(^|/)\.git/|^talyvane/tests/|^talyvane/storage/(logs|app/private)/[^.]|^talyvane/bootstrap/cache/[^.]' dist/package-contents.txt; then
+            echo "Release package contains a forbidden environment, test, private-storage or runtime-cache path."
+            exit 1
+          fi
+          test ! -e "$staging/.env"
+          test -f "$staging/vendor/autoload.php"
+      - name: Upload verified standalone package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: talyvane-standalone-package-${{ github.sha }}
+          path: |
+            dist/talyvane-${{ github.sha }}.tar.gz
+            dist/talyvane-${{ github.sha }}.tar.gz.sha256
+            dist/package-contents.txt
+          if-no-files-found: error
+          retention-days: 14
+ dist/package-contents.txt
+          test -f "$staging/install/RELEASE-MANIFEST.json"
+          test ! -d "$staging/public/install"
           if grep -E '(^|/)\.env$|(^|/)\.git/|^talyvane/tests/|^talyvane/storage/(logs|app/private)/[^.]|^talyvane/bootstrap/cache/[^.]' dist/package-contents.txt; then
             echo "Release package contains a forbidden environment, test, private-storage or runtime-cache path."
             exit 1

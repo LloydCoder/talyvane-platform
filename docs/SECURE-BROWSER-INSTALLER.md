@@ -101,4 +101,4 @@ It MUST NOT display database passwords, application keys, recovery keys, environ
 
 The browser installer is a release blocker for the promised no-SSH cPanel self-service installation experience. Until its implementation, tests, security review and package verification are complete, documentation and sales material MUST describe no-SSH first installation as unsupported or pending. A visual mockup or documentation-only specification is not evidence of a working installer.
 
-The existing CLI provisioning workflow remains a separate supported path and must continue to preserve the platform's current Super Admin verification, recovery-key, MFA and audit controls.
+The existing CLI provisioning workflow remains a separate supported path and must continue to preserve the platform's current Super Admin verification, recovery-key, MFA and audit controls. Browser provisioning verifies two distinct email addresses and stores the generated offline recovery key only as a hash plus a short-lived encrypted handoff. That key is revealed only on the authenticated post-MFA recovery-code screen, never on the installer success page.
