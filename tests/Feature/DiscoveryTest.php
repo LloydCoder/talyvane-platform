@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BrandSetting;
+use App\Models\CountryMarket;
 use App\Models\Destination;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,6 +36,7 @@ class DiscoveryTest extends TestCase
 
     public function test_homepage_renders_curated_hospitality_photography(): void
     {
+        $this->approvePublicMarket();
         $this->get('/')
             ->assertOk()
             ->assertSee('editorial-gallery')
