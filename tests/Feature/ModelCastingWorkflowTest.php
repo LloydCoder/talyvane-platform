@@ -16,13 +16,16 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
+use Tests\Feature\Support\EnablesModelAgencyFeatureRoutes;
 
 class ModelCastingWorkflowTest extends TestCase
 {
     use RefreshDatabase;
+    use EnablesModelAgencyFeatureRoutes;
 
     private function context(): array
     {
+        $this->enableModelAgencyFeatureRoutes(['model-agency.casting']);
         config([
             'talyvane.model_agency.image_licence_policy_version' => 'image-licence-policy-v1',
             'talyvane.model_agency.image_licence_policy_approved' => true,
