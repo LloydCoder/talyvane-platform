@@ -196,12 +196,7 @@ class SafeguardingCaseKeyVault
     {
         $namespace = strtolower(trim((string) config('talyvane.safeguarding.key_namespace')));
         if ($namespace === '') {
-            $applicationKey = trim((string) config('app.key'));
-            if ($applicationKey === '') {
-                throw new RuntimeException('A stable application key or explicit safeguarding key namespace is required.');
-            }
-
-            $namespace = substr(hash('sha256', $applicationKey), 0, 16);
+            throw new RuntimeException('A unique SAFEGUARDING_KEY_NAMESPACE is required for Vault-backed safeguarding.');
         }
 
         if (! preg_match('/^[a-z0-9]{8,32}$/', $namespace)) {
