@@ -37,6 +37,19 @@ class InstallationLockTest extends TestCase
         $this->assertSame(0600, fileperms($lock->path()) & 0777);
     }
 
+    public function test_lock_refuses_symlinked_storage_ancestors(): void
+    {
+        $storageApp = $this->basePath.'/storage/app';
+        $realStorageApp = $this->basePath.'/storage/app-private-real';
+        rename($storageApp, $realStorageApp);
+        symlink($realStorageApp, $storageApp);
+
+        $lock = new InstallationLock($this->basePath, 'application-key');
+
+        $this->expectException(RuntimeException::class);
+        $lock->create();
+    }
+
     public function test_tampered_lock_is_rejected(): void
     {
         $lock = new InstallationLock($this->basePath, 'application-key');
