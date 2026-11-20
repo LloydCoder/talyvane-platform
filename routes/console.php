@@ -76,7 +76,7 @@ Artisan::command('talyvane:safeguarding:vault-credentials {action=status}', func
 
         try {
             $lifecycle->clear();
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             $this->error($exception->getMessage());
 
             return 1;
@@ -100,15 +100,15 @@ Artisan::command('talyvane:safeguarding:vault-credentials {action=status}', func
         $result = $action === 'set'
             ? $lifecycle->set($applicationToken, $retentionToken)
             : $lifecycle->rotate($applicationToken, $retentionToken);
-    } catch (\\Throwable $exception) {
+    } catch (\Throwable $exception) {
         $this->error('Vault credential '.$action.' failed: '.$exception->getMessage());
 
         return 1;
     }
 
     if (app()->configurationIsCached()) {
-        \\Illuminate\\Support\\Facades\\Artisan::call('config:clear');
-        $cacheResult = \\Illuminate\\Support\\Facades\\Artisan::call('config:cache');
+        \Illuminate\Support\Facades\Artisan::call('config:clear');
+        $cacheResult = \Illuminate\Support\Facades\Artisan::call('config:cache');
 
         if ($cacheResult !== 0) {
             $this->warn('Credentials were saved, but the configuration cache could not be rebuilt. Run php artisan config:cache.');
