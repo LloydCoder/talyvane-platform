@@ -11,7 +11,7 @@ class EnsurePlatformFeatureEnabled
 {
     public function handle(Request $request, Closure $next, string $feature): Response
     {
-        if (! app(FeatureRegistry::class)->isEnabled($feature)) {
+        if (! app(FeatureRegistry::class)->isOperationallyEnabled($feature)) {
             abort(404);
         }
 
