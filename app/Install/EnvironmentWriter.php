@@ -79,7 +79,7 @@ final class EnvironmentWriter
         ).'"';
 
         $pattern = '/^'.preg_quote($key, '/').'=.*$/m';
-        $updated = preg_replace($pattern, $key.'='.$encoded, $contents, -1, $count);
+        $updated = preg_replace_callback($pattern, static fn (): string => $key.'='.$encoded, $contents, -1, $count);
 
         if (! is_string($updated) || $count > 1) {
             throw new RuntimeException('The environment file contains an ambiguous setting.');
