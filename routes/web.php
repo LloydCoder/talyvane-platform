@@ -24,6 +24,7 @@ use App\Http\Controllers\Admin\ModelTalentAssignmentAdminController;
 use App\Http\Controllers\Admin\ModelTalentSettlementAdminController;
 use App\Http\Controllers\Admin\SafeguardingCaseController;
 use App\Http\Controllers\Admin\SafeguardingGovernanceController;
+use App\Http\Controllers\Admin\SecretManagementController;
 use App\Http\Controllers\ModelAgencyApplicationController;
 use App\Http\Controllers\ModelAgencyApplicationRightsController;
 use App\Http\Controllers\AccountSecurityController;
@@ -143,6 +144,17 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::middleware(['auth', 'role:super_admin', 'admin.session-current', 'admin.mfa'])->group(function (): void {
         Route::get('/features', [PlatformFeatureController::class, 'index'])->name('features.index');
         Route::patch('/features/{feature}', [PlatformFeatureController::class, 'update'])->middleware('throttle:5,1')->name('features.update');
+    });
+
+    // Deployment secrets are isolated to the canonical Super Admin and require active MFA.
+    Route::middleware(['auth', 'role:super_admin', 'admin.session-current', 'admin.mfa'])->group(function (): void {
+        Route::get('/secrets', [SecretManagementController::class, 'index'])->name('secrets.index');
+        Route::post('/secrets/{secretKey}', [SecretManagementController::class, 'store'])
+            ->middleware('throttle:5,1')
+            ->name('secrets.store');
+        Route::delete('/secrets/{secretKey}', [SecretManagementController::class, 'destroy'])
+            ->middleware('throttle:5,1')
+            ->name('secrets.destroy');
     });
 
     // Deployment-wide configuration is exclusively controlled by the Super Admin.

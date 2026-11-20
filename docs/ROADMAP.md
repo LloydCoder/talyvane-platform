@@ -117,7 +117,7 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [ ] Complete scheduled-job and integration-boundary feature enforcement, direct-database bypass testing, audit-integrity verification and comprehensive feature-gate bypass tests.
 - [x] Implement current-password plus single-use TOTP step-up, reason capture, atomic feature-state changes and append-only audit writes.
 - [x] Add an append-only feature-audit event schema, model-level update/delete protection and transactional event writes for feature state changes.
-- [ ] Add secret set/rotate/clear workflows backed by environment or dedicated secret storage; never reveal stored values.
+- [x] Add Super Admin-only secret set/rotate/clear workflows backed by HashiCorp Vault KV v2; use fixed identifiers, HTTPS, CAS writes, single-use TOTP step-up, per-secret locking, metadata-only persistence and non-displayed secret values. Automatic rotation, runtime-use telemetry and production Vault drills remain outstanding.
 - [ ] Add dependency and eligibility validation for market, payment, verification and communication activation.
 - [x] Add audited emergency disable for optional implemented features and prerequisite-checked re-enable workflow.
 - [x] Test designated Super Admin lifecycle invariants and second-principal rejection at the Eloquent boundary.
