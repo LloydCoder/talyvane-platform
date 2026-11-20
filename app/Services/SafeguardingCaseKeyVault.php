@@ -85,6 +85,46 @@ class SafeguardingCaseKeyVault
         return $decoded;
     }
 
+    public function reconcile(array $activeKeyReferences): array
+    {
+        $retentionToken = trim((string) config('services.safeguarding_vault.retention_token'));
+        $this->assertDistinctRetentionCredential();
+
+        $active = array_values(array_unique($activeKeyReferences));
+        foreach ($active as $keyReference) {
+            if (! is_string($keyReference) || ! str_starts_with($keyReference, 'case-')) {
+                throw new RuntimeException('An active safeguarding key reference is invalid.');
+            }
+
+            $this->assertKeyName($keyReference);
+        }
+
+        $response = $this->client($retentionToken)->send('LIST', $this->path('keys'));
+        $remoteKeys = $response->json('data.keys');
+
+        if (! $response->successful() || ! is_array($remoteKeys)) {
+            throw new RuntimeException('External safeguarding key inventory could not be verified.');
+        }
+
+        $managedKeys = array_values(array_filter($remoteKeys, fn ($key): bool => is_string($key)
+            && (str_starts_with($key, 'case-') || str_starts_with($key, 'preflight-'))));
+
+        $missing = array_values(array_diff($active, $managedKeys));
+        if ($missing !== []) {
+            throw new RuntimeException('An active safeguarding case key is missing from the external vault.');
+        }
+
+        $orphans = array_values(array_diff($managedKeys, $active));
+        foreach ($orphans as $keyName) {
+            $this->destroyKey($keyName);
+        }
+
+        return [
+            'active_keys_verified' => count($active),
+            'orphan_keys_destroyed' => count($orphans),
+        ];
+    }
+
     public function destroyKey(string $keyName): void
     {
         $this->assertKeyName($keyName);
