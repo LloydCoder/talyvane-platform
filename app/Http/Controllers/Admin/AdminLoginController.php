@@ -52,7 +52,20 @@ class AdminLoginController
 
         RateLimiter::clear($key);
         $request->session()->regenerate();
-        $request->session()->forget(['pending_admin_mfa_user_id', 'pending_admin_mfa_remember', 'pending_admin_mfa_session_version']);
+        $request->session()->forget([
+            'pending_admin_mfa_user_id',
+            'pending_admin_mfa_remember',
+            'pending_admin_mfa_session_version',
+            'pending_admin_password_change_user_id',
+            'pending_admin_password_change_session_version',
+        ]);
+
+        if ($user->must_change_password_at) {
+            $request->session()->put('pending_admin_password_change_user_id', $user->id);
+            $request->session()->put('pending_admin_password_change_session_version', (int) $user->admin_session_version);
+
+            return redirect()->route('admin.first-login.password');
+        }
 
         if ($user->mfa_enabled_at && $user->mfa_secret) {
             $request->session()->put('pending_admin_mfa_user_id', $user->id);

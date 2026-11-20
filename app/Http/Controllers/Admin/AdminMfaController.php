@@ -7,6 +7,8 @@ use App\Services\TotpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -72,7 +74,44 @@ class AdminMfaController
             return redirect()->route(match ($request->user()->role) { 'finance' => 'admin.model-settlements.index', 'verifier' => 'admin.adult-eligibility.index', 'safeguarding' => 'admin.safeguarding.cases.index', default => 'admin.dashboard' });
         }
 
-        return view('admin.auth.mfa-recovery', ['codes' => $codes]);
+        $recoveryKey = null;
+
+        if ($request->user()->isDesignatedDeploymentSuperAdmin()) {
+            $recoveryKey = DB::transaction(function (): ?string {
+                $control = DB::table('platform_control')->where('id', 1)->lockForUpdate()->first();
+
+                if (! $control || blank($control->super_admin_recovery_key_handoff)
+                    || ! $control->super_admin_recovery_key_handoff_expires_at) {
+                    return null;
+                }
+
+                if (now()->greaterThan($control->super_admin_recovery_key_handoff_expires_at)) {
+                    DB::table('platform_control')->where('id', 1)->update([
+                        'super_admin_recovery_key_handoff' => null,
+                        'super_admin_recovery_key_handoff_expires_at' => null,
+                        'updated_at' => now(),
+                    ]);
+
+                    return null;
+                }
+
+                try {
+                    $key = Crypt::decryptString($control->super_admin_recovery_key_handoff);
+                } catch (\Throwable) {
+                    return null;
+                }
+
+                DB::table('platform_control')->where('id', 1)->update([
+                    'super_admin_recovery_key_handoff' => null,
+                    'super_admin_recovery_key_handoff_expires_at' => null,
+                    'updated_at' => now(),
+                ]);
+
+                return $key;
+            });
+        }
+
+        return view('admin.auth.mfa-recovery', ['codes' => $codes, 'recoveryKey' => $recoveryKey]);
     }
 
     public function challenge(Request $request): View|RedirectResponse
