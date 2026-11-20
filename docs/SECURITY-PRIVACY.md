@@ -174,3 +174,12 @@ Authorization and deny-by-default design references: [OWASP Authorization Cheat 
 The `super_admin` role value alone is not sufficient to establish deployment-wide authority. Login, pending-MFA completion and role middleware compare the authenticated user ID with the singleton `platform_control.super_admin_user_id`. This prevents a direct SQL role change on an ordinary account from granting Super Admin access through the application. Regression tests exercise this threat by changing an ordinary user's role through the query builder and verifying that password login, pending MFA and authenticated privileged routes all fail closed.
 
 This remains an application authorization boundary, not protection against a database administrator or attacker who can alter the canonical `platform_control` pointer, application code or host. Restrict production database credentials, monitor privileged SQL access and maintain independently controlled backups.
+
+
+## Non-toggleable hard safeguards
+
+The Super Admin feature registry controls optional business capabilities only. A dedicated hard-safeguard registry reserves age-assurance, consent-withdrawal, privacy takedown/data-rights, safeguarding case access/legal holds/retention/escalation, payment-ledger integrity and audit immutability keys. Reserved keys are never effectively enabled through the feature registry, cannot be dependencies of optional modules and cannot be changed by Super Admin feature controls. Accidentally inserting a reserved key into the feature table therefore fails closed.
+
+Existing obligations must survive an optional feature pause. Approved safeguarding retention, configured safeguarding notification delivery and model image-licence expiry are not gated by optional feature switches. They are controlled by their own approved policy, mail transport and scheduler prerequisites. Regression tests exercise these continuity guarantees with all optional feature flags disabled. Consent withdrawal, media deletion, licence revocation/expiry, legal-hold operations, disputes and financial close-out remain protective transitions, not optional new-work capabilities.
+
+See [ADR-0011: Hard safeguards are not feature flags](decisions/ADR-0011-hard-safeguards-not-feature-flags.md). This is an application-level control; database/host administrators and compromised deployment code remain outside the boundary and require independent privilege restrictions and monitoring.
