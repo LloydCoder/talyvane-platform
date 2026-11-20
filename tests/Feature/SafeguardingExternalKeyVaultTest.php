@@ -24,6 +24,7 @@ class SafeguardingExternalKeyVaultTest extends TestCase
 
         config([
             'talyvane.safeguarding.key_provider' => 'vault',
+            'talyvane.safeguarding.key_namespace' => 'testtenant',
             'services.safeguarding_vault.address' => 'https://vault.example.test',
             'services.safeguarding_vault.mount' => 'transit',
             'services.safeguarding_vault.token' => 'application-token',
