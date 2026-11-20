@@ -106,7 +106,7 @@ class BrowserInstallerWorkflowTest extends TestCase
             'db_port' => 3306,
             'db_database' => 'talyvane_test',
             'db_username' => 'talyvane',
-            'db_password' => 'test-database-password',
+            'db_password' => 'test-password',
             'mail_scheme' => 'smtp',
             'mail_host' => 'smtp.example.test',
             'mail_port' => 587,
