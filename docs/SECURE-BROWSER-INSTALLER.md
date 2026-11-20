@@ -1,6 +1,6 @@
 # Secure browser installer: security and acceptance specification
 
-**Status:** Approved requirement; implementation in [PR #62](https://github.com/LloydCoder/talyvane-platform/pull/62). The current implementation passed the PHP 8.3/8.4/8.5 CI matrix (387 tests and 1,889 assertions per version) and the standalone release-package plus first-request bootstrap smoke build on commit `d1bacb758fcceb0fd79ef2d3e49b0d2445a7b917` ([workflow run #44751029536](https://github.com/LloydCoder/talyvane-platform/actions/runs/44751029536)). Final forensic security review, cPanel deployment review, merge and tagged-release gates remain open.  
+**Status:** Approved requirement; implementation in [PR #62](https://github.com/LloydCoder/talyvane-platform/pull/62). The current implementation passed the PHP 8.3/8.4/8.5 CI matrix (387 tests and 1,889 assertions per version), package checksum verification, and the standalone release-package plus first-request bootstrap smoke build on commit `f35485610166d4930d529a0479c85a4f9392cbe6` ([workflow run #44751493918](https://github.com/LloydCoder/talyvane-platform/actions/runs/44751493918)). Final forensic security review, cPanel deployment review, merge and tagged-release gates remain open.  
 **Normative language:** MUST, MUST NOT, SHOULD and MAY are used as engineering requirements.
 
 ## 1. Product outcome
