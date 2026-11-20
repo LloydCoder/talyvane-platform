@@ -22,6 +22,7 @@ See COMMERCIAL-LICENSING.md for the intended commercial model.
 ## Architecture and delivery
 - docs/PRODUCT-REQUIREMENTS.md
 - docs/ARCHITECTURE.md
+- docs/decisions/ADR-0015-commercial-licensing-and-deployment.md (commercial licensing, editions, deployment authority and TLMS boundary)
 - docs/TGLS.md (globalization and localization standard)
 - docs/IMAGE-LICENSING.md (stock image provenance, licensing and media policy)
 - docs/decisions/ADR-0008-globalization.md
