@@ -26,6 +26,7 @@ See COMMERCIAL-LICENSING.md for the intended commercial model.
 - docs/IMAGE-LICENSING.md (stock image provenance, licensing and media policy)
 - docs/decisions/ADR-0008-globalization.md
 - docs/decisions/ADR-0009-super-admin-control-plane.md
+- docs/decisions/ADR-0014-secure-browser-installer.md
 - docs/SECURITY-PRIVACY.md
 - docs/SAFEGUARDING-OPERATIONS.md
 - docs/COMPLIANCE-RELEASE-GATES.md
