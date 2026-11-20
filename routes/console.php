@@ -12,6 +12,7 @@ use App\Services\TotpService;
 use App\Services\SafeguardingCaseRetentionService;
 use App\Services\SafeguardingNotificationDispatcher;
 use App\Services\SafeguardingCaseKeyVault;
+use App\Services\SafeguardingVaultCredentialLifecycle;
 use App\Models\SafeguardingRestoreVerification;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Artisan;
@@ -40,6 +41,85 @@ Artisan::command('talyvane:safeguarding:vault-check', function () {
 
     return 0;
 })->purpose('Verify external safeguarding Vault key lifecycle and retention credentials');
+
+Artisan::command('talyvane:safeguarding:vault-credentials {action=status}', function () {
+    $action = strtolower(trim((string) $this->argument('action')));
+    $lifecycle = app(SafeguardingVaultCredentialLifecycle::class);
+
+    if ($action === 'status') {
+        $status = $lifecycle->status();
+        $this->table(['Control', 'Status'], [
+            ['Case key provider', $status['key_provider']],
+            ['Vault endpoint', $status['vault_address_configured'] ? 'configured' : 'not configured'],
+            ['Application credential', $status['application_credential_configured'] ? 'configured' : 'not configured'],
+            ['Retention credential', $status['retention_credential_configured'] ? 'configured' : 'not configured'],
+            ['Credentials distinct', $status['credentials_distinct'] ? 'yes' : 'no'],
+            ['Active Vault case keys', (string) $status['active_case_keys']],
+            ['Project .env writable', $status['environment_file_writable'] ? 'yes' : 'no (use deployment secret manager)'],
+        ]);
+
+        return 0;
+    }
+
+    if (! in_array($action, ['set', 'rotate', 'clear'], true)) {
+        $this->error('Use one of: status, set, rotate, clear.');
+
+        return 1;
+    }
+
+    if ($action === 'clear') {
+        if (! $this->confirm('Clear both Vault credentials? This is allowed only after switching to local key storage and removing all active Vault-backed case keys.')) {
+            $this->warn('Credential clearing was cancelled.');
+
+            return 1;
+        }
+
+        try {
+            $lifecycle->clear();
+        } catch (\\Throwable $exception) {
+            $this->error($exception->getMessage());
+
+            return 1;
+        }
+
+        $this->info('Safeguarding Vault credentials cleared. No secret values were displayed.');
+
+        return 0;
+    }
+
+    if (! $lifecycle->status()['environment_file_writable']) {
+        $this->error('The project .env file is not writable. Rotate credentials in the deployment secret manager instead.');
+
+        return 1;
+    }
+
+    $applicationToken = (string) $this->secret('Safeguarding Vault application credential');
+    $retentionToken = (string) $this->secret('Safeguarding Vault retention credential');
+
+    try {
+        $result = $action === 'set'
+            ? $lifecycle->set($applicationToken, $retentionToken)
+            : $lifecycle->rotate($applicationToken, $retentionToken);
+    } catch (\\Throwable $exception) {
+        $this->error('Vault credential '.$action.' failed: '.$exception->getMessage());
+
+        return 1;
+    }
+
+    if (app()->configurationIsCached()) {
+        \\Illuminate\\Support\\Facades\\Artisan::call('config:clear');
+        $cacheResult = \\Illuminate\\Support\\Facades\\Artisan::call('config:cache');
+
+        if ($cacheResult !== 0) {
+            $this->warn('Credentials were saved, but the configuration cache could not be rebuilt. Run php artisan config:cache.');
+            return 1;
+        }
+    }
+
+    $this->info('Safeguarding Vault credentials '.$action.' successfully. Active case keys verified: '.$result['active_case_keys_verified'].'. Secret values were not displayed.');
+
+    return 0;
+})->purpose('Set, rotate, clear or inspect deployment-managed safeguarding Vault credentials');
 
 Artisan::command('talyvane:model-agency:expire-image-licences', function () {
     $expired = app(ModelTalentImageLicenceService::class)->expireDue();
