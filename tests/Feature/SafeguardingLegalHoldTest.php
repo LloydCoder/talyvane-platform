@@ -49,6 +49,12 @@ class SafeguardingLegalHoldTest extends TestCase
             ->assertSee('CRITICAL')
             ->assertDontSee('Urgent safeguarding concern requiring legal preservation.')
             ->assertDontSee('Confidential facts that must remain available under an approved legal hold.');
+
+        $this->assertDatabaseHas('safeguarding_case_access_events', [
+            'case_id' => $case->id,
+            'actor_id' => $owner->id,
+            'action' => 'case.governance_viewed',
+        ]);
     }
 
     public function test_legal_hold_requires_a_distinct_privileged_releaser_and_preserves_an_audit_trail(): void
