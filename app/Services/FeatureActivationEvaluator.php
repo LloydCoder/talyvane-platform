@@ -222,7 +222,7 @@ class FeatureActivationEvaluator
                     && Schema::hasTable('profile_media_consent_events')
                     && Schema::hasColumns('profile_media_consent_events', [
                         'profile_media_id', 'media_reference', 'actor_id', 'actor_email',
-                        'action', 'consent_policy_version', 'statement_sha256', 'correlation_id',
+                        'action', 'consent_policy_version', 'consent_statement', 'statement_sha256', 'correlation_id',
                     ]);
 
                 $runtimeReady = class_exists(MembershipEntitlementService::class)
