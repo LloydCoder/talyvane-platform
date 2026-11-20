@@ -227,6 +227,31 @@ class SafeguardingExternalKeyVaultTest extends TestCase
         app(\App\Services\SafeguardingCaseKeyVault::class)->verifyCredentialsForRotation();
     }
 
+    public function test_vault_credentials_cannot_be_cleared_while_active_case_keys_remain(): void
+    {
+        Http::fake([
+            '*' => Http::response(['data' => ['ciphertext' => 'vault:v1:case-key']], 200),
+        ]);
+
+        [$owner, $specialist] = $this->actors('credential-clear');
+        $this->createCase($owner, $specialist);
+
+        config(['talyvane.safeguarding.key_provider' => 'local']);
+
+        $path = tempnam(sys_get_temp_dir(), 'talyvane-vault-clear-');
+        file_put_contents($path, "SAFEGUARDING_VAULT_TOKEN=application-token\nSAFEGUARDING_VAULT_RETENTION_TOKEN=retention-token\n");
+        app()->instance(\\App\\Services\\EnvFileSecretWriter::class, new \\App\\Services\\EnvFileSecretWriter($path));
+
+        try {
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('active safeguarding case keys still depend on the external vault');
+            app(\\App\\Services\\SafeguardingVaultCredentialLifecycle::class)->clear();
+        } finally {
+            @unlink($path.'.secret-update.lock');
+            @unlink($path);
+        }
+    }
+
     public function test_unknown_stored_key_provider_fails_closed(): void
     {
         config(['talyvane.safeguarding.key_provider' => 'local']);
