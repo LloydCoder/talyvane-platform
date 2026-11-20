@@ -104,6 +104,31 @@ class SafeguardingCaseKeyVaultRestoreTest extends TestCase
         Http::assertNotSent(fn (Request $request): bool => $request->method() === 'DELETE');
     }
 
+    public function test_restore_reconciliation_fails_if_vault_still_lists_an_orphan_after_delete(): void
+    {
+        $plaintext = random_bytes(32);
+        Http::fake(function (Request $request) use ($plaintext) {
+            if ($request->method() === 'LIST') {
+                return Http::response(['data' => ['keys' => ['case-active', 'case-orphan']]]);
+            }
+
+            if (str_contains($request->url(), '/decrypt/')) {
+                return Http::response(['data' => ['plaintext' => base64_encode($plaintext)]]);
+            }
+
+            return Http::response([], 204);
+        });
+
+        try {
+            app(SafeguardingCaseKeyVault::class)->reconcile([
+                'case-active' => 'vault:v1:active-case-ciphertext',
+            ]);
+            $this->fail('Restore reconciliation must verify that deleted orphan keys are absent from the final Vault inventory.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Orphan safeguarding case keys remain in the external vault after reconciliation.', $exception->getMessage());
+        }
+    }
+
     public function test_restore_reconciliation_fails_before_deleting_anything_if_an_active_key_is_missing(): void
     {
         Http::fake([
