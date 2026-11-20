@@ -17,7 +17,11 @@
         <div class="record-heading">
             <div>
                 <p class="eyebrow">SEVERITY · {{ strtoupper($case->severity) }}</p>
-                <h2>{{ $case->summary }}</h2>
+                @if($case->content_erased)
+                    <h2>Confidential case content removed under retention policy</h2>
+                @else
+                    <h2>{{ $case->summary }}</h2>
+                @endif
                 <p>Opened {{ $case->created_at->format('d M Y H:i') }} · Status {{ str_replace('_', ' ', $case->status) }}</p>
                 @if($case->subject_type || $case->subject_reference)
                     <p>Related record: {{ $case->subject_type ?? 'unspecified' }} {{ $case->subject_reference ?? '' }}</p>
@@ -26,7 +30,11 @@
         </div>
         <div class="admin-record">
             <h3>Confidential report</h3>
-            <p class="preserve-lines">{{ $case->details }}</p>
+            @if($case->content_erased)
+                <p class="field-help">The per-case content key was removed from the primary database under the approved retention policy. Audit metadata remains. Encrypted backup copies follow their separate expiry schedule.</p>
+            @else
+                <p class="preserve-lines">{{ $case->details }}</p>
+            @endif
         </div>
     </section>
 
@@ -66,7 +74,11 @@
         @forelse($case->events as $event)
             <article class="admin-record">
                 <p class="eyebrow">{{ strtoupper($event->event_type) }} · {{ $event->occurred_at->format('d M Y H:i:s') }}</p>
-                <p>{{ $event->note }}</p>
+                @if($event->note)
+                    <p>{{ $event->note }}</p>
+                @elseif($case->content_erased)
+                    <p class="field-help">Event note unavailable after case-content retention erasure.</p>
+                @endif
                 <p class="field-help">Actor: {{ $event->actor?->name ?? 'System / former account' }} · {{ $event->from_status ?? '—' }} → {{ $event->to_status ?? '—' }}</p>
             </article>
         @empty
