@@ -9,6 +9,7 @@ use App\Models\CompanionProfile;
 use App\Models\ProfilePublicationReview;
 use App\Models\ProfileMedia;
 use App\Services\MembershipEntitlementCatalog;
+use App\Services\BrandSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,7 @@ use Illuminate\View\View;
 
 class CompanionPortalController extends Controller
 {
-    public function index(): View
+    public function index(BrandSettings $brandSettings): View
     {
         $profiles = CompanionProfile::query()
             ->with(['destination', 'availabilityRules', 'media'])
@@ -36,7 +37,7 @@ class CompanionPortalController extends Controller
             'profiles' => $profiles,
             'bookings' => $bookings,
             'weekdays' => $weekdays,
-            'privateGalleryConsentStatement' => MembershipEntitlementCatalog::privateGalleryConsentStatement(),
+            'privateGalleryConsentStatement' => MembershipEntitlementCatalog::privateGalleryConsentStatement((string) ($brandSettings->publicBrand()['brand_name'] ?? 'Talyvane')),
         ]);
     }
 
