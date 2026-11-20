@@ -36,7 +36,8 @@ final class AdminInitialPasswordRecoveryController
         $user = User::query()->where('email', $email)->where('role', 'super_admin')->where('is_active', true)->first();
         $control = DB::table('platform_control')->where('id', 1)->first();
 
-        $eligible = $user !== null
+        $eligible = ! hash_equals($email, $recoveryEmail)
+            && $user !== null
             && $control !== null
             && (int) $control->super_admin_user_id === (int) $user->id
             && $user->isDesignatedDeploymentSuperAdmin()

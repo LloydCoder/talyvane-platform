@@ -36,6 +36,7 @@ class AdminInitialPasswordRecoveryTest extends TestCase
         ]);
         $admin->forceFill(['email_verified_at' => now(), 'must_change_password_at' => now()])->save();
 
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'smtp.example.test']);
         Notification::fake();
         $this->mock(RecoveryCodeGenerator::class, fn ($mock) => $mock->shouldReceive('generate')->twice()->andReturn('111111', '222222'));
 
