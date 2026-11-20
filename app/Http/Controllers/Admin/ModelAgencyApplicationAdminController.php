@@ -38,6 +38,21 @@ class ModelAgencyApplicationAdminController extends Controller
             ->header('Referrer-Policy', 'no-referrer');
     }
 
+    public function verifierQueue(): Response
+    {
+        $this->assertSchemaReady();
+
+        return response()->view('admin.model-agency.applications.verifier-queue', [
+            'applications' => ModelTalentApplication::query()
+                ->where('status', 'reviewing')
+                ->whereNull('adult_eligibility_verified_at')
+                ->latest('submitted_at')
+                ->paginate(20, ['id', 'reference', 'full_name', 'status', 'adult_eligibility_policy_version', 'submitted_at']),
+        ])->header('Cache-Control', 'no-store, private, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Referrer-Policy', 'no-referrer');
+    }
+
     public function update(
         Request $request,
         ModelTalentApplication $application,
@@ -104,7 +119,7 @@ class ModelAgencyApplicationAdminController extends Controller
     public function verifyAdultEligibility(Request $request, ModelTalentApplication $application): RedirectResponse
     {
         $this->assertSchemaReady();
-        abort_unless(in_array($request->user()->role, ['super_admin', 'owner'], true), 403);
+        abort_unless(in_array($request->user()->role, ['super_admin', 'owner', 'verifier'], true), 403);
 
         abort_unless(
             config('talyvane.model_agency.adult_eligibility_policy_approved')
@@ -158,7 +173,7 @@ class ModelAgencyApplicationAdminController extends Controller
             ]);
         });
 
-        return redirect()->route('admin.model-applications.index')->with('status', 'Adult eligibility verification recorded.');
+        return redirect()->route($request->user()->role === 'verifier' ? 'admin.adult-eligibility.index' : 'admin.model-applications.index')->with('status', 'Adult eligibility verification recorded.');
     }
 
     public function updateLegalHold(Request $request, ModelTalentApplication $application): RedirectResponse
