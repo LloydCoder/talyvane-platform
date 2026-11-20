@@ -107,6 +107,7 @@ class DiscoveryController extends Controller
                                 ->where('members_only_consent_version', config('talyvane.privacy.private_gallery_consent_version'))
                                 ->whereHas('consentEvents', fn ($events) => $events
                                     ->where('action', 'members_only_consent.granted')
+                                    ->where('capture_method', 'authenticated_companion_portal_checkbox')
                                     ->where('consent_policy_version', config('talyvane.privacy.private_gallery_consent_version'))
                                     ->where('consent_statement', $expectedConsentStatement)
                                     ->where('statement_sha256', hash('sha256', $expectedConsentStatement)));
