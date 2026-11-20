@@ -25,6 +25,6 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn (Request $request): string => $request->is('admin') || $request->is('admin/*') ? '/admin/login' : '/login');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->dontFlash(['secret_value']);
     })
     ->create();
