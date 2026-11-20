@@ -7,12 +7,17 @@ use App\Models\User;
 
 class MembershipEntitlementService
 {
+    public function __construct(private readonly ClientAgeAssuranceService $ageAssurance)
+    {
+    }
+
     public function has(User $client, string $key): bool
     {
         if (
             $client->role !== 'client'
             || ! $client->is_active
             || ! $client->hasVerifiedEmail()
+            || ! $this->ageAssurance->hasCurrentProof($client)
             || ! in_array($key, MembershipEntitlementCatalog::keys(), true)
         ) {
             return false;

@@ -13,6 +13,14 @@ return [
         // Configure only after an approved provider integration is implemented and reviewed.
         'approved_providers' => array_values(array_filter(explode(',', (string) env('VERIFICATION_APPROVED_PROVIDERS', '')))),
     ],
+    'age_assurance' => [
+        // The private-gallery entitlement feature remains blocked until a market-aware provider adapter is configured.
+        'client_provider' => env('TALYVANE_CLIENT_AGE_ASSURANCE_PROVIDER'),
+        'client_provider_class' => env('TALYVANE_CLIENT_AGE_ASSURANCE_PROVIDER_CLASS'),
+        'client_policy_version' => env('TALYVANE_CLIENT_AGE_ASSURANCE_POLICY_VERSION'),
+        'client_policy_approved' => filter_var(env('TALYVANE_CLIENT_AGE_ASSURANCE_POLICY_APPROVED', false), FILTER_VALIDATE_BOOL),
+        'client_minimum_age' => (int) env('TALYVANE_CLIENT_MINIMUM_AGE', 18),
+    ],
     'privacy' => [
         'profile_consent_version' => env('PROFILE_CONSENT_VERSION', 'profile-publication-v1'),
         'private_gallery_consent_version' => env('PRIVATE_GALLERY_CONSENT_VERSION'),

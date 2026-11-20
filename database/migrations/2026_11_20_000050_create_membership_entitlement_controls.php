@@ -53,7 +53,7 @@ return new class extends Migration
                 'description' => 'Immutable, server-enforced membership grants for protected private gallery media.',
                 'implementation_status' => 'available',
                 'is_enabled' => false,
-                'activation_requirements' => json_encode(['server_side_entitlement_checks', 'private_gallery_consent_policy']),
+                'activation_requirements' => json_encode(['server_side_entitlement_checks', 'private_gallery_consent_policy', 'adult_age_assurance']),
                 'updated_at' => now(),
             ]);
     }

@@ -201,6 +201,14 @@ class MembershipEntitlementTest extends TestCase
         $this->actingAs($client)->get(route('profile-media.show', $media))->assertNotFound();
     }
 
+    public function test_private_gallery_activation_fails_closed_until_market_aware_age_assurance_is_operational(): void
+    {
+        $this->enableEntitlements();
+        $this->app->instance(ClientAgeAssuranceService::class, new ClientAgeAssuranceService());
+
+        $this->assertFalse(app(FeatureRegistry::class)->isOperationallyEnabled('memberships.entitlements'));
+    }
+
     public function test_private_gallery_denies_an_entitled_client_without_current_age_assurance(): void
     {
         $this->enableEntitlements();
@@ -621,7 +629,7 @@ class MembershipEntitlementTest extends TestCase
         DB::table('platform_features')->where('key', 'memberships.entitlements')->update([
             'implementation_status' => 'available',
             'is_enabled' => true,
-            'activation_requirements' => json_encode(['server_side_entitlement_checks', 'private_gallery_consent_policy']),
+            'activation_requirements' => json_encode(['server_side_entitlement_checks', 'private_gallery_consent_policy', 'adult_age_assurance']),
         ]);
 
         $this->assertTrue(app(FeatureRegistry::class)->isOperationallyEnabled('memberships.entitlements'));

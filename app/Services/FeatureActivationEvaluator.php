@@ -17,7 +17,6 @@ class FeatureActivationEvaluator
     }
 
     private const RUNTIME_GUARDS = [
-        'adult_age_assurance',
         'current_consent',
         'companion_opt_in',
         'availability',
@@ -43,6 +42,14 @@ class FeatureActivationEvaluator
         }
 
         foreach ($feature->activation_requirements ?? [] as $requirement) {
+            if ($requirement === 'adult_age_assurance') {
+                if (! app(ClientAgeAssuranceService::class)->isOperationallyConfigured()) {
+                    $blockers[] = 'Client age assurance is not operational: an approved provider adapter, market-specific age policy, current verification evidence schema and server-side proof validation are required.';
+                }
+
+                continue;
+            }
+
             if (in_array($requirement, self::RUNTIME_GUARDS, true)) {
                 continue;
             }
