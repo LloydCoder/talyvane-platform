@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Install;
 
 use App\Install\EnvironmentWriter;
+use App\Install\InstallerAccessToken;
 use App\Install\InstallationLock;
 use App\Models\SuperAdminRecoveryEvent;
 use App\Models\User;
@@ -22,9 +23,9 @@ use Throwable;
 
 final class InstallerController
 {
-    public function index(Request $request): View
+    public function index(Request $request, InstallerAccessToken $accessToken): View
     {
-        $checks = $this->preflightChecks($request);
+        $checks = $this->preflightChecks($request, $accessToken);
 
         return view('install.index', [
             'checks' => $checks,
@@ -32,7 +33,7 @@ final class InstallerController
         ]);
     }
 
-    private function preflightChecks(Request $request): array
+    private function preflightChecks(Request $request, InstallerAccessToken $accessToken): array
     {
         $root = realpath(base_path());
         $public = realpath(public_path());
@@ -64,6 +65,7 @@ final class InstallerController
                 && config('queue.default') === 'sync',
             'Configuration cache is absent' => ! is_file(base_path('bootstrap/cache/config.php')),
             'Private installer directory is present' => is_dir(base_path('install')) && ! is_link(base_path('install')),
+            'One-time private installer access key is available' => $accessToken->isAvailable(),
         ];
     }
 
@@ -87,9 +89,10 @@ final class InstallerController
         ]);
     }
 
-    public function store(Request $request, EnvironmentWriter $environment, RecoveryCodeGenerator $codes): RedirectResponse
+    public function store(Request $request, EnvironmentWriter $environment, RecoveryCodeGenerator $codes, InstallerAccessToken $accessToken): RedirectResponse
     {
         $validated = $request->validate([
+            'installer_token' => ['required', 'string', 'size:43', 'regex:/^[A-Za-z0-9_-]+$/'],
             'app_name' => ['required', 'string', 'max:80'],
             'app_url' => ['required', 'url', 'starts_with:https://', 'max:2048'],
             'db_host' => ['required', 'string', 'max:255'],
@@ -109,13 +112,19 @@ final class InstallerController
             'recovery_email' => ['required', 'email', 'different:admin_email', 'max:254'],
         ]);
 
+        if (! $accessToken->verify($validated['installer_token'])) {
+            throw ValidationException::withMessages([
+                'installer_token' => 'The private one-time installer access key is invalid or has already been consumed.',
+            ]);
+        }
+
         if (hash_equals(strtolower($validated['admin_email']), strtolower($validated['recovery_email']))) {
             throw ValidationException::withMessages([
                 'recovery_email' => 'The recovery email must be different from the Super Admin email.',
             ]);
         }
 
-        $checks = $this->preflightChecks($request);
+        $checks = $this->preflightChecks($request, $accessToken);
         if (in_array(false, $checks, true)) {
             $blockedChecks = array_keys(array_filter($checks, static fn (bool $passed): bool => ! $passed));
 
@@ -268,7 +277,7 @@ final class InstallerController
         return redirect()->route('install.verify');
     }
 
-    public function verify(Request $request): RedirectResponse
+    public function verify(Request $request, InstallerAccessToken $accessToken): RedirectResponse
     {
         $validated = $request->validate([
             'primary_code' => ['required', 'digits:6'],
@@ -357,12 +366,19 @@ final class InstallerController
             ]);
         }
 
+        try {
+            $accessTokenRemoved = $accessToken->consume();
+        } catch (Throwable) {
+            $accessTokenRemoved = false;
+        }
+
         $request->session()->forget('installer.pending_admin');
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         $request->session()->put('install.success.handoff', Crypt::encryptString(json_encode([
             'password' => $password,
             'expires_at' => time() + 900,
+            'access_token_removed' => $accessTokenRemoved,
         ], JSON_THROW_ON_ERROR)));
 
         return redirect()->route('install.success');
