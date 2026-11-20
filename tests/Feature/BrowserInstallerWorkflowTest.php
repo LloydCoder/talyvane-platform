@@ -135,6 +135,7 @@ class BrowserInstallerWorkflowTest extends TestCase
         ])->assertRedirect('https://agency.example.test/install/success');
 
         $this->assertDirectoryDoesNotExist($this->temporaryRoot.'/package/install');
+        $this->assertFileDoesNotExist(storage_path('app/private/INSTALLER-ACCESS-KEY.txt'));
 
         $admin = User::query()->where('email', 'admin@example.test')->firstOrFail();
         $this->assertNotNull($admin->must_change_password_at);
