@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\ClientMembership;
 use App\Models\User;
+use App\Services\ClientMembershipService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -23,7 +23,7 @@ class ClientManagementController extends Controller
         ]);
     }
 
-    public function assignMembership(Request $request, User $client, \App\Services\ClientMembershipService $memberships): RedirectResponse
+    public function assignMembership(Request $request, User $client, ClientMembershipService $memberships): RedirectResponse
     {
         abort_unless($client->role === 'client', 404);
 
