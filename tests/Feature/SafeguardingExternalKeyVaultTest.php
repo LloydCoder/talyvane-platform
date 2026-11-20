@@ -96,6 +96,20 @@ class SafeguardingExternalKeyVaultTest extends TestCase
         Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/decrypt/'));
     }
 
+    public function test_unknown_stored_key_provider_fails_closed(): void
+    {
+        config(['talyvane.safeguarding.key_provider' => 'local']);
+        [$owner, $specialist] = $this->actors('unknown-provider');
+        $case = $this->createCase($owner, $specialist);
+
+        DB::table('safeguarding_case_contents')->where('case_id', $case->id)->update([
+            'key_provider' => 'unknown',
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        app(SafeguardingCaseContentService::class)->read($case);
+    }
+
     public function test_retention_destroys_the_remote_case_key_before_marking_content_erased(): void
     {
         $plaintextKey = null;
