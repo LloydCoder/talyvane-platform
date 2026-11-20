@@ -242,6 +242,7 @@ class FeatureActivationEvaluator
                 if (
                     ! filled(config('talyvane.privacy.private_gallery_consent_version'))
                     || ! config('talyvane.privacy.private_gallery_consent_approved')
+                    || ! filled($agencyName)
                 ) {
                     $blockers[] = 'A current, separately worded, versioned companion consent policy, deployment brand identity and explicit approval are required for members-only media.';
                 }

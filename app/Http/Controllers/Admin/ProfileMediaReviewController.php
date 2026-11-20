@@ -28,7 +28,7 @@ class ProfileMediaReviewController
             app(FeatureRegistry::class)->assertOperationallyEnabled('memberships.entitlements');
         }
 
-        DB::transaction(function () use ($media, $request, $validated, $accessLevel): void {
+        DB::transaction(function () use ($media, $request, $validated, $accessLevel, $brandSettings): void {
             $profile = CompanionProfile::query()->lockForUpdate()->findOrFail($media->companion_profile_id);
             $lockedMedia = ProfileMedia::query()->lockForUpdate()->findOrFail($media->id);
             if ($lockedMedia->status !== 'pending_review') {
