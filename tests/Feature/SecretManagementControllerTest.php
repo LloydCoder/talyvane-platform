@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\PlatformSecret;
+use App\Models\PlatformSecretAuditEvent;
 use App\Models\User;
 use App\Services\PlatformSecretResolver;
 use App\Services\TotpService;
@@ -11,6 +12,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use LogicException;
 use Tests\TestCase;
 
 class SecretManagementControllerTest extends TestCase
