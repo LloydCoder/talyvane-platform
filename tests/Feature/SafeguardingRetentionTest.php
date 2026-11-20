@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\SafeguardingCaseRetentionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Crypt;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -40,6 +41,43 @@ class SafeguardingRetentionTest extends TestCase
             'talyvane.safeguarding.retention.backup_expiry_days' => 7,
             'talyvane.safeguarding.retention.backup_policy_approved' => true,
         ]);
+    }
+
+    public function test_migration_reencrypts_legacy_app_key_content_with_a_per_case_key(): void
+    {
+        $owner = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'retention-migration-owner@example.test',
+            'role' => 'owner',
+        ]);
+        $specialist = $this->createAdminUser([
+            'name' => 'Safeguarding Specialist',
+            'email' => 'retention-migration-specialist@example.test',
+            'role' => 'safeguarding',
+        ]);
+        $case = $this->caseFor($owner, $specialist, 'MIGRATION');
+
+        DB::table('safeguarding_case_contents')->where('case_id', $case->id)->delete();
+        DB::table('safeguarding_case_events')->where('case_id', $case->id)->update(['note' => null]);
+        DB::table('safeguarding_cases')->where('id', $case->id)->update([
+            'summary' => Crypt::encrypt('Legacy encrypted summary'),
+            'details' => Crypt::encrypt('Legacy encrypted details'),
+            'subject_reference' => Crypt::encrypt('MTA-LEGACY-REF'),
+            'legal_hold_reason' => Crypt::encrypt('Legacy legal hold rationale'),
+            'legal_hold_release_reason' => Crypt::encrypt('Legacy release rationale'),
+        ]);
+
+        $migration = require base_path('database/migrations/2026_11_20_000045_create_safeguarding_case_contents.php');
+        $migration->up();
+
+        $fresh = $case->fresh();
+        $this->assertSame('Legacy encrypted summary', $fresh->summary);
+        $this->assertSame('Legacy encrypted details', $fresh->details);
+        $this->assertSame('MTA-LEGACY-REF', $fresh->subject_reference);
+        $this->assertSame('Legacy legal hold rationale', $fresh->legal_hold_reason);
+        $this->assertSame('Legacy release rationale', $fresh->legal_hold_release_reason);
+        $this->assertNull(DB::table('safeguarding_cases')->where('id', $case->id)->value('summary'));
+        $this->assertNotNull(DB::table('safeguarding_case_contents')->where('case_id', $case->id)->value('key_ciphertext'));
     }
 
     public function test_retention_is_disabled_until_a_policy_is_explicitly_approved(): void
