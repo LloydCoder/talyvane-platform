@@ -115,6 +115,10 @@ class SafeguardingExternalKeyVaultTest extends TestCase
                 return Http::response(['data' => ['ciphertext' => 'vault:v1:case-key-ciphertext']]);
             }
 
+            if (str_contains($request->url(), '/decrypt/')) {
+                return Http::response(['data' => ['plaintext' => base64_encode((string) $plaintextKey)]]);
+            }
+
             return Http::response([], 404);
         });
 
