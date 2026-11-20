@@ -210,7 +210,12 @@ class FeatureActivationEvaluator
                         'ends_at',
                     ])
                     && Schema::hasTable('profile_media')
-                    && Schema::hasColumns('profile_media', ['access_level']);
+                    && Schema::hasColumns('profile_media', [
+                        'access_level',
+                        'members_only_consent_at',
+                        'members_only_consent_version',
+                        'members_only_consent_withdrawn_at',
+                    ]);
 
                 $runtimeReady = class_exists(MembershipEntitlementService::class)
                     && class_exists(MembershipEntitlementCatalog::class)
