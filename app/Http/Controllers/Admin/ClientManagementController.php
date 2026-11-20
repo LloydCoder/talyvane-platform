@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\ClientMembershipService;
+use App\Services\MembershipEntitlementCatalog;
+use App\Services\FeatureRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -12,14 +14,16 @@ use Illuminate\View\View;
 
 class ClientManagementController extends Controller
 {
-    public function index(): View
+    public function index(FeatureRegistry $features): View
     {
         return view('admin.clients.index', [
             'clients' => User::query()
                 ->where('role', 'client')
-                ->with('latestMembership')
+                ->with('latestMembership.entitlements')
                 ->orderBy('name')
                 ->paginate(20),
+            'entitlementCatalog' => MembershipEntitlementCatalog::all(),
+            'entitlementsEnabled' => $features->isOperationallyEnabled('memberships.entitlements'),
         ]);
     }
 
@@ -34,6 +38,8 @@ class ClientManagementController extends Controller
             'starts_at' => ['required', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'internal_note' => ['nullable', 'string', 'max:2000'],
+            'entitlements' => ['sometimes', 'array', 'max:'.count(MembershipEntitlementCatalog::keys())],
+            'entitlements.*' => ['string', Rule::in(MembershipEntitlementCatalog::keys())],
         ]);
 
         $memberships->assign($client, $request->user(), $validated);

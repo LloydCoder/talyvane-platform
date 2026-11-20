@@ -104,6 +104,7 @@ Route::middleware('auth')->group(function (): void {
     Route::middleware(['role:companion'])->group(function (): void {
         Route::get('/companion-portal/privacy', [CompanionPortalController::class, 'privacyStatus'])->name('companion-portal.privacy-status');
         Route::delete('/companion-portal/profiles/{profile}/media/{media}', [CompanionMediaController::class, 'destroy'])->name('companion-portal.profiles.media.destroy');
+        Route::patch('/companion-portal/profiles/{profile}/media/{media}/withdraw-members-only-consent', [CompanionMediaController::class, 'withdrawMembersOnlyConsent'])->name('companion-portal.profiles.media.withdraw-members-only-consent');
         Route::post('/companion-portal/profiles/{profile}/withdraw-consent', [CompanionPortalController::class, 'withdrawPublicationConsent'])->name('companion-portal.profiles.withdraw-consent');
     });
 

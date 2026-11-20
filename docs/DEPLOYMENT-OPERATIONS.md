@@ -20,6 +20,9 @@ The command defaults to `--role=owner` for backward compatibility and accepts on
 
 ## Initial deployment
 
+Keep `PRIVATE_GALLERY_CONSENT_VERSION` empty and `PRIVATE_GALLERY_CONSENT_APPROVED=false` unless the exact separate members-only media consent statement and related privacy notice have been reviewed and approved for the deployment's actual brand and target markets. The entitlement feature is disabled by default and must not be activated merely because the configuration values are present.
+
+
 Follow [CPANEL-INSTALLATION.md](CPANEL-INSTALLATION.md) and verify every item in [HOSTING-COMPATIBILITY.md](HOSTING-COMPATIBILITY.md). The application must be served from Laravel's `public/` directory only. Keep source, `.env`, `vendor/`, private storage and backups outside the web root.
 
 ## Upgrade procedure

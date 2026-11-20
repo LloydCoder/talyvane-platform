@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\ProfileMedia;
 use App\Models\CompanionProfile;
+use App\Services\FeatureRegistry;
+use App\Services\MembershipEntitlementCatalog;
+use App\Services\BrandSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -12,14 +15,20 @@ use Illuminate\Validation\ValidationException;
 
 class ProfileMediaReviewController
 {
-    public function update(Request $request, ProfileMedia $media): RedirectResponse
+    public function update(Request $request, ProfileMedia $media, BrandSettings $brandSettings): RedirectResponse
     {
         $validated = $request->validate([
             'decision' => ['required', 'in:approved,rejected'],
             'review_note' => ['nullable', 'string', 'max:1000'],
+            'access_level' => ['sometimes', 'required', 'in:public,members_only'],
         ]);
 
-        DB::transaction(function () use ($media, $request, $validated): void {
+        $accessLevel = $validated['access_level'] ?? 'public';
+        if ($validated['decision'] === 'approved' && $accessLevel === 'members_only') {
+            app(FeatureRegistry::class)->assertOperationallyEnabled('memberships.entitlements');
+        }
+
+        DB::transaction(function () use ($media, $request, $validated, $accessLevel, $brandSettings): void {
             $profile = CompanionProfile::query()->lockForUpdate()->findOrFail($media->companion_profile_id);
             $lockedMedia = ProfileMedia::query()->lockForUpdate()->findOrFail($media->id);
             if ($lockedMedia->status !== 'pending_review') {
@@ -27,6 +36,31 @@ class ProfileMediaReviewController
             }
 
             if ($validated['decision'] === 'approved') {
+                if ($accessLevel === 'members_only') {
+                    $requiredConsentVersion = config('talyvane.privacy.private_gallery_consent_version');
+                    $expectedConsentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement((string) ($brandSettings->publicBrand()['brand_name'] ?? 'Talyvane'));
+                    $grantEvent = $lockedMedia->consentEvents()
+                        ->where('action', 'members_only_consent.granted')
+                        ->where('capture_method', 'authenticated_companion_portal_checkbox')
+                        ->oldest('id')
+                        ->first();
+                    if (
+                        ! config('talyvane.privacy.private_gallery_consent_approved')
+                        || ! filled($requiredConsentVersion)
+                        || ! $lockedMedia->members_only_consent_at
+                        || $lockedMedia->members_only_consent_withdrawn_at
+                        || ! hash_equals((string) $requiredConsentVersion, (string) $lockedMedia->members_only_consent_version)
+                        || ! $grantEvent
+                        || ! hash_equals((string) $expectedConsentStatement, (string) $grantEvent->consent_statement)
+                        || ! hash_equals(hash('sha256', $expectedConsentStatement), (string) $grantEvent->statement_sha256)
+                        || ! hash_equals((string) $requiredConsentVersion, (string) $grantEvent->consent_policy_version)
+                    ) {
+                        throw ValidationException::withMessages([
+                            'access_level' => 'The companion has not provided current, separate consent for members-only distribution.',
+                        ]);
+                    }
+                }
+
                 if (
                     $profile->publication_status !== 'published'
                     || ! $profile->age_verified_at
@@ -43,6 +77,7 @@ class ProfileMediaReviewController
 
             $lockedMedia->forceFill([
                 'status' => $validated['decision'],
+                'access_level' => $validated['decision'] === 'approved' ? $accessLevel : $lockedMedia->access_level,
                 'reviewed_by' => $request->user()->id,
                 'reviewed_at' => now(),
                 'review_note' => $validated['review_note'] ?? null,

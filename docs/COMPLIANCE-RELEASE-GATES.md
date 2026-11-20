@@ -20,7 +20,7 @@ The admin review form records an evidence reference and reviewer findings and re
 - Written payment underwriting approval for each product, purpose and jurisdiction.
 - Documented adult-only eligibility and independent age assurance.
 - Identity/profile ownership verification proportionate to risk.
-- Granular consent for each media item and public distribution.
+- Granular, separate, versioned consent for each media item and each distribution audience; private-gallery activation requires a deployment-specific approved statement, current policy version, identifiable agency brand and tested withdrawal path.
 - Safeguarding policy, complaint process, incident escalation and appeal.
 - Privacy notice, terms, cancellation/refund terms and retention schedule.
 - Data-controller/processor assessment and cross-border transfer review.
@@ -41,3 +41,5 @@ Obtain written card-provider approval; adult-oriented business categories may be
 | Philippines | Anti-trafficking/exploitation law, local business rules, privacy, online platform obligations, payments and tax | Not reviewed |
 
 Any unresolved issue concerning adult status, consent, exploitation risk, provider approval, data protection or legal authority is a production no-go for that market.
+
+For members-only gallery activation, do not set `PRIVATE_GALLERY_CONSENT_APPROVED=true` until counsel has approved the exact companion-facing statement and privacy notice for the deployment's actual brand and market. Set a new `PRIVATE_GALLERY_CONSENT_VERSION` whenever the consent text or purpose changes. The application intentionally keeps the feature disabled when the policy version or approval flag is missing.

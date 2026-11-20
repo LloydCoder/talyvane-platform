@@ -8,6 +8,8 @@ use App\Models\CompanionAvailabilityRule;
 use App\Models\CompanionProfile;
 use App\Models\ProfilePublicationReview;
 use App\Models\ProfileMedia;
+use App\Services\MembershipEntitlementCatalog;
+use App\Services\BrandSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,10 +18,10 @@ use Illuminate\View\View;
 
 class CompanionPortalController extends Controller
 {
-    public function index(): View
+    public function index(BrandSettings $brandSettings): View
     {
         $profiles = CompanionProfile::query()
-            ->with(['destination', 'availabilityRules', 'media'])
+            ->with(['destination', 'availabilityRules', 'media.consentEvents'])
             ->where('user_id', auth()->id())
             ->get();
 
@@ -31,7 +33,39 @@ class CompanionPortalController extends Controller
 
         $weekdays = [0 => 'Sunday', 1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday'];
 
-        return view('portal.companion-dashboard', compact('profiles', 'bookings', 'weekdays'));
+        $publicBrand = $brandSettings->publicBrand();
+        $agencyName = (string) ($publicBrand['brand_name'] ?? '');
+        $privateGalleryConsentVersion = config('talyvane.privacy.private_gallery_consent_version');
+        $privateGalleryConsentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement($agencyName);
+        $privateGalleryConsentStatementHash = hash('sha256', $privateGalleryConsentStatement);
+
+        $profiles->each(function (CompanionProfile $profile) use ($agencyName, $privateGalleryConsentVersion, $privateGalleryConsentStatement, $privateGalleryConsentStatementHash): void {
+            foreach ($profile->media as $media) {
+                $grantEvent = $media->consentEvents->first(fn ($event) => $event->action === 'members_only_consent.granted' && $event->capture_method === 'authenticated_companion_portal_checkbox');
+                $media->setAttribute('members_only_consent_current', (bool) (
+                    filled($agencyName)
+                    && filled($privateGalleryConsentVersion)
+                    && $media->members_only_consent_at
+                    && ! $media->members_only_consent_withdrawn_at
+                    && hash_equals((string) $privateGalleryConsentVersion, (string) $media->members_only_consent_version)
+                    && $grantEvent
+                    && hash_equals($privateGalleryConsentStatement, (string) $grantEvent->consent_statement)
+                    && hash_equals($privateGalleryConsentStatementHash, (string) $grantEvent->statement_sha256)
+                    && hash_equals((string) $privateGalleryConsentVersion, (string) $grantEvent->consent_policy_version)
+                ));
+            }
+        });
+        return view('portal.companion-dashboard', [
+            'profiles' => $profiles,
+            'bookings' => $bookings,
+            'weekdays' => $weekdays,
+            'privateGalleryConsentStatement' => $privateGalleryConsentStatement,
+            'privateGalleryConsentStatementHash' => $privateGalleryConsentStatementHash,
+            'privateGalleryConsentVersion' => $privateGalleryConsentVersion,
+            'privateGalleryConsentAvailable' => filled($agencyName)
+                && filled($privateGalleryConsentVersion)
+                && config('talyvane.privacy.private_gallery_consent_approved'),
+        ]);
     }
 
 

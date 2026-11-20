@@ -14,9 +14,17 @@
                         <p>Uploads are converted to metadata-stripped WebP, stored privately and held for agency review. Nothing is public until approved.</p>
                         @foreach ($profile->media as $media)
                             <div class="availability-row">
-                                <span>{{ strtoupper($media->status) }} · {{ $media->width }} × {{ $media->height }}</span>
+                                <span>{{ strtoupper($media->status) }} · {{ $media->width }} × {{ $media->height }} · {{ str_replace('_', ' ', $media->access_level) }}</span>
+                                @if ($media->members_only_consent_current)
+                                    <span>Separate members-only consent is current</span>
+                                    <form method="POST" action="{{ route('companion-portal.profiles.media.withdraw-members-only-consent', [$profile, $media]) }}">@csrf @method('PATCH')<label class="remember-row"><input type="checkbox" name="withdraw_confirmed" value="1" required> I confirm that I want to withdraw members-only access for this image</label><button type="submit">Withdraw members-only consent</button></form>
+                                @elseif ($media->members_only_consent_withdrawn_at)
+                                    <span>Members-only consent withdrawn</span>
+                                @elseif ($media->members_only_consent_at)
+                                    <span>Members-only consent needs renewal. Remove and resubmit this image to provide consent to the current policy.</span>
+                                @endif
                                 @if ($media->status === 'pending_review')
-                                    <form method="POST" action="{{ route('companion-portal.profiles.media.destroy', [$profile, $media]) }}">@csrf @method('DELETE')<button type="submit">Remove</button></form>
+                                    <form method="POST" action="{{ route('companion-portal.profiles.media.destroy', [$profile, $media]) }}">@csrf @method('DELETE')<button type="submit">Remove image</button></form>
                                 @endif
                             </div>
                         @endforeach
@@ -25,6 +33,12 @@
                             <label>Choose a profile image</label><input type="file" name="media" accept="image/jpeg,image/png,image/webp" required>
                             <label class="remember-row"><input type="checkbox" name="rights_confirmed" value="1" required> I own or have documented rights to this image and it contains no person whose identity or likeness is used without their permission</label>
                             <label class="remember-row"><input type="checkbox" name="publication_confirmed" value="1" required> I explicitly consent to this image being displayed on my profile if approved; I may withdraw consent at any time</label>
+                            @if ($privateGalleryConsentAvailable)
+                                <p class="field-help">Optional and separate from public profile publication.</p>
+                                <input type="hidden" name="members_only_consent_statement_hash" value="{{ $privateGalleryConsentStatementHash }}">
+                                <input type="hidden" name="members_only_consent_policy_version" value="{{ $privateGalleryConsentVersion }}">
+                                <label class="remember-row"><input type="checkbox" name="members_only_confirmed" value="1"> {{ $privateGalleryConsentStatement }}</label>
+                            @endif
                             <button class="button button-dark" type="submit">Submit image for review</button>
                         </form>
                     </div>

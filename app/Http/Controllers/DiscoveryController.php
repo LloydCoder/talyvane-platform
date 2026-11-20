@@ -4,6 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\CompanionProfile;
 use App\Models\Destination;
+use App\Services\FeatureRegistry;
+use App\Services\MembershipEntitlementService;
+use App\Services\MembershipEntitlementCatalog;
+use App\Services\BrandSettings;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -32,7 +36,10 @@ class DiscoveryController extends Controller
         $profiles = CompanionProfile::query()
             ->publiclyDiscoverable()
             ->where('destination_id', $destination->id)
-            ->with(['destination:id,name,slug,country_name', 'media' => fn ($query) => $query->where('status', 'approved')->latest()])
+            ->with(['destination:id,name,slug,country_name', 'media' => fn ($query) => $query
+                ->where('status', 'approved')
+                ->where('access_level', 'public')
+                ->latest()])
             ->orderByDesc('published_at')
             ->paginate(12);
 
@@ -53,7 +60,10 @@ class DiscoveryController extends Controller
 
         $profiles = CompanionProfile::query()
             ->publiclyDiscoverable()
-            ->with(['destination:id,name,slug,country_name', 'media' => fn ($query) => $query->where('status', 'approved')->latest()])
+            ->with(['destination:id,name,slug,country_name', 'media' => fn ($query) => $query
+                ->where('status', 'approved')
+                ->where('access_level', 'public')
+                ->latest()])
             ->when(! empty($filters['destination']), function ($query) use ($filters): void {
                 $query->whereHas('destination', fn ($destination) => $destination
                     ->where('slug', $filters['destination']));
@@ -68,11 +78,43 @@ class DiscoveryController extends Controller
         return view('discovery.companions', compact('destinations', 'profiles'));
     }
 
-    public function companion(string $slug): View
-    {
+    public function companion(
+        string $slug,
+        FeatureRegistry $features,
+        MembershipEntitlementService $entitlements,
+        BrandSettings $brandSettings,
+    ): View {
+        $viewer = auth()->user();
+        $expectedConsentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement((string) ($brandSettings->publicBrand()['brand_name'] ?? 'Talyvane'));
+        $canViewPrivateGallery = $viewer
+            && $viewer->role === 'client'
+            && $features->isOperationallyEnabled('memberships.entitlements')
+            && config('talyvane.privacy.private_gallery_consent_approved')
+            && filled(config('talyvane.privacy.private_gallery_consent_version'))
+            && $entitlements->has($viewer, 'media.private_gallery');
+
         $profile = CompanionProfile::query()
             ->publiclyDiscoverable()
-            ->with(['destination', 'media' => fn ($query) => $query->where('status', 'approved')->latest()])
+            ->with(['destination', 'media' => fn ($query) => $query
+                ->where('status', 'approved')
+                ->where(function ($media) use ($canViewPrivateGallery, $expectedConsentStatement): void {
+                    $media->where('access_level', 'public');
+                    if ($canViewPrivateGallery) {
+                        $media->orWhere(function ($privateMedia) use ($expectedConsentStatement): void {
+                            $privateMedia->where('access_level', 'members_only')
+                                ->whereNotNull('members_only_consent_at')
+                                ->whereNull('members_only_consent_withdrawn_at')
+                                ->where('members_only_consent_version', config('talyvane.privacy.private_gallery_consent_version'))
+                                ->whereHas('consentEvents', fn ($events) => $events
+                                    ->where('action', 'members_only_consent.granted')
+                                    ->where('capture_method', 'authenticated_companion_portal_checkbox')
+                                    ->where('consent_policy_version', config('talyvane.privacy.private_gallery_consent_version'))
+                                    ->where('consent_statement', $expectedConsentStatement)
+                                    ->where('statement_sha256', hash('sha256', $expectedConsentStatement)));
+                        });
+                    }
+                })
+                ->latest()])
             ->where('slug', $slug)
             ->firstOrFail();
 

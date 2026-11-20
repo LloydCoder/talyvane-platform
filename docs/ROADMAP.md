@@ -18,7 +18,8 @@
 - [x] Record globalization defaults, currency and country-market configuration changes in an append-only audit-event table, atomically with the relevant writes.
 - [x] Curate royalty-free hospitality imagery for the public homepage and destination fallback cards; document source, photographer, license and restrictions.
 - [x] Add admin-managed destination cover image uploads with JPEG/PNG/WebP, size/dimension validation and commercial-rights declaration.
-- [ ] Add local image optimization/CDN strategy, EXIF removal, image moderation and complete companion-owned media upload/consent lifecycle.
+- [x] Complete companion-owned media upload and consent lifecycle: rights and public-publication attestations, sanitized WebP/metadata removal, private storage, MFA-protected human review, separate versioned members-only opt-in, consent evidence and independent withdrawal.
+- [ ] Add a production local-image optimization/CDN strategy and automated image moderation; current human review remains mandatory.
 - [ ] Complete currency editing/reference-data validation, market policy review and approval workflows, market-specific price management and audited change history.
 - [ ] Implement exchange-rate provider adapters, rate freshness policy, immutable quote snapshots and deterministic rounding.
 - [ ] Integrate fail-closed market policy checks into discovery, booking, membership and payment boundaries.
@@ -103,7 +104,8 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Add a maintenance-only post-restore reconciliation command that reapplies approved retention, verifies active external case keys, destroys orphaned Vault keys and records a restore verification result.
 - [ ] Independently verify database/Vault backup expiry and complete database-plus-Vault restore drills; complete independent safeguarding response drills.
 - [ ] Complete legacy owner/admin least-privilege migration and independent human custodian identity-proofing/operational drills.
-- [ ] Implement membership entitlements and protected-resource authorization; current membership capability is assignment/display only.
+- [x] Implement server-side membership entitlement grants, immutable grant records, active-membership/date evaluation, private-gallery delivery authorization and public-discovery exclusion; activation remains disabled until Super Admin review.
+- [ ] Implement additional protected benefits such as priority concierge handling only when their complete operational workflows and server-side enforcement are delivered.
 - [x] Record membership assignment and supersession in an actor-attributed append-only lifecycle ledger; recheck the membership feature gate inside the client-locked transaction.
 - [x] Build a Super Admin-only read-only feature catalogue showing implementation state, configured/effective state, dependencies, risk and activation prerequisites.
 - [x] Build feature mutation controls with impact preview, prerequisite evaluation, reason capture, password/TOTP step-up and transactional rollback.

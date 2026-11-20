@@ -33,6 +33,20 @@
                         </div>
                         <label>Client-facing benefits summary<textarea name="benefits_summary" rows="3" maxlength="2000" required placeholder="Describe only benefits the agency has agreed to provide.">{{ old('benefits_summary', $client->latestMembership?->benefits_summary) }}</textarea></label>
                         <label>Internal note (never shown to client)<textarea name="internal_note" rows="2" maxlength="2000" placeholder="Private operational note"></textarea></label>
+                        @if ($entitlementsEnabled)
+                            <fieldset class="admin-form-fieldset">
+                                <legend>Protected membership entitlements</legend>
+                                @php($currentEntitlements = $client->latestMembership?->entitlements->pluck('entitlement_key')->all() ?? [])
+                                @foreach ($entitlementCatalog as $key => $entitlement)
+                                    <label class="remember-row">
+                                        <input type="checkbox" name="entitlements[]" value="{{ $key }}" @checked(in_array($key, old('entitlements', $currentEntitlements), true))>
+                                        <span><strong>{{ $entitlement['name'] }}</strong><small>{{ $entitlement['description'] }}</small></span>
+                                    </label>
+                                @endforeach
+                            </fieldset>
+                        @else
+                            <p class="field-help">Protected membership entitlements are disabled until the Super Admin completes the feature activation review.</p>
+                        @endif
                         <button class="button button-dark" type="submit">Save membership ↗</button>
                     </form>
                 </details>
