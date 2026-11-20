@@ -94,7 +94,11 @@ class DiscoveryController extends Controller
                 ->where(function ($media) use ($canViewPrivateGallery): void {
                     $media->where('access_level', 'public');
                     if ($canViewPrivateGallery) {
-                        $media->orWhere('access_level', 'members_only');
+                        $media->orWhere(function ($privateMedia): void {
+                            $privateMedia->where('access_level', 'members_only')
+                                ->whereNotNull('members_only_consent_at')
+                                ->whereNull('members_only_consent_withdrawn_at');
+                        });
                     }
                 })
                 ->latest()])
