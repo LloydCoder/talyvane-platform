@@ -19,6 +19,26 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schedule;
 
+Artisan::command('talyvane:safeguarding:vault-check', function () {
+    if (config('talyvane.safeguarding.key_provider') !== 'vault') {
+        $this->error('Set SAFEGUARDING_CASE_KEY_PROVIDER=vault before running the external key-vault check.');
+
+        return 1;
+    }
+
+    try {
+        app(SafeguardingCaseKeyVault::class)->verify();
+    } catch (\\Throwable $exception) {
+        $this->error('External safeguarding key-vault preflight failed: '.$exception->getMessage());
+
+        return 1;
+    }
+
+    $this->info('Vault key creation, encryption, decryption and separate-credential destruction checks passed.');
+
+    return 0;
+})->purpose('Verify external safeguarding Vault key lifecycle and retention credentials');
+
 Artisan::command('talyvane:model-agency:expire-image-licences', function () {
     $expired = app(ModelTalentImageLicenceService::class)->expireDue();
     $this->info('Expired '.$expired.' model image licence(s).');
