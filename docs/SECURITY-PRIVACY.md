@@ -26,8 +26,17 @@ Official references:
 - `owner`: agency oversight and operational administration.
 - `admin`: day-to-day agency operations; does not receive the model settlement workspace.
 - `finance`: dedicated access to the model settlement workspace only. Finance accounts do not receive the general dashboard, profile, client, booking, model application, casting, assignment or deployment-configuration routes. Finance access requires the same session-version enforcement and TOTP MFA as other privileged accounts.
-- Finance specialists are provisioned from a trusted CLI with `php artisan talyvane:admin:create finance@example.test --role=finance`. The default role remains `owner`; the command rejects `super_admin`, which is provisioned only through the designated bootstrap flow.
-- The Super Admin and Owner retain settlement access for deployment/agency oversight. This is route-level separation, not a full dual-control maker-checker workflow; independent approval of one's own expense or settlement draft remains a separate control to implement and test.
+- Finance specialists and eligibility verifiers are provisioned from a trusted CLI with `php artisan talyvane:admin:create finance@example.test --role=finance` or `php artisan talyvane:admin:create verifier@example.test --role=verifier`. The default role remains `owner`; the command rejects `super_admin`, which is provisioned only through the designated bootstrap flow.
+- The Super Admin and Owner retain settlement access for deployment/agency oversight. The settlement service additionally enforces independent maker-checker actors for expense review, settlement approval and payment attestation; this is an application-level control, not independent bank/provider authorization.
+
+## Specialist verifier access
+
+- The `verifier` principal is a dedicated privileged role and must complete TOTP MFA and current-session-version checks.
+- Verifiers receive only the adult-eligibility queue and its single-purpose verification action. They do not receive the general dashboard, applicant administration, portfolio/media, casting, assignment, finance, booking, client or deployment-configuration routes.
+- The verifier queue selects only the application identifier, reference, applicant display name, workflow status, accepted policy version and submission timestamp. It excludes email, phone, city, portfolio links, experience notes, agreement data and media relationships.
+- Verification remains a manual document-inspection attestation, not an identity-provider integration. The platform intentionally stores no identity document image, number or date of birth. A real provider integration and jurisdiction-specific operational review remain release gates.
+- Verification records are immutable through the application workflow and record the verifier actor and event. A verifier cannot accept, decline, or otherwise change application status.
+- Safeguarding case access is not included in the verifier role and remains a separate specialist-role implementation.
 
 ## Sensitive data
 Collect only necessary data for documented purposes. Never expose legal names, identity documents, private addresses, phone numbers or verification evidence publicly. Store verification evidence separately with restricted access, encryption where supported and access audit. Record consent purpose, version, actor, timestamp and withdrawal. Profile publication and automatic-booking opt-in/out are recorded as separate review events. Provider references and external payment transaction references are stored as keyed HMAC digests, not raw identifiers; no identity document is stored in public profile tables. Define retention/deletion schedules. Do not infer age, identity or sensitive traits.
