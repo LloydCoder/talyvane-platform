@@ -25,10 +25,12 @@ final class InstallerController
 {
     public function index(Request $request, InstallerAccessToken $accessToken): View
     {
+        $accessToken->ensure();
         $checks = $this->preflightChecks($request, $accessToken);
 
         return view('install.index', [
             'checks' => $checks,
+            'installerToken' => trim((string) file_get_contents($accessToken->path())),
             'ready' => ! in_array(false, $checks, true),
         ]);
     }
