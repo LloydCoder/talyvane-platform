@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\TotpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -80,7 +81,7 @@ class SuperAdminCanonicalIdentityTest extends TestCase
         ])->assertRedirect('/admin/mfa/challenge');
 
         $step = intdiv(time(), 30);
-        $code = app(\\App\\Services\\TotpService::class)->codeForStep($superAdmin->mfa_secret, $step);
+        $code = app(TotpService::class)->codeForStep($superAdmin->mfa_secret, $step);
 
         $this->post('/admin/mfa/challenge', ['code' => $code])
             ->assertRedirect('/admin');
