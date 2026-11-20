@@ -43,3 +43,16 @@ Obtain written card-provider approval; adult-oriented business categories may be
 Any unresolved issue concerning adult status, consent, exploitation risk, provider approval, data protection or legal authority is a production no-go for that market.
 
 For members-only gallery activation, do not set `PRIVATE_GALLERY_CONSENT_APPROVED=true` until counsel has approved the exact companion-facing statement and privacy notice for the deployment's actual brand and market. Set a new `PRIVATE_GALLERY_CONSENT_VERSION` whenever the consent text or purpose changes. The application intentionally keeps the feature disabled when the policy version or approval flag is missing.
+
+
+## Verifier staffing and identity assurance
+
+Before model-agency adult-eligibility verification can be activated, provision at least one active, email-verified account with the dedicated `verifier` role and MFA enrollment. The role is restricted to the eligibility queue; it is not a substitute for trained human review, written operating procedures or independent oversight. The workflow currently records human review evidence and must not be represented as an automated age-assurance provider integration.
+
+Use NIST SP 800-63A-4 as a current identity-proofing reference where relevant, while obtaining jurisdiction-specific advice for the actual age-assurance obligation and method: https://csrc.nist.gov/pubs/sp/800/63/a/4/final
+
+## Payment and integration activation remains blocked
+
+Crypto settlement, card processing, concierge messaging and calendar synchronization remain planned. Unknown prerequisites deliberately fail closed. Do not enable these features until the repository contains the real adapter and its test suite, network/provider configuration is validated, the exact business model has written provider and legal approval, and data retention/security controls are implemented.
+
+For any future OAuth calendar integration, apply IETF RFC 9700: authorization-code flow with PKCE (S256), exact redirect URI matching, audience/scope restriction, refresh-token rotation or sender-constraining for public clients, TLS-only token handling and revocation/replay detection: https://www.rfc-editor.org/rfc/rfc9700.html

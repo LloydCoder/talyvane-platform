@@ -8,14 +8,33 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class ModelAgencyApplicationTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function provisionVerifier(): void
+    {
+        $verifier = User::query()->firstOrCreate([
+            'email' => 'model-application-verifier@example.test',
+        ], [
+            'name' => 'Model Application Verifier',
+            'password' => Str::random(48),
+            'role' => 'verifier',
+            'is_active' => true,
+        ]);
+        $verifier->forceFill([
+            'email_verified_at' => now(),
+            'mfa_secret' => Str::random(32),
+            'mfa_enabled_at' => now(),
+        ])->save();
+    }
+
     private function enableApplications(): void
     {
+        $this->provisionVerifier();
         config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => 'smtp.example.test', 'talyvane.model_agency.retention.application_days' => 90, 'talyvane.model_agency.retention.accepted_days' => 365, 'talyvane.model_agency.retention.schedule_approved' => true, 'talyvane.model_agency.privacy_notice_version' => 'model-application-privacy-v1', 'talyvane.model_agency.privacy_notice_approved' => true, 'talyvane.model_agency.adult_eligibility_policy_version' => 'adult-eligibility-v1', 'talyvane.model_agency.adult_eligibility_policy_approved' => true]);
         SitePage::query()->create(['title' => 'Model Applicant Privacy Notice', 'slug' => 'model-applicant-privacy', 'body' => 'Approved model applicant privacy notice content for test. Version: model-application-privacy-v1.', 'is_published' => true, 'published_at' => now()]);
         SitePage::query()->create(['title' => 'Adult Eligibility Policy', 'slug' => 'model-adult-eligibility', 'body' => 'Approved adult eligibility policy content for test. Version: adult-eligibility-v1.', 'is_published' => true, 'published_at' => now()]);
@@ -387,6 +406,7 @@ class ModelAgencyApplicationTest extends TestCase
             'talyvane.model_agency.retention.schedule_approved' => true,
         ]);
 
+        $this->provisionVerifier();
         $this->assertSame([], app(\App\Services\FeatureActivationEvaluator::class)->blockers($feature));
     }
 

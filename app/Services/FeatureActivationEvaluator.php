@@ -7,6 +7,7 @@ use App\Models\CountryMarket;
 use App\Models\ProfileMediaConsentEvent;
 use App\Models\PlatformFeature;
 use App\Models\SitePage;
+use App\Models\User;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -261,9 +262,22 @@ class FeatureActivationEvaluator
                         'adult_eligibility_verified_by',
                         'adult_eligibility_verification_method',
                     ]);
+                $verifierSchemaReady = Schema::hasTable('users')
+                    && Schema::hasColumns('users', ['role', 'is_active', 'email_verified_at', 'mfa_secret', 'mfa_enabled_at']);
+                $staffedVerificationReady = $verifierSchemaReady && User::query()
+                    ->where('role', 'verifier')
+                    ->where('is_active', true)
+                    ->whereNotNull('email_verified_at')
+                    ->whereNotNull('mfa_secret')
+                    ->whereNotNull('mfa_enabled_at')
+                    ->exists();
 
                 if (! $verificationSchemaReady) {
                     $blockers[] = 'The privacy-minimizing adult-eligibility verification workflow is unavailable.';
+                }
+
+                if (! $staffedVerificationReady) {
+                    $blockers[] = 'At least one active, email-verified verifier with MFA must be provisioned before adult-eligibility verification can be activated.';
                 }
 
                 continue;
