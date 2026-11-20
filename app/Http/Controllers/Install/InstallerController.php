@@ -381,7 +381,12 @@ final class InstallerController
                 }
 
                 $knownTables = array_unique(array_map('strtolower', $knownTables));
-                $unknownTables = array_diff(array_map('strtolower', $tables), $knownTables);
+                $normalisedTables = array_map(static function (string $table): string {
+                    $parts = explode('.', $table);
+
+                    return strtolower((string) end($parts));
+                }, $tables);
+                $unknownTables = array_diff($normalisedTables, $knownTables);
 
                 if ($unknownTables !== []) {
                     throw new RuntimeException('The selected database contains tables outside the recognised Talyvane schema: '.implode(', ', $unknownTables).'.');
