@@ -32,6 +32,28 @@ class InstallerPreflightTest extends TestCase
             ->assertSee('Session storage is writable');
     }
 
+    public function test_preflight_rejects_symlinked_session_storage(): void
+    {
+        config(['talyvane.installer.enforce' => false]);
+
+        $sessions = storage_path('framework/sessions');
+        $backup = storage_path('framework/sessions-installer-test-backup');
+        $target = sys_get_temp_dir().'/talyvane-installer-session-'.bin2hex(random_bytes(6));
+        mkdir($target, 0700, true);
+        rename($sessions, $backup);
+        symlink($target, $sessions);
+
+        try {
+            $this->get('/install')
+                ->assertOk()
+                ->assertSee('Session storage is writable');
+        } finally {
+            @unlink($sessions);
+            rename($backup, $sessions);
+            @rmdir($target);
+        }
+    }
+
     public function test_expired_installer_session_cannot_submit_configuration(): void
     {
         config(['talyvane.installer.enforce' => false]);
