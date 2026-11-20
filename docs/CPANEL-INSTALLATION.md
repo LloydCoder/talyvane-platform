@@ -91,9 +91,10 @@ This path is available only in a tagged release that has passed the installer re
 1. Upload the complete standalone release ZIP into /home/CPANEL_USER/ using cPanel File Manager and extract it there. The archive creates a top-level talyvane/ directory; rename that directory to talyvane-app so it matches the wrapper paths and the examples below.
 2. Configure the public document root using Option A or Option B above. For Option B, also upload and extract the matching main-domain or add-on-domain public-root ZIP into the document root. Back up any existing public files first.
 3. Confirm the domain has a valid TLS certificate and opens over HTTPS.
-4. Visit the HTTPS domain. The private first-request bootstrap creates a deployment-unique application key and private runtime directories. It does not run arbitrary commands.
-5. Complete every hosting preflight check. Resolve any PHP extension, GD/WebP, HTTPS, document-root, symlink or permission failure before proceeding.
-6. Enter the application URL, database credentials, SMTP credentials, Super Admin details and a distinct recovery email address.
+4. Visit the HTTPS domain. The private first-request bootstrap creates a deployment-unique application key, private runtime directories and a random installer access key. It does not run arbitrary commands.
+5. In cPanel File Manager, open the private application root (not public_html), then open `storage/app/private/INSTALLER-ACCESS-KEY.txt`. Copy the complete key. The installer page never displays or embeds this secret; enter it only in the protected installer form. Do not paste it into a URL, ticket, email or screenshot.
+6. Complete every hosting preflight check. Resolve any PHP extension, GD/WebP, HTTPS, document-root, symlink or permission failure before proceeding.
+7. Enter the application URL, database credentials, SMTP credentials, Super Admin details and a distinct recovery email address.
 7. The installer writes the production environment configuration, tests the database, runs the fixed migrations and sends separate verification codes to the Super Admin and recovery email addresses.
 8. Enter both codes within the verification window. The installer creates the canonical Super Admin and durable installation lock.
 9. The success screen displays the actual Super Admin sign-in URL and generated initial password exactly once. Store the password securely, sign in, change it immediately and complete mandatory MFA enrollment before privileged administration.
