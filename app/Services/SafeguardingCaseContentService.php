@@ -20,7 +20,7 @@ class SafeguardingCaseContentService
 
         if ($provider === 'vault') {
             $keyReference = 'case-'.Str::uuid()->toString();
-            $keyCiphertext = app(SafeguardingCaseKeyVault::class)->createAndEncrypt($keyReference, $dataKey);
+            $vault = app(SafeguardingCaseKeyVault::class);\n            $vault->createKey($keyReference);\n            $keyCiphertext = $vault->encrypt($keyReference, $dataKey);
         } elseif ($provider === 'local') {
             $keyCiphertext = Crypt::encryptString(base64_encode($dataKey));
         } else {
@@ -149,7 +149,7 @@ class SafeguardingCaseContentService
             throw new RuntimeException('Safeguarding case content key is unavailable.');
         }
 
-        return $this->encrypterFromCiphertext($row->key_ciphertext);
+        return $this->encrypterFromRow($row);
     }
 
     private function encrypterFromRow(object $row): Encrypter
