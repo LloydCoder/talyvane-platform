@@ -54,6 +54,7 @@
         @if (auth()->user()->role === 'super_admin')
             <p class="sidebar-caption">DEPLOYMENT CONTROL</p>
             <a class="sidebar-link {{ request()->routeIs('admin.features.*') ? 'active' : '' }}" href="{{ route('admin.features.index') }}">Feature registry</a>
+            <a class="sidebar-link {{ request()->routeIs('admin.secrets.*') ? 'active' : '' }}" href="{{ route('admin.secrets.index') }}">Secret management</a>
             <a class="sidebar-link {{ request()->routeIs('admin.branding.*') ? 'active' : '' }}" href="{{ route('admin.branding.edit') }}">Brand & identity</a>
             <a class="sidebar-link {{ request()->routeIs('admin.globalization*') ? 'active' : '' }}" href="{{ route('admin.globalization') }}">Global markets & currency</a>
             <a class="sidebar-link {{ request()->routeIs('admin.destinations.*') ? 'active' : '' }}" href="{{ route('admin.destinations.index') }}">Destinations</a>
