@@ -21,6 +21,10 @@ class SafeguardingNotificationDispatcher
             throw new RuntimeException('Safeguarding notifications are disabled until the mail transport has been verified by the deployment operator.');
         }
 
+        if (! is_string(config('mail.default')) || in_array(config('mail.default'), ['log', 'array'], true)) {
+            throw new RuntimeException('Safeguarding notifications require a real, verified mail transport; log and array mailers are not delivery channels.');
+        }
+
         SafeguardingNotificationOutbox::query()
             ->where('status', 'processing')
             ->where('processing_at', '<=', now()->subMinutes(15))
