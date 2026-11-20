@@ -165,6 +165,7 @@ class ProfileMediaTest extends TestCase
         $event = ProfileMediaConsentEvent::query()->where('profile_media_id', $media->id)->firstOrFail();
         $this->assertSame('members_only_consent.granted', $event->action);
         $this->assertSame('private-gallery-v1', $event->consent_policy_version);
+        $this->assertSame(MembershipEntitlementCatalog::privateGalleryConsentStatement(), $event->consent_statement);
         $this->assertSame($companion->id, $event->actor_id);
         $this->assertSame(hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement()), $event->statement_sha256);
     }
