@@ -99,6 +99,7 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Add metadata-only legal-hold governance with independent maker-checker release and append-only case/access audit events.
 - [x] Implement disabled-by-default, policy-gated removal of per-case content keys from the primary database for closed cases, excluding active legal holds and preserving case/audit metadata.
 - [x] Add a privacy-minimized safeguarding email outbox with MFA-gated internal links, critical/minor-safety escalation contacts, bounded retries and cPanel-compatible scheduled delivery.
+- [x] Add an optional HashiCorp Vault Transit key provider with non-exportable per-case keys, separate application/retention credentials, HTTPS-only transport and retry-safe remote key destruction.
 - [ ] Verify backup expiry and restore controls or move per-case keys to an independently managed external key vault before claiming end-to-end cryptographic erasure; complete independent safeguarding response drills.
 - [ ] Complete legacy owner/admin least-privilege migration and independent human custodian identity-proofing/operational drills.
 - [ ] Implement membership entitlements and protected-resource authorization; current membership capability is assignment/display only.
