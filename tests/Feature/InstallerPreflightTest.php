@@ -23,7 +23,7 @@ class InstallerPreflightTest extends TestCase
 
         $this->get('/install')
             ->assertOk()
-            ->assertHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+            ->assertHeader('Cache-Control', 'must-revalidate, no-cache, no-store, private')
             ->assertHeader('Referrer-Policy', 'no-referrer')
             ->assertSee('FIRST-TIME SETUP')
             ->assertSee('Hosting preflight')
