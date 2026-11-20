@@ -70,6 +70,25 @@ class SuperAdminCanonicalIdentityTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_designated_super_admin_can_complete_password_and_mfa_authentication(): void
+    {
+        $superAdmin = $this->designatedSuperAdmin();
+
+        $this->post('/admin/login', [
+            'email' => $superAdmin->email,
+            'password' => 'Strong-Testing-Password-934!',
+        ])->assertRedirect('/admin/mfa/challenge');
+
+        $step = intdiv(time(), 30);
+        $code = app(\\App\\Services\\TotpService::class)->codeForStep($superAdmin->mfa_secret, $step);
+
+        $this->post('/admin/mfa/challenge', ['code' => $code])
+            ->assertRedirect('/admin');
+
+        $this->assertAuthenticatedAs($superAdmin);
+        $this->get('/admin/features')->assertOk();
+    }
+
     public function test_designated_super_admin_remains_authorized(): void
     {
         $superAdmin = $this->designatedSuperAdmin();
