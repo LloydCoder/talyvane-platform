@@ -223,6 +223,17 @@ class FeatureActivationEvaluator
                 continue;
             }
 
+            if ($requirement === 'private_gallery_consent_policy') {
+                if (
+                    ! filled(config('talyvane.privacy.private_gallery_consent_version'))
+                    || ! config('talyvane.privacy.private_gallery_consent_approved')
+                ) {
+                    $blockers[] = 'A current, separately worded, versioned companion consent policy for members-only media must be configured and explicitly approved.';
+                }
+
+                continue;
+            }
+
             if ($requirement === 'adult_eligibility_verification') {
                 $verificationSchemaReady = Schema::hasTable('model_talent_applications')
                     && Schema::hasColumns('model_talent_applications', [
