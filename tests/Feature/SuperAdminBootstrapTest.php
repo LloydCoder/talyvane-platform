@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Install\InstallationLock;
 use App\Services\RecoveryCodeGenerator;
 use App\Notifications\SuperAdminEmailVerificationCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,6 +14,13 @@ use Tests\TestCase;
 class SuperAdminBootstrapTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        @unlink(storage_path('app/private/talyvane.install.lock'));
+
+        parent::tearDown();
+    }
 
     public function test_cli_bootstrap_creates_the_single_deployment_super_admin(): void
     {
@@ -42,10 +50,14 @@ class SuperAdminBootstrapTest extends TestCase
         $this->assertNotNull(DB::table('platform_control')->value('super_admin_recovery_email_verified_at'));
         $this->assertDatabaseHas('super_admin_recovery_events', ['super_admin_user_id' => $user->id, 'event_type' => 'bootstrap_recovery_key_issued']);
         Notification::assertSentOnDemand(SuperAdminEmailVerificationCode::class, 2);
-        $this->assertDatabaseHas('platform_control', [
-            'id' => 1,
-            'super_admin_user_id' => $user->id,
-        ]);
+        $control = DB::table('platform_control')->where('id', 1)->first();
+        $this->assertSame($user->id, $control->super_admin_user_id);
+        $this->assertNotNull($control->installation_id);
+        $this->assertNotNull($control->installation_lock_hash);
+        $this->assertNotNull($control->installation_completed_at);
+
+        $lock = new InstallationLock(base_path(), (string) config('app.key'));
+        $this->assertTrue($lock->verify($control->installation_id, $control->installation_lock_hash));
     }
 
 

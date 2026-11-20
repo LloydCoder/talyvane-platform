@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 use App\Install\BootstrapEnvironment;
 
+if (PHP_SAPI !== 'cli' && realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === __FILE__) {
+    http_response_code(404);
+    exit;
+}
+
 try {
     (new BootstrapEnvironment(dirname(__DIR__)))->ensure();
 } catch (Throwable $exception) {

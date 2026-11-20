@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\User;
+use App\Install\EnvironmentWriter;
+use App\Install\InstallationLock;
 use App\Models\SuperAdminRecoveryEvent;
 use App\Notifications\SuperAdminEmailVerificationCode;
 use App\Notifications\SuperAdminRecoveryNotice;
@@ -132,50 +134,86 @@ Artisan::command('talyvane:super-admin:create {email}', function () {
 
     $recoveryKey = Str::random(64);
 
-    $superAdmin = DB::transaction(function () use ($name, $email, $password, $recoveryEmail, $recoveryKey): ?User {
-        $control = DB::table('platform_control')->where('id', 1)->lockForUpdate()->first();
+    if (app()->environment('production')) {
+        try {
+            if (is_file(base_path('bootstrap/cache/config.php'))) {
+                Artisan::call('config:clear');
+            }
 
-        if (! $control || $control->super_admin_user_id !== null || User::query()->where('role', 'super_admin')->exists()) {
-            return null;
+            app(EnvironmentWriter::class)->update(['TALYVANE_INSTALLER_ENFORCE' => 'true']);
+            config(['talyvane.installer.enforce' => true]);
+        } catch (\Throwable) {
+            $this->error('The deployment environment could not be prepared for installation-lock enforcement. No administrator account was created.');
+
+            return 1;
+        }
+    }
+
+    $installationLock = new InstallationLock(base_path(), (string) config('app.key'));
+    $lockData = null;
+
+    try {
+        $superAdmin = DB::transaction(function () use ($name, $email, $password, $recoveryEmail, $recoveryKey, $installationLock, &$lockData): ?User {
+            $control = DB::table('platform_control')->where('id', 1)->lockForUpdate()->first();
+
+            if (! $control || $control->super_admin_user_id !== null || User::query()->where('role', 'super_admin')->exists()) {
+                return null;
+            }
+
+            $user = User::query()->create([
+                'name' => $name,
+                'email' => $email,
+                'password' => $password,
+                'role' => 'super_admin',
+                'is_active' => true,
+            ]);
+
+            $user->forceFill(['email_verified_at' => now()])->save();
+
+            $lockData = $installationLock->create();
+            $occurredAt = now();
+
+            DB::table('platform_control')->where('id', 1)->update([
+                'super_admin_user_id' => $user->id,
+                'super_admin_recovery_key_hash' => Hash::make($recoveryKey),
+                'super_admin_recovery_key_rotated_at' => $occurredAt,
+                'super_admin_recovery_email' => $recoveryEmail,
+                'super_admin_recovery_email_verified_at' => $occurredAt,
+                'installation_id' => $lockData['installation_id'],
+                'installation_lock_hash' => $lockData['lock_hash'],
+                'installation_completed_at' => $occurredAt,
+                'updated_at' => $occurredAt,
+            ]);
+
+            SuperAdminRecoveryEvent::query()->create([
+                'super_admin_user_id' => $user->id,
+                'event_type' => 'bootstrap_recovery_key_issued',
+                'reason' => 'Initial deployment Super Admin provisioning',
+                'session_version_before' => null,
+                'session_version_after' => (int) $user->admin_session_version,
+                'metadata' => ['verified_notification_addresses' => 2, 'source' => 'trusted_cli'],
+                'occurred_at' => $occurredAt,
+            ]);
+
+            return $user;
+        });
+    } catch (\Throwable) {
+        if (is_array($lockData)) {
+            $installationLock->removeIfMatches($lockData['installation_id'], $lockData['lock_hash']);
         }
 
-        $user = User::query()->create([
-            'name' => $name,
-            'email' => $email,
-            'password' => $password,
-            'role' => 'super_admin',
-            'is_active' => true,
-        ]);
+        $this->error('Super Admin provisioning and installation-lock creation failed. No success was reported.');
 
-        $user->forceFill(['email_verified_at' => now()])->save();
-
-        DB::table('platform_control')->where('id', 1)->update([
-            'super_admin_user_id' => $user->id,
-            'super_admin_recovery_key_hash' => Hash::make($recoveryKey),
-            'super_admin_recovery_key_rotated_at' => now(),
-            'super_admin_recovery_email' => $recoveryEmail,
-            'super_admin_recovery_email_verified_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        SuperAdminRecoveryEvent::query()->create([
-            'super_admin_user_id' => $user->id,
-            'event_type' => 'bootstrap_recovery_key_issued',
-            'reason' => 'Initial deployment Super Admin provisioning',
-            'session_version_before' => null,
-            'session_version_after' => (int) $user->admin_session_version,
-            'metadata' => ['verified_notification_addresses' => 2, 'source' => 'trusted_cli'],
-            'occurred_at' => now(),
-        ]);
-
-        return $user;
-    });
+        return 1;
+    }
 
     if (! $superAdmin) {
         $this->error('A Super Admin is already provisioned for this deployment. No account was created.');
 
         return 1;
     }
+
+    config(['talyvane.installer.enforce' => true]);
 
     $this->line('Super Admin recovery key (store offline; shown once): '.$recoveryKey);
     $this->info('Deployment Super Admin created. Sign in and complete mandatory MFA setup before administration.');
