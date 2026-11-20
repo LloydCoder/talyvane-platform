@@ -9,6 +9,7 @@ use App\Services\SafeguardingCaseRetentionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Tests\TestCase;
