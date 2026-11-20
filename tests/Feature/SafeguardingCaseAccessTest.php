@@ -60,6 +60,11 @@ class SafeguardingCaseAccessTest extends TestCase
             DB::table('safeguarding_cases')->where('id', $case->id)->value('details'),
         );
 
+        $content = DB::table('safeguarding_case_contents')->where('case_id', $case->id)->first();
+        $this->assertNotNull($content->key_ciphertext);
+        $this->assertNotSame('Consent concern requires immediate safeguarding review.', $content->summary_ciphertext);
+        $this->assertNotSame('A detailed confidential report for the designated safeguarding specialist.', $content->details_ciphertext);
+
         $this->actingAs($reporter)
             ->get('/admin/safeguarding/cases/'.$case->id)
             ->assertForbidden();
