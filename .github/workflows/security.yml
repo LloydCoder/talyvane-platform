@@ -38,6 +38,10 @@ jobs:
           .venv-semgrep/bin/semgrep scan
           --config p/security-audit
           --config p/owasp-top-ten
+          --config p/php
+          --config p/php-laravel
+          --config p/secrets
+          --config p/security-headers
           --metrics=off
           --error
-          app bootstrap config database install public routes cpanel-public-root
+          app bootstrap config database install public resources routes cpanel-public-root .github
