@@ -81,6 +81,7 @@ class ModelTalentRepresentationAgreementService
         string $effectiveFrom,
         ?string $effectiveUntil,
     ): void {
+        app(FeatureRegistry::class)->assertOperationallyEnabled('model-agency.usage-rights');
         DB::transaction(function () use ($agreement, $actorId, $documentReference, $effectiveFrom, $effectiveUntil): void {
             $current = ModelTalentRepresentationAgreement::query()->findOrFail($agreement->id);
             $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($current->application_id);
