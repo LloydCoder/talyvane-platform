@@ -183,7 +183,6 @@ class SafeguardingCaseService
                 'legal_hold_by' => $actor->id,
                 'legal_hold_released_at' => null,
                 'legal_hold_released_by' => null,
-                'legal_hold_release_reason' => null,
             ])->save();
             $this->content->updateFields($locked->id, ['legal_hold_reason' => trim($reason)]);
 
