@@ -25,6 +25,7 @@ class ModelTalentPortfolioAssetService
         UploadedFile $file,
         array $evidence,
     ): ModelTalentPortfolioAsset {
+        app(FeatureRegistry::class)->assertEnabled('model-agency.usage-rights');
         $this->assertEligible(ModelTalentApplication::query()->findOrFail($application->id), false);
         $image = $this->processor->storeSanitized($file, 'model-portfolio');
 
@@ -70,6 +71,9 @@ class ModelTalentPortfolioAssetService
 
     public function review(ModelTalentPortfolioAsset $asset, int $actorId, string $decision, string $note): void
     {
+        if ($decision === 'approved') {
+            app(FeatureRegistry::class)->assertEnabled('model-agency.usage-rights');
+        }
         DB::transaction(function () use ($asset, $actorId, $decision, $note): void {
             $current = ModelTalentPortfolioAsset::query()->findOrFail($asset->id);
             $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($current->application_id);
