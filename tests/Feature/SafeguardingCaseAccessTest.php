@@ -127,6 +127,18 @@ class SafeguardingCaseAccessTest extends TestCase
         ]);
     }
 
+    public function test_safeguarding_login_enters_mfa_challenge_without_general_admin_redirect(): void
+    {
+        $specialist = $this->safeguardingUser('safeguarding-login@example.test');
+
+        $this->post('/admin/login', [
+            'email' => $specialist->email,
+            'password' => 'Strong-Testing-Password-934!',
+        ])->assertRedirect('/admin/mfa/challenge');
+
+        $this->assertSessionHas('pending_admin_mfa_user_id', $specialist->id);
+    }
+
     public function test_safeguarding_specialist_cannot_access_other_admin_workspaces(): void
     {
         $specialist = $this->safeguardingUser('safeguarding-boundary@example.test');
