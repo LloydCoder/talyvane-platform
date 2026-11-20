@@ -76,6 +76,7 @@ final class BootstrapEnvironment
         $contents = $this->setEnvironmentValue($contents, 'SESSION_SECURE_COOKIE', 'true');
         $contents = $this->setEnvironmentValue($contents, 'CACHE_STORE', 'file');
         $contents = $this->setEnvironmentValue($contents, 'QUEUE_CONNECTION', 'sync');
+        $contents = $this->setEnvironmentValue($contents, 'TALYVANE_INSTALLER_ENFORCE', 'true');
 
         $temporaryPath = tempnam($basePath, '.talyvane-env-');
         if ($temporaryPath === false || dirname($temporaryPath) !== $basePath) {

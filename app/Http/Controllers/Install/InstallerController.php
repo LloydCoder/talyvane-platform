@@ -24,6 +24,12 @@ final class InstallerController
 {
     public function index(Request $request): View
     {
+        if (hash_equals(strtolower($validated['admin_email']), strtolower($validated['recovery_email']))) {
+            throw ValidationException::withMessages([
+                'recovery_email' => 'The recovery email must be different from the Super Admin email.',
+            ]);
+        }
+
         $root = realpath(base_path());
         $public = realpath(public_path());
         $documentRoot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
@@ -42,6 +48,25 @@ final class InstallerController
         return view('install.index', [
             'checks' => $checks,
             'ready' => ! in_array(false, $checks, true),
+        ]);
+    }
+
+    public function verifyForm(Request $request): View|RedirectResponse
+    {
+        $pending = $request->session()->get('installer.pending_admin');
+
+        if (! is_array($pending) || ! isset($pending['email'], $pending['recovery_email'], $pending['started_at'])
+            || time() - (int) $pending['started_at'] > 300) {
+            $request->session()->forget('installer.pending_admin');
+
+            return redirect()->route('install.index')->withErrors([
+                'installer' => 'The verification session expired. Restart the installation verification step.',
+            ]);
+        }
+
+        return view('install.verify', [
+            'adminEmail' => $pending['email'],
+            'recoveryEmail' => $pending['recovery_email'],
         ]);
     }
 

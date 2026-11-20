@@ -3,6 +3,9 @@
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\AdminMfaController;
+use App\Http\Controllers\Admin\AdminFirstLoginPasswordController;
+use App\Http\Controllers\Install\InstallerController;
+use App\Http\Controllers\Install\InstallSuccessController;
 use App\Http\Controllers\Admin\BookingAdminController;
 use App\Http\Controllers\Admin\ClientManagementController;
 use App\Http\Controllers\Admin\BookingSettingsController;
@@ -43,6 +46,14 @@ use App\Http\Controllers\PageController;
 use App\Models\SitePage;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
+
+Route::prefix('install')->name('install.')->group(function (): void {
+    Route::get('/', [InstallerController::class, 'index'])->name('index');
+    Route::post('/', [InstallerController::class, 'store'])->middleware('throttle:5,1')->name('store');
+    Route::get('/verify', [InstallerController::class, 'verifyForm'])->name('verify');
+    Route::post('/verify', [InstallerController::class, 'verify'])->middleware('throttle:5,1')->name('verify.submit');
+    Route::get('/success', [InstallSuccessController::class, 'show'])->name('success');
+});
 
 Route::get('/', function (\App\Services\BrandSettings $settings) {
     return view('home', [
@@ -120,6 +131,9 @@ Route::middleware('auth')->group(function (): void {
 });
 
 Route::prefix('admin')->name('admin.')->group(function (): void {
+    Route::get('/first-login/password', [AdminFirstLoginPasswordController::class, 'create'])->name('first-login.password');
+    Route::post('/first-login/password', [AdminFirstLoginPasswordController::class, 'update'])->middleware('throttle:5,1')->name('first-login.password.update');
+
     Route::middleware('guest')->group(function (): void {
         Route::get('/login', [AdminLoginController::class, 'create'])->name('login');
         Route::post('/login', [AdminLoginController::class, 'store'])->middleware('throttle:10,1')->name('login.store');

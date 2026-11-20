@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'installer' => [
+        'enforce' => filter_var(env('TALYVANE_INSTALLER_ENFORCE', false), FILTER_VALIDATE_BOOL),
+    ],
+
     'brand' => [
         'brand_name' => env('BRAND_NAME', 'Talyvane'),
         'tagline' => env('BRAND_TAGLINE', 'Independent operations. Considered design.'),
