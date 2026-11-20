@@ -153,6 +153,7 @@ class SafeguardingCaseContentService
 
         DB::table('safeguarding_case_contents')->where('case_id', $caseId)->update([
             'key_ciphertext' => null,
+            'key_reference' => null,
             'retention_erased_at' => now(),
             'retention_erased_by' => $actorId,
             'retention_policy_version' => $policyVersion,
