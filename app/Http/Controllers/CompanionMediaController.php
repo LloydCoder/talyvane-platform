@@ -33,11 +33,13 @@ class CompanionMediaController extends Controller
         ]);
 
         $membersOnlyConsentVersion = config('talyvane.privacy.private_gallery_consent_version');
-        $consentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement((string) ($brandSettings->publicBrand()['brand_name'] ?? 'Talyvane'));
+        $agencyName = trim((string) ($brandSettings->publicBrand()['brand_name'] ?? ''));
+        $consentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement($agencyName);
         $membersOnlyConsentConfirmed = isset($validated['members_only_confirmed']);
         if ($membersOnlyConsentConfirmed && (
             ! filled($membersOnlyConsentVersion)
             || ! config('talyvane.privacy.private_gallery_consent_approved')
+            || ! filled($agencyName)
         )) {
             throw ValidationException::withMessages([
                 'members_only_confirmed' => 'The separate private-gallery consent policy is not currently approved.',
