@@ -46,6 +46,7 @@ class SecretManagementController
 
     public function store(Request $request, string $secretKey, VaultKv2SecretStore $vault, TotpService $totp): RedirectResponse
     {
+        abort_unless(array_key_exists($secretKey, SecretCatalog::all()), 404);
         $definition = SecretCatalog::find($secretKey);
         abort_unless($vault->isConfigured(), 503, 'Secret storage is not configured.');
 
@@ -114,6 +115,7 @@ class SecretManagementController
 
     public function destroy(Request $request, string $secretKey, VaultKv2SecretStore $vault, TotpService $totp): RedirectResponse
     {
+        abort_unless(array_key_exists($secretKey, SecretCatalog::all()), 404);
         SecretCatalog::find($secretKey);
         abort_unless($vault->isConfigured(), 503, 'Secret storage is not configured.');
 
