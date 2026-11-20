@@ -1,0 +1,43 @@
+name: Security analysis
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep / PHP and web application security
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Create isolated Semgrep environment
+        run: python3 -m venv .venv-semgrep
+
+      - name: Install pinned Semgrep CLI
+        run: .venv-semgrep/bin/python -m pip install --disable-pip-version-check --no-input "semgrep==1.186.0"
+
+      - name: Run PHP security-audit and OWASP Top 10 rulesets
+        run: >-
+          .venv-semgrep/bin/semgrep scan
+          --config p/security-audit
+          --config p/owasp-top-ten
+          --metrics=off
+          --error
+          app bootstrap config database install public routes cpanel-public-root
