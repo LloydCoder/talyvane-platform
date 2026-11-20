@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProfileMedia extends Model
 {
@@ -34,6 +35,11 @@ class ProfileMedia extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function consentEvents(): HasMany
+    {
+        return $this->hasMany(ProfileMediaConsentEvent::class, 'profile_media_id');
     }
 
     public function membersOnlyConsentWithdrawnBy(): BelongsTo
