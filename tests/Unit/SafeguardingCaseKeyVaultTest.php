@@ -51,6 +51,30 @@ class SafeguardingCaseKeyVaultTest extends TestCase
         });
     }
 
+    public function test_preflight_verifies_round_trip_and_destroys_its_temporary_key(): void
+    {
+        $plaintextKey = null;
+
+        Http::fake(function (Request $request) use (&$plaintextKey) {
+            if (str_contains($request->url(), '/encrypt/')) {
+                $plaintextKey = base64_decode((string) $request['plaintext'], true);
+
+                return Http::response(['data' => ['ciphertext' => 'vault:v1:preflight-ciphertext']]);
+            }
+
+            if (str_contains($request->url(), '/decrypt/')) {
+                return Http::response(['data' => ['plaintext' => base64_encode((string) $plaintextKey)]]);
+            }
+
+            return Http::response([], 204);
+        });
+
+        app(SafeguardingCaseKeyVault::class)->verify();
+
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'DELETE'
+            && $request->hasHeader('X-Vault-Token', 'retention-token'));
+    }
+
     public function test_key_creation_requires_a_distinct_retention_credential(): void
     {
         config(['services.safeguarding_vault.retention_token' => 'application-token']);
