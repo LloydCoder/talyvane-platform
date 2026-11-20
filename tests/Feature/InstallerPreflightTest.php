@@ -146,4 +146,14 @@ class InstallerPreflightTest extends TestCase
         $this->post('/install', [])->assertTooManyRequests();
     }
 
+    public function test_installer_configuration_post_requires_a_valid_csrf_token(): void
+    {
+        $this->withMiddleware();
+        config(['app.env' => 'production', 'talyvane.installer.enforce' => false]);
+
+        $this->get('/install')->assertOk();
+
+        $this->post('/install', [])->assertStatus(419);
+    }
+
 }
