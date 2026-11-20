@@ -108,6 +108,9 @@ class SafeguardingNotificationOutboxTest extends TestCase
 
         $this->assertSame(2, $sent);
         Notification::assertSentOnDemandTimes(SafeguardingCaseAlert::class, 2);
+        Notification::assertSentOnDemand(SafeguardingCaseAlert::class, function ($notification): bool {
+            return $notification->requiresAccount === false && $notification->caseUrl === '';
+        });
         $this->assertNull(SafeguardingNotificationOutbox::query()
             ->where('case_id', $case->id)
             ->where('notification_type', 'critical_escalation')
