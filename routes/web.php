@@ -125,13 +125,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::post('/mfa/challenge', [AdminMfaController::class, 'verifyChallenge'])->middleware('throttle:5,1')->name('mfa.challenge.verify');
     Route::post('/mfa/recovery', [AdminMfaController::class, 'verifyRecovery'])->middleware('throttle:5,1')->name('mfa.recovery.verify');
 
-    Route::middleware(['auth', 'role:super_admin,owner,admin,finance', 'admin.session-current'])->group(function (): void {
+    Route::middleware(['auth', 'role:super_admin,owner,admin,finance,verifier', 'admin.session-current'])->group(function (): void {
         Route::get('/mfa/setup', [AdminMfaController::class, 'setup'])->name('mfa.setup');
         Route::post('/mfa/setup', [AdminMfaController::class, 'confirmSetup'])->middleware('throttle:5,1')->name('mfa.setup.confirm');
         Route::get('/mfa/recovery-codes', [AdminMfaController::class, 'recoveryCodes'])->name('mfa.recovery-codes');
     });
 
-    Route::middleware(['auth', 'role:super_admin', 'admin.session-current', 'admin.mfa'])->group(function (): void {
+    // Eligibility verifiers receive a dedicated, purpose-limited queue only. They cannot enter agency or finance workspaces.\n    Route::middleware(['auth', 'role:verifier', 'admin.session-current', 'admin.mfa'])->prefix('adult-eligibility')->name('adult-eligibility.')->group(function (): void {\n        Route::get('/', [ModelAgencyApplicationAdminController::class, 'verifierQueue'])->name('index');\n        Route::post('/{application}/verify', [ModelAgencyApplicationAdminController::class, 'verifyAdultEligibility'])->middleware('throttle:5,1')->name('verify');\n    });\n\n    Route::middleware(['auth', 'role:super_admin', 'admin.session-current', 'admin.mfa'])->group(function (): void {
         Route::get('/features', [PlatformFeatureController::class, 'index'])->name('features.index');
         Route::patch('/features/{feature}', [PlatformFeatureController::class, 'update'])->middleware('throttle:5,1')->name('features.update');
     });
@@ -237,6 +237,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     });
 
     Route::post('/logout', [AdminLoginController::class, 'destroy'])
-        ->middleware(['auth', 'role:super_admin,owner,admin,finance'])
+        ->middleware(['auth', 'role:super_admin,owner,admin,finance,verifier'])
         ->name('logout');
 });
