@@ -20,7 +20,7 @@ return new class extends Migration
             $table->timestamp('reviewed_at');
             $table->timestamps();
 
-            $table->index(['companion_profile_id', 'reviewed_at']);
+            $table->index(['companion_profile_id', 'reviewed_at'], 'profile_reviews_companion_reviewed_index');
         });
     }
 

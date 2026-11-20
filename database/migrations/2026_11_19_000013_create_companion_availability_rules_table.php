@@ -17,8 +17,8 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
-            $table->unique(['companion_profile_id', 'weekday', 'starts_at']);
-            $table->index(['companion_profile_id', 'weekday', 'is_active']);
+            $table->unique(['companion_profile_id', 'weekday', 'starts_at'], 'comp_avail_profile_weekday_start_unique');
+            $table->index(['companion_profile_id', 'weekday', 'is_active'], 'comp_avail_profile_weekday_active_index');
         });
     }
 

@@ -17,7 +17,7 @@ return new class extends Migration
             $table->unsignedBigInteger('session_version_after')->nullable();
             $table->json('metadata')->nullable();
             $table->timestamp('occurred_at');
-            $table->index(['super_admin_user_id', 'occurred_at']);
+            $table->index(['super_admin_user_id', 'occurred_at'], 'super_admin_recovery_user_occurred_index');
             $table->index(['event_type', 'occurred_at']);
         });
     }

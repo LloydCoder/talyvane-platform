@@ -17,8 +17,8 @@ return new class extends Migration
             $table->timestamp('starts_at')->nullable();
             $table->timestamp('ends_at')->nullable();
             $table->timestamps();
-            $table->unique(['membership_id', 'entitlement_key']);
-            $table->index(['entitlement_key', 'starts_at', 'ends_at']);
+            $table->unique(['membership_id', 'entitlement_key'], 'cme_membership_entitlement_unique');
+            $table->index(['entitlement_key', 'starts_at', 'ends_at'], 'cme_entitlement_period_index');
         });
 
         Schema::table('profile_media', function (Blueprint $table): void {

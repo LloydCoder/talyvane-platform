@@ -58,7 +58,7 @@ return new class extends Migration
             $table->foreign('country_code')->references('country_code')->on('country_markets')->restrictOnDelete();
             $table->foreign('currency_code')->references('code')->on('currencies')->nullOnDelete();
             $table->index(['application_id', 'status']);
-            $table->index(['status', 'shoot_starts_at', 'shoot_ends_at']);
+            $table->index(['status', 'shoot_starts_at', 'shoot_ends_at'], 'model_assignments_status_shoot_window_index');
         });
 
         Schema::create('model_talent_assignment_events', function (Blueprint $table): void {
