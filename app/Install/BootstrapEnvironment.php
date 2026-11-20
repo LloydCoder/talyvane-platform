@@ -63,15 +63,31 @@ final class BootstrapEnvironment
         }
 
         $hasApplicationKey = preg_match('/^APP_KEY=(?!\s*$).+$/m', $contents) === 1;
-        if ($lockExists) {
-            if (! $hasApplicationKey) {
-                throw new RuntimeException('A completed installation requires its original application key.');
-            }
-
-            return false;
+        if ($lockExists && ! $hasApplicationKey) {
+            throw new RuntimeException('A completed installation requires its original application key.');
         }
 
         if ($hasApplicationKey) {
+            preg_match('/^APP_KEY=(.*)$/m', $contents, $keyMatch);
+            $configuredKey = trim((string) ($keyMatch[1] ?? ''));
+            if (strlen($configuredKey) >= 2
+                && (($configuredKey[0] === '"' && str_ends_with($configuredKey, '"'))
+                    || ($configuredKey[0] === "'" && str_ends_with($configuredKey, "'")))) {
+                $configuredKey = substr($configuredKey, 1, -1);
+            }
+
+            $decodedKey = str_starts_with($configuredKey, 'base64:')
+                ? base64_decode(substr($configuredKey, 7), true)
+                : $configuredKey;
+
+            if (! is_string($decodedKey) || strlen($decodedKey) !== 32) {
+                throw new RuntimeException('The configured application key is invalid for AES-256-CBC.');
+            }
+
+            if (! chmod($environmentPath, 0600)) {
+                throw new RuntimeException('The private environment file permissions could not be secured.');
+            }
+
             return false;
         }
 
