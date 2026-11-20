@@ -16,13 +16,16 @@ use App\Services\ModelTalentSettlementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
+use Tests\Feature\Support\EnablesModelAgencyFeatureRoutes;
 
 class ModelTalentSettlementTest extends TestCase
 {
     use RefreshDatabase;
+    use EnablesModelAgencyFeatureRoutes;
 
     private function assignment(string $status = 'completed'): array
     {
+        $this->enableModelAgencyFeatureRoutes(['model-agency.settlements']);
         config([
             'talyvane.model_agency.settlement_policy_version' => 'settlement-policy-v1',
             'talyvane.model_agency.settlement_policy_approved' => true,
