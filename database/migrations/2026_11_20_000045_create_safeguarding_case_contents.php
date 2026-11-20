@@ -40,7 +40,7 @@ return new class extends Migration
                     $encrypter = new Encrypter($dataKey, (string) config('app.cipher'));
                     $ciphertext = fn (?string $value): ?string => $value === null
                         ? null
-                        : $encrypter->encryptString((string) Crypt::decrypt($value));
+                        : $encrypter->encryptString((string) Crypt::decryptString($value));
 
                     DB::table('safeguarding_case_contents')->insert([
                         'case_id' => $case->id,
@@ -62,7 +62,7 @@ return new class extends Migration
                         ->each(function ($event) use ($encrypter): void {
                             DB::table('safeguarding_case_events')
                                 ->where('id', $event->id)
-                                ->update(['note' => $encrypter->encryptString((string) Crypt::decrypt($event->note))]);
+                                ->update(['note' => $encrypter->encryptString((string) Crypt::decryptString($event->note))]);
                         });
 
                     DB::table('safeguarding_cases')->where('id', $case->id)->update([
@@ -99,7 +99,7 @@ return new class extends Migration
                     $encrypter = new Encrypter($dataKey, (string) config('app.cipher'));
                     $plain = fn (?string $value): ?string => $value === null
                         ? null
-                        : Crypt::encrypt($encrypter->decryptString($value));
+                        : Crypt::encryptString($encrypter->decryptString($value));
 
                     DB::table('safeguarding_cases')->where('id', $case->id)->update([
                         'summary' => $plain($content->summary_ciphertext),
@@ -117,7 +117,7 @@ return new class extends Migration
                         ->each(function ($event) use ($encrypter): void {
                             DB::table('safeguarding_case_events')
                                 ->where('id', $event->id)
-                                ->update(['note' => Crypt::encrypt($encrypter->decryptString($event->note))]);
+                                ->update(['note' => Crypt::encryptString($encrypter->decryptString($event->note))]);
                         });
                 }
             });
