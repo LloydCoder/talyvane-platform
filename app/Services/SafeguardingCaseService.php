@@ -43,6 +43,15 @@ class SafeguardingCaseService
             throw ValidationException::withMessages(['severity' => 'Choose a supported severity level.']);
         }
 
+        if (mb_strlen(trim((string) ($input['summary'] ?? ''))) < 20
+            || mb_strlen(trim((string) ($input['summary'] ?? ''))) > 300
+            || mb_strlen(trim((string) ($input['details'] ?? ''))) < 30
+            || mb_strlen(trim((string) ($input['details'] ?? ''))) > 5000
+            || ! in_array($input['subject_type'] ?? null, [null, 'model_application', 'companion_profile', 'booking', 'client', 'other'], true)
+            || mb_strlen(trim((string) ($input['subject_reference'] ?? ''))) > 160) {
+            throw ValidationException::withMessages(['details' => 'Provide a concise summary, necessary report details and a supported related-record reference.']);
+        }
+
         return DB::transaction(function () use ($reporter, $input): SafeguardingCase {
             $specialist = User::query()
                 ->whereKey($input['assigned_to'])
@@ -110,6 +119,10 @@ class SafeguardingCaseService
     public function transition(SafeguardingCase $case, User $specialist, string $target, string $note): void
     {
         $this->assertSpecialist($specialist);
+        if (mb_strlen(trim($note)) < 20 || mb_strlen(trim($note)) > 1500) {
+            throw ValidationException::withMessages(['note' => 'A case action note between 20 and 1,500 characters is required.']);
+        }
+
         DB::transaction(function () use ($case, $specialist, $target, $note): void {
             $locked = SafeguardingCase::query()
                 ->where('assigned_to', $specialist->id)
