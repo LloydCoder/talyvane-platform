@@ -38,6 +38,7 @@ return new class extends Migration
             $table->string('actor_email', 254);
             $table->string('action', 32);
             $table->string('consent_policy_version', 80);
+            $table->text('consent_statement');
             $table->char('statement_sha256', 64);
             $table->uuid('correlation_id');
             $table->timestamp('created_at')->useCurrent();
