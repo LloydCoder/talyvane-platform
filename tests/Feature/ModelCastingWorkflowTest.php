@@ -166,6 +166,17 @@ class ModelCastingWorkflowTest extends TestCase
         ];
     }
 
+    public function test_service_boundary_rejects_enabled_casting_with_an_unmet_activation_requirement(): void
+    {
+        $context = $this->context();
+        \Illuminate\Support\Facades\DB::table('platform_features')
+            ->where('key', 'model-agency.casting')
+            ->update(['activation_requirements' => json_encode(['unknown_prerequisite'])]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
+        app(ModelCastingWorkflowService::class)->createDraft($context['admin']->id, $this->callInput());
+    }
+
     public function test_new_casting_drafts_are_blocked_when_the_casting_feature_is_paused(): void
     {
         $context = $this->context();
