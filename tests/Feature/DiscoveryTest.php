@@ -208,6 +208,7 @@ class DiscoveryTest extends TestCase
 
     public function test_companion_directory_rejects_array_filter_input(): void
     {
+        $this->approvePublicMarket();
         $this->from('/companions')
             ->get('/companions?destination[]=london')
             ->assertRedirect('/companions')
