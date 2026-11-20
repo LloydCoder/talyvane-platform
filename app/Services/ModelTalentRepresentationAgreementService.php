@@ -14,6 +14,7 @@ class ModelTalentRepresentationAgreementService
 {
     public function createDraft(ModelTalentApplication $application, int $actorId, array $terms): ModelTalentRepresentationAgreement
     {
+        app(FeatureRegistry::class)->assertEnabled('model-agency.usage-rights');
         return DB::transaction(function () use ($application, $actorId, $terms): ModelTalentRepresentationAgreement {
             $locked = ModelTalentApplication::query()->lockForUpdate()->findOrFail($application->id);
             $market = $this->assertEligible($locked, (string) ($terms['country_code'] ?? ''));
@@ -52,6 +53,7 @@ class ModelTalentRepresentationAgreementService
 
     public function offer(ModelTalentRepresentationAgreement $agreement, int $actorId): void
     {
+        app(FeatureRegistry::class)->assertEnabled('model-agency.usage-rights');
         DB::transaction(function () use ($agreement, $actorId): void {
             $current = ModelTalentRepresentationAgreement::query()->findOrFail($agreement->id);
             $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($current->application_id);
