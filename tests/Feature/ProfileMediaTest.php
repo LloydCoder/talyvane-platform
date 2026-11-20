@@ -132,7 +132,7 @@ class ProfileMediaTest extends TestCase
                 'access_level' => 'members_only',
             ])
             ->assertRedirect('/admin/profiles')
-            ->assertSessionHasErrors('media');
+            ->assertSessionHasErrors('access_level');
 
         $this->assertDatabaseHas('profile_media', [
             'id' => $media->id,
