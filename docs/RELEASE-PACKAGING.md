@@ -27,7 +27,7 @@ Production release engineering remains open:
 - Build provenance/SBOM and artifact attestation.
 - Release notes, migration compatibility declaration and rollback plan.
 - Supported cPanel provider test matrix and deployment smoke tests.
-- Secure no-SSH installation and first Super Admin provisioning, including one-time credentials, first-login password replacement, MFA and post-MFA offline recovery-key handoff.
+- Final verification and merge of PR #60, then a tagged secure no-SSH installation release and first Super Admin provisioning, including one-time credentials, first-login password replacement, MFA and post-MFA offline recovery-key handoff.
 - Backup/restore and upgrade/rollback drills.
 
 Until those gates are completed, use the documented SSH/Composer installation path only on a verified compatible host, and obtain written hosting, payment and legal approvals for the actual deployment model.
