@@ -76,12 +76,13 @@ class InstallerPreflightTest extends TestCase
         config(['talyvane.installer.enforce' => false]);
 
         $page = $this->get('/install')->assertOk();
-        preg_match('/name="installer_token" value="([A-Za-z0-9_-]{43})"/', $page->getContent(), $tokenMatch);
-        $this->assertNotEmpty($tokenMatch[1] ?? null);
+        $privateInstallerKey = trim((string) file_get_contents(storage_path('app/private/INSTALLER-ACCESS-KEY.txt')));
+        $this->assertMatchesRegularExpression('/\\A[A-Za-z0-9_-]{43}\\z/D', $privateInstallerKey);
+        $this->assertStringNotContainsString($privateInstallerKey, $page->getContent());
         $this->app['session.store']->put('installer.started_at', time() - 901);
 
         $this->post('/install', [
-            'installer_token' => $tokenMatch[1],
+            'installer_token' => $privateInstallerKey,
             'app_name' => 'Talyvane',
             'app_url' => 'https://localhost',
             'db_host' => 'localhost',
@@ -107,11 +108,12 @@ class InstallerPreflightTest extends TestCase
         config(['talyvane.installer.enforce' => false]);
 
         $installerPage = $this->get('/install')->assertOk();
-        preg_match('/name="installer_token" value="([A-Za-z0-9_-]{43})"/', $installerPage->getContent(), $tokenMatch);
-        $this->assertNotEmpty($tokenMatch[1] ?? null);
+        $privateInstallerKey = trim((string) file_get_contents(storage_path('app/private/INSTALLER-ACCESS-KEY.txt')));
+        $this->assertMatchesRegularExpression('/\\A[A-Za-z0-9_-]{43}\\z/D', $privateInstallerKey);
+        $this->assertStringNotContainsString($privateInstallerKey, $installerPage->getContent());
 
         $this->post('/install', [
-            'installer_token' => $tokenMatch[1],
+            'installer_token' => $privateInstallerKey,
             'app_name' => 'Talyvane',
             'app_url' => 'https://localhost',
             'db_host' => 'localhost',
