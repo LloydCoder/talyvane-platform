@@ -3,7 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\EnvFileSecretWriter;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class EnvFileSecretWriterTest extends TestCase
 {
