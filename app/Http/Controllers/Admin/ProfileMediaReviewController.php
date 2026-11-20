@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\ProfileMedia;
 use App\Models\CompanionProfile;
+use App\Services\FeatureRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -17,9 +18,15 @@ class ProfileMediaReviewController
         $validated = $request->validate([
             'decision' => ['required', 'in:approved,rejected'],
             'review_note' => ['nullable', 'string', 'max:1000'],
+            'access_level' => ['sometimes', 'required', 'in:public,members_only'],
         ]);
 
-        DB::transaction(function () use ($media, $request, $validated): void {
+        $accessLevel = $validated['access_level'] ?? 'public';
+        if ($validated['decision'] === 'approved' && $accessLevel === 'members_only') {
+            app(FeatureRegistry::class)->assertOperationallyEnabled('memberships.entitlements');
+        }
+
+        DB::transaction(function () use ($media, $request, $validated, $accessLevel): void {
             $profile = CompanionProfile::query()->lockForUpdate()->findOrFail($media->companion_profile_id);
             $lockedMedia = ProfileMedia::query()->lockForUpdate()->findOrFail($media->id);
             if ($lockedMedia->status !== 'pending_review') {
@@ -43,6 +50,7 @@ class ProfileMediaReviewController
 
             $lockedMedia->forceFill([
                 'status' => $validated['decision'],
+                'access_level' => $validated['decision'] === 'approved' ? $accessLevel : $lockedMedia->access_level,
                 'reviewed_by' => $request->user()->id,
                 'reviewed_at' => now(),
                 'review_note' => $validated['review_note'] ?? null,
