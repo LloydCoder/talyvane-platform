@@ -7,6 +7,7 @@ use App\Models\PlatformFeatureAuditEvent;
 use App\Models\User;
 use App\Services\FeatureActivationEvaluator;
 use App\Services\FeatureRegistry;
+use App\Services\HardSafeguards;
 use App\Services\TotpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
