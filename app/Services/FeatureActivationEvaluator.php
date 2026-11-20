@@ -34,7 +34,7 @@ class FeatureActivationEvaluator
         }
 
         foreach ($feature->dependencies ?? [] as $dependency) {
-            if (! $this->registry->isEnabled((string) $dependency)) {
+            if (! $this->registry->isOperationallyEnabled((string) $dependency)) {
                 $blockers[] = 'Required feature is not effectively enabled: '.$dependency.'.';
             }
         }
