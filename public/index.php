@@ -1,5 +1,6 @@
 <?php
 
+use App\Install\PublicPathResolver;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 
