@@ -90,7 +90,7 @@ class VaultKv2SecretStoreTest extends TestCase
             app(VaultKv2SecretStore::class)->currentVersion('mail.smtp.password');
             $this->fail('Non-HTTPS secret storage must be rejected.');
         } catch (RuntimeException $exception) {
-            $this->assertStringContainsString('HTTPS', $exception->getMessage());
+            $this->assertStringContainsString('configured secret store', $exception->getMessage());
         }
 
         Http::assertNothingSent();
