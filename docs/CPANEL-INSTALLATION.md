@@ -90,7 +90,7 @@ cPanel's default behavior matters: the main domain's document root cannot be cha
 
 This path is available only in a tagged release that has passed the installer release gate.
 
-1. Upload the complete standalone release archive into /home/CPANEL_USER/talyvane-app using cPanel File Manager and extract it there.
+1. Upload the complete standalone release archive into /home/CPANEL_USER/ using cPanel File Manager and extract it there. The archive creates a top-level talyvane/ directory; rename that directory to talyvane-app so it matches the wrapper paths and the examples below.
 2. Configure the public document root using Option A or Option B above.
 3. Confirm the domain has a valid TLS certificate and opens over HTTPS.
 4. Visit the HTTPS domain. The private first-request bootstrap creates a deployment-unique application key and private runtime directories. It does not run arbitrary commands.
