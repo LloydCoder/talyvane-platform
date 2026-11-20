@@ -25,6 +25,8 @@ return new class extends Migration
             $table->string('access_level', 24)->default('public')->index();
             $table->timestamp('members_only_consent_at')->nullable();
             $table->string('members_only_consent_version', 80)->nullable();
+            $table->timestamp('members_only_consent_withdrawn_at')->nullable();
+            $table->foreignId('members_only_consent_withdrawn_by')->nullable()->constrained('users')->nullOnDelete();
         });
 
         DB::table('platform_features')
@@ -51,8 +53,9 @@ return new class extends Migration
             ]);
 
         Schema::table('profile_media', function (Blueprint $table): void {
+            $table->dropForeign(['members_only_consent_withdrawn_by']);
             $table->dropIndex(['access_level']);
-            $table->dropColumn(['access_level', 'members_only_consent_at', 'members_only_consent_version']);
+            $table->dropColumn(['access_level', 'members_only_consent_at', 'members_only_consent_version', 'members_only_consent_withdrawn_at', 'members_only_consent_withdrawn_by']);
         });
 
         Schema::dropIfExists('client_membership_entitlements');
