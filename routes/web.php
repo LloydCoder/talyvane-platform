@@ -180,8 +180,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/profiles/{profile}/publish', [CompanionProfileController::class, 'publish'])->name('profiles.publish');
         Route::post('/profiles/{profile}/unpublish', [CompanionProfileController::class, 'unpublish'])->name('profiles.unpublish');
         Route::get('/enquiries', [EnquiryAdminController::class, 'index'])->name('enquiries.index');
-        Route::get('/model-applications', [ModelAgencyApplicationAdminController::class, 'index'])->middleware('feature:model-agency.applications')->name('model-applications.index');
-        Route::patch('/model-applications/{application}', [ModelAgencyApplicationAdminController::class, 'update'])->middleware('feature:model-agency.applications')->name('model-applications.update');
+        Route::get('/model-applications', [ModelAgencyApplicationAdminController::class, 'index'])->name('model-applications.index');
+        Route::patch('/model-applications/{application}', [ModelAgencyApplicationAdminController::class, 'update'])->name('model-applications.update');
         Route::post('/model-applications/{application}/adult-eligibility', [ModelAgencyApplicationAdminController::class, 'verifyAdultEligibility'])->middleware('throttle:5,1')->name('model-applications.adult-eligibility');
         Route::post('/model-applications/{application}/legal-hold', [ModelAgencyApplicationAdminController::class, 'updateLegalHold'])->name('model-applications.legal-hold');
         Route::post('/model-applications/{application}/agreements', [ModelTalentRepresentationAgreementController::class, 'store'])->middleware(['feature:model-agency.usage-rights', 'throttle:10,1'])->name('model-applications.agreements.store');
