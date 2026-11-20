@@ -165,6 +165,54 @@ class BrowserInstallerWorkflowTest extends TestCase
         $this->assertSame(1, $connection->table('migrations')->count());
     }
 
+    public function test_installer_refuses_recognised_database_that_already_contains_users(): void
+    {
+        $connection = DB::connection('mysql');
+        $connection->statement('CREATE TABLE platform_control (id TINYINT PRIMARY KEY, super_admin_user_id BIGINT NULL, created_at TIMESTAMP NULL, updated_at TIMESTAMP NULL)');
+        $connection->statement('CREATE TABLE migrations (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, migration VARCHAR(255) NOT NULL, batch INT NOT NULL)');
+        $connection->statement('CREATE TABLE users (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, email VARCHAR(254) NOT NULL)');
+        $connection->table('platform_control')->insert([
+            'id' => 1,
+            'super_admin_user_id' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $connection->table('migrations')->insert([
+            ['migration' => '2026_11_19_000001_create_users_table', 'batch' => 1],
+            ['migration' => '2026_11_19_000024_create_platform_control_table', 'batch' => 1],
+        ]);
+        $connection->table('users')->insert([
+            'email' => 'existing-user@example.test',
+        ]);
+
+        $this->get('https://agency.example.test/install')->assertOk();
+        $privateInstallerKey = trim((string) file_get_contents(storage_path('app/private/INSTALLER-ACCESS-KEY.txt')));
+
+        $this->post('https://agency.example.test/install', [
+            'installer_token' => $privateInstallerKey,
+            'app_name' => 'Talyvane Agency',
+            'app_url' => 'https://agency.example.test',
+            'db_host' => '127.0.0.1',
+            'db_port' => 3306,
+            'db_database' => 'talyvane_test',
+            'db_username' => 'talyvane',
+            'db_password' => 'test-password',
+            'mail_scheme' => 'smtp',
+            'mail_host' => 'smtp.example.test',
+            'mail_port' => 587,
+            'mail_username' => 'installer@example.test',
+            'mail_password' => 'test-mail-password',
+            'mail_from_address' => 'installer@example.test',
+            'mail_from_name' => 'Talyvane Agency',
+            'admin_name' => 'Deployment Super Admin',
+            'admin_email' => 'admin@example.test',
+            'recovery_email' => 'recovery@example.test',
+        ])->assertSessionHasErrors('installer');
+
+        $this->assertSame(1, $connection->table('users')->count());
+        $this->assertSame(2, $connection->table('migrations')->count());
+    }
+
     public function test_browser_install_verifies_emails_creates_lock_shows_password_once_and_enforces_first_login_change(): void
     {
         $this->mock(RecoveryCodeGenerator::class, fn ($mock) => $mock->shouldReceive('generate')->twice()->andReturn('111111', '222222'));
