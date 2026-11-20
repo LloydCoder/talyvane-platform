@@ -91,7 +91,7 @@ class MembershipEntitlementTest extends TestCase
         ]);
     }
 
-    private function privateMedia(CompanionProfile $profile, string $status = 'approved'): ProfileMedia
+    private function privateMedia(CompanionProfile $profile, string $status = 'approved', bool $withConsent = true): ProfileMedia
     {
         Storage::disk('local')->put('profile-media/private-gallery.webp', 'test-image-bytes');
 
@@ -109,6 +109,8 @@ class MembershipEntitlementTest extends TestCase
             'file_size' => 17,
             'status' => $status,
             'access_level' => 'members_only',
+            'members_only_consent_at' => $withConsent && filled(config('talyvane.privacy.private_gallery_consent_version')) ? now() : null,
+            'members_only_consent_version' => $withConsent ? config('talyvane.privacy.private_gallery_consent_version') : null,
             'rights_confirmed_at' => now(),
             'consent_version' => 'profile-publication-v1',
             'members_only_consent_at' => now(),
@@ -119,6 +121,11 @@ class MembershipEntitlementTest extends TestCase
 
     private function enableEntitlements(): void
     {
+        config([
+            'talyvane.privacy.private_gallery_consent_version' => 'private-gallery-v1',
+            'talyvane.privacy.private_gallery_consent_approved' => true,
+        ]);
+
         DB::table('platform_features')->where('key', 'memberships.entitlements')->update([
             'implementation_status' => 'available',
             'is_enabled' => true,
@@ -366,12 +373,75 @@ class MembershipEntitlementTest extends TestCase
         $this->assertTrue(app(FeatureRegistry::class)->isOperationallyEnabled('memberships.entitlements'));
     }
 
+    public function test_admin_cannot_approve_private_media_without_separate_current_companion_consent(): void
+    {
+        Storage::fake('local');
+        $this->enableEntitlements();
+        $profile = $this->profile();
+        $media = $this->privateMedia($profile, 'pending_review', false);
+        $admin = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'reviewer-no-consent@example.test',
+            'role' => 'owner',
+        ]);
+
+        $this->actingAs($admin)
+            ->from('/admin/profiles')
+            ->post('/admin/profile-media/'.$media->id.'/review', [
+                'decision' => 'approved',
+                'access_level' => 'members_only',
+            ])
+            ->assertRedirect('/admin/profiles')
+            ->assertSessionHasErrors('access_level');
+
+        $this->assertDatabaseHas('profile_media', [
+            'id' => $media->id,
+            'status' => 'pending_review',
+        ]);
+    }
+
+    public function test_companion_can_withdraw_members_only_consent_without_changing_publication_consent(): void
+    {
+        Storage::fake('local');
+        $this->enableEntitlements();
+        $profile = $this->profile();
+        $companion = User::query()->create([
+            'name' => 'Profile Owner',
+            'email' => 'profile-owner@example.test',
+            'password' => 'Strong-Companion-Password-934!',
+            'role' => 'companion',
+            'is_active' => true,
+        ]);
+        $profile->forceFill(['user_id' => $companion->id])->save();
+
+        $media = $this->privateMedia($profile);
+        $client = $this->client();
+        $membership = $this->membership($client);
+        $this->grantPrivateGallery($membership);
+
+        $this->actingAs($client)->get(route('profile-media.show', $media))->assertOk();
+
+        $this->actingAs($companion)
+            ->patch(route('companion-portal.profiles.media.withdraw-members-only-consent', [$profile, $media]))
+            ->assertRedirect(route('companion-portal.dashboard'));
+
+        $media->refresh();
+        $this->assertNotNull($media->members_only_consent_withdrawn_at);
+        $this->assertSame($companion->id, $media->members_only_consent_withdrawn_by);
+        $this->assertNotNull($profile->fresh()->publication_consent_at);
+        $this->actingAs($client)->get(route('profile-media.show', $media))->assertNotFound();
+    }
+
     public function test_membership_entitlements_feature_becomes_operational_only_after_the_runtime_gate_is_present(): void
     {
+        config([
+            'talyvane.privacy.private_gallery_consent_version' => 'private-gallery-v1',
+            'talyvane.privacy.private_gallery_consent_approved' => true,
+        ]);
         DB::table('platform_features')->where('key', 'memberships.entitlements')->update([
             'implementation_status' => 'available',
             'is_enabled' => true,
-            'activation_requirements' => json_encode(['server_side_entitlement_checks']),
+            'activation_requirements' => json_encode(['server_side_entitlement_checks', 'private_gallery_consent_policy']),
         ]);
 
         $this->assertTrue(app(FeatureRegistry::class)->isOperationallyEnabled('memberships.entitlements'));
