@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\AdminFirstLoginPasswordController;
 use App\Http\Controllers\Admin\AdminInitialPasswordRecoveryController;
 use App\Http\Controllers\Install\InstallerController;
 use App\Http\Controllers\Install\InstallSuccessController;
+use App\Http\Middleware\NoStoreInstallerResponses;
 use App\Http\Controllers\Admin\BookingAdminController;
 use App\Http\Controllers\Admin\ClientManagementController;
 use App\Http\Controllers\Admin\BookingSettingsController;
