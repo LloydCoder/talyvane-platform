@@ -68,7 +68,11 @@ class AdminLoginController
             return redirect()->route('admin.mfa.setup');
         }
 
-        return redirect()->intended(route(match ($user->role) { 'finance' => 'admin.model-settlements.index', 'verifier' => 'admin.adult-eligibility.index', default => 'admin.dashboard' }));
+        $destination = route(match ($user->role) { 'finance' => 'admin.model-settlements.index', 'verifier' => 'admin.adult-eligibility.index', default => 'admin.dashboard' });
+
+        return in_array($user->role, ['finance', 'verifier'], true)
+            ? redirect($destination)
+            : redirect()->intended($destination);
     }
 
     public function destroy(Request $request): RedirectResponse
