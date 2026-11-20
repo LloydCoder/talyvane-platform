@@ -257,7 +257,7 @@ class BrowserInstallerWorkflowTest extends TestCase
         $privateInstallerKey = trim((string) file_get_contents(storage_path('app/private/INSTALLER-ACCESS-KEY.txt')));
         $this->assertStringNotContainsString($privateInstallerKey, $page->getContent());
 
-        $this->post('/install', [
+        $this->post('https://agency.example.test/install', [
                 'installer_token' => $privateInstallerKey,
                 'app_name' => 'Talyvane Agency',
                 'app_url' => 'https://attacker.example.test',
