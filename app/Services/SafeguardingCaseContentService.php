@@ -7,6 +7,7 @@ use Illuminate\Encryption\Encrypter;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class SafeguardingCaseContentService
@@ -20,7 +21,9 @@ class SafeguardingCaseContentService
 
         if ($provider === 'vault') {
             $keyReference = 'case-'.Str::uuid()->toString();
-            $vault = app(SafeguardingCaseKeyVault::class);\n            $vault->createKey($keyReference);\n            $keyCiphertext = $vault->encrypt($keyReference, $dataKey);
+            $vault = app(SafeguardingCaseKeyVault::class);
+            $vault->createKey($keyReference);
+            $keyCiphertext = $vault->encrypt($keyReference, $dataKey);
         } elseif ($provider === 'local') {
             $keyCiphertext = Crypt::encryptString(base64_encode($dataKey));
         } else {
