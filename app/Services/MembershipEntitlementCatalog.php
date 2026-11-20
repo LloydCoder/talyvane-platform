@@ -18,6 +18,11 @@ final class MembershipEntitlementCatalog
         ];
     }
 
+    public static function privateGalleryConsentStatement(): string
+    {
+        return 'I separately agree that this image may be displayed only in the members-only gallery to eligible clients with a current agency-approved membership. This permission is separate from public profile publication and may be withdrawn at any time.';
+    }
+
     public static function keys(): array
     {
         return array_keys(self::all());
