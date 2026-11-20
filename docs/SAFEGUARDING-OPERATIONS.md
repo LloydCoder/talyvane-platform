@@ -83,3 +83,28 @@ The current implementation provides email only. SMS, Telegram, provider webhooks
 7. Complete privacy impact and legal review before collecting real case information.
 
 The application currently does not send case notifications, operate an emergency hotline, perform external statutory reporting, or guarantee a response time. The access and event logs are application-level controls and are not tamper-proof against direct database access.
+
+## External per-case key custody (HashiCorp Vault Transit)
+
+The default `SAFEGUARDING_CASE_KEY_PROVIDER=local` preserves the existing application-key-wrapped per-case key model. It does not provide independent cryptographic erasure from old database backups. A deployment may select `vault` only after it has provisioned and independently tested a dedicated HTTPS HashiCorp Vault Transit mount.
+
+For Vault-backed cases:
+
+- Each case receives a randomly named Transit key. The key is non-exportable and plaintext key backup is disabled.
+- The application token is limited to creating per-case keys and encrypting/decrypting their data-encryption keys. It must not have Transit key deletion permissions.
+- `SAFEGUARDING_VAULT_RETENTION_TOKEN` must be a distinct credential, restricted to enabling deletion and deleting keys in the dedicated Transit mount. The application explicitly refuses to use the same token for both duties.
+- The database stores only the Vault ciphertext and opaque key reference. The Vault address, application token and retention token remain in deployment environment/secret storage and are never written to application tables.
+- Retention first requests irreversible deletion of the per-case Transit key using the separate retention credential, then clears the local wrapped-key reference and records the retention event. A retry treats a missing remote key as already destroyed. Any other Vault error fails closed and prevents the local retention tombstone from being written.
+- Keep Vault TLS certificate verification enabled. Do not permit HTTP endpoints or redirects. Use a least-privilege Vault policy, short-lived/rotatable tokens where supported, audit device, restricted network access and independent Vault backups.
+
+Required environment:
+- `SAFEGUARDING_CASE_KEY_PROVIDER=vault`
+- `SAFEGUARDING_VAULT_ADDRESS=https://...`
+- `SAFEGUARDING_VAULT_MOUNT=transit`
+- `SAFEGUARDING_VAULT_TOKEN` (application-only key creation/encrypt/decrypt permissions)
+- `SAFEGUARDING_VAULT_RETENTION_TOKEN` (separate key-config/delete permissions)
+- `SAFEGUARDING_VAULT_TIMEOUT=5`
+
+Do not enable Vault mode until the operator has verified the Transit mount, token policies, key creation, encrypt/decrypt round trip, irreversible key deletion, Vault audit logging, token rotation, backup expiry and restore behavior. A Vault backup that contains a deleted Transit key can reintroduce decryption capability if restored; Vault backup retention and disaster recovery are therefore part of the same privacy control. Do not claim end-to-end cryptographic erasure until independent Vault backup/restore controls and a restore drill have been evidenced.
+
+Vault Transit API reference: https://developer.hashicorp.com/vault/api-docs/secret/transit. Key lifecycle and backup/restore controls should follow the principles in [OWASP Secrets Management](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html) and [NIST SP 800-57 Part 1 Rev. 5](https://doi.org/10.6028/NIST.SP.800-57pt1r5). These engineering controls do not replace jurisdiction-specific retention, safeguarding or privacy review.
