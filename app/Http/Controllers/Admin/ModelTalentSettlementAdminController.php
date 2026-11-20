@@ -14,11 +14,13 @@ use Illuminate\Support\Facades\Schema;
 
 class ModelTalentSettlementAdminController extends Controller
 {
-    public function index(): Response
+    public function index(\App\Services\FeatureRegistry $features): Response
     {
         $this->assertSchemaReady();
 
         return response()->view('admin.model-agency.settlements.index', [
+            'canCreateSettlements' => $features->isOperationallyEnabled('model-agency.settlements'),
+            'canSubmitExpenses' => $features->isOperationallyEnabled('model-agency.settlements'),
             'assignments' => ModelTalentAssignment::query()
                 ->whereIn('status', ['in_progress', 'completed'])
                 ->with(['application', 'settlementExpenses', 'settlement'])
