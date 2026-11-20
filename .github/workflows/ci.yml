@@ -136,6 +136,7 @@ jobs:
       - name: Smoke-test first-request bootstrap from the packaged release
         run: |
           set -euo pipefail
+          archive="dist/talyvane-${GITHUB_SHA}.tar.gz"
           smoke="$(mktemp -d)"
           trap 'rm -rf "$smoke"' EXIT
           tar -xzf "$archive" -C "$smoke"
