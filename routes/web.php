@@ -97,7 +97,7 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/bookings', [BookingController::class, 'store'])->middleware('feature:bookings.companionship')->name('bookings.store');
         Route::post('/client/favorites/{profile}', [ClientFavoriteController::class, 'store'])->middleware('throttle:30,1')->name('client.favorites.store');
         Route::delete('/client/favorites/{profile}', [ClientFavoriteController::class, 'destroy'])->name('client.favorites.destroy');
-        Route::post('/bookings/{booking}/cancel', [BookingController::class, 'cancel'])->middleware('feature:bookings.companionship')->name('bookings.cancel');
+        Route::post('/bookings/{booking}/cancel', [BookingController::class, 'cancel'])->withoutMiddleware(['verified', 'feature:portals.client'])->name('bookings.cancel');
     });
 
     // Privacy-critical companion controls remain reachable even when the companion portal module is disabled.
@@ -110,7 +110,7 @@ Route::middleware('auth')->group(function (): void {
     Route::middleware(['verified', 'role:companion', 'feature:portals.companion'])->group(function (): void {
         Route::get('/companion-portal', [CompanionPortalController::class, 'index'])->name('companion-portal.dashboard');
         Route::post('/companion-portal/profiles/{profile}/media', [CompanionMediaController::class, 'store'])->middleware('throttle:10,1')->name('companion-portal.profiles.media.store');
-        Route::post('/companion-portal/profiles/{profile}/automatic-booking', [CompanionPortalController::class, 'updateAutomaticBooking'])->middleware('feature:bookings.automatic')->name('companion-portal.profiles.automatic-booking');
+        Route::post('/companion-portal/profiles/{profile}/automatic-booking', [CompanionPortalController::class, 'updateAutomaticBooking'])->withoutMiddleware(['verified', 'feature:portals.companion'])->name('companion-portal.profiles.automatic-booking');
         Route::post('/companion-portal/profiles/{profile}/availability', [CompanionPortalController::class, 'storeAvailability'])->name('companion-portal.profiles.availability.store');
         Route::delete('/companion-portal/profiles/{profile}/availability/{rule}', [CompanionPortalController::class, 'destroyAvailability'])->name('companion-portal.profiles.availability.destroy');
         Route::patch('/companion-portal/bookings/{booking}', [CompanionBookingController::class, 'update'])->name('companion-portal.bookings.update');
@@ -180,8 +180,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/profiles/{profile}/publish', [CompanionProfileController::class, 'publish'])->name('profiles.publish');
         Route::post('/profiles/{profile}/unpublish', [CompanionProfileController::class, 'unpublish'])->name('profiles.unpublish');
         Route::get('/enquiries', [EnquiryAdminController::class, 'index'])->name('enquiries.index');
-        Route::get('/model-applications', [ModelAgencyApplicationAdminController::class, 'index'])->name('model-applications.index');
-        Route::patch('/model-applications/{application}', [ModelAgencyApplicationAdminController::class, 'update'])->name('model-applications.update');
+        Route::get('/model-applications', [ModelAgencyApplicationAdminController::class, 'index'])->middleware('feature:model-agency.applications')->name('model-applications.index');
+        Route::patch('/model-applications/{application}', [ModelAgencyApplicationAdminController::class, 'update'])->middleware('feature:model-agency.applications')->name('model-applications.update');
         Route::post('/model-applications/{application}/adult-eligibility', [ModelAgencyApplicationAdminController::class, 'verifyAdultEligibility'])->middleware('throttle:5,1')->name('model-applications.adult-eligibility');
         Route::post('/model-applications/{application}/legal-hold', [ModelAgencyApplicationAdminController::class, 'updateLegalHold'])->name('model-applications.legal-hold');
         Route::post('/model-applications/{application}/agreements', [ModelTalentRepresentationAgreementController::class, 'store'])->middleware(['feature:model-agency.usage-rights', 'throttle:10,1'])->name('model-applications.agreements.store');
@@ -198,24 +198,24 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/model-image-licences/{licence}/activate', [ModelTalentImageLicenceController::class, 'activate'])->middleware(['feature:model-agency.usage-rights', 'throttle:5,1'])->name('model-image-licences.activate');
         Route::post('/model-image-licences/{licence}/revoke', [ModelTalentImageLicenceController::class, 'revoke'])->middleware('throttle:5,1')->name('model-image-licences.revoke');
 
-        Route::get('/model-castings', [ModelCastingAdminController::class, 'index'])->middleware('feature:model-agency.casting')->name('model-castings.index');
+        Route::get('/model-castings', [ModelCastingAdminController::class, 'index'])->name('model-castings.index');
         Route::post('/model-castings', [ModelCastingAdminController::class, 'store'])->middleware(['feature:model-agency.casting', 'throttle:10,1'])->name('model-castings.store');
         Route::post('/model-castings/{call}/publish', [ModelCastingAdminController::class, 'publish'])->middleware(['feature:model-agency.casting', 'throttle:5,1'])->name('model-castings.publish');
         Route::post('/model-castings/{call}/close', [ModelCastingAdminController::class, 'close'])->middleware('throttle:5,1')->name('model-castings.close');
         Route::post('/model-castings/{call}/cancel', [ModelCastingAdminController::class, 'cancel'])->middleware('throttle:5,1')->name('model-castings.cancel');
         Route::post('/model-castings/{call}/submissions', [ModelCastingAdminController::class, 'submit'])->middleware(['feature:model-agency.casting', 'throttle:10,1'])->name('model-castings.submissions.store');
-        Route::post('/model-casting-submissions/{submission}/decision', [ModelCastingAdminController::class, 'decide'])->middleware(['feature:model-agency.casting', 'throttle:10,1'])->name('model-casting-submissions.decision');
+        Route::post('/model-casting-submissions/{submission}/decision', [ModelCastingAdminController::class, 'decide'])->middleware('throttle:10,1')->name('model-casting-submissions.decision');
         Route::post('/model-casting-submissions/{submission}/withdraw', [ModelCastingAdminController::class, 'withdraw'])->middleware('throttle:5,1')->name('model-casting-submissions.withdraw');
-        Route::get('/model-assignments', [ModelTalentAssignmentAdminController::class, 'index'])->middleware('feature:model-agency.assignments')->name('model-assignments.index');
+        Route::get('/model-assignments', [ModelTalentAssignmentAdminController::class, 'index'])->name('model-assignments.index');
         Route::post('/model-assignments', [ModelTalentAssignmentAdminController::class, 'store'])->middleware(['feature:model-agency.assignments', 'throttle:10,1'])->name('model-assignments.store');
         Route::post('/model-assignments/{assignment}/offer', [ModelTalentAssignmentAdminController::class, 'offer'])->middleware(['feature:model-agency.assignments', 'throttle:5,1'])->name('model-assignments.offer');
-        Route::post('/model-assignments/{assignment}/accept', [ModelTalentAssignmentAdminController::class, 'accept'])->middleware(['feature:model-agency.assignments', 'throttle:5,1'])->name('model-assignments.accept');
-        Route::post('/model-assignments/{assignment}/confirm', [ModelTalentAssignmentAdminController::class, 'confirm'])->middleware(['feature:model-agency.assignments', 'throttle:5,1'])->name('model-assignments.confirm');
-        Route::post('/model-assignments/{assignment}/start', [ModelTalentAssignmentAdminController::class, 'start'])->middleware(['feature:model-agency.assignments', 'throttle:5,1'])->name('model-assignments.start');
-        Route::post('/model-assignments/{assignment}/complete', [ModelTalentAssignmentAdminController::class, 'complete'])->middleware(['feature:model-agency.assignments', 'throttle:5,1'])->name('model-assignments.complete');
-        Route::post('/model-assignments/{assignment}/decline', [ModelTalentAssignmentAdminController::class, 'decline'])->middleware(['feature:model-agency.assignments', 'throttle:5,1'])->name('model-assignments.decline');
-        Route::post('/model-assignments/{assignment}/cancel', [ModelTalentAssignmentAdminController::class, 'cancel'])->middleware(['feature:model-agency.assignments', 'throttle:5,1'])->name('model-assignments.cancel');
-        Route::post('/model-assignments/{assignment}/dispute', [ModelTalentAssignmentAdminController::class, 'dispute'])->middleware(['feature:model-agency.assignments', 'throttle:5,1'])->name('model-assignments.dispute');
+        Route::post('/model-assignments/{assignment}/accept', [ModelTalentAssignmentAdminController::class, 'accept'])->middleware('throttle:5,1')->name('model-assignments.accept');
+        Route::post('/model-assignments/{assignment}/confirm', [ModelTalentAssignmentAdminController::class, 'confirm'])->middleware('throttle:5,1')->name('model-assignments.confirm');
+        Route::post('/model-assignments/{assignment}/start', [ModelTalentAssignmentAdminController::class, 'start'])->middleware('throttle:5,1')->name('model-assignments.start');
+        Route::post('/model-assignments/{assignment}/complete', [ModelTalentAssignmentAdminController::class, 'complete'])->middleware('throttle:5,1')->name('model-assignments.complete');
+        Route::post('/model-assignments/{assignment}/decline', [ModelTalentAssignmentAdminController::class, 'decline'])->middleware('throttle:5,1')->name('model-assignments.decline');
+        Route::post('/model-assignments/{assignment}/cancel', [ModelTalentAssignmentAdminController::class, 'cancel'])->middleware('throttle:5,1')->name('model-assignments.cancel');
+        Route::post('/model-assignments/{assignment}/dispute', [ModelTalentAssignmentAdminController::class, 'dispute'])->middleware('throttle:5,1')->name('model-assignments.dispute');
 
 
 
@@ -253,14 +253,14 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
     // Finance specialists are isolated to the model settlement workspace.
     Route::middleware(['auth', 'role:super_admin,owner,finance', 'admin.session-current', 'admin.mfa'])->group(function (): void {
-        Route::get('/model-settlements', [ModelTalentSettlementAdminController::class, 'index'])->middleware('feature:model-agency.settlements')->name('model-settlements.index');
+        Route::get('/model-settlements', [ModelTalentSettlementAdminController::class, 'index'])->name('model-settlements.index');
         Route::post('/model-assignments/{assignment}/expenses', [ModelTalentSettlementAdminController::class, 'addExpense'])->middleware(['feature:model-agency.settlements', 'throttle:10,1'])->name('model-settlements.expenses.store');
-        Route::post('/model-settlement-expenses/{expense}/review', [ModelTalentSettlementAdminController::class, 'reviewExpense'])->middleware(['feature:model-agency.settlements', 'throttle:10,1'])->name('model-settlements.expenses.review');
+        Route::post('/model-settlement-expenses/{expense}/review', [ModelTalentSettlementAdminController::class, 'reviewExpense'])->middleware('throttle:10,1')->name('model-settlements.expenses.review');
         Route::post('/model-assignments/{assignment}/settlement', [ModelTalentSettlementAdminController::class, 'create'])->middleware(['feature:model-agency.settlements', 'throttle:5,1'])->name('model-settlements.create');
-        Route::post('/model-settlements/{settlement}/approve', [ModelTalentSettlementAdminController::class, 'approve'])->middleware(['feature:model-agency.settlements', 'throttle:5,1'])->name('model-settlements.approve');
-        Route::post('/model-settlements/{settlement}/payment', [ModelTalentSettlementAdminController::class, 'pay'])->middleware(['feature:model-agency.settlements', 'throttle:5,1'])->name('model-settlements.payment');
-        Route::post('/model-settlements/{settlement}/reverse', [ModelTalentSettlementAdminController::class, 'reverse'])->middleware(['feature:model-agency.settlements', 'throttle:5,1'])->name('model-settlements.reverse');
-        Route::post('/model-settlements/{settlement}/dispute', [ModelTalentSettlementAdminController::class, 'dispute'])->middleware(['feature:model-agency.settlements', 'throttle:5,1'])->name('model-settlements.dispute');
+        Route::post('/model-settlements/{settlement}/approve', [ModelTalentSettlementAdminController::class, 'approve'])->middleware('throttle:5,1')->name('model-settlements.approve');
+        Route::post('/model-settlements/{settlement}/payment', [ModelTalentSettlementAdminController::class, 'pay'])->middleware('throttle:5,1')->name('model-settlements.payment');
+        Route::post('/model-settlements/{settlement}/reverse', [ModelTalentSettlementAdminController::class, 'reverse'])->middleware('throttle:5,1')->name('model-settlements.reverse');
+        Route::post('/model-settlements/{settlement}/dispute', [ModelTalentSettlementAdminController::class, 'dispute'])->middleware('throttle:5,1')->name('model-settlements.dispute');
     });
 
     Route::post('/logout', [AdminLoginController::class, 'destroy'])
