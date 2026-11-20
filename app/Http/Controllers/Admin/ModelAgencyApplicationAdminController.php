@@ -79,7 +79,7 @@ class ModelAgencyApplicationAdminController extends Controller
 
             if ($target === 'accepted' && $locked->adult_eligibility_verified_at === null) {
                 throw ValidationException::withMessages([
-                    'status' => 'Adult eligibility must be verified by an authorized owner or Super Admin before acceptance.',
+                    'status' => 'Adult eligibility must be verified by an authorized verifier, owner, or Super Admin before acceptance.',
                 ]);
             }
 
