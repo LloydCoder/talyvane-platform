@@ -12,7 +12,10 @@ use Illuminate\Validation\ValidationException;
 
 class SafeguardingCaseService
 {
-    public function __construct(private readonly SafeguardingCaseContentService $content)
+    public function __construct(
+        private readonly SafeguardingCaseContentService $content,
+        private readonly SafeguardingNotificationOutboxService $notifications,
+    )
     {
     }
 
@@ -96,6 +99,7 @@ class SafeguardingCaseService
             ]);
 
             $this->event($case, $reporter->id, 'case.created', null, 'open', 'Confidential safeguarding report created and assigned.');
+            $this->notifications->enqueueCaseCreated($case, $specialist);
 
             return $case;
         });

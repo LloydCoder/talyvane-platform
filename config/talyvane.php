@@ -17,6 +17,8 @@ return [
         'profile_consent_version' => env('PROFILE_CONSENT_VERSION', 'profile-publication-v1'),
     ],
     'safeguarding' => [
+        'notifications_enabled' => filter_var(env('SAFEGUARDING_NOTIFICATIONS_ENABLED', false), FILTER_VALIDATE_BOOL),
+        'emergency_contact_emails' => array_values(array_filter(array_map('trim', explode(',', (string) env('SAFEGUARDING_EMERGENCY_CONTACT_EMAILS', ''))))),
         'retention' => [
             'days' => (int) env('SAFEGUARDING_CASE_RETENTION_DAYS', 0),
             'policy_version' => env('SAFEGUARDING_CASE_RETENTION_POLICY_VERSION'),

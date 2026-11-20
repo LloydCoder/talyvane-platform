@@ -10,6 +10,7 @@ use App\Services\RecoveryCodeGenerator;
 use App\Services\ModelTalentImageLicenceService;
 use App\Services\TotpService;
 use App\Services\SafeguardingCaseRetentionService;
+use App\Services\SafeguardingNotificationDispatcher;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -709,4 +710,24 @@ if (config('talyvane.safeguarding.retention.schedule_approved')
     && config('talyvane.safeguarding.retention.backup_policy_approved')
     && (int) config('talyvane.safeguarding.retention.backup_expiry_days') > 0) {
     Schedule::command('talyvane:safeguarding:apply-retention')->dailyAt('02:45')->withoutOverlapping();
+}
+
+Artisan::command('talyvane:safeguarding:dispatch-notifications', function () {
+    try {
+        $delivered = app(SafeguardingNotificationDispatcher::class)->dispatchPending();
+    } catch (RuntimeException $exception) {
+        $this->error($exception->getMessage());
+
+        return 1;
+    }
+
+    $this->info('Delivered '.$delivered.' safeguarding notification(s). No case narratives or applicant identity details are sent.');
+
+    return 0;
+})->purpose('Dispatch privacy-minimized safeguarding case alerts from the transactional outbox');
+
+if (config('talyvane.safeguarding.notifications_enabled')
+    && is_string(config('mail.default'))
+    && ! in_array(config('mail.default'), ['log', 'array'], true)) {
+    Schedule::command('talyvane:safeguarding:dispatch-notifications')->everyFiveMinutes()->withoutOverlapping();
 }

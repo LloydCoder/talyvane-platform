@@ -68,6 +68,15 @@ Official references:
 - The wrapped DEK and ciphertext may still exist in older database backups. Removing the live database key row is not immediate global erasure. Backups must be separately encrypted, expire on the approved schedule, and be prevented from restoring erased keys into production. Do not claim complete cryptographic erasure until backup expiry or an independently managed external key-vault destruction process is verified.
 - Migration rollback is intentionally blocked after any case content has been retention-erased because the original content cannot be reconstructed from a destroyed key.
 
+## Safeguarding notification delivery
+
+- Case assignment and critical/minor-safety escalation notices are written to a transactional outbox; case intake does not synchronously send email.
+- Recipient email addresses are encrypted at rest and cleared from the outbox after successful delivery for external escalation recipients. A keyed HMAC fingerprint is used for deduplication; no plaintext recipient address is used as a unique database key.
+- Assignment notices contain only case reference, category, severity and a restricted internal URL. External emergency-contact notices contain only reference, category and severity and include no internal URL. Case summary, narrative, subject reference, applicant contact information, identity-document data and evidence are excluded.
+- The dispatcher requires an explicit enable flag and rejects `log` and `array` mailers. Delivery retries are bounded, stale processing claims are recovered, and raw transport exception messages are not persisted. Dispatch is at-least-once and may duplicate a message if the process crashes after provider acceptance but before database acknowledgement.
+- Critical and minor-safety cases are escalated only to valid addresses explicitly configured by the deployment operator. Missing contacts create a case event and access-audit event rather than a false delivery claim.
+- Email is not an emergency response channel or guaranteed delivery. Failed outbox items require operational monitoring; maintain independent emergency contacts and human response procedures.
+
 ## Sensitive data
 Collect only necessary data for documented purposes. Never expose legal names, identity documents, private addresses, phone numbers or verification evidence publicly. Store verification evidence separately with restricted access, encryption where supported and access audit. Record consent purpose, version, actor, timestamp and withdrawal. Profile publication and automatic-booking opt-in/out are recorded as separate review events. Provider references and external payment transaction references are stored as keyed HMAC digests, not raw identifiers; no identity document is stored in public profile tables. Define retention/deletion schedules. Do not infer age, identity or sensitive traits.
 
