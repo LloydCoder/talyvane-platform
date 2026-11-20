@@ -21,3 +21,32 @@ The Git history provides a useful, but not conclusive, chronology:
 This chronology indicates that the initial Apache-2.0 tree did not contain the Laravel application source and that the application source began appearing after the repository licence-file change. It is evidence for counsel to review, not a legal conclusion about the scope of any grant, copyright notices, repository terms, forks, caches, third-party materials or rights held by contributors.
 
 Apache-2.0 section 2 describes a perpetual, worldwide, royalty-free, irrevocable copyright licence for the covered Work, and section 4 sets redistribution conditions: https://www.apache.org/licenses/LICENSE-2.0.html. Counsel should inspect the exact historical blobs, commit timestamps, GitHub publication/fork history, author/assignment records and all third-party assets before Tinlance makes exclusivity or enforcement claims.
+
+
+## Engineering architecture
+
+The binding engineering decision is [ADR-0015 — Commercial licensing, editions and deployment authority](docs/decisions/ADR-0015-commercial-licensing-and-deployment.md). The profiles below are agreement patterns, not published prices or claims that every capability is implemented:
+
+- **Evaluation:** non-production inspection and evaluation only.
+- **Single-business deployment:** one isolated production installation for one licensed legal entity.
+- **Enterprise:** negotiated deployment estate, affiliates, users, territories, support and service levels.
+- **Multi-deployment:** multiple named isolated installations with explicit deployment identities and transfer rules.
+- **Agency/reseller:** downstream customer licensing and provisioning rights only when expressly granted.
+- **White-label:** independently branded deployments with explicit branding, domain and notice rights.
+- **Source assignment/buyout:** a separate written assignment covering exact assets, exclusions, third-party rights, consideration and transition obligations; it is not an ordinary deployment licence.
+
+Each agreement must distinguish platform IP, customer materials, third-party materials and commissioned work. It must specify the licensed legal entity, deployment IDs/count, domains and environments, permitted users, territory, term, update/support scope, modification rights, transfer/re-hosting, sublicensing/resale, fees, data roles, security responsibilities, termination and post-termination data export.
+
+## Deployment and entitlement policy
+
+The initial supported commercial architecture is one isolated installation per licensed customer. Shared multi-tenant SaaS is future scope and must not be marketed as implemented. The customer installation owns its runtime, domain/TLS, database, private media, secrets, integration credentials, logs, backups and retention configuration.
+
+TLMS is a separate licensing control plane. Talyvane verifies signed entitlements locally using a public verification key; ordinary requests must not depend on an online TLMS call. The protocol must support bounded offline operation and explicit renewal/recovery. A TLMS outage must never lock a customer out of their own data, data export, account security, safeguarding, incident response or emergency workflows. No remote destructive action or hidden kill switch is permitted. See ADR-0015 for the proposed Ed25519 envelope, claims, lifecycle, threat model and acceptance criteria.
+
+The machine-readable entitlement is an implementation of the signed commercial agreement, not a substitute for it. Unsigned API responses, client-side flags or UI state must never grant commercial rights. Licensing cannot override authentication, Super Admin authority, consent, market approval, payment underwriting or hard safeguarding controls.
+
+## External legal gate — not complete
+
+Before production commercial enforcement, qualified counsel must approve the exact licence text and commercial agreement pack and review historical licence blobs, GitHub public-repository permissions, authorship/assignment, third-party code and assets, and enforceability in relevant jurisdictions. The repository's initial publication included an Apache-2.0 licence file. The current proprietary licence must not be represented as retroactively cancelling prior grants. Do not claim exclusivity or pursue enforcement based solely on this engineering document.
+
+Do not accept external code contributions until approved contributor terms and provenance checks are in place. Maintain the custom `LicenseRef-Talyvane-Commercial` identifier consistently in Composer metadata and the licence inventory; this custom reference does not mean the licence is OSI-approved.
