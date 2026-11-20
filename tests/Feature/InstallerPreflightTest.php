@@ -22,6 +22,8 @@ class InstallerPreflightTest extends TestCase
 
         $this->get('/install')
             ->assertOk()
+            ->assertHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+            ->assertHeader('Referrer-Policy', 'no-referrer')
             ->assertSee('FIRST-TIME SETUP')
             ->assertSee('Hosting preflight')
             ->assertSee('PHP 8.3 or later');
