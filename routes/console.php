@@ -763,7 +763,7 @@ Artisan::command('talyvane:safeguarding:restore-reconcile {backup_reference}', f
             'verified_at' => now(),
             'created_at' => now(),
         ]);
-    } catch (\\Throwable $exception) {
+    } catch (\Throwable $exception) {
         $this->error('Safeguarding restore reconciliation failed: '.$exception->getMessage());
         $this->warn('Keep the application in maintenance mode. Do not restore public traffic until the issue is resolved and reconciliation succeeds.');
 
