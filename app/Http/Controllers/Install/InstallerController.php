@@ -36,7 +36,7 @@ final class InstallerController
     {
         $root = realpath(base_path());
         $public = realpath(public_path());
-        $documentRoot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+        $documentRoot = realpath((string) $request->server('DOCUMENT_ROOT', ''));
         $extensions = ['ctype', 'curl', 'dom', 'fileinfo', 'filter', 'gd', 'hash', 'mbstring', 'openssl', 'pcre', 'pdo', 'pdo_mysql', 'session', 'tokenizer', 'xml'];
         $rootIsPrivate = $root !== false && $documentRoot !== false
             && $root !== $documentRoot
@@ -117,8 +117,10 @@ final class InstallerController
 
         $checks = $this->preflightChecks($request);
         if (in_array(false, $checks, true)) {
+            $blockedChecks = array_keys(array_filter($checks, static fn (bool $passed): bool => ! $passed));
+
             throw ValidationException::withMessages([
-                'installer' => 'The host does not meet every required installation preflight check. Resolve all blocked items before continuing.',
+                'installer' => 'Resolve these hosting preflight checks before continuing: '.implode('; ', $blockedChecks).'.',
             ]);
         }
 
