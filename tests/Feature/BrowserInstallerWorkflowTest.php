@@ -247,7 +247,7 @@ class BrowserInstallerWorkflowTest extends TestCase
         ])->assertRedirect(route('install.verify'));
 
         $this->assertSame(0, $connection->table('users')->count());
-        Notification::assertSentOnDemand(SuperAdminEmailVerificationCode::class, 2);
+        Notification::assertSentOnDemandTimes(SuperAdminEmailVerificationCode::class, 2);
     }
 
     public function test_browser_install_verifies_emails_creates_lock_shows_password_once_and_enforces_first_login_change(): void
