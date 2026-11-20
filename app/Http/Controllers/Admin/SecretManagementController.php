@@ -8,8 +8,11 @@ use App\Models\User;
 use App\Services\SecretCatalog;
 use App\Services\TotpService;
 use App\Services\VaultKv2SecretStore;
+use Closure;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -62,56 +65,58 @@ class SecretManagementController
             ]);
         }
 
-        $actorId = $this->consumeStepUp($request, $validated['password'], $validated['code'], $totp);
-        $vaultPath = trim((string) config('services.secrets_vault.prefix', 'talyvane'), '/').'/'.$definition['vault_path'];
+        return $this->withSecretLock($secretKey, 'secret_value', function () use ($request, $secretKey, $definition, $vault, $totp, $validated): RedirectResponse {
+            $actorId = $this->consumeStepUp($request, $validated['password'], $validated['code'], $totp);
+            $vaultPath = trim((string) config('services.secrets_vault.prefix', 'talyvane'), '/').'/'.$definition['vault_path'];
 
-        $record = PlatformSecret::query()->firstOrNew(['secret_key' => $secretKey]);
-        $wasConfigured = $record->exists && $record->status === 'configured';
+            $record = PlatformSecret::query()->firstOrNew(['secret_key' => $secretKey]);
+            $wasConfigured = $record->exists && $record->status === 'configured';
 
-        $record->forceFill([
-            'vault_path' => $vaultPath,
-            'status' => $wasConfigured ? 'configured' : 'pending',
-            'configured_by' => $actorId,
-        ])->save();
-
-        $this->appendAudit($secretKey, $actorId, 'secret.write_requested', null, $validated['reason']);
-
-        try {
-            $expectedVersion = $vault->currentVersion($secretKey);
-            $version = $vault->write($secretKey, $validated['secret_value'], $expectedVersion);
-        } catch (Throwable) {
-            DB::transaction(function () use ($secretKey, $actorId, $validated, $wasConfigured): void {
-                if (! $wasConfigured) {
-                    PlatformSecret::query()->where('secret_key', $secretKey)->lockForUpdate()->update(['status' => 'error']);
-                }
-                $this->appendAudit($secretKey, $actorId, 'secret.write_failed', null, $validated['reason']);
-            });
-
-            return back()->withErrors([
-                'secret_value' => 'The secret could not be stored. No secret value was retained by the application.',
-            ]);
-        }
-
-        DB::transaction(function () use ($secretKey, $actorId, $validated, $version, $wasConfigured): void {
-            $record = PlatformSecret::query()->where('secret_key', $secretKey)->lockForUpdate()->firstOrFail();
             $record->forceFill([
-                'status' => 'configured',
-                'vault_version' => $version,
+                'vault_path' => $vaultPath,
+                'status' => $wasConfigured ? 'configured' : 'pending',
                 'configured_by' => $actorId,
-                'last_rotated_at' => now(),
-                'cleared_at' => null,
             ])->save();
 
-            $this->appendAudit(
-                $secretKey,
-                $actorId,
-                $wasConfigured ? 'secret.rotated' : 'secret.set',
-                $version,
-                $validated['reason'],
-            );
-        });
+            $this->appendAudit($secretKey, $actorId, 'secret.write_requested', null, $validated['reason']);
 
-        return redirect()->route('admin.secrets.index')->with('status', 'Secret stored securely. Its value will not be displayed again.');
+            try {
+                $expectedVersion = $vault->currentVersion($secretKey);
+                $version = $vault->write($secretKey, $validated['secret_value'], $expectedVersion);
+            } catch (Throwable) {
+                DB::transaction(function () use ($secretKey, $actorId, $validated, $wasConfigured): void {
+                    if (! $wasConfigured) {
+                        PlatformSecret::query()->where('secret_key', $secretKey)->lockForUpdate()->update(['status' => 'error']);
+                    }
+                    $this->appendAudit($secretKey, $actorId, 'secret.write_failed', null, $validated['reason']);
+                });
+
+                return back()->withErrors([
+                    'secret_value' => 'The secret could not be stored. No secret value was retained by the application.',
+                ]);
+            }
+
+            DB::transaction(function () use ($secretKey, $actorId, $validated, $version, $wasConfigured): void {
+                $record = PlatformSecret::query()->where('secret_key', $secretKey)->lockForUpdate()->firstOrFail();
+                $record->forceFill([
+                    'status' => 'configured',
+                    'vault_version' => $version,
+                    'configured_by' => $actorId,
+                    'last_rotated_at' => now(),
+                    'cleared_at' => null,
+                ])->save();
+
+                $this->appendAudit(
+                    $secretKey,
+                    $actorId,
+                    $wasConfigured ? 'secret.rotated' : 'secret.set',
+                    $version,
+                    $validated['reason'],
+                );
+            });
+
+            return redirect()->route('admin.secrets.index')->with('status', 'Secret stored securely. Its value will not be displayed again.');
+        });
     }
 
     public function destroy(Request $request, string $secretKey, VaultKv2SecretStore $vault, TotpService $totp): RedirectResponse
@@ -131,37 +136,50 @@ class SecretManagementController
             ]);
         }
 
-        $actorId = $this->consumeStepUp($request, $validated['password'], $validated['code'], $totp);
-        $record = PlatformSecret::query()->where('secret_key', $secretKey)->firstOrFail();
+        return $this->withSecretLock($secretKey, 'secret', function () use ($request, $secretKey, $vault, $totp, $validated): RedirectResponse {
+            $actorId = $this->consumeStepUp($request, $validated['password'], $validated['code'], $totp);
+            $record = PlatformSecret::query()->where('secret_key', $secretKey)->firstOrFail();
 
-        $record->forceFill(['status' => 'pending'])->save();
-        $this->appendAudit($secretKey, $actorId, 'secret.clear_requested', null, $validated['reason']);
+            $record->forceFill(['status' => 'pending'])->save();
+            $this->appendAudit($secretKey, $actorId, 'secret.clear_requested', null, $validated['reason']);
 
-        try {
-            $vault->clear($secretKey);
-        } catch (Throwable) {
+            try {
+                $vault->clear($secretKey);
+            } catch (Throwable) {
+                DB::transaction(function () use ($secretKey, $actorId, $validated): void {
+                    PlatformSecret::query()->where('secret_key', $secretKey)->lockForUpdate()->update(['status' => 'error']);
+                    $this->appendAudit($secretKey, $actorId, 'secret.clear_failed', null, $validated['reason']);
+                });
+
+                return back()->withErrors([
+                    'secret' => 'The secret could not be confirmed as permanently removed from the secret store.',
+                ]);
+            }
+
             DB::transaction(function () use ($secretKey, $actorId, $validated): void {
-                PlatformSecret::query()->where('secret_key', $secretKey)->lockForUpdate()->update(['status' => 'error']);
-                $this->appendAudit($secretKey, $actorId, 'secret.clear_failed', null, $validated['reason']);
+                $record = PlatformSecret::query()->where('secret_key', $secretKey)->lockForUpdate()->firstOrFail();
+                $record->forceFill([
+                    'status' => 'cleared',
+                    'vault_version' => 0,
+                    'cleared_at' => now(),
+                ])->save();
+
+                $this->appendAudit($secretKey, $actorId, 'secret.cleared', null, $validated['reason']);
             });
 
+            return redirect()->route('admin.secrets.index')->with('status', 'Secret versions permanently removed from the configured Vault path.');
+        });
+    }
+
+    private function withSecretLock(string $secretKey, string $errorField, Closure $operation): RedirectResponse
+    {
+        try {
+            return Cache::lock('talyvane:secret-operation:'.$secretKey, 60)->block(10, $operation);
+        } catch (LockTimeoutException) {
             return back()->withErrors([
-                'secret' => 'The secret could not be confirmed as permanently removed from the secret store.',
+                $errorField => 'Another operation is already managing this secret. Wait and retry with a fresh authenticator code.',
             ]);
         }
-
-        DB::transaction(function () use ($secretKey, $actorId, $validated): void {
-            $record = PlatformSecret::query()->where('secret_key', $secretKey)->lockForUpdate()->firstOrFail();
-            $record->forceFill([
-                'status' => 'cleared',
-                'vault_version' => 0,
-                'cleared_at' => now(),
-            ])->save();
-
-            $this->appendAudit($secretKey, $actorId, 'secret.cleared', null, $validated['reason']);
-        });
-
-        return redirect()->route('admin.secrets.index')->with('status', 'Secret versions permanently removed from the configured Vault path.');
     }
 
     private function consumeStepUp(Request $request, string $password, string $code, TotpService $totp): int
