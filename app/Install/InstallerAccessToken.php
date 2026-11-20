@@ -16,9 +16,10 @@ final class InstallerAccessToken
     public function ensure(): void
     {
         $directory = dirname($this->path);
+        $this->assertSafeDirectory();
         $lockPath = $directory.DIRECTORY_SEPARATOR.'talyvane.install.lock';
 
-        if (is_link($directory) || ! is_dir($directory) || ! is_writable($directory)) {
+        if (! is_writable($directory)) {
             throw new RuntimeException('The private installer state directory is unavailable.');
         }
 
@@ -69,6 +70,12 @@ final class InstallerAccessToken
 
     public function isAvailable(): bool
     {
+        try {
+            $this->assertSafeDirectory();
+        } catch (RuntimeException) {
+            return false;
+        }
+
         if (is_link($this->path) || ! is_file($this->path)) {
             return false;
         }
@@ -91,6 +98,12 @@ final class InstallerAccessToken
 
     public function consume(): bool
     {
+        try {
+            $this->assertSafeDirectory();
+        } catch (RuntimeException) {
+            return false;
+        }
+
         if (! file_exists($this->path)) {
             return true;
         }
@@ -100,6 +113,30 @@ final class InstallerAccessToken
         }
 
         return @unlink($this->path) && ! file_exists($this->path);
+    }
+
+
+    private function assertSafeDirectory(): void
+    {
+        $configuredRoot = rtrim($this->basePath, DIRECTORY_SEPARATOR);
+        $basePath = realpath($configuredRoot);
+
+        if ($basePath === false || $basePath !== $configuredRoot) {
+            throw new RuntimeException('The private installer application root is unsafe.');
+        }
+
+        $storage = $basePath.'/storage';
+        $applicationStorage = $storage.'/app';
+        $directory = $applicationStorage.'/private';
+
+        if (is_link($storage) || is_link($applicationStorage) || is_link($directory)) {
+            throw new RuntimeException('The private installer state directory must not traverse symbolic links.');
+        }
+
+        $realDirectory = realpath($directory);
+        if ($realDirectory === false || $realDirectory !== $directory || ! is_dir($realDirectory)) {
+            throw new RuntimeException('The private installer state directory is unavailable or escapes its expected path.');
+        }
     }
 
     public function path(): string
