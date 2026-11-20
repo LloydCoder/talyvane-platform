@@ -1,6 +1,6 @@
 # Secure browser installer: security and acceptance specification
 
-**Status:** Approved requirement; implementation in PR #60, final CI and release verification pending  
+**Status:** Approved requirement; implementation in PR #61, final CI and release verification pending  
 **Scope:** First installation of a single Talyvane deployment on compatible cPanel/shared hosting, including hosts without SSH or Composer.  
 **Normative language:** MUST, MUST NOT, SHOULD and MAY are used as engineering requirements.
 
