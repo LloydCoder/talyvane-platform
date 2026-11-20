@@ -284,7 +284,7 @@ class BrowserInstallerWorkflowTest extends TestCase
             ->assertStatus(302)
             ->assertSessionHasErrors('app_url');
 
-        $this->assertDatabaseMissing('users', ['email' => 'admin@example.test']);
+        $this->assertFalse(DB::connection('mysql')->getSchemaBuilder()->hasTable('users'));
     }
 
 }
