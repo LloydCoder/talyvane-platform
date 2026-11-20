@@ -73,6 +73,8 @@ class ProfileMediaTest extends TestCase
                 'rights_confirmed' => '1',
                 'publication_confirmed' => '1',
                 'members_only_confirmed' => '1',
+                'members_only_consent_statement_hash' => hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement()),
+                'members_only_consent_policy_version' => 'private-gallery-v1',
             ])
             ->assertRedirect('/companion-portal');
 
@@ -169,6 +171,32 @@ class ProfileMediaTest extends TestCase
         $this->assertSame(MembershipEntitlementCatalog::privateGalleryConsentStatement(), $event->consent_statement);
         $this->assertSame($companion->id, $event->actor_id);
         $this->assertSame(hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement()), $event->statement_sha256);
+    }
+
+    public function test_stale_members_only_consent_form_is_rejected_when_the_statement_hash_does_not_match(): void
+    {
+        Storage::fake('local');
+        config([
+            'talyvane.privacy.private_gallery_consent_version' => 'private-gallery-v1',
+            'talyvane.privacy.private_gallery_consent_approved' => true,
+        ]);
+        [$companion, $profile] = $this->companionWithProfile();
+
+        $this->actingAs($companion)
+            ->from('/companion-portal')
+            ->post('/companion-portal/profiles/'.$profile->id.'/media', [
+                'media' => UploadedFile::fake()->image('private-gallery.jpg', 900, 1200),
+                'rights_confirmed' => '1',
+                'publication_confirmed' => '1',
+                'members_only_confirmed' => '1',
+                'members_only_consent_statement_hash' => str_repeat('0', 64),
+                'members_only_consent_policy_version' => 'private-gallery-v1',
+            ])
+            ->assertRedirect('/companion-portal')
+            ->assertSessionHasErrors('members_only_confirmed');
+
+        $this->assertDatabaseCount('profile_media', 0);
+        $this->assertDatabaseCount('profile_media_consent_events', 0);
     }
 
     public function test_only_profile_owner_can_upload_media(): void
