@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Models\ProfileMedia;
 use App\Models\CompanionProfile;
 use App\Services\FeatureRegistry;
+use App\Services\MembershipEntitlementCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -36,12 +37,18 @@ class ProfileMediaReviewController
             if ($validated['decision'] === 'approved') {
                 if ($accessLevel === 'members_only') {
                     $requiredConsentVersion = config('talyvane.privacy.private_gallery_consent_version');
+                    $expectedConsentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement();
+                    $grantEvent = $lockedMedia->consentEvents()->where('action', 'members_only_consent.granted')->oldest('id')->first();
                     if (
                         ! config('talyvane.privacy.private_gallery_consent_approved')
                         || ! filled($requiredConsentVersion)
                         || ! $lockedMedia->members_only_consent_at
                         || $lockedMedia->members_only_consent_withdrawn_at
                         || ! hash_equals((string) $requiredConsentVersion, (string) $lockedMedia->members_only_consent_version)
+                        || ! $grantEvent
+                        || ! hash_equals((string) $expectedConsentStatement, (string) $grantEvent->consent_statement)
+                        || ! hash_equals(hash('sha256', $expectedConsentStatement), (string) $grantEvent->statement_sha256)
+                        || ! hash_equals((string) $requiredConsentVersion, (string) $grantEvent->consent_policy_version)
                     ) {
                         throw ValidationException::withMessages([
                             'access_level' => 'The companion has not provided current, separate consent for members-only distribution.',
