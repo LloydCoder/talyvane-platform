@@ -97,6 +97,28 @@ For Vault-backed cases:
 - Retention first requests irreversible deletion of the per-case Transit key using the separate retention credential, then clears the local wrapped-key reference and records the retention event. A retry treats a missing remote key as already destroyed. Any other Vault error fails closed and prevents the local retention tombstone from being written.
 - Keep Vault TLS certificate verification enabled. Do not permit HTTP endpoints or redirects. Use a least-privilege Vault policy, short-lived/rotatable tokens where supported, audit device, restricted network access and independent Vault backups.
 
+Example least-privilege ACL shape for a Transit mount named `transit` (adapt only after reviewing the deployed Vault version and policy semantics):
+
+Application token:
+```hcl
+ path "transit/keys/case-*" { capabilities = ["create"] }
+ path "transit/keys/preflight-*" { capabilities = ["create"] }
+ path "transit/encrypt/case-*" { capabilities = ["update"] }
+ path "transit/decrypt/case-*" { capabilities = ["update"] }
+ path "transit/encrypt/preflight-*" { capabilities = ["update"] }
+ path "transit/decrypt/preflight-*" { capabilities = ["update"] }
+```
+
+Retention token:
+```hcl
+ path "transit/keys/case-*/config" { capabilities = ["update"] }
+ path "transit/keys/case-*" { capabilities = ["delete"] }
+ path "transit/keys/preflight-*/config" { capabilities = ["update"] }
+ path "transit/keys/preflight-*" { capabilities = ["delete"] }
+```
+
+The application token must not receive `delete`, `list`, `sudo`, or key-configuration permissions. The retention token must not receive encrypt/decrypt or create permissions. Keep Vault's global Transit key upsert disabled where operationally supported; the application explicitly creates each random key before encrypting its per-case data key.
+
 Required environment:
 - `SAFEGUARDING_CASE_KEY_PROVIDER=vault`
 - `SAFEGUARDING_VAULT_ADDRESS=https://...`
