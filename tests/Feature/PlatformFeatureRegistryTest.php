@@ -45,7 +45,7 @@ class PlatformFeatureRegistryTest extends TestCase
     public function test_reserved_hard_safeguards_cannot_be_enabled_through_the_feature_registry(): void
     {
         DB::table('platform_features')->insert([
-            'key' => 'safeguarding.case_access',
+            'key' => 'safeguarding.case-access',
             'name' => 'Safeguarding case access',
             'module' => 'safeguarding',
             'description' => 'Reserved non-toggleable safety control.',
@@ -59,10 +59,10 @@ class PlatformFeatureRegistryTest extends TestCase
         ]);
 
         $registry = app(FeatureRegistry::class);
-        $feature = $registry->catalog()->firstWhere('key', 'safeguarding.case_access');
+        $feature = $registry->catalog()->firstWhere('key', 'safeguarding.case-access');
 
-        $this->assertFalse($registry->isEnabled('safeguarding.case_access'));
-        $this->assertFalse($registry->isOperationallyEnabled('safeguarding.case_access'));
+        $this->assertFalse($registry->isEnabled('safeguarding.case-access'));
+        $this->assertFalse($registry->isOperationallyEnabled('safeguarding.case-access'));
         $this->assertFalse($feature->effective_enabled);
         $this->assertTrue($feature->hard_safeguard);
         $this->assertContains('Hard safeguards are not configurable feature flags.', app(FeatureActivationEvaluator::class)->blockers($feature));
