@@ -68,6 +68,11 @@ class SafeguardingVaultCredentialLifecycle
             throw new RuntimeException('Vault credentials cannot be cleared while active safeguarding case keys still depend on the external vault.');
         }
 
+        $this->environment->assertRuntimeMatches([
+            'SAFEGUARDING_VAULT_TOKEN' => config('services.safeguarding_vault.token', ''),
+            'SAFEGUARDING_VAULT_RETENTION_TOKEN' => config('services.safeguarding_vault.retention_token', ''),
+        ]);
+
         $this->environment->clearMany([
             'SAFEGUARDING_VAULT_TOKEN',
             'SAFEGUARDING_VAULT_RETENTION_TOKEN',
