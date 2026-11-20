@@ -88,7 +88,7 @@ class MembershipEntitlementTest extends TestCase
         ]);
     }
 
-    private function privateMedia(CompanionProfile $profile): ProfileMedia
+    private function privateMedia(CompanionProfile $profile, string $status = 'approved'): ProfileMedia
     {
         Storage::disk('local')->put('profile-media/private-gallery.webp', 'test-image-bytes');
 
@@ -104,7 +104,7 @@ class MembershipEntitlementTest extends TestCase
             'width' => 800,
             'height' => 1000,
             'file_size' => 17,
-            'status' => 'approved',
+            'status' => $status,
             'access_level' => 'members_only',
             'rights_confirmed_at' => now(),
             'consent_version' => 'profile-publication-v1',
@@ -223,6 +223,102 @@ class MembershipEntitlementTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame(['media.private_gallery'], $event->after_state['entitlements']);
+    }
+
+    public function test_admin_cannot_approve_members_only_media_when_entitlements_are_disabled(): void
+    {
+        Storage::fake('local');
+        $profile = $this->profile();
+        $media = $this->privateMedia($profile, 'pending_review');
+        $admin = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'reviewer-disabled@example.test',
+            'role' => 'owner',
+        ]);
+
+        $this->actingAs($admin)
+            ->post('/admin/profile-media/'.$media->id.'/review', [
+                'decision' => 'approved',
+                'access_level' => 'members_only',
+            ])
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('profile_media', [
+            'id' => $media->id,
+            'status' => 'pending_review',
+            'access_level' => 'members_only',
+        ]);
+    }
+
+    public function test_admin_can_approve_members_only_media_after_super_admin_feature_activation(): void
+    {
+        Storage::fake('local');
+        $this->enableEntitlements();
+        $profile = $this->profile();
+        $media = $this->privateMedia($profile, 'pending_review');
+        $admin = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'reviewer-enabled@example.test',
+            'role' => 'owner',
+        ]);
+
+        $this->actingAs($admin)
+            ->post('/admin/profile-media/'.$media->id.'/review', [
+                'decision' => 'approved',
+                'access_level' => 'members_only',
+            ])
+            ->assertRedirect('/admin/profiles');
+
+        $this->assertDatabaseHas('profile_media', [
+            'id' => $media->id,
+            'status' => 'approved',
+            'access_level' => 'members_only',
+        ]);
+    }
+
+    public function test_membership_supersession_revokes_private_gallery_access_immediately(): void
+    {
+        Storage::fake('local');
+        $this->enableEntitlements();
+        $profile = $this->profile();
+        $media = $this->privateMedia($profile);
+        $client = $this->client();
+        $membership = $this->membership($client);
+        $this->grantPrivateGallery($membership);
+
+        $this->actingAs($client)->get(route('profile-media.show', $media))->assertOk();
+
+        $membership->forceFill(['status' => 'superseded'])->save();
+
+        $this->actingAs($client)->get(route('profile-media.show', $media))->assertNotFound();
+    }
+
+    public function test_destination_discovery_never_exposes_private_gallery_media_urls(): void
+    {
+        Storage::fake('local');
+        $profile = $this->profile();
+        $media = $this->privateMedia($profile);
+
+        $this->get('/destinations/london')
+            ->assertOk()
+            ->assertDontSee(route('profile-media.show', $media), false);
+    }
+
+    public function test_inactive_or_unverified_clients_never_receive_membership_entitlements(): void
+    {
+        $inactive = $this->client('inactive-member@example.test');
+        $membership = $this->membership($inactive);
+        $this->grantPrivateGallery($membership);
+        $inactive->forceFill(['is_active' => false])->save();
+
+        $this->assertFalse(app(MembershipEntitlementService::class)->has($inactive, 'media.private_gallery'));
+
+        $unverified = $this->client('unverified-member@example.test');
+        $unverified->forceFill(['email_verified_at' => null])->save();
+        $unverifiedMembership = $this->membership($unverified);
+        $this->grantPrivateGallery($unverifiedMembership);
+
+        $this->assertFalse(app(MembershipEntitlementService::class)->has($unverified, 'media.private_gallery'));
     }
 
     public function test_membership_entitlements_feature_becomes_operational_only_after_the_runtime_gate_is_present(): void
