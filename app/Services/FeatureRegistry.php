@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\PlatformFeature;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Schema;
 
 class FeatureRegistry
 {
@@ -52,7 +53,7 @@ class FeatureRegistry
     public function catalog(): Collection
     {
         if (! Schema::hasTable('platform_features')) {
-            return collect();
+            return new Collection();
         }
 
         return PlatformFeature::query()
