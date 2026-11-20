@@ -57,9 +57,23 @@ final class InstallerAccessToken
 
         try {
             if (file_put_contents($temporaryPath, $token, LOCK_EX) !== strlen($token)
-                || ! chmod($temporaryPath, 0600)
-                || ! rename($temporaryPath, $this->path)) {
-                throw new RuntimeException('The private installer access key could not be committed.');
+                || ! chmod($temporaryPath, 0600)) {
+                throw new RuntimeException('The private installer access key could not be prepared securely.');
+            }
+
+            // A hard link commits the fully written key atomically without
+            // replacing a key created by a concurrent first request.
+            if (! @link($temporaryPath, $this->path)) {
+                if (is_link($this->path) || ! is_file($this->path)) {
+                    throw new RuntimeException('The private installer access key could not be committed.');
+                }
+
+                $existing = file_get_contents($this->path);
+                if (! is_string($existing)
+                    || preg_match('/\A[A-Za-z0-9_-]{43}\z/D', trim($existing)) !== 1
+                    || ! chmod($this->path, 0600)) {
+                    throw new RuntimeException('The concurrent installer access key is malformed or unsafe.');
+                }
             }
         } finally {
             if (is_file($temporaryPath)) {
