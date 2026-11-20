@@ -13,6 +13,7 @@ class VaultKv2SecretStore
     {
         try {
             $this->client();
+            $this->secretPath('mail.smtp.password');
 
             return true;
         } catch (Throwable) {
