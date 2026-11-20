@@ -32,6 +32,7 @@ class ProfileMediaController extends Controller
     ): Response {
         abort_unless($media->status === 'approved', 404);
         if ($media->access_level === 'members_only') {
+            abort_unless($media->members_only_consent_at && ! $media->members_only_consent_withdrawn_at, 404);
             $client = auth()->user();
             abort_unless(
                 $client
