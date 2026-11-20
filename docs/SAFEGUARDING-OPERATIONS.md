@@ -90,7 +90,9 @@ The default `SAFEGUARDING_CASE_KEY_PROVIDER=local` preserves the existing applic
 
 For Vault-backed cases:
 
-- Each case receives a randomly named Transit key. The key is non-exportable and plaintext key backup is disabled.
+- Each case receives a randomly named Transit key prefixed by the immutable `SAFEGUARDING_KEY_NAMESPACE` for this deployment. The namespace must be unique (8–32 lowercase alphanumeric characters), explicitly configured and preserved across application-key rotations. The key is non-exportable and plaintext key backup is disabled.
+- Use a dedicated Transit mount per deployment where possible. Namespace filtering is defense in depth: restore reconciliation only garbage-collects namespaced keys belonging to this deployment. Legacy unnamespaced case keys are still verified when active, but are never automatically treated as orphans because their deployment ownership cannot be established safely.
+- The database enforces a unique constraint on non-null `key_reference` values so two cases cannot share a per-case data-encryption key reference.
 - The application token is limited to creating per-case keys and encrypting/decrypting their data-encryption keys. It must not have Transit key deletion permissions.
 - `SAFEGUARDING_VAULT_RETENTION_TOKEN` must be a distinct credential, restricted to enabling deletion and deleting keys in the dedicated Transit mount. The application explicitly refuses to use the same token for both duties.
 - The database stores only the Vault ciphertext and opaque key reference. The Vault address, application token and retention token remain in deployment environment/secret storage and are never written to application tables.
@@ -101,21 +103,21 @@ Example least-privilege ACL shape for a Transit mount named `transit` (adapt onl
 
 Application token:
 ```hcl
- path "transit/keys/case-*" { capabilities = ["create"] }
- path "transit/keys/preflight-*" { capabilities = ["create"] }
- path "transit/encrypt/case-*" { capabilities = ["update"] }
- path "transit/decrypt/case-*" { capabilities = ["update"] }
- path "transit/encrypt/preflight-*" { capabilities = ["update"] }
- path "transit/decrypt/preflight-*" { capabilities = ["update"] }
+ path "transit/keys/case-${SAFEGUARDING_KEY_NAMESPACE}-*" { capabilities = ["create"] }
+ path "transit/keys/preflight-${SAFEGUARDING_KEY_NAMESPACE}-*" { capabilities = ["create"] }
+ path "transit/encrypt/case-${SAFEGUARDING_KEY_NAMESPACE}-*" { capabilities = ["update"] }
+ path "transit/decrypt/case-${SAFEGUARDING_KEY_NAMESPACE}-*" { capabilities = ["update"] }
+ path "transit/encrypt/preflight-${SAFEGUARDING_KEY_NAMESPACE}-*" { capabilities = ["update"] }
+ path "transit/decrypt/preflight-${SAFEGUARDING_KEY_NAMESPACE}-*" { capabilities = ["update"] }
 ```
 
 Retention token:
 ```hcl
  path "transit/keys" { capabilities = ["list"] }
- path "transit/keys/case-*/config" { capabilities = ["update"] }
- path "transit/keys/case-*" { capabilities = ["delete"] }
- path "transit/keys/preflight-*/config" { capabilities = ["update"] }
- path "transit/keys/preflight-*" { capabilities = ["delete"] }
+ path "transit/keys/case-${SAFEGUARDING_KEY_NAMESPACE}-*/config" { capabilities = ["update"] }
+ path "transit/keys/case-${SAFEGUARDING_KEY_NAMESPACE}-*" { capabilities = ["delete"] }
+ path "transit/keys/preflight-${SAFEGUARDING_KEY_NAMESPACE}-*/config" { capabilities = ["update"] }
+ path "transit/keys/preflight-${SAFEGUARDING_KEY_NAMESPACE}-*" { capabilities = ["delete"] }
 ```
 
 The application token must not receive `delete`, `list`, `sudo`, or key-configuration permissions. The retention token must not receive encrypt/decrypt or create permissions. Keep Vault's global Transit key upsert disabled where operationally supported; the application explicitly creates each random key before encrypting its per-case data key.
@@ -127,6 +129,7 @@ Required environment:
 - `SAFEGUARDING_VAULT_TOKEN` (application-only key creation/encrypt/decrypt permissions)
 - `SAFEGUARDING_VAULT_RETENTION_TOKEN` (separate key-config/delete permissions)
 - `SAFEGUARDING_VAULT_TIMEOUT=5`
+- `SAFEGUARDING_KEY_NAMESPACE` (required for Vault mode; unique per deployment and immutable)
 
 Before enabling Vault mode, run `php artisan talyvane:safeguarding:vault-check` from the private application directory. It creates a temporary non-exportable key, verifies encrypt/decrypt round trip, and destroys the temporary key with the separate retention credential. Do not enable Vault mode until the operator has also verified the Transit mount, token policies, irreversible key deletion, Vault audit logging, token rotation, backup expiry and restore behavior. A Vault backup that contains a deleted Transit key can reintroduce decryption capability if restored; Vault backup retention and disaster recovery are therefore part of the same privacy control. Do not claim end-to-end cryptographic erasure until independent Vault backup/restore controls and a restore drill have been evidenced.
 
@@ -143,7 +146,7 @@ php artisan talyvane:safeguarding:restore-reconcile BACKUP-REFERENCE
 
 The backup reference is a non-sensitive operator label, not a filesystem path, object URL or credential. The command refuses to run unless maintenance mode is active, Vault mode is selected, the safeguarding retention policy and backup expiry policy are approved, and the key metadata is structurally valid.
 
-The command reapplies the approved retention schedule to due closed cases, inventories keys in the dedicated Transit mount using the separate retention credential, verifies that every active Vault-backed case key still exists, and destroys orphaned `case-*` and `preflight-*` keys. It writes an append-only application-level verification record with counts and the operator-supplied backup reference. If an active case key is missing or any Vault operation fails, the command exits non-zero; keep the application in maintenance mode and investigate. Do not generate replacement keys or silently fall back to the Laravel application key.
+The command reapplies the approved retention schedule to due closed cases, inventories keys in the Transit mount using the separate retention credential, verifies that every active Vault-backed case key exists and can decrypt its actual stored ciphertext to a 32-byte data key, then destroys only orphaned `case-{SAFEGUARDING_KEY_NAMESPACE}-*` and `preflight-{SAFEGUARDING_KEY_NAMESPACE}-*` keys. It re-lists the Vault inventory after deletion and verifies that active keys remain and no namespaced orphan keys remain. Legacy unnamespaced active keys are verified but never automatically garbage-collected. It writes an append-only application-level verification record with counts and the operator-supplied backup reference. If an active case key is missing or any Vault operation fails, the command exits non-zero; keep the application in maintenance mode and investigate. Do not generate replacement keys or silently fall back to the Laravel application key.
 
 Only after this command succeeds should the operator complete the independent database-backup expiry and Vault-backup/restore checks, review the restore verification record, verify mail/scheduler operation, and explicitly bring the site back with `php artisan up`.
 
