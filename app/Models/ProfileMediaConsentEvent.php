@@ -17,6 +17,7 @@ class ProfileMediaConsentEvent extends Model
         'actor_email',
         'action',
         'consent_policy_version',
+        'consent_statement',
         'statement_sha256',
         'correlation_id',
         'created_at',
