@@ -85,6 +85,8 @@ class DiscoveryController extends Controller
         $canViewPrivateGallery = $viewer
             && $viewer->role === 'client'
             && $features->isOperationallyEnabled('memberships.entitlements')
+            && config('talyvane.privacy.private_gallery_consent_approved')
+            && filled(config('talyvane.privacy.private_gallery_consent_version'))
             && $entitlements->has($viewer, 'media.private_gallery');
 
         $profile = CompanionProfile::query()
@@ -97,7 +99,8 @@ class DiscoveryController extends Controller
                         $media->orWhere(function ($privateMedia): void {
                             $privateMedia->where('access_level', 'members_only')
                                 ->whereNotNull('members_only_consent_at')
-                                ->whereNull('members_only_consent_withdrawn_at');
+                                ->whereNull('members_only_consent_withdrawn_at')
+                                ->where('members_only_consent_version', config('talyvane.privacy.private_gallery_consent_version'));
                         });
                     }
                 })
