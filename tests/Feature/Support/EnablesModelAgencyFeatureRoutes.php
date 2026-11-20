@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Support;
 
-use App\Models\CountryMarket;
 use App\Models\SitePage;
 use Illuminate\Support\Facades\DB;
 
@@ -45,18 +44,6 @@ trait EnablesModelAgencyFeatureRoutes
             'talyvane.model_agency.settlement_policy_approved' => true,
             'mail.default' => 'smtp',
             'mail.mailers.smtp.host' => 'smtp.test',
-        ]);
-
-        CountryMarket::query()->firstOrCreate(['country_code' => 'GB'], [
-            'country_code' => 'GB',
-            'name' => 'United Kingdom',
-            'is_enabled' => true,
-            'compliance_status' => 'approved',
-            'compliance_reviewed_at' => now(),
-            'compliance_reviewed_by' => 'test-fixture',
-            'compliance_evidence_reference' => 'model-agency-feature-test-market',
-            'compliance_review_summary' => 'Approved test market.',
-            'market_policy' => ['test_fixture' => true],
         ]);
 
         SitePage::query()->updateOrCreate(['slug' => 'model-applicant-privacy'], [
