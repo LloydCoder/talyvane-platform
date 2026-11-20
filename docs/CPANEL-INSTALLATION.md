@@ -22,7 +22,7 @@ Use a tagged, tested release artifact from the project release process. Do not d
 
 The standalone release includes production vendor dependencies, compiled public assets, migrations, a private bootstrap directory and the cPanel front-controller templates. CI also publishes dedicated public-root ZIP bundles for the main domain and add-on domain; these contain only public assets, the hardened .htaccess file and the matching guarded index.php wrapper. Production hosting does not need Node.js or Composer for the browser-based first installation.
 
-The browser installer is implemented on the feature/secure-browser-installer branch and remains a pre-release capability until PR #60 is merged, all required CI and package checks pass, and a tagged release is published. Do not deploy the feature branch or treat this guide as a released support commitment before that gate.
+The browser installer is implemented on the feature/secure-browser-installer-ci branch and remains a pre-release capability until PR #61 is merged, all required CI and package checks pass, and a tagged release is published. Do not deploy the feature branch or treat this guide as a released support commitment before that gate.
 
 ## 3. Create the database
 
