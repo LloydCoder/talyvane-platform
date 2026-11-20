@@ -20,7 +20,7 @@ Do not purchase a plan based only on the word cPanel. The installer performs run
 
 Use a tagged, tested release artifact from the project release process. Do not deploy directly from an unreviewed development branch.
 
-The standalone release includes production vendor dependencies, compiled public assets, migrations, a private bootstrap directory and the cPanel front-controller templates. Production hosting does not need Node.js or Composer for the browser-based first installation.
+The standalone release includes production vendor dependencies, compiled public assets, migrations, a private bootstrap directory and the cPanel front-controller templates. CI also publishes dedicated public-root ZIP bundles for the main domain and add-on domain; these contain only public assets, the hardened .htaccess file and the matching guarded index.php wrapper. Production hosting does not need Node.js or Composer for the browser-based first installation.
 
 The browser installer is implemented on the feature/secure-browser-installer branch and remains a pre-release capability until PR #60 is merged, all required CI and package checks pass, and a tagged release is published. Do not deploy the feature branch or treat this guide as a released support commitment before that gate.
 
@@ -68,15 +68,13 @@ Use this when cPanel requires the domain document root to remain under public_ht
 
 - Private application root: /home/CPANEL_USER/talyvane-app
 - Public document root: /home/CPANEL_USER/public_html
-- Copy the contents of talyvane-app/public/ into public_html/.
-- Replace public_html/index.php with cpanel-public-root/main-domain/index.php from the release.
+- Upload the matching talyvane-cpanel-main-public ZIP artifact to the home directory and extract its contents into public_html/.
 
 **Add-on domain or subdomain**
 
 - Private application root: /home/CPANEL_USER/talyvane-app
 - Public document root: /home/CPANEL_USER/public_html/example.com
-- Copy the contents of talyvane-app/public/ into public_html/example.com/.
-- Replace that directory's index.php with cpanel-public-root/addon-domain/index.php from the release.
+- Upload the matching talyvane-cpanel-addon-public ZIP artifact to the home directory and extract its contents into public_html/example.com/.
 
 The wrappers include the private Laravel front controller, reject an application root inside the public document root and reject symlinked application roots/front controllers. Laravel resolves its public path to the actual document root so assets and installer preflight checks use the public directory.
 
@@ -90,8 +88,8 @@ cPanel's default behavior matters: the main domain's document root cannot be cha
 
 This path is available only in a tagged release that has passed the installer release gate.
 
-1. Upload the complete standalone release archive into /home/CPANEL_USER/ using cPanel File Manager and extract it there. The archive creates a top-level talyvane/ directory; rename that directory to talyvane-app so it matches the wrapper paths and the examples below.
-2. Configure the public document root using Option A or Option B above.
+1. Upload the complete standalone release ZIP into /home/CPANEL_USER/ using cPanel File Manager and extract it there. The archive creates a top-level talyvane/ directory; rename that directory to talyvane-app so it matches the wrapper paths and the examples below.
+2. Configure the public document root using Option A or Option B above. For Option B, also upload and extract the matching main-domain or add-on-domain public-root ZIP into the document root. Back up any existing public files first.
 3. Confirm the domain has a valid TLS certificate and opens over HTTPS.
 4. Visit the HTTPS domain. The private first-request bootstrap creates a deployment-unique application key and private runtime directories. It does not run arbitrary commands.
 5. Complete every hosting preflight check. Resolve any PHP extension, GD/WebP, HTTPS, document-root, symlink or permission failure before proceeding.
