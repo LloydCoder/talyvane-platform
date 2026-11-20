@@ -49,7 +49,7 @@ class AdminInitialPasswordRecoveryTest extends TestCase
         $this->get('/admin/first-login/recover/verify')
             ->assertOk()
             ->assertSee('DUAL-EMAIL VERIFICATION')
-            ->assertHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+            ->assertHeader('Cache-Control', 'must-revalidate, no-cache, no-store, private');
 
         $this->post('/admin/first-login/recover/verify', [
             'primary_code' => '111111',
