@@ -107,6 +107,11 @@ class SafeguardingNotificationOutboxTest extends TestCase
 
         $this->assertSame(2, $sent);
         Notification::assertSentOnDemandTimes(SafeguardingCaseAlert::class, 2);
+        $this->assertNull(\\App\\Models\\SafeguardingNotificationOutbox::query()
+            ->where('case_id', $case->id)
+            ->where('notification_type', 'critical_escalation')
+            ->firstOrFail()
+            ->recipient_email);
     }
 
     public function test_dispatcher_fails_closed_when_notifications_are_disabled(): void
