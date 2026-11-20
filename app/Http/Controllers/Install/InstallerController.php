@@ -400,6 +400,10 @@ final class InstallerController
                 }
             }
 
+            if ($schema->hasTable('users') && $connection->table('users')->exists()) {
+                throw new RuntimeException('The selected database already contains user records and cannot be used for first installation.');
+            }
+
             $stage = 'database migrations';
             $migrationExitCode = Artisan::call('migrate', ['--force' => true]);
             if ($migrationExitCode !== 0) {
