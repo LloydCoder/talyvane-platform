@@ -23,6 +23,8 @@ return new class extends Migration
 
         Schema::table('profile_media', function (Blueprint $table): void {
             $table->string('access_level', 24)->default('public')->index();
+            $table->timestamp('members_only_consent_at')->nullable();
+            $table->string('members_only_consent_version', 80)->nullable();
         });
 
         DB::table('platform_features')
@@ -31,7 +33,7 @@ return new class extends Migration
                 'description' => 'Immutable, server-enforced membership grants for protected private gallery media.',
                 'implementation_status' => 'available',
                 'is_enabled' => false,
-                'activation_requirements' => json_encode(['server_side_entitlement_checks']),
+                'activation_requirements' => json_encode(['server_side_entitlement_checks', 'private_gallery_consent_policy']),
                 'updated_at' => now(),
             ]);
     }
@@ -50,7 +52,7 @@ return new class extends Migration
 
         Schema::table('profile_media', function (Blueprint $table): void {
             $table->dropIndex(['access_level']);
-            $table->dropColumn('access_level');
+            $table->dropColumn(['access_level', 'members_only_consent_at', 'members_only_consent_version']);
         });
 
         Schema::dropIfExists('client_membership_entitlements');
