@@ -17,6 +17,7 @@ class ModelTalentSettlementService
 {
     public function addExpense(ModelTalentAssignment $assignment, int $actorId, array $input): ModelTalentSettlementExpense
     {
+        app(FeatureRegistry::class)->assertEnabled('model-agency.settlements');
         $this->assertEvidenceReference((string) ($input['evidence_reference'] ?? ''), 'private/model-expenses/');
 
         return DB::transaction(function () use ($assignment, $actorId, $input): ModelTalentSettlementExpense {
@@ -113,6 +114,7 @@ class ModelTalentSettlementService
 
     public function createDraft(ModelTalentAssignment $assignment, int $actorId): ModelTalentSettlement
     {
+        app(FeatureRegistry::class)->assertEnabled('model-agency.settlements');
         return DB::transaction(function () use ($assignment, $actorId): ModelTalentSettlement {
             $lockedAssignment = ModelTalentAssignment::query()->lockForUpdate()->findOrFail($assignment->id);
 
