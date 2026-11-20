@@ -27,7 +27,7 @@
         @endforeach
     </ul>
 
-    <form method="POST" action="{{ route('install.store') }}" autocomplete="off">
+    <form method="POST" action="{{ route('install.store', [], false) }}" autocomplete="off">
         @csrf
         <input type="hidden" name="installer_token" value="{{ $installerToken }}">
         <h2>Application</h2>
