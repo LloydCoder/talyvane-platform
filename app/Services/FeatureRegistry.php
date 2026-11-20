@@ -9,7 +9,7 @@ class FeatureRegistry
 {
     public function isEnabled(string $key, array $visited = []): bool
     {
-        if (in_array($key, $visited, true)) {
+        if (! Schema::hasTable('platform_features') || in_array($key, $visited, true)) {
             return false;
         }
 
@@ -58,6 +58,10 @@ class FeatureRegistry
 
     public function catalog(): Collection
     {
+        if (! Schema::hasTable('platform_features')) {
+            return collect();
+        }
+
         return PlatformFeature::query()
             ->orderBy('module')
             ->orderBy('name')
