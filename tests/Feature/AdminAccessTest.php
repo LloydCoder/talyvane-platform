@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\Destination;
 use App\Services\TotpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -13,6 +14,23 @@ use Tests\TestCase;
 class AdminAccessTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function approveHomepageMarket(): void
+    {
+        $destination = Destination::query()->create([
+            'name' => 'London',
+            'slug' => 'admin-homepage-london',
+            'country_code' => 'GB',
+            'country_name' => 'United Kingdom',
+            'city_name' => 'London',
+            'currency_code' => 'GBP',
+            'locale' => 'en',
+            'timezone' => 'Europe/London',
+            'is_active' => true,
+        ]);
+        $this->approveCountryMarket($destination);
+    }
+
 
     public function test_admin_session_with_a_stale_security_version_is_invalidated(): void
     {
@@ -133,6 +151,7 @@ class AdminAccessTest extends TestCase
             'updated_by' => $owner->id,
         ]);
 
+        $this->approveHomepageMarket();
         $this->get('/')
             ->assertOk()
             ->assertSee('MAISON EXAMPLE')
