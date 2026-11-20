@@ -8,6 +8,7 @@ use App\Models\ClientMembershipEntitlement;
 use App\Models\CompanionProfile;
 use App\Models\Destination;
 use App\Models\ProfileMedia;
+use App\Models\ProfileMediaConsentEvent;
 use App\Models\User;
 use App\Services\FeatureRegistry;
 use App\Services\MembershipEntitlementService;
@@ -201,6 +202,31 @@ class MembershipEntitlementTest extends TestCase
         $this->get('/companions/'.$profile->slug)
             ->assertOk()
             ->assertDontSee(route('profile-media.show', $media), false);
+    }
+
+    public function test_profile_media_consent_events_reject_updates_and_deletions(): void
+    {
+        Storage::fake('local');
+        config([
+            'talyvane.privacy.private_gallery_consent_version' => 'private-gallery-v1',
+            'talyvane.privacy.private_gallery_consent_approved' => true,
+        ]);
+        $profile = $this->profile();
+        $media = $this->privateMedia($profile);
+        $event = ProfileMediaConsentEvent::query()->create([
+            'profile_media_id' => $media->id,
+            'companion_profile_id' => $profile->id,
+            'media_reference' => 'profile-media:'.$media->id,
+            'actor_email' => 'audit@example.test',
+            'action' => 'members_only_consent.granted',
+            'consent_policy_version' => 'private-gallery-v1',
+            'statement_sha256' => hash('sha256', \\App\\Services\\MembershipEntitlementCatalog::privateGalleryConsentStatement()),
+            'correlation_id' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'created_at' => now(),
+        ]);
+
+        $this->expectException(\\LogicException::class);
+        $event->update(['action' => 'tampered']);
     }
 
     public function test_membership_service_rejects_non_operator_actor_even_when_called_directly(): void
@@ -448,6 +474,12 @@ class MembershipEntitlementTest extends TestCase
         $media->refresh();
         $this->assertNotNull($media->members_only_consent_withdrawn_at);
         $this->assertSame($companion->id, $media->members_only_consent_withdrawn_by);
+        $this->assertDatabaseHas('profile_media_consent_events', [
+            'profile_media_id' => $media->id,
+            'action' => 'members_only_consent.withdrawn',
+            'actor_id' => $companion->id,
+            'consent_policy_version' => 'private-gallery-v1',
+        ]);
         $this->assertNotNull($profile->fresh()->publication_consent_at);
         $this->actingAs($client)->get(route('profile-media.show', $media))->assertNotFound();
     }
