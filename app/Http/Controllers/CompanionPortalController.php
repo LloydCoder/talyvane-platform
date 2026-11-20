@@ -8,6 +8,7 @@ use App\Models\CompanionAvailabilityRule;
 use App\Models\CompanionProfile;
 use App\Models\ProfilePublicationReview;
 use App\Models\ProfileMedia;
+use App\Services\MembershipEntitlementCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +32,12 @@ class CompanionPortalController extends Controller
 
         $weekdays = [0 => 'Sunday', 1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday'];
 
-        return view('portal.companion-dashboard', compact('profiles', 'bookings', 'weekdays'));
+        return view('portal.companion-dashboard', [
+            'profiles' => $profiles,
+            'bookings' => $bookings,
+            'weekdays' => $weekdays,
+            'privateGalleryConsentStatement' => MembershipEntitlementCatalog::privateGalleryConsentStatement(),
+        ]);
     }
 
 
