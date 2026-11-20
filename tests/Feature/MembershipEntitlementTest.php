@@ -217,7 +217,7 @@ class MembershipEntitlementTest extends TestCase
             'granted_by' => $admin->id,
         ]);
 
-        $event = \\App\\Models\\ClientMembershipEvent::query()
+        $event = \App\Models\ClientMembershipEvent::query()
             ->where('membership_id', $membership->id)
             ->firstOrFail();
 
