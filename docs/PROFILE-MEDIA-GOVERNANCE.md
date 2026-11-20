@@ -25,7 +25,7 @@
 
 - The separate private-gallery policy must identify the deploying agency/controller, the members-only purpose, the eligible audience, any relevant processors/recipients, and how to withdraw. Legal counsel must approve the exact text and lawful basis for each market before setting `PRIVATE_GALLERY_CONSENT_APPROVED=true`.
 - `PRIVATE_GALLERY_CONSENT_VERSION` must be a non-empty version identifier. A policy version change invalidates older members-only grants at both discovery and delivery until re-consent is captured.
-- Grant and withdrawal events are retained in `profile_media_consent_events` with actor/email snapshot, media reference, policy version, exact statement text, SHA-256 of that statement and correlation ID. Model-level update/delete guards are application controls, not database-administrator-proof WORM storage.
+- Grant and withdrawal events are retained in `profile_media_consent_events` with actor/email snapshot, capture method, media reference, policy version, exact statement text, SHA-256 of that statement and correlation ID. Model-level update/delete guards are application controls, not database-administrator-proof WORM storage.
 - Official guidance informing the granular opt-in design: [ICO consent guidance](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/lawful-basis/a-guide-to-lawful-basis/consent/) and [EDPB Guidelines 05/2020](https://www.edpb.europa.eu/documents/guideline/guidelines-052020-on-consent-under-regulation-2016679_en). These sources do not replace jurisdiction-specific legal advice or determine the correct lawful basis for a particular deployment.
 
 ## Governance limitations
