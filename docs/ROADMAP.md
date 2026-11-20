@@ -120,7 +120,9 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Implement current-password plus single-use TOTP step-up, reason capture, atomic feature-state changes and append-only audit writes.
 - [x] Add an append-only feature-audit event schema, model-level update/delete protection and transactional event writes for feature state changes.
 - [x] Add Super Admin-only secret set/rotate/clear workflows backed by HashiCorp Vault KV v2; use fixed identifiers, HTTPS, CAS writes, single-use TOTP step-up, per-secret locking, metadata-only persistence and non-displayed secret values. Automatic rotation, runtime-use telemetry and production Vault drills remain outstanding.
-- [ ] Add dependency and eligibility validation for market, payment, verification and communication activation.
+- [x] Require at least one active, email-verified, MFA-enrolled dedicated verifier before adult-eligibility verification can be activated; test the missing-staff and staffed states.
+- [x] Keep unimplemented crypto, card, concierge-message and calendar prerequisites fail-closed; add regression coverage for unknown chain, network, legal, underwriting, processor, secure-storage, retention, OAuth-secret and provider-review requirements.
+- [ ] Complete provider-specific adapter readiness, approved network registries, jurisdiction-specific legal and underwriting evidence, encrypted messaging storage/retention, and RFC 9700-conformant calendar OAuth implementation.
 - [x] Add audited emergency disable for optional implemented features and prerequisite-checked re-enable workflow.
 - [x] Test designated Super Admin lifecycle invariants and second-principal rejection at the Eloquent boundary.
 - [x] Exclude MFA secret, recovery-code hashes and TOTP replay state from User model serialization, with regression coverage.
