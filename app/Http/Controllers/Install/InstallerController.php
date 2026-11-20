@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Install;
 
 use App\Install\EnvironmentWriter;
 use App\Install\InstallerAccessToken;
+use App\Install\InstallationDirectoryRemover;
 use App\Install\InstallationLock;
 use App\Models\SuperAdminRecoveryEvent;
 use App\Models\User;
@@ -275,7 +276,7 @@ final class InstallerController
         return redirect()->route('install.verify');
     }
 
-    public function verify(Request $request, InstallerAccessToken $accessToken): RedirectResponse
+    public function verify(Request $request, InstallerAccessToken $accessToken, InstallationDirectoryRemover $remover): RedirectResponse
     {
         $validated = $request->validate([
             'primary_code' => ['required', 'digits:6'],
@@ -370,6 +371,13 @@ final class InstallerController
             $accessTokenRemoved = false;
         }
 
+        $installerRemoved = false;
+        try {
+            $installerRemoved = $remover->remove();
+        } catch (Throwable) {
+            $installerRemoved = false;
+        }
+
         $request->session()->forget('installer.pending_admin');
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -377,6 +385,7 @@ final class InstallerController
             'password' => $password,
             'expires_at' => time() + 900,
             'access_token_removed' => $accessTokenRemoved,
+            'installer_removed' => $installerRemoved,
         ], JSON_THROW_ON_ERROR)));
 
         return redirect()->route('install.success');
