@@ -34,6 +34,35 @@ class EnvFileSecretWriter
         }
     }
 
+    public function assertRuntimeMatches(array $values): void
+    {
+        $this->assertWritable();
+        $contents = file_get_contents($this->environmentPath());
+
+        if (! is_string($contents)) {
+            throw new RuntimeException('The project environment file could not be read for source verification.');
+        }
+
+        try {
+            $parsed = \\Dotenv\\Dotenv::parse($contents);
+        } catch (\\Throwable) {
+            throw new RuntimeException('The project environment file could not be parsed safely.');
+        }
+
+        foreach ($values as $key => $runtimeValue) {
+            if (! in_array($key, self::ALLOWED_KEYS, true)) {
+                throw new InvalidArgumentException('Only safeguarding Vault credential keys may be checked by this writer.');
+            }
+
+            $fileValue = (string) ($parsed[$key] ?? '');
+            $runtimeValue = (string) $runtimeValue;
+
+            if (! hash_equals($fileValue, $runtimeValue)) {
+                throw new RuntimeException('Runtime Vault credentials do not match the project environment file. Update the deployment secret manager instead of writing local environment values.');
+            }
+        }
+    }
+
     public function putMany(array $values): void
     {
         $this->write($values);
