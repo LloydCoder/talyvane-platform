@@ -143,6 +143,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::middleware(['auth', 'role:super_admin', 'admin.session-current', 'admin.mfa'])->group(function (): void {
         Route::get('/features', [PlatformFeatureController::class, 'index'])->name('features.index');
         Route::patch('/features/{feature}', [PlatformFeatureController::class, 'update'])->middleware('throttle:5,1')->name('features.update');
+        Route::get('/secrets', [SecretManagementController::class, 'index'])->name('secrets.index');
+        Route::post('/secrets/{secretKey}', [SecretManagementController::class, 'store'])->middleware('throttle:5,1')->name('secrets.store');
+        Route::delete('/secrets/{secretKey}', [SecretManagementController::class, 'destroy'])->middleware('throttle:5,1')->name('secrets.destroy');
     });
 
     // Deployment-wide configuration is exclusively controlled by the Super Admin.
