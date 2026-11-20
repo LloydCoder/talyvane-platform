@@ -23,28 +23,85 @@ class SafeguardingCaseKeyVaultRestoreTest extends TestCase
         ]);
     }
 
-    public function test_restore_reconciliation_destroys_only_orphaned_talyvane_keys(): void
+    public function test_restore_reconciliation_decrypt_verifies_active_keys_before_destroying_orphans_and_verifies_inventory_afterward(): void
     {
-        Http::fake(function (Request $request) {
+        $deleted = [];
+        $operations = [];
+        $plaintext = random_bytes(32);
+        $allKeys = ['case-active', 'case-orphan', 'preflight-leftover', 'unrelated-key'];
+
+        Http::fake(function (Request $request) use (&$deleted, &$operations, $plaintext, $allKeys) {
+            $path = parse_url($request->url(), PHP_URL_PATH) ?: '';
+            $operations[] = $request->method().' '.$path;
+
             if ($request->method() === 'LIST') {
                 return Http::response(['data' => [
-                    'keys' => ['case-active', 'case-orphan', 'preflight-leftover', 'unrelated-key'],
+                    'keys' => array_values(array_diff($allKeys, $deleted)),
                 ]]);
             }
 
-            return Http::response([], 204);
+            if (str_contains($path, '/decrypt/')) {
+                return Http::response(['data' => ['plaintext' => base64_encode($plaintext)]]);
+            }
+
+            if ($request->method() === 'POST' && str_ends_with($path, '/config')) {
+                return Http::response([], 204);
+            }
+
+            if ($request->method() === 'DELETE' && preg_match('#/keys/([^/]+)$#', $path, $matches)) {
+                $deleted[] = $matches[1];
+
+                return Http::response([], 204);
+            }
+
+            return Http::response([], 404);
         });
 
-        $result = app(SafeguardingCaseKeyVault::class)->reconcile(['case-active']);
+        $result = app(SafeguardingCaseKeyVault::class)->reconcile([
+            'case-active' => 'vault:v1:active-case-ciphertext',
+        ]);
 
         $this->assertSame(['active_keys_verified' => 1, 'orphan_keys_destroyed' => 2], $result);
+        $decryptIndex = array_search(true, array_map(fn (string $operation): bool => str_contains($operation, '/decrypt/case-active'), $operations), true);
+        $firstDeleteIndex = array_search(true, array_map(fn (string $operation): bool => str_starts_with($operation, 'DELETE '), $operations), true);
+        $this->assertIsInt($decryptIndex);
+        $this->assertIsInt($firstDeleteIndex);
+        $this->assertLessThan($firstDeleteIndex, $decryptIndex);
+        $this->assertSame(2, count(array_filter($operations, fn (string $operation): bool => str_starts_with($operation, 'LIST '))));
         Http::assertSent(fn (Request $request): bool => $request->method() === 'LIST'
             && $request->hasHeader('X-Vault-Token', 'retention-token'));
+        Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/decrypt/case-active'));
         Http::assertSent(fn (Request $request): bool => $request->method() === 'DELETE'
             && str_ends_with($request->url(), '/keys/case-orphan'));
         Http::assertSent(fn (Request $request): bool => $request->method() === 'DELETE'
             && str_ends_with($request->url(), '/keys/preflight-leftover'));
         Http::assertNotSent(fn (Request $request): bool => str_ends_with($request->url(), '/keys/unrelated-key'));
+    }
+
+    public function test_restore_reconciliation_never_deletes_orphans_when_an_active_ciphertext_cannot_be_decrypted(): void
+    {
+        Http::fake(function (Request $request) {
+            if ($request->method() === 'LIST') {
+                return Http::response(['data' => ['keys' => ['case-active', 'case-orphan']]]);
+            }
+
+            if (str_contains($request->url(), '/decrypt/')) {
+                return Http::response([], 500);
+            }
+
+            return Http::response([], 204);
+        });
+
+        try {
+            app(SafeguardingCaseKeyVault::class)->reconcile([
+                'case-active' => 'vault:v1:unreadable-ciphertext',
+            ]);
+            $this->fail('Restore reconciliation must fail if an active case key cannot decrypt its stored ciphertext.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('An active safeguarding case key could not decrypt its stored ciphertext.', $exception->getMessage());
+        }
+
+        Http::assertNotSent(fn (Request $request): bool => $request->method() === 'DELETE');
     }
 
     public function test_restore_reconciliation_fails_before_deleting_anything_if_an_active_key_is_missing(): void
@@ -56,7 +113,7 @@ class SafeguardingCaseKeyVaultRestoreTest extends TestCase
         ]);
 
         try {
-            app(SafeguardingCaseKeyVault::class)->reconcile(['case-active']);
+            app(SafeguardingCaseKeyVault::class)->reconcile(['case-active' => 'vault:v1:active-case-ciphertext']);
             $this->fail('Restore reconciliation must fail when an active key is absent.');
         } catch (RuntimeException $exception) {
             $this->assertSame('An active safeguarding case key is missing from the external vault.', $exception->getMessage());
