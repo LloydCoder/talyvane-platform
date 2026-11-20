@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\FeatureRegistry;
 use App\Models\User;
+use App\Models\CountryMarket;
 use App\Models\PlatformFeatureAuditEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -13,8 +14,24 @@ class PlatformFeatureRegistryTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function approveDiscoveryMarket(): void
+    {
+        CountryMarket::query()->create([
+            'country_code' => 'GB',
+            'name' => 'United Kingdom',
+            'is_enabled' => true,
+            'compliance_status' => 'approved',
+            'compliance_reviewed_at' => now(),
+            'compliance_reviewed_by' => 'test-fixture',
+            'compliance_evidence_reference' => 'feature-registry-market-evidence',
+            'compliance_review_summary' => 'Approved test market.',
+            'market_policy' => ['test_fixture' => true],
+        ]);
+    }
+
     public function test_currently_available_public_discovery_is_enabled_by_the_registry(): void
     {
+        $this->approveDiscoveryMarket();
         $this->assertDatabaseHas('platform_features', [
             'key' => 'public.discovery',
             'implementation_status' => 'available',
@@ -36,6 +53,7 @@ class PlatformFeatureRegistryTest extends TestCase
 
     public function test_available_model_agency_features_cannot_be_enabled_before_dependencies_are_enabled(): void
     {
+        $this->approveDiscoveryMarket();
         DB::table('platform_features')->where('key', 'model-agency.casting')->update([
             'is_enabled' => true,
         ]);
