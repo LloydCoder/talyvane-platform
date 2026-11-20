@@ -116,6 +116,12 @@ class CompanionMediaController extends Controller
                 404,
             );
 
+            $grantEvent = ProfileMediaConsentEvent::query()
+                ->where('profile_media_id', $lockedMedia->id)
+                ->where('action', 'members_only_consent.granted')
+                ->oldest('id')
+                ->firstOrFail();
+
             $lockedMedia->forceFill([
                 'members_only_consent_withdrawn_at' => now(),
                 'members_only_consent_withdrawn_by' => $request->user()->id,
@@ -128,9 +134,9 @@ class CompanionMediaController extends Controller
                 'actor_id' => $request->user()->id,
                 'actor_email' => $request->user()->email,
                 'action' => 'members_only_consent.withdrawn',
-                'consent_policy_version' => $lockedMedia->members_only_consent_version,
-                'consent_statement' => MembershipEntitlementCatalog::privateGalleryConsentStatement(),
-                'statement_sha256' => hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement()),
+                'consent_policy_version' => $grantEvent->consent_policy_version,
+                'consent_statement' => $grantEvent->consent_statement,
+                'statement_sha256' => $grantEvent->statement_sha256,
                 'correlation_id' => (string) Str::uuid(),
                 'created_at' => now(),
             ]);
