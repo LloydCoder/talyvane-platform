@@ -149,6 +149,17 @@ class SafeguardingCaseService
         });
     }
 
+    public function recordGovernanceView(SafeguardingCase $case, User $actor): void
+    {
+        $this->assertGovernanceActor($actor);
+        SafeguardingCaseAccessEvent::query()->create([
+            'case_id' => $case->id,
+            'actor_id' => $actor->id,
+            'action' => 'case.governance_viewed',
+            'accessed_at' => now(),
+        ]);
+    }
+
     public function placeLegalHold(SafeguardingCase $case, User $actor, string $reason): void
     {
         $this->assertGovernanceActor($actor);
