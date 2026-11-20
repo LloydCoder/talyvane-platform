@@ -60,6 +60,10 @@ class ProfileMediaTest extends TestCase
     public function test_companion_upload_is_private_pending_review_and_requires_both_attestations(): void
     {
         Storage::fake('local');
+        config([
+            'talyvane.privacy.private_gallery_consent_version' => 'private-gallery-v1',
+            'talyvane.privacy.private_gallery_consent_approved' => true,
+        ]);
         [$companion, $profile] = $this->companionWithProfile();
         $image = UploadedFile::fake()->image('portrait.jpg', 900, 1200);
 

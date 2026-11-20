@@ -15,6 +15,7 @@ use App\Services\MembershipEntitlementService;
 use App\Services\MembershipEntitlementCatalog;
 use App\Services\ClientMembershipService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use LogicException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -112,12 +113,10 @@ class MembershipEntitlementTest extends TestCase
             'file_size' => 17,
             'status' => $status,
             'access_level' => 'members_only',
-            'members_only_consent_at' => $withConsent && filled(config('talyvane.privacy.private_gallery_consent_version')) ? now() : null,
+            'members_only_consent_at' => $withConsent ? now() : null,
             'members_only_consent_version' => $withConsent ? config('talyvane.privacy.private_gallery_consent_version') : null,
             'rights_confirmed_at' => now(),
             'consent_version' => 'profile-publication-v1',
-            'members_only_consent_at' => now(),
-            'members_only_consent_version' => 'private-gallery-v1',
             'reviewed_at' => now(),
         ]);
     }
@@ -229,6 +228,29 @@ class MembershipEntitlementTest extends TestCase
 
         $this->expectException(\LogicException::class);
         $event->update(['action' => 'tampered']);
+    }
+
+    public function test_profile_media_consent_events_reject_deletions(): void
+    {
+        Storage::fake('local');
+        $this->enableEntitlements();
+        $profile = $this->profile();
+        $media = $this->privateMedia($profile);
+        $event = ProfileMediaConsentEvent::query()->create([
+            'profile_media_id' => $media->id,
+            'companion_profile_id' => $profile->id,
+            'media_reference' => 'profile-media:'.$media->id,
+            'actor_id' => $media->uploaded_by,
+            'actor_email' => 'audit-delete@example.test',
+            'action' => 'members_only_consent.granted',
+            'consent_policy_version' => 'private-gallery-v1',
+            'statement_sha256' => hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement()),
+            'correlation_id' => (string) Str::uuid(),
+            'created_at' => now(),
+        ]);
+
+        $this->expectException(LogicException::class);
+        $event->delete();
     }
 
     public function test_membership_service_rejects_non_operator_actor_even_when_called_directly(): void
