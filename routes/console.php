@@ -621,8 +621,8 @@ Artisan::command('talyvane:admin:create {email} {--role=owner}', function () {
     }
 
     $role = (string) $this->option('role');
-    if (! in_array($role, ['owner', 'admin', 'finance', 'verifier'], true)) {
-        $this->error('Role must be owner, admin, finance or verifier. Super Admin provisioning uses the dedicated bootstrap command.');
+    if (! in_array($role, ['owner', 'admin', 'finance', 'verifier', 'safeguarding'], true)) {
+        $this->error('Role must be owner, admin, finance, verifier or safeguarding. Super Admin provisioning uses the dedicated bootstrap command.');
         return 1;
     }
 
@@ -645,7 +645,7 @@ Artisan::command('talyvane:admin:create {email} {--role=owner}', function () {
     ]);
 
     $this->info(ucfirst($role).' account created. Store the credentials securely and enable MFA before remote administration.');
-})->purpose('Provision an owner, administrator, finance specialist or restricted verifier from a trusted command line');
+})->purpose('Provision an owner, administrator, finance specialist, restricted verifier or safeguarding specialist from a trusted command line');
 
 Artisan::command('talyvane:companion:create {email}', function () {
     $email = strtolower(trim((string) $this->argument('email')));

@@ -21,6 +21,26 @@
             </a>
             <p class="sidebar-caption">FINANCE WORKSPACE</p>
             <a class="sidebar-link {{ request()->routeIs('admin.model-settlements.*') ? 'active' : '' }}" href="{{ route('admin.model-settlements.index') }}">Model settlements</a>
+        @elseif (auth()->user()->role === 'verifier')
+            <a class="wordmark" href="{{ route('admin.adult-eligibility.index') }}">
+                @if (!empty($brand['logo_path']))
+                    <img class="wordmark-image" src="{{ asset('storage/' . $brand['logo_path']) }}" alt="{{ $brand['brand_name'] ?? 'Brand logo' }}">
+                @else
+                    {{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span>
+                @endif
+            </a>
+            <p class="sidebar-caption">VERIFICATION WORKSPACE</p>
+            <a class="sidebar-link {{ request()->routeIs('admin.adult-eligibility.*') ? 'active' : '' }}" href="{{ route('admin.adult-eligibility.index') }}">Adult eligibility queue</a>
+        @elseif (auth()->user()->role === 'safeguarding')
+            <a class="wordmark" href="{{ route('admin.safeguarding.cases.index') }}">
+                @if (!empty($brand['logo_path']))
+                    <img class="wordmark-image" src="{{ asset('storage/' . $brand['logo_path']) }}" alt="{{ $brand['brand_name'] ?? 'Brand logo' }}">
+                @else
+                    {{ strtoupper($brand['brand_name'] ?? 'Talyvane') }}<span>®</span>
+                @endif
+            </a>
+            <p class="sidebar-caption">SAFEGUARDING WORKSPACE</p>
+            <a class="sidebar-link {{ request()->routeIs('admin.safeguarding.cases.*') ? 'active' : '' }}" href="{{ route('admin.safeguarding.cases.index') }}">Assigned cases</a>
         @else
         <a class="wordmark" href="{{ route('admin.dashboard') }}">
             @if (!empty($brand['logo_path']))
@@ -59,6 +79,9 @@
             <a class="sidebar-link {{ request()->routeIs('admin.model-settlements.*') ? 'active' : '' }}" href="{{ route('admin.model-settlements.index') }}">Model settlements</a>
         @endif
         <a class="sidebar-link {{ request()->routeIs('admin.bookings.index') ? 'active' : '' }}" href="{{ route('admin.bookings.index') }}">Booking requests</a>
+        @if (in_array(auth()->user()->role, ['super_admin', 'owner', 'admin'], true))
+            <a class="sidebar-link {{ request()->routeIs('admin.safeguarding.reports.*') ? 'active' : '' }}" href="{{ route('admin.safeguarding.reports.create') }}">Report safeguarding concern</a>
+        @endif
 
         @endif
         <div class="sidebar-bottom">

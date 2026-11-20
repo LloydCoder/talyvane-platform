@@ -12,7 +12,7 @@ class EnsureAdminMfa
     {
         $user = $request->user();
 
-        if (! $user || ! in_array($user->role, ['super_admin', 'owner', 'admin', 'finance', 'verifier'], true)) {
+        if (! $user || ! in_array($user->role, ['super_admin', 'owner', 'admin', 'finance', 'verifier', 'safeguarding'], true)) {
             abort(403);
         }
 

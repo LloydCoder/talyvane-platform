@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\ModelTalentImageLicenceController;
 use App\Http\Controllers\Admin\ModelCastingAdminController;
 use App\Http\Controllers\Admin\ModelTalentAssignmentAdminController;
 use App\Http\Controllers\Admin\ModelTalentSettlementAdminController;
+use App\Http\Controllers\Admin\SafeguardingCaseController;
 use App\Http\Controllers\ModelAgencyApplicationController;
 use App\Http\Controllers\ModelAgencyApplicationRightsController;
 use App\Http\Controllers\AccountSecurityController;
@@ -125,7 +126,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::post('/mfa/challenge', [AdminMfaController::class, 'verifyChallenge'])->middleware('throttle:5,1')->name('mfa.challenge.verify');
     Route::post('/mfa/recovery', [AdminMfaController::class, 'verifyRecovery'])->middleware('throttle:5,1')->name('mfa.recovery.verify');
 
-    Route::middleware(['auth', 'role:super_admin,owner,admin,finance,verifier', 'admin.session-current'])->group(function (): void {
+    Route::middleware(['auth', 'role:super_admin,owner,admin,finance,verifier,safeguarding', 'admin.session-current'])->group(function (): void {
         Route::get('/mfa/setup', [AdminMfaController::class, 'setup'])->name('mfa.setup');
         Route::post('/mfa/setup', [AdminMfaController::class, 'confirmSetup'])->middleware('throttle:5,1')->name('mfa.setup.confirm');
         Route::get('/mfa/recovery-codes', [AdminMfaController::class, 'recoveryCodes'])->name('mfa.recovery-codes');
@@ -230,6 +231,18 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/bookings/{booking}/deposit', [BookingAdminController::class, 'verifyDeposit'])->name('bookings.deposit');
     });
 
+    // Safeguarding reports can be submitted by agency leadership; confidential case details are visible only to the assigned safeguarding specialist.
+    Route::middleware(['auth', 'role:super_admin,owner,admin', 'admin.session-current', 'admin.mfa'])->prefix('safeguarding/reports')->name('safeguarding.reports.')->group(function (): void {
+        Route::get('/create', [SafeguardingCaseController::class, 'create'])->name('create');
+        Route::post('/', [SafeguardingCaseController::class, 'store'])->middleware('throttle:5,1')->name('store');
+    });
+
+    Route::middleware(['auth', 'role:safeguarding', 'admin.session-current', 'admin.mfa'])->prefix('safeguarding/cases')->name('safeguarding.cases.')->group(function (): void {
+        Route::get('/', [SafeguardingCaseController::class, 'index'])->name('index');
+        Route::get('/{case}', [SafeguardingCaseController::class, 'show'])->name('show');
+        Route::patch('/{case}', [SafeguardingCaseController::class, 'update'])->middleware('throttle:10,1')->name('update');
+    });
+
     // Finance specialists are isolated to the model settlement workspace.
     Route::middleware(['auth', 'role:super_admin,owner,finance', 'admin.session-current', 'admin.mfa'])->group(function (): void {
         Route::get('/model-settlements', [ModelTalentSettlementAdminController::class, 'index'])->middleware('feature:model-agency.settlements')->name('model-settlements.index');
@@ -243,6 +256,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     });
 
     Route::post('/logout', [AdminLoginController::class, 'destroy'])
-        ->middleware(['auth', 'role:super_admin,owner,admin,finance,verifier'])
+        ->middleware(['auth', 'role:super_admin,owner,admin,finance,verifier,safeguarding'])
         ->name('logout');
 });

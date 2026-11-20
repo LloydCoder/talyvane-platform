@@ -27,6 +27,7 @@ See COMMERCIAL-LICENSING.md for the intended commercial model.
 - docs/decisions/ADR-0008-globalization.md
 - docs/decisions/ADR-0009-super-admin-control-plane.md
 - docs/SECURITY-PRIVACY.md
+- docs/SAFEGUARDING-OPERATIONS.md
 - docs/COMPLIANCE-RELEASE-GATES.md
 - docs/ROADMAP.md
 - docs/COMPETITIVE-REFERENCE.md
