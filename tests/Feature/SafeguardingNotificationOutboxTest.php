@@ -6,9 +6,11 @@ use App\Models\SafeguardingCase;
 use App\Models\User;
 use App\Notifications\SafeguardingCaseAlert;
 use App\Services\SafeguardingNotificationDispatcher;
+use App\Services\SafeguardingNotificationOutboxService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
+use RuntimeException;
 
 class SafeguardingNotificationOutboxTest extends TestCase
 {
@@ -103,6 +105,53 @@ class SafeguardingNotificationOutboxTest extends TestCase
 
         $this->assertSame(2, $sent);
         Notification::assertSentOnDemandTimes(SafeguardingCaseAlert::class, 2);
+    }
+
+    public function test_dispatcher_fails_closed_when_notifications_are_disabled(): void
+    {
+        config(['talyvane.safeguarding.emergency_contact_emails' => []]);
+        $owner = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'notify-disabled-owner@example.test',
+            'role' => 'owner',
+        ]);
+        $specialist = $this->createAdminUser([
+            'name' => 'Safeguarding Specialist',
+            'email' => 'notify-disabled-specialist@example.test',
+            'role' => 'safeguarding',
+        ]);
+        $case = $this->createCase($owner, $specialist);
+
+        config(['talyvane.safeguarding.notifications_enabled' => false]);
+        try {
+            app(SafeguardingNotificationDispatcher::class)->dispatchPending();
+            $this->fail('Disabled safeguarding notifications must not be dispatched.');
+        } catch (RuntimeException) {
+            $this->assertDatabaseHas('safeguarding_notification_outbox', [
+                'case_id' => $case->id,
+                'status' => 'pending',
+            ]);
+        }
+    }
+
+    public function test_outbox_enqueue_is_idempotent_for_the_same_case_and_recipient(): void
+    {
+        config(['talyvane.safeguarding.emergency_contact_emails' => []]);
+        $owner = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'notify-dedupe-owner@example.test',
+            'role' => 'owner',
+        ]);
+        $specialist = $this->createAdminUser([
+            'name' => 'Safeguarding Specialist',
+            'email' => 'notify-dedupe-specialist@example.test',
+            'role' => 'safeguarding',
+        ]);
+        $case = $this->createCase($owner, $specialist);
+
+        app(SafeguardingNotificationOutboxService::class)->enqueueCaseCreated($case, $specialist);
+
+        $this->assertDatabaseCount('safeguarding_notification_outbox', 1);
     }
 
     public function test_notification_dispatcher_does_not_include_case_content_in_outbox_payload(): void
