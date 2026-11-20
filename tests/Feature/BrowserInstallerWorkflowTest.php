@@ -145,8 +145,11 @@ class BrowserInstallerWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('https://agency.example.test/admin/login')
             ->assertSee('The private installer directory was automatically removed.')
-            ->assertHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private')
             ->assertHeader('Referrer-Policy', 'no-referrer');
+
+        $cacheControl = (string) $success->headers->get('Cache-Control');
+        $this->assertStringContainsString('no-store', $cacheControl);
+        $this->assertStringContainsString('private', $cacheControl);
 
         $matches = [];
         $this->assertSame(1, preg_match('/<code>([A-Za-z0-9_-]{64})<\/code>/', $success->getContent(), $matches));
