@@ -33,6 +33,22 @@ class InstallerPreflightTest extends TestCase
             ->assertSee('Session storage is writable');
     }
 
+    public function test_preflight_rejects_private_application_files_inside_public_document_root(): void
+    {
+        config(['talyvane.installer.enforce' => false]);
+
+        $privateDirectory = public_path('vendor');
+        mkdir($privateDirectory, 0700, true);
+
+        try {
+            $this->get('/install')
+                ->assertOk()
+                ->assertSee('Document root is isolated and serves only public files');
+        } finally {
+            @rmdir($privateDirectory);
+        }
+    }
+
     public function test_preflight_rejects_symlinked_session_storage(): void
     {
         config(['talyvane.installer.enforce' => false]);
