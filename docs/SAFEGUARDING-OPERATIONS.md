@@ -68,7 +68,7 @@ Assignment notices go to the assigned active safeguarding specialist. Critical c
 
 Outbound email contains only the opaque case reference, category, severity and an authenticated internal link. It does not include summary, narrative, applicant contact details, identity-document data or evidence. The recipient must sign in with their own account and complete MFA. Emergency contacts without an account receive no case-content access from the email.
 
-The outbox encrypts stored recipient email addresses, uses a keyed recipient fingerprint for deduplication, retries transient failures with bounded exponential backoff, and marks a stuck processing claim eligible for recovery after 15 minutes. It records only the exception class as a failure code, not raw SMTP error text. Delivery is not guaranteed; operators must monitor failed notices and maintain an independent emergency response path.
+The outbox encrypts stored recipient email addresses, uses a keyed recipient fingerprint for deduplication, clears an emergency contact address after successful delivery, retries transient failures with bounded exponential backoff, and marks a stuck processing claim eligible for recovery after 15 minutes. It records only the exception class as a failure code, not raw SMTP error text. Delivery is at-least-once: a process crash after the mail provider accepts a message but before the outbox is acknowledged can produce a duplicate. Delivery is not guaranteed; operators must monitor failed notices and maintain an independent emergency response path.
 
 The current implementation provides email only. SMS, Telegram, provider webhooks, delivery receipts, on-call rotations and independent response drills remain separate work.
 
