@@ -7,7 +7,7 @@ DirectoryIndex index.php
     # If the project root is accidentally configured as the document root,
     # block direct requests into private source and runtime directories.
     RewriteCond %{DOCUMENT_ROOT}/.env -f
-    RewriteRule ^(?:app|bootstrap|config|database|docs|install|resources|routes|storage|vendor|cpanel-public-root|tests|public)(?:/|$) - [F,L,NC]
+    RewriteRule ^(?:\\.git|\\.github|app|bootstrap|config|database|docs|install|resources|routes|storage|vendor|cpanel-public-root|tests|public)(?:/|$) - [F,L,NC]
 
     # Refuse document roots that point into private application/runtime trees.
     # The supported in-project document root is exactly the application's public/ directory.
