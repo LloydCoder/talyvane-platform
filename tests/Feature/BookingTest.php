@@ -69,6 +69,19 @@ class BookingTest extends TestCase
             'compliance_evidence_reference' => null,
             'compliance_review_summary' => null,
         ]);
+        $otherDestination = Destination::create([
+            'name' => 'Paris',
+            'slug' => 'paris',
+            'country_code' => 'FR',
+            'country_name' => 'France',
+            'city_name' => 'Paris',
+            'currency_code' => 'EUR',
+            'locale' => 'fr',
+            'timezone' => 'Europe/Paris',
+            'is_active' => true,
+        ]);
+        $this->approveCountryMarket($otherDestination);
+
         BookingSetting::create(['booking_mode' => 'manual']);
 
         $this->actingAs($client)
