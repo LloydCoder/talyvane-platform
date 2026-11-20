@@ -77,6 +77,10 @@ class SafeguardingCaseKeyVault
             'deletion_allowed' => true,
         ]);
 
+        if ($configResponse->status() === 404) {
+            return;
+        }
+
         if (! $configResponse->successful()) {
             throw new RuntimeException('External safeguarding key deletion could not be authorized.');
         }
