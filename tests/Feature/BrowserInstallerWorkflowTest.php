@@ -1,0 +1,165 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Install\EnvironmentWriter;
+use App\Install\InstallationDirectoryRemover;
+use App\Install\InstallationLock;
+use App\Models\User;
+use App\Notifications\SuperAdminEmailVerificationCode;
+use App\Services\RecoveryCodeGenerator;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\File;
+use Tests\TestCase;
+
+class BrowserInstallerWorkflowTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private string $temporaryRoot;
+    private string $databasePath;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->temporaryRoot = sys_get_temp_dir().'/talyvane-installer-'.bin2hex(random_bytes(6));
+        File::ensureDirectoryExists($this->temporaryRoot, 0700, true);
+
+        $environmentRoot = $this->temporaryRoot.'/environment';
+        File::ensureDirectoryExists($environmentRoot, 0700, true);
+        file_put_contents($environmentRoot.'/.env', 'APP_KEY='.config('app.key').PHP_EOL);
+
+        $this->databasePath = $this->temporaryRoot.'/installer.sqlite';
+        touch($this->databasePath);
+        $sqlite = config('database.connections.sqlite');
+        $sqlite['database'] = $this->databasePath;
+        config([
+            'database.default' => 'mysql',
+            'database.connections.mysql' => $sqlite,
+            'app.env' => 'production',
+            'app.debug' => false,
+            'app.url' => 'https://agency.example.test',
+            'talyvane.installer.enforce' => false,
+            'session.driver' => 'file',
+            'session.encrypt' => true,
+            'session.secure' => true,
+            'session.http_only' => true,
+            'session.same_site' => 'lax',
+            'cache.default' => 'file',
+            'queue.default' => 'sync',
+        ]);
+        DB::purge('mysql');
+
+        app()->instance(EnvironmentWriter::class, new EnvironmentWriter($environmentRoot));
+
+        $packageRoot = $this->temporaryRoot.'/package';
+        $installerDirectory = $packageRoot.'/install';
+        File::ensureDirectoryExists($installerDirectory, 0700, true);
+        file_put_contents($installerDirectory.'/bootstrap.php', '<?php');
+        file_put_contents($installerDirectory.'/.htaccess', 'Require all denied');
+        file_put_contents($installerDirectory.'/README.md', 'Private installer directory');
+        file_put_contents($installerDirectory.'/RELEASE-MANIFEST.json', '{}');
+        app()->instance(InstallationDirectoryRemover::class, new InstallationDirectoryRemover($packageRoot));
+
+        $this->withServerVariables([
+            'HTTPS' => 'on',
+            'HTTP_HOST' => 'agency.example.test',
+            'SERVER_PORT' => 443,
+            'DOCUMENT_ROOT' => realpath(public_path()),
+        ]);
+
+        Notification::fake();
+        $this->mock(RecoveryCodeGenerator::class, fn ($mock) => $mock->shouldReceive('generate')->twice()->andReturn('111111', '222222'));
+    }
+
+    protected function tearDown(): void
+    {
+        @unlink(storage_path('app/private/talyvane.install.lock'));
+        DB::disconnect('mysql');
+        File::deleteDirectory($this->temporaryRoot);
+
+        parent::tearDown();
+    }
+
+    public function test_browser_install_verifies_emails_creates_lock_shows_password_once_and_enforces_first_login_change(): void
+    {
+        $this->post('/install', [
+            'app_name' => 'Talyvane Agency',
+            'app_url' => 'https://agency.example.test',
+            'db_host' => 'localhost',
+            'db_port' => 3306,
+            'db_database' => 'talyvane_test',
+            'db_username' => 'talyvane',
+            'db_password' => 'test-database-password',
+            'mail_scheme' => 'smtp',
+            'mail_host' => 'smtp.example.test',
+            'mail_port' => 587,
+            'mail_username' => 'installer@example.test',
+            'mail_password' => 'test-mail-password',
+            'mail_from_address' => 'installer@example.test',
+            'mail_from_name' => 'Talyvane Agency',
+            'admin_name' => 'Deployment Super Admin',
+            'admin_email' => 'admin@example.test',
+            'recovery_email' => 'recovery@example.test',
+        ])->assertRedirect('/install/verify');
+
+        Notification::assertSentOnDemandTimes(SuperAdminEmailVerificationCode::class, 2);
+
+        $this->post('/install/verify', [
+            'primary_code' => '111111',
+            'recovery_code' => '222222',
+        ])->assertRedirect('/install/success');
+
+        $admin = User::query()->where('email', 'admin@example.test')->firstOrFail();
+        $this->assertNotNull($admin->must_change_password_at);
+
+        $control = DB::table('platform_control')->where('id', 1)->first();
+        $this->assertSame($admin->id, $control->super_admin_user_id);
+        $this->assertNotNull($control->installation_id);
+        $this->assertNotNull($control->installation_completed_at);
+        $this->assertTrue((new InstallationLock(base_path(), (string) config('app.key')))->verify(
+            $control->installation_id,
+            $control->installation_lock_hash
+        ));
+
+        $recoveryKey = Crypt::decryptString($control->super_admin_recovery_key_handoff);
+        $this->assertNotSame($recoveryKey, $control->super_admin_recovery_key_hash);
+
+        $success = $this->get('/install/success')
+            ->assertOk()
+            ->assertSee('https://agency.example.test/admin/login')
+            ->assertSee('The private installer directory was automatically removed.')
+            ->assertHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+            ->assertHeader('Referrer-Policy', 'no-referrer');
+
+        $matches = [];
+        $this->assertSame(1, preg_match('/<code>([A-Za-z0-9_-]{64})<\/code>/', $success->getContent(), $matches));
+        $initialPassword = $matches[1];
+        $this->assertTrue(Hash::check($initialPassword, $admin->fresh()->password));
+        $this->assertStringNotContainsString($recoveryKey, $success->getContent());
+
+        $this->assertDirectoryDoesNotExist($this->temporaryRoot.'/package/install');
+        $this->get('/install/success')->assertNotFound();
+        $this->get('/install')->assertNotFound();
+        $this->get('/admin/login')->assertOk();
+
+        $this->post('/admin/login', [
+            'email' => 'admin@example.test',
+            'password' => $initialPassword,
+        ])->assertRedirect('/admin/first-login/password');
+
+        $this->post('/admin/first-login/password', [
+            'password' => 'New-Strong-Password-934!',
+            'password_confirmation' => 'New-Strong-Password-934!',
+        ])->assertRedirect('/admin/mfa/setup');
+
+        $this->assertAuthenticatedAs($admin);
+        $this->assertNull($admin->fresh()->must_change_password_at);
+        $this->assertTrue(Hash::check('New-Strong-Password-934!', $admin->fresh()->password));
+    }
+}

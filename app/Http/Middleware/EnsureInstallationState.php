@@ -43,9 +43,11 @@ final class EnsureInstallationState
                 return $next($request);
             }
 
-            if ($request->is('install/success')
-                && $request->session()->has('install.success.handoff')
-                && $this->lockMatchesDatabase($lock)) {
+            if (! $this->lockMatchesDatabase($lock)) {
+                abort(503, 'The installation lock could not be verified. Public installation is disabled.');
+            }
+
+            if ($request->is('install/success')) {
                 return $next($request);
             }
 

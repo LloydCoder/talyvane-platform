@@ -33,7 +33,9 @@
         <label>Deployment name<input name="app_name" required maxlength="80" value="{{ old('app_name', 'Talyvane') }}"></label>
         <label>Canonical HTTPS URL<input type="url" name="app_url" required placeholder="https://agency.example.com" value="{{ old('app_url') }}"></label>
 
-        <h2>Database (MySQL / MariaDB)</h2>
+        <p class="admin-muted"><strong>Database safety:</strong> use a new, empty database. Do not point first-time installation at another live application's database. A partially completed Talyvane migration can be resumed safely.</p>
+
+    <h2>Database (MySQL / MariaDB)</h2>
         <label>Database host<input name="db_host" required maxlength="255" value="{{ old('db_host', 'localhost') }}"></label>
         <label>Database port<input type="number" name="db_port" required min="1" max="65535" value="{{ old('db_port', 3306) }}"></label>
         <label>Database name<input name="db_database" required maxlength="64" value="{{ old('db_database') }}"></label>

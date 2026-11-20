@@ -23,7 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.session-current' => EnsureAdminSessionCurrent::class,
             'feature' => EnsurePlatformFeatureEnabled::class,
         ]);
-        $middleware->web(append: [EnsureInstallationState::class]);
+        $middleware->web(prepend: [EnsureInstallationState::class]);
         $middleware->redirectGuestsTo(fn (Request $request): string => $request->is('admin') || $request->is('admin/*') ? '/admin/login' : '/login');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
