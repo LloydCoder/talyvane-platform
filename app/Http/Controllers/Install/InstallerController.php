@@ -189,6 +189,10 @@ final class InstallerController
 
         $installerStartedAt = filter_var($request->session()->get('installer.started_at'), FILTER_VALIDATE_INT);
         if ($installerStartedAt === false || $installerStartedAt === null || $installerStartedAt < time() - 900) {
+            $pendingNonce = $request->session()->get('installer.pending_nonce');
+            if (is_string($pendingNonce)) {
+                $pendingState->release($pendingNonce);
+            }
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
@@ -377,6 +381,10 @@ final class InstallerController
 
         $installerStartedAt = filter_var($request->session()->get('installer.started_at'), FILTER_VALIDATE_INT);
         if ($installerStartedAt === false || $installerStartedAt === null || $installerStartedAt < time() - 900) {
+            $pendingNonce = $request->session()->get('installer.pending_nonce');
+            if (is_string($pendingNonce)) {
+                $pendingState->release($pendingNonce);
+            }
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
