@@ -23,6 +23,7 @@ class PlatformFeatureController
         $features = $registry->catalog();
 
         $features->each(function (PlatformFeature $feature) use ($evaluator): void {
+            $feature->setAttribute('hard_safeguard', HardSafeguards::contains($feature->key));
             $feature->setAttribute('activation_blockers', $evaluator->blockers($feature));
             $feature->setAttribute('impact_summary', $evaluator->impactSummary($feature));
         });
@@ -36,6 +37,8 @@ class PlatformFeatureController
         FeatureActivationEvaluator $evaluator,
         TotpService $totp,
     ): RedirectResponse {
+        abort_if(HardSafeguards::contains($feature->key), 403, HardSafeguards::blocker());
+
         $validated = $request->validate([
             'enabled' => ['required', 'boolean'],
             'reason' => ['required', 'string', 'min:20', 'max:500'],
