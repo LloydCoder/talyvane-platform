@@ -33,7 +33,7 @@ class SafeguardingCaseKeyVault
 
     public function createKey(string $keyName): void
     {
-        $this->assertKeyName($keyName);
+        $this->assertKeyName($keyName, false);
         $this->assertDistinctRetentionCredential();
 
         $response = $this->client()->post($this->path('keys/'.$keyName), [
@@ -294,11 +294,13 @@ class SafeguardingCaseKeyVault
         }
     }
 
-    private function assertKeyName(string $keyName): void
+    private function assertKeyName(string $keyName, bool $allowLegacy = true): void
     {
         $uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
         $namespace = preg_quote($this->keyNamespace(), '/');
-        $valid = preg_match('/^(?:case-'.$namespace.'-'.$uuid.'|preflight-'.$namespace.'-'.$uuid.'|case-'.$uuid.'|preflight-'.$uuid.')$/', $keyName);
+        $currentNamespace = preg_match('/^(?:case-'.$namespace.'-'.$uuid.'|preflight-'.$namespace.'-'.$uuid.')$/', $keyName);
+        $legacyNamespace = $allowLegacy ? preg_match('/^(?:case-'.$uuid.'|preflight-'.$uuid.')$/', $keyName) : false;
+        $valid = $currentNamespace || $legacyNamespace;
 
         if (! $valid) {
             throw new RuntimeException('External safeguarding key reference is invalid or belongs to another deployment.');
