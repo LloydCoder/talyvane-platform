@@ -94,7 +94,7 @@ class BrowserInstallerWorkflowTest extends TestCase
             'app_url' => 'https://agency.example.test',
             'db_host' => 'localhost',
             'db_port' => 3306,
-            'db_database' => 'talyvane_test',
+            'db_database' => $this->databasePath,
             'db_username' => 'talyvane',
             'db_password' => 'test-database-password',
             'mail_scheme' => 'smtp',
