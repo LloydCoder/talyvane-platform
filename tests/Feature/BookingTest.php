@@ -82,6 +82,30 @@ class BookingTest extends TestCase
         $this->assertDatabaseCount('bookings', 0);
     }
 
+    public function test_existing_booking_can_be_cancelled_when_new_booking_and_client_portal_features_are_paused(): void
+    {
+        $client = $this->client();
+        $profile = $this->profile();
+        BookingSetting::create(['booking_mode' => 'manual', 'auto_confirm_enabled' => false]);
+
+        $this->actingAs($client)->post('/bookings', [
+            'profile_id' => $profile->id,
+            'start_at' => now()->addDays(3)->setTimezone('Europe/London')->format('Y-m-d\\TH:i'),
+            'duration_minutes' => 60,
+        ])->assertRedirect('/portal');
+
+        $booking = Booking::query()->firstOrFail();
+        \\Illuminate\\Support\\Facades\\DB::table('platform_features')
+            ->whereIn('key', ['portals.client', 'bookings.companionship'])
+            ->update(['is_enabled' => false]);
+
+        $this->actingAs($client)
+            ->post('/bookings/'.$booking->id.'/cancel')
+            ->assertRedirect('/portal');
+
+        $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'status' => 'cancelled']);
+    }
+
     public function test_manual_booking_creates_a_pending_review_request(): void
     {
         $client = $this->client();
