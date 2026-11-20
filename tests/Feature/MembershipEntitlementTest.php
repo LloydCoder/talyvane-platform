@@ -190,7 +190,41 @@ class MembershipEntitlementTest extends TestCase
             ->assertDontSee(route('profile-media.show', $media), false);
     }
 
-    public function test_membership_entitlements_feature_is_not_effectively_enabled_without_its_verified_runtime_gate(): void
+    public function test_admin_assignment_records_entitlement_grants_in_the_membership_audit_snapshot(): void
+    {
+        $this->enableEntitlements();
+        $client = $this->client();
+        $admin = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'membership-admin@example.test',
+            'role' => 'owner',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.clients.membership', $client), [
+                'tier_name' => 'Signature',
+                'benefits_summary' => 'Private gallery access.',
+                'status' => 'active',
+                'starts_at' => now()->format('Y-m-d'),
+                'entitlements' => ['media.private_gallery'],
+            ])
+            ->assertRedirect(route('admin.clients.index'));
+
+        $membership = ClientMembership::query()->where('user_id', $client->id)->firstOrFail();
+        $this->assertDatabaseHas('client_membership_entitlements', [
+            'membership_id' => $membership->id,
+            'entitlement_key' => 'media.private_gallery',
+            'granted_by' => $admin->id,
+        ]);
+
+        $event = \\App\\Models\\ClientMembershipEvent::query()
+            ->where('membership_id', $membership->id)
+            ->firstOrFail();
+
+        $this->assertSame(['media.private_gallery'], $event->after_state['entitlements']);
+    }
+
+    public function test_membership_entitlements_feature_becomes_operational_only_after_the_runtime_gate_is_present(): void
     {
         DB::table('platform_features')->where('key', 'memberships.entitlements')->update([
             'implementation_status' => 'available',
