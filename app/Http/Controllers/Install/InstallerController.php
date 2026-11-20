@@ -38,6 +38,7 @@ final class InstallerController
 
     private function preflightChecks(Request $request, InstallerAccessToken $accessToken): array
     {
+        $gdInfo = function_exists('gd_info') ? gd_info() : [];
         $root = realpath(base_path());
         $public = realpath(public_path());
         $documentRoot = realpath((string) $request->server('DOCUMENT_ROOT', ''));
@@ -49,13 +50,23 @@ final class InstallerController
         return [
             'PHP 8.3 or later' => version_compare(PHP_VERSION, '8.3.0', '>='),
             'Required PHP extensions' => count(array_filter($extensions, 'extension_loaded')) === count($extensions),
+            'GD WebP image support' => ($gdInfo['WebP Support'] ?? false) === true,
             'HTTPS request' => $request->isSecure(),
             'Document root serves public/' => $rootIsPrivate && $public !== false && $documentRoot === $public,
             'Private application storage is writable' => is_dir(storage_path('app/private'))
                 && ! is_link(storage_path('app/private'))
                 && is_writable(storage_path())
                 && is_writable(storage_path('app/private')),
-            'Framework cache is writable' => is_writable(base_path('bootstrap/cache')),
+            'Session storage is writable' => is_dir(storage_path('framework/sessions'))
+                && is_writable(storage_path('framework/sessions')),
+            'Framework cache storage is writable' => is_dir(storage_path('framework/cache'))
+                && is_writable(storage_path('framework/cache')),
+            'Compiled view storage is writable' => is_dir(storage_path('framework/views'))
+                && is_writable(storage_path('framework/views')),
+            'Application log storage is writable' => is_dir(storage_path('logs'))
+                && is_writable(storage_path('logs')),
+            'Framework cache is writable' => is_dir(base_path('bootstrap/cache'))
+                && is_writable(base_path('bootstrap/cache')),
             'Unique application key is initialized' => is_string(config('app.key')) && config('app.key') !== '',
             'Production environment is enabled' => config('app.env') === 'production',
             'Production debug mode is disabled' => config('app.debug') === false,
