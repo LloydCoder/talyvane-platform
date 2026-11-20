@@ -11,6 +11,7 @@ class SafeguardingCaseKeyVault
     public function createKey(string $keyName): void
     {
         $this->assertKeyName($keyName);
+        $this->assertDistinctRetentionCredential();
 
         $response = $this->client()->post($this->path('keys/'.$keyName), [
             'type' => 'aes256-gcm96',
@@ -66,11 +67,7 @@ class SafeguardingCaseKeyVault
     {
         $this->assertKeyName($keyName);
         $retentionToken = trim((string) config('services.safeguarding_vault.retention_token'));
-        $applicationToken = trim((string) config('services.safeguarding_vault.token'));
-
-        if ($retentionToken === '' || $applicationToken === '' || hash_equals($applicationToken, $retentionToken)) {
-            throw new RuntimeException('A distinct external safeguarding retention credential is required for key destruction.');
-        }
+        $this->assertDistinctRetentionCredential();
 
         $client = $this->client($retentionToken);
         $configResponse = $client->post($this->path('keys/'.$keyName.'/config'), [
@@ -121,6 +118,16 @@ class SafeguardingCaseKeyVault
         $mount = trim((string) config('services.safeguarding_vault.mount', 'transit'), '/');
 
         return '/v1/'.$mount.'/'.$operation;
+    }
+
+    private function assertDistinctRetentionCredential(): void
+    {
+        $retentionToken = trim((string) config('services.safeguarding_vault.retention_token'));
+        $applicationToken = trim((string) config('services.safeguarding_vault.token'));
+
+        if ($retentionToken === '' || $applicationToken === '' || hash_equals($applicationToken, $retentionToken)) {
+            throw new RuntimeException('A distinct external safeguarding retention credential is required.');
+        }
     }
 
     private function assertKeyName(string $keyName): void
