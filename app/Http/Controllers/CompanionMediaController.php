@@ -130,6 +130,7 @@ class CompanionMediaController extends Controller
             $grantEvent = ProfileMediaConsentEvent::query()
                 ->where('profile_media_id', $lockedMedia->id)
                 ->where('action', 'members_only_consent.granted')
+                ->where('capture_method', 'authenticated_companion_portal_checkbox')
                 ->oldest('id')
                 ->firstOrFail();
 
