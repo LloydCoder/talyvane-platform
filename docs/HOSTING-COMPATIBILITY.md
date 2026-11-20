@@ -19,7 +19,7 @@ A hosting account is **compatible** only when every required check in this docum
 | Web server | Apache/LiteSpeed with PHP support and rewrite rules; Nginx-backed cPanel is acceptable only when provider routing is configured correctly |
 | TLS | Valid HTTPS certificate for the deployment hostname |
 | Writable paths | `storage/` and `bootstrap/cache/` writable by the PHP runtime without world-writable permissions |
-| Web root | Domain document root points to Laravel's `public/`; application source, `.env`, `vendor/`, logs and backups remain outside public web access |
+| Web root | Domain document root serves only Laravel public assets and a guarded front controller; use the direct `public/` root or the reviewed cPanel `public_html` wrapper. The full application source, `.env`, `vendor/`, private storage, logs and backups remain outside the document root |
 | Disk / memory | Sufficient for the release package, private uploads, logs, backups and PHP memory limits; actual quota must be checked per deployment |
 
 GD WebP support is required by the current profile-media pipeline. A host with GD but without WebP encoding is not compatible with that feature; do not silently store original uploads or skip metadata removal.
@@ -42,7 +42,7 @@ Email delivery depends on a configured SMTP provider and outbound network policy
 Preferred. Install dependencies on the host or upload a reproducible release artifact; run Artisan migrations and cache commands through CLI; use cron for the scheduler and optional database queue draining.
 
 ### Tier B — cPanel File Manager, no SSH/Composer, cron available
-Supported only with a prebuilt, versioned release artifact containing production dependencies and compiled assets. Database migrations and first Super Admin provisioning must use a separately documented, authenticated installation process or a carefully prepared release-specific SQL import. Never expose an unrestricted Artisan runner or public setup endpoint. This tier is not fully supported until the safe browser installer and migration workflow are implemented and tested.
+The implementation is in PR #60 and remains pre-release until the full PHP matrix, security tests and standalone package smoke tests pass and a tagged release is published. After that release gate, this tier uses the prebuilt artifact, private application root, reviewed main-domain/add-on-domain public-root wrapper, and constrained browser installer. Until then, Tier B first installation remains unsupported. Never expose an unrestricted Artisan runner or public setup endpoint.
 
 ### Tier C — no SSH, no Composer, no cron
 Limited compatibility. The site can serve synchronous requests if all prerequisites are prebuilt, but scheduled reminders, expiry, cleanup, queue processing and recurring integrations will not run automatically. The UI must disclose disabled operational capabilities. Do not certify as fully operational for production until a reliable provider scheduler or equivalent is available.
@@ -58,7 +58,7 @@ A deployment is compatible only after:
 - [ ] GD reports WebP encoding support.
 - [ ] Database connection, migrations, transactions, indexes and foreign keys pass.
 - [ ] HTTPS and secure cookie behavior work behind the provider's proxy.
-- [ ] Only Laravel `public/` is web-accessible.
+- [ ] Only Laravel public assets and the reviewed front controller are web-accessible; the complete application root is outside the document root.
 - [ ] Requests to `.env`, source files, `vendor/`, logs, backups and private uploads are denied.
 - [ ] `storage/` and `bootstrap/cache/` are writable by the application without 0777.
 - [ ] Upload limits, PHP memory, execution time and disk quota are sufficient.
