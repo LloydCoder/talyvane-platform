@@ -71,7 +71,7 @@ class SecretManagementController
 
         $record->forceFill([
             'vault_path' => $vaultPath,
-            'status' => 'pending',
+            'status' => $wasConfigured ? 'configured' : 'pending',
             'configured_by' => $actorId,
         ])->save();
 
@@ -81,8 +81,10 @@ class SecretManagementController
             $expectedVersion = $vault->currentVersion($secretKey);
             $version = $vault->write($secretKey, $validated['secret_value'], $expectedVersion);
         } catch (Throwable) {
-            DB::transaction(function () use ($secretKey, $actorId, $validated): void {
-                PlatformSecret::query()->where('secret_key', $secretKey)->lockForUpdate()->update(['status' => 'error']);
+            DB::transaction(function () use ($secretKey, $actorId, $validated, $wasConfigured): void {
+                if (! $wasConfigured) {
+                    PlatformSecret::query()->where('secret_key', $secretKey)->lockForUpdate()->update(['status' => 'error']);
+                }
                 $this->appendAudit($secretKey, $actorId, 'secret.write_failed', null, $validated['reason']);
             });
 
