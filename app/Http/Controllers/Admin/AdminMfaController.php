@@ -131,6 +131,8 @@ class AdminMfaController
             });
         }
 
+        $request->session()->forget('mfa_recovery_codes');
+
         return view('admin.auth.mfa-recovery', ['codes' => $codes, 'recoveryKey' => $recoveryKey]);
     }
 
