@@ -29,6 +29,22 @@ return new class extends Migration
             $table->foreignId('members_only_consent_withdrawn_by')->nullable()->constrained('users')->nullOnDelete();
         });
 
+        Schema::create('profile_media_consent_events', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('profile_media_id')->nullable()->constrained('profile_media')->nullOnDelete();
+            $table->foreignId('companion_profile_id')->nullable()->constrained('companion_profiles')->nullOnDelete();
+            $table->string('media_reference', 80);
+            $table->foreignId('actor_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('actor_email', 254);
+            $table->string('action', 32);
+            $table->string('consent_policy_version', 80);
+            $table->char('statement_sha256', 64);
+            $table->uuid('correlation_id');
+            $table->timestamp('created_at')->useCurrent();
+            $table->index(['profile_media_id', 'created_at']);
+            $table->index(['media_reference', 'created_at']);
+        });
+
         DB::table('platform_features')
             ->where('key', 'memberships.entitlements')
             ->update([
@@ -42,6 +58,8 @@ return new class extends Migration
 
     public function down(): void
     {
+        Schema::dropIfExists('profile_media_consent_events');
+
         DB::table('platform_features')
             ->where('key', 'memberships.entitlements')
             ->update([
