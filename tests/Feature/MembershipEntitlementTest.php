@@ -158,6 +158,7 @@ class MembershipEntitlementTest extends TestCase
 
     public function test_only_a_current_active_membership_with_a_current_grant_has_an_entitlement(): void
     {
+        $this->enableEntitlements();
         $client = $this->client();
         $membership = $this->membership($client);
         $this->grantPrivateGallery($membership);
