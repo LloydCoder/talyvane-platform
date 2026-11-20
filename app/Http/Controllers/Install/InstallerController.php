@@ -47,7 +47,6 @@ final class InstallerController
 
         return view('install.index', [
             'checks' => $checks,
-            'installerToken' => trim((string) file_get_contents($accessToken->path())),
             'ready' => ! in_array(false, $checks, true),
         ]);
     }
