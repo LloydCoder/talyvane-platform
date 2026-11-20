@@ -359,8 +359,8 @@ class ModelTalentSettlementTest extends TestCase
         try {
             app(ModelTalentSettlementService::class)->createDraft($context['assignment'], $context['admin']->id);
             $this->fail('Settlement creation must stop when policy approval is withdrawn.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('settlement', $exception->errors());
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            $this->assertSame(503, $exception->getStatusCode());
         }
 
         config(['talyvane.model_agency.settlement_policy_approved' => true]);
