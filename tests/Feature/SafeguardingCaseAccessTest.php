@@ -136,7 +136,7 @@ class SafeguardingCaseAccessTest extends TestCase
             'password' => 'Strong-Testing-Password-934!',
         ])->assertRedirect('/admin/mfa/challenge');
 
-        $this->assertSessionHas('pending_admin_mfa_user_id', $specialist->id);
+        $this->assertSame($specialist->id, session('pending_admin_mfa_user_id'));
     }
 
     public function test_safeguarding_specialist_cannot_access_other_admin_workspaces(): void
