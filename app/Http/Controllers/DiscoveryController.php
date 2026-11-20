@@ -97,7 +97,7 @@ class DiscoveryController extends Controller
             ->publiclyDiscoverable()
             ->with(['destination', 'media' => fn ($query) => $query
                 ->where('status', 'approved')
-                ->where(function ($media) use ($canViewPrivateGallery): void {
+                ->where(function ($media) use ($canViewPrivateGallery, $expectedConsentStatement): void {
                     $media->where('access_level', 'public');
                     if ($canViewPrivateGallery) {
                         $media->orWhere(function ($privateMedia): void {
