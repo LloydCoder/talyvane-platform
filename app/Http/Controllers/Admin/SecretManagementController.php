@@ -159,7 +159,7 @@ class SecretManagementController
                 ]);
             }
 
-            DB::transaction(function () use ($secretKey, $actorId, $validated): void {
+            DB::transaction(function () use ($secretKey, $actorId, $validated, $correlationId): void {
                 $record = PlatformSecret::query()->where('secret_key', $secretKey)->lockForUpdate()->firstOrFail();
                 $record->forceFill([
                     'status' => 'cleared',
