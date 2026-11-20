@@ -30,10 +30,10 @@ Current catalog entries include SMTP password, transactional email API key, cale
 2. Set or rotate by entering the new value, a meaningful operational reason, the current password and a fresh TOTP code.
 3. The application writes the value to Vault using compare-and-set against the current metadata version.
 4. Only metadata, Vault version, actor, timestamp and an audit event are stored locally.
-5. The UI never displays or repopulates the value. The application exception handler excludes the secret field from flashed validation input.
+5. The UI never displays or repopulates the value. The application exception handler excludes the secret field from flashed validation input. The application exception handler excludes the secret field from flashed validation input.
 6. Clear permanently deletes the KV v2 metadata path and all stored versions. This is irreversible.
 
-A per-secret cache lock serializes concurrent writes and clears. Multi-node deployments must use a shared lock-capable cache backend. Runtime adapters must use `PlatformSecretResolver`, which requires configured metadata and retrieves the exact recorded Vault version. Never call it from a controller, Blade view, API response or logging path.
+A per-secret cache lock serializes concurrent writes and clears. Multi-node deployments must use a shared lock-capable cache backend. A per-secret cache lock serializes concurrent writes and clears. Multi-node deployments must use a shared lock-capable cache backend. Runtime adapters must use `PlatformSecretResolver`, which requires configured metadata and retrieves the exact recorded Vault version. Never call it from a controller, Blade view, API response or logging path.
 
 ## Failure and recovery
 
