@@ -8,7 +8,7 @@ Ask the provider to confirm:
 - PHP 8.3 or later for both the website and CLI.
 - Required PHP extensions listed in [HOSTING-COMPATIBILITY.md](HOSTING-COMPATIBILITY.md), including GD with WebP support and PDO MySQL.
 - MySQL or supported MariaDB, database creation privileges and phpMyAdmin access.
-- Ability to set the domain document root to a folder named `public`, preferably outside `public_html`.
+- Ability to set the domain document root to the exact `public/` directory of an application root that remains outside the web document root. Confirm this with the provider before purchase; many cPanel plans restrict add-on domain document roots to `public_html` and do not allow the main domain document root to be changed.
 - HTTPS, adequate disk quota, PHP memory/upload limits and writable application storage.
 - SSH/Terminal, Composer and cron availability (strongly recommended).
 
@@ -55,9 +55,9 @@ Preferred layout:
   public_html/            # only if this domain's document root is public_html
 ```
 
-Preferred option: configure the domain or subdomain document root to `/home/CPANEL_USER/talyvane-app/public`. This keeps application code, dependencies, environment variables and private storage outside the web root.
+Configure the domain or subdomain document root to `/home/CPANEL_USER/talyvane-app/public` (or the equivalent absolute path). This keeps application code, dependencies, environment variables and private storage outside the web root. The installer verifies that the document root resolves to the release's `public/` directory and rejects unsafe layouts.
 
-If the provider cannot change the document root, use only a release-supported public front-controller arrangement that keeps the entire application directory outside `public_html` and changes the front-controller paths to the private application directory. Do not copy the Laravel source, `.env`, `vendor/`, `storage/` or backups into `public_html`. If the host cannot safely serve only the public front controller, it is incompatible.
+Do not copy the Laravel source, `.env`, `vendor/`, `storage/`, the private `install/` directory or backups into `public_html`. Do not use an unreviewed wrapper or manually rewrite front-controller paths. If the provider cannot serve the release's `public/` directory while keeping the application root outside the document root, the host is incompatible with this release.
 
 ## 5. Configure production environment
 
