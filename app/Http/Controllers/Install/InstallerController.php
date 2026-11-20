@@ -340,17 +340,57 @@ final class InstallerController
             DB::connection('mysql')->select('SELECT 1');
 
             $stage = 'database preflight';
-            $tables = DB::connection('mysql')->getSchemaBuilder()->getTableListing();
-            $schema = DB::connection('mysql')->getSchemaBuilder();
+            $connection = DB::connection('mysql');
+            $schema = $connection->getSchemaBuilder();
+            $tables = $schema->getTableListing();
             $hasPlatformControl = $schema->hasTable('platform_control');
             $hasMigrations = $schema->hasTable('migrations');
 
-            if (count($tables) > 0 && (! $hasPlatformControl || ! $hasMigrations)) {
-                throw new RuntimeException('The selected database is not empty or an interrupted Talyvane installation.');
+            if ($tables !== []) {
+                if (! $hasPlatformControl || ! $hasMigrations) {
+                    throw new RuntimeException('The selected database is not empty or an interrupted Talyvane installation.');
+                }
+
+                // A pair of familiar table names is not proof that this is a
+                // Talyvane database. Require known migration history and reject
+                // any table that is not declared by this release's migrations.
+                $migrationFiles = glob(database_path('migrations/*.php')) ?: [];
+                $knownMigrations = array_fill_keys(array_map(
+                    static fn (string $path): string => basename($path, '.php'),
+                    $migrationFiles,
+                ), true);
+                $appliedMigrations = $connection->table('migrations')->pluck('migration')->all();
+
+                if ($appliedMigrations === []
+                    || array_diff($appliedMigrations, array_keys($knownMigrations)) !== []) {
+                    throw new RuntimeException('The selected database does not contain a recognised Talyvane migration history.');
+                }
+
+                $knownTables = ['migrations'];
+                foreach ($migrationFiles as $migrationFile) {
+                    $migrationSource = file_get_contents($migrationFile);
+                    if (! is_string($migrationSource)) {
+                        throw new RuntimeException('The release migration inventory could not be verified.');
+                    }
+
+                    preg_match_all(
+                        '/\\bSchema::(?:create|table|dropIfExists)\\s*\\(\\s*[\'\"]([A-Za-z0-9_]+)[\'\"]/',
+                        $migrationSource,
+                        $matches,
+                    );
+                    $knownTables = array_merge($knownTables, $matches[1] ?? []);
+                }
+
+                $knownTables = array_unique(array_map('strtolower', $knownTables));
+                $unknownTables = array_diff(array_map('strtolower', $tables), $knownTables);
+
+                if ($unknownTables !== []) {
+                    throw new RuntimeException('The selected database contains tables outside the recognised Talyvane schema.');
+                }
             }
 
             if ($hasPlatformControl) {
-                $existingControl = DB::connection('mysql')->table('platform_control')->where('id', 1)->first();
+                $existingControl = $connection->table('platform_control')->where('id', 1)->first();
                 if (! $existingControl
                     || $existingControl->super_admin_user_id !== null
                     || ! empty($existingControl->installation_id)
