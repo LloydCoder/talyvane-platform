@@ -16,6 +16,15 @@ return [
     'privacy' => [
         'profile_consent_version' => env('PROFILE_CONSENT_VERSION', 'profile-publication-v1'),
     ],
+    'safeguarding' => [
+        'retention' => [
+            'days' => (int) env('SAFEGUARDING_CASE_RETENTION_DAYS', 0),
+            'policy_version' => env('SAFEGUARDING_CASE_RETENTION_POLICY_VERSION'),
+            'schedule_approved' => filter_var(env('SAFEGUARDING_CASE_RETENTION_SCHEDULE_APPROVED', false), FILTER_VALIDATE_BOOL),
+            'backup_expiry_days' => (int) env('SAFEGUARDING_CASE_BACKUP_EXPIRY_DAYS', 0),
+            'backup_policy_approved' => filter_var(env('SAFEGUARDING_CASE_BACKUP_POLICY_APPROVED', false), FILTER_VALIDATE_BOOL),
+        ],
+    ],
     'model_agency' => [
         'privacy_notice_version' => env('MODEL_AGENCY_PRIVACY_NOTICE_VERSION'),
         'privacy_notice_approved' => filter_var(env('MODEL_AGENCY_PRIVACY_NOTICE_APPROVED', false), FILTER_VALIDATE_BOOL),
