@@ -36,6 +36,14 @@ Severity values are low, medium, high and critical. The specialist workflow is:
 
 Transitions are server-side validated. A closed case is terminal in this release. Every transition requires a reason note and creates an immutable application event.
 
+## Legal-hold governance
+
+Super Admin and Owner accounts have a separate metadata-only governance register. They can place a hold with a reason and can release it only when they are not the actor who placed it. The register does not expose confidential case narratives. Placement and release create append-only case events and access events.
+
+This application-level hold applies only to the safeguarding case record. It does not preserve evidence in external systems, provider logs, email, messaging, payment systems or backups. Those systems require their own preservation procedures.
+
+Automated retention and cryptographic erasure are not yet implemented. Do not configure external deletion or promise automatic expiry based on the current fields. A future retention phase must implement per-case cryptographic erasure, approved retention periods, legal-hold exclusion and restore/backup controls before automated purge can be enabled.
+
 ## Operational requirements before production
 
 1. Name and verify safeguarding specialists, deputies and out-of-hours escalation contacts.
