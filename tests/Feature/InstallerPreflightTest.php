@@ -151,10 +151,16 @@ class InstallerPreflightTest extends TestCase
         $this->withMiddleware();
         app()->detectEnvironment(fn () => 'production');
         config(['talyvane.installer.enforce' => false]);
+        $this->withServerVariables([
+            'HTTPS' => 'on',
+            'HTTP_HOST' => 'localhost',
+            'SERVER_PORT' => 443,
+            'DOCUMENT_ROOT' => realpath(public_path()),
+        ]);
 
-        $this->get('/install')->assertOk();
+        $this->get('https://localhost/install')->assertOk();
 
-        $this->post('/install', [])->assertStatus(419);
+        $this->post('https://localhost/install', [])->assertStatus(419);
     }
 
 }
