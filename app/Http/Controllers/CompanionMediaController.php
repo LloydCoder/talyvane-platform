@@ -110,6 +110,7 @@ class CompanionMediaController extends Controller
     ): RedirectResponse {
         abort_unless((int) $profile->user_id === (int) $request->user()->id, 403);
         abort_unless((int) $media->companion_profile_id === (int) $profile->id, 404);
+        $request->validate(['withdraw_confirmed' => ['required', 'accepted']]);
 
         DB::transaction(function () use ($profile, $media, $request): void {
             CompanionProfile::query()->lockForUpdate()->findOrFail($profile->id);
