@@ -17,7 +17,7 @@
                                 <span>{{ strtoupper($media->status) }} · {{ $media->width }} × {{ $media->height }} · {{ str_replace('_', ' ', $media->access_level) }}</span>
                                 @if ($media->members_only_consent_at && !$media->members_only_consent_withdrawn_at)
                                     <span>Separate members-only consent recorded</span>
-                                    <form method="POST" action="{{ route('companion-portal.profiles.media.withdraw-members-only-consent', [$profile, $media]) }}">@csrf @method('PATCH')<button type="submit">Withdraw members-only consent</button></form>
+                                    <form method="POST" action="{{ route('companion-portal.profiles.media.withdraw-members-only-consent', [$profile, $media]) }}">@csrf @method('PATCH')<label class="remember-row"><input type="checkbox" name="withdraw_confirmed" value="1" required> I confirm that I want to withdraw members-only access for this image</label><button type="submit">Withdraw members-only consent</button></form>
                                 @elseif ($media->members_only_consent_withdrawn_at)
                                     <span>Members-only consent withdrawn</span>
                                 @endif
