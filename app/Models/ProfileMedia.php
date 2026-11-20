@@ -11,7 +11,8 @@ class ProfileMedia extends Model
 
     protected $fillable = [
         'companion_profile_id', 'uploaded_by', 'storage_path', 'mime_type',
-        'width', 'height', 'file_size', 'status', 'access_level', 'members_only_consent_at', 'members_only_consent_version', 'rights_confirmed_at',
+        'width', 'height', 'file_size', 'status', 'access_level', 'members_only_consent_at', 'members_only_consent_version', 'members_only_consent_withdrawn_at',
+        'members_only_consent_withdrawn_by', 'rights_confirmed_at',
         'consent_version', 'reviewed_by', 'reviewed_at', 'review_note',
     ];
 
@@ -20,6 +21,7 @@ class ProfileMedia extends Model
         return [
             'rights_confirmed_at' => 'immutable_datetime',
             'members_only_consent_at' => 'immutable_datetime',
+            'members_only_consent_withdrawn_at' => 'immutable_datetime',
             'reviewed_at' => 'immutable_datetime',
         ];
     }
@@ -32,6 +34,11 @@ class ProfileMedia extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function membersOnlyConsentWithdrawnBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'members_only_consent_withdrawn_by');
     }
 
     public function reviewer(): BelongsTo
