@@ -84,6 +84,7 @@ class SafeguardingNotificationDispatcher
                     'status' => 'delivered',
                     'processing_at' => null,
                     'delivered_at' => now(),
+                    'recipient_email' => null,
                     'last_error_code' => null,
                 ])->save();
 
