@@ -7,6 +7,7 @@ use App\Models\CountryMarket;
 use App\Models\Destination;
 use App\Models\ProfileMedia;
 use App\Models\ProfileMediaConsentEvent;
+use App\Services\ClientAgeAssuranceService;
 use App\Services\MembershipEntitlementCatalog;
 use App\Models\User;
 use App\Services\ProfileMediaProcessor;
@@ -99,6 +100,10 @@ class ProfileMediaTest extends TestCase
     public function test_members_only_media_approval_requires_separate_versioned_companion_consent(): void
     {
         Storage::fake('local');
+        $this->mock(ClientAgeAssuranceService::class, function ($mock): void {
+            $mock->shouldReceive('isOperationallyConfigured')->andReturn(true);
+            $mock->shouldReceive('hasCurrentProof')->andReturn(true);
+        });
         [$companion, $profile] = $this->companionWithProfile();
         $processed = app(ProfileMediaProcessor::class)->storeSanitized(
             UploadedFile::fake()->image('private-gallery.jpg', 800, 1000),
