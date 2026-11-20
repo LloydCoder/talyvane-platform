@@ -21,4 +21,9 @@ if (is_file($installerBootstrap)) {
 /** @var Application $app */
 $app = require_once __DIR__.'/../bootstrap/app.php';
 
+$documentRoot = PublicPathResolver::resolve(__DIR__, (string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+if ($documentRoot !== null) {
+    $app->usePublicPath($documentRoot);
+}
+
 $app->handleRequest(Request::capture());
