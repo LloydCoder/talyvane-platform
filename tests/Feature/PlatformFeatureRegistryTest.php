@@ -227,6 +227,8 @@ class PlatformFeatureRegistryTest extends TestCase
 
     public function test_dependency_prerequisites_are_checked_recursively_at_runtime(): void
     {
+        $this->approveDiscoveryMarket();
+
         DB::table('platform_features')->whereIn('key', [
             'public.discovery',
             'portals.client',
