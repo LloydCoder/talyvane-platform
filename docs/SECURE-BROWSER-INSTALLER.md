@@ -1,6 +1,6 @@
 # Secure browser installer: security and acceptance specification
 
-**Status:** Approved requirement; implementation in [PR #62](https://github.com/LloydCoder/talyvane-platform/pull/62). The current implementation passed the PHP 8.3/8.4/8.5 CI matrix (387 tests and 1,889 assertions per version) and the standalone release-package plus first-request bootstrap smoke build on commit `3fa047af735973e7d2664162884e859840939b9a` ([workflow run #44750629567](https://github.com/LloydCoder/talyvane-platform/actions/runs/44750629567)). Final forensic security review, cPanel deployment review, merge and tagged-release gates remain open.  
+**Status:** Approved requirement; implementation in [PR #62](https://github.com/LloydCoder/talyvane-platform/pull/62). The current implementation passed the PHP 8.3/8.4/8.5 CI matrix (387 tests and 1,889 assertions per version) and the standalone release-package plus first-request bootstrap smoke build on commit `d1bacb758fcceb0fd79ef2d3e49b0d2445a7b917` ([workflow run #44751029536](https://github.com/LloydCoder/talyvane-platform/actions/runs/44751029536)). Final forensic security review, cPanel deployment review, merge and tagged-release gates remain open.  
 **Normative language:** MUST, MUST NOT, SHOULD and MAY are used as engineering requirements.
 
 ## 1. Product outcome
@@ -13,7 +13,7 @@ The installer is a first-install bootstrap only. It is not a general-purpose com
 
 1. **Release and entry-point validation**
    - Accept only a complete, versioned release artifact produced by the approved release process.
-   - Verify the release manifest/checksum and supported application, PHP, database and extension versions.
+   - CI/release automation MUST package and smoke-check the versioned release manifest, archive contents and first-request bootstrap. The operator MUST verify the downloaded archive against the `SHA256SUMS` file from the same release bundle before upload or extraction, using a trusted local checksum utility. The browser installer runs after extraction and MUST NOT claim to verify an archive checksum it cannot access. Confirm supported application, PHP, database and extension versions.
    - Refuse development branches, incomplete packages and unsupported host layouts.
 2. **Preflight**
    - Validate HTTPS, canonical application URL, PHP runtime and required extensions, database reachability/privileges, writable private storage, bootstrap/cache, session support, entropy, and the ability to keep application files outside the public document root.
