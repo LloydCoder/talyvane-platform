@@ -138,6 +138,8 @@ final class InstallerController
             ]);
         }
 
+        $stage = 'environment configuration';
+
         try {
             $environment->update([
                 'APP_NAME' => $validated['app_name'],
@@ -196,9 +198,11 @@ final class InstallerController
                 'mail.from.name' => $validated['mail_from_name'],
             ]);
 
+            $stage = 'database connection';
             DB::purge('mysql');
             DB::connection('mysql')->select('SELECT 1');
 
+            $stage = 'database preflight';
             $tables = DB::connection('mysql')->getSchemaBuilder()->getTableListing();
             $schema = DB::connection('mysql')->getSchemaBuilder();
             $hasPlatformControl = $schema->hasTable('platform_control');
@@ -219,11 +223,13 @@ final class InstallerController
                 }
             }
 
+            $stage = 'database migrations';
             $migrationExitCode = Artisan::call('migrate', ['--force' => true]);
             if ($migrationExitCode !== 0) {
                 throw new RuntimeException('The database migration step did not complete.');
             }
 
+            $stage = 'administrator email verification';
             $primaryCode = $codes->generate();
             $recoveryCode = $codes->generate();
 
@@ -241,9 +247,14 @@ final class InstallerController
                 'started_at' => time(),
                 'attempts' => 0,
             ]);
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            logger()->warning('Talyvane browser installer configuration step failed.', [
+                'stage' => $stage,
+                'exception_class' => $exception::class,
+            ]);
+
             throw ValidationException::withMessages([
-                'installer' => 'Configuration could not be verified. Check the database and SMTP settings, then retry. Secret values are not displayed.',
+                'installer' => 'Configuration could not be verified during the '.$stage.' step. Check the database and SMTP settings, then retry. Secret values are not displayed.',
             ]);
         }
 
