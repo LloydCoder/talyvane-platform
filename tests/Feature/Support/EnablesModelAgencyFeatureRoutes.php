@@ -6,14 +6,14 @@ use Illuminate\Support\Facades\DB;
 
 trait EnablesModelAgencyFeatureRoutes
 {
-    protected function enableModelAgencyFeatureRoutes(): void
+    protected function enableModelAgencyFeatureRoutes(array $additionalFeatures = []): void
     {
-        DB::table('platform_features')->where('key', 'model-agency.applications')->update([
-            'implementation_status' => 'available',
-            'is_enabled' => true,
-        ]);
+        $keys = array_values(array_unique(array_merge([
+            'model-agency.applications',
+            'model-agency.usage-rights',
+        ], $additionalFeatures)));
 
-        DB::table('platform_features')->where('key', 'model-agency.usage-rights')->update([
+        DB::table('platform_features')->whereIn('key', $keys)->update([
             'implementation_status' => 'available',
             'is_enabled' => true,
         ]);
