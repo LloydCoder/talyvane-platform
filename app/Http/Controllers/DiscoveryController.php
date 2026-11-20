@@ -6,6 +6,7 @@ use App\Models\CompanionProfile;
 use App\Models\Destination;
 use App\Services\FeatureRegistry;
 use App\Services\MembershipEntitlementService;
+use App\Services\MembershipEntitlementCatalog;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -100,7 +101,12 @@ class DiscoveryController extends Controller
                             $privateMedia->where('access_level', 'members_only')
                                 ->whereNotNull('members_only_consent_at')
                                 ->whereNull('members_only_consent_withdrawn_at')
-                                ->where('members_only_consent_version', config('talyvane.privacy.private_gallery_consent_version'));
+                                ->where('members_only_consent_version', config('talyvane.privacy.private_gallery_consent_version'))
+                                ->whereHas('consentEvents', fn ($events) => $events
+                                    ->where('action', 'members_only_consent.granted')
+                                    ->where('consent_policy_version', config('talyvane.privacy.private_gallery_consent_version'))
+                                    ->where('consent_statement', MembershipEntitlementCatalog::privateGalleryConsentStatement())
+                                    ->where('statement_sha256', hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement())));
                         });
                     }
                 })
