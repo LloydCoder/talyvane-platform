@@ -39,36 +39,36 @@ final class InstallerPendingState
             'expires_at' => time() + $lifetimeSeconds,
         ], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
-        $handle = @fopen($this->path, 'x+b');
-        if ($handle === false) {
-            throw new RuntimeException('Another installation request acquired the pending state.');
+        $temporaryPath = tempnam(dirname($this->path), '.installer-pending-');
+        if (! is_string($temporaryPath)) {
+            throw new RuntimeException('The pending installation state could not be prepared.');
         }
 
         try {
-            if (! chmod($this->path, 0600)) {
-                throw new RuntimeException('The pending installation state permissions could not be secured.');
+            if (file_put_contents($temporaryPath, $state, LOCK_EX) !== strlen($state)
+                || ! chmod($temporaryPath, 0600)) {
+                throw new RuntimeException('The pending installation state could not be prepared securely.');
             }
 
-            $written = 0;
-            $length = strlen($state);
-            while ($written < $length) {
-                $count = fwrite($handle, substr($state, $written));
-                if ($count === false || $count === 0) {
-                    throw new RuntimeException('The pending installation state could not be written completely.');
+            // Publish only a complete state document; never expose a partial
+            // marker to a concurrent installer request.
+            if (! @link($temporaryPath, $this->path)) {
+                if (is_link($this->path) || ! is_file($this->path)) {
+                    throw new RuntimeException('Another installation request acquired the pending state.');
                 }
-                $written += $count;
-            }
 
-            if (! fflush($handle) || (function_exists('fsync') && ! fsync($handle))) {
-                throw new RuntimeException('The pending installation state could not be synchronized.');
+                $existing = $this->readState();
+                if ($existing['expires_at'] > time()) {
+                    throw new RuntimeException('An installation verification is already in progress.');
+                }
+
+                throw new RuntimeException('The expired installation state changed during acquisition; retry safely.');
             }
-        } catch (\Throwable $exception) {
-            fclose($handle);
-            @unlink($this->path);
-            throw $exception;
+        } finally {
+            if (is_file($temporaryPath)) {
+                @unlink($temporaryPath);
+            }
         }
-
-        fclose($handle);
 
         return $nonce;
     }
