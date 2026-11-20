@@ -27,6 +27,7 @@ class InstallerPreflightTest extends TestCase
             ->assertSee('FIRST-TIME SETUP')
             ->assertSee('Hosting preflight')
             ->assertSee('PHP 8.3 or later')
+            ->assertSee('action="/install"', false)
             ->assertSee('GD WebP image support')
             ->assertSee('Session storage is writable');
     }
