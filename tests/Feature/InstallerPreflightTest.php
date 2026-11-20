@@ -133,4 +133,17 @@ class InstallerPreflightTest extends TestCase
             'recovery_email' => 'recovery@example.test',
         ])->assertSessionHasErrors('installer');
     }
+    public function test_installer_configuration_endpoint_is_rate_limited(): void
+    {
+        config(['talyvane.installer.enforce' => false]);
+
+        $this->get('/install')->assertOk();
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->post('/install', [])->assertSessionHasErrors();
+        }
+
+        $this->post('/install', [])->assertTooManyRequests();
+    }
+
 }
