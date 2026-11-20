@@ -185,6 +185,7 @@ class MembershipEntitlementTest extends TestCase
     public function test_private_gallery_media_is_denied_to_guests_and_clients_without_the_entitlement(): void
     {
         Storage::fake('local');
+        $this->enableEntitlements();
         $profile = $this->profile();
         $media = $this->privateMedia($profile);
         $client = $this->client();
@@ -469,6 +470,23 @@ class MembershipEntitlementTest extends TestCase
             'id' => $media->id,
             'status' => 'pending_review',
         ]);
+    }
+
+    public function test_disabling_the_entitlement_feature_revokes_private_gallery_access_immediately(): void
+    {
+        Storage::fake('local');
+        $this->enableEntitlements();
+        $profile = $this->profile();
+        $media = $this->privateMedia($profile);
+        $client = $this->client();
+        $membership = $this->membership($client);
+        $this->grantPrivateGallery($membership);
+
+        $this->actingAs($client)->get(route('profile-media.show', $media))->assertOk();
+
+        DB::table('platform_features')->where('key', 'memberships.entitlements')->update(['is_enabled' => false]);
+
+        $this->actingAs($client)->get(route('profile-media.show', $media))->assertNotFound();
     }
 
     public function test_private_media_is_hidden_when_the_approved_consent_policy_version_changes(): void
