@@ -92,6 +92,77 @@ class AdultEligibilityVerifierBoundaryTest extends TestCase
         $this->assertNull($application->fresh()->adult_eligibility_verified_at);
     }
 
+    public function test_agency_admin_cannot_record_adult_eligibility_verification(): void
+    {
+        config([
+            'talyvane.model_agency.adult_eligibility_policy_approved' => true,
+            'talyvane.model_agency.adult_eligibility_policy_version' => 'adult-eligibility-v1',
+        ]);
+
+        $application = $this->application();
+        $admin = $this->createAdminUser([
+            'name' => 'Agency Administrator',
+            'email' => 'agency-admin-verify@example.test',
+            'role' => 'admin',
+        ]);
+
+        $this->actingAs($admin)
+            ->post('/admin/model-applications/'.$application->id.'/adult-eligibility', [
+                'identity_matches_applicant' => '1',
+                'document_is_valid' => '1',
+                'meets_policy_age_threshold' => '1',
+                'verification_method' => 'manual_document_inspection',
+            ])
+            ->assertForbidden();
+
+        $this->assertNull($application->fresh()->adult_eligibility_verified_at);
+        $this->assertDatabaseMissing('model_talent_application_events', [
+            'application_id' => $application->id,
+            'event_type' => 'application.adult_eligibility_verified',
+        ]);
+    }
+
+    public function test_an_authorized_verifier_can_verify_and_an_agency_owner_can_accept_the_application(): void
+    {
+        config([
+            'talyvane.model_agency.adult_eligibility_policy_approved' => true,
+            'talyvane.model_agency.adult_eligibility_policy_version' => 'adult-eligibility-v1',
+        ]);
+
+        $application = $this->application();
+        $verifier = $this->createAdminUser([
+            'name' => 'Eligibility Verifier',
+            'email' => 'verifier-acceptance@example.test',
+            'role' => 'verifier',
+        ]);
+
+        $this->actingAs($verifier)
+            ->post('/admin/adult-eligibility/'.$application->id.'/verify', [
+                'identity_matches_applicant' => '1',
+                'document_is_valid' => '1',
+                'meets_policy_age_threshold' => '1',
+                'verification_method' => 'manual_document_inspection',
+            ])
+            ->assertRedirect('/admin/adult-eligibility');
+
+        $owner = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'agency-owner-acceptance@example.test',
+            'role' => 'owner',
+        ]);
+
+        $this->actingAs($owner)
+            ->patch('/admin/model-applications/'.$application->id, [
+                'status' => 'accepted',
+                'review_note' => 'Eligibility is verified and the application may proceed.',
+            ])
+            ->assertRedirect(route('admin.model-applications.index'));
+
+        $this->assertSame('accepted', $application->fresh()->status);
+        $this->assertNotNull($application->fresh()->adult_eligibility_verified_at);
+        $this->assertSame($verifier->id, $application->fresh()->adult_eligibility_verified_by);
+    }
+
     public function test_existing_agency_roles_cannot_use_the_verifier_only_queue(): void
     {
         $this->application();
