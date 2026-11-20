@@ -127,7 +127,11 @@ jobs:
           cp "$staging/cpanel-public-root/addon-domain/index.php" dist/cpanel-addon-public/index.php
           (cd dist/cpanel-main-public && zip -X -r "../talyvane-cpanel-main-public-${GITHUB_SHA}.zip" .)
           (cd dist/cpanel-addon-public && zip -X -r "../talyvane-cpanel-addon-public-${GITHUB_SHA}.zip" .)
-          sha256sum "dist/talyvane-${GITHUB_SHA}.tar.gz" "dist/talyvane-${GITHUB_SHA}.zip" "dist/talyvane-cpanel-main-public-${GITHUB_SHA}.zip" "dist/talyvane-cpanel-addon-public-${GITHUB_SHA}.zip" > "dist/SHA256SUMS"
+          (
+            cd dist
+            sha256sum "talyvane-${GITHUB_SHA}.tar.gz" "talyvane-${GITHUB_SHA}.zip" "talyvane-cpanel-main-public-${GITHUB_SHA}.zip" "talyvane-cpanel-addon-public-${GITHUB_SHA}.zip" > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
           archive="dist/talyvane-${GITHUB_SHA}.tar.gz"
           zip_archive="dist/talyvane-${GITHUB_SHA}.zip"
           unzip -Z1 "$zip_archive" > dist/package-contents-zip.txt
