@@ -238,11 +238,12 @@ class FeatureActivationEvaluator
             }
 
             if ($requirement === 'private_gallery_consent_policy') {
+                $agencyName = app(BrandSettings::class)->publicBrand()['brand_name'] ?? null;
                 if (
                     ! filled(config('talyvane.privacy.private_gallery_consent_version'))
                     || ! config('talyvane.privacy.private_gallery_consent_approved')
                 ) {
-                    $blockers[] = 'A current, separately worded, versioned companion consent policy for members-only media must be configured and explicitly approved.';
+                    $blockers[] = 'A current, separately worded, versioned companion consent policy, deployment brand identity and explicit approval are required for members-only media.';
                 }
 
                 continue;
