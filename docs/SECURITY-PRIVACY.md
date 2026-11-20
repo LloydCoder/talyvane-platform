@@ -72,7 +72,7 @@ Official references:
 
 - Case assignment and critical/minor-safety escalation notices are written to a transactional outbox; case intake does not synchronously send email.
 - Recipient email addresses are encrypted at rest and cleared from the outbox after successful delivery for external escalation recipients. A keyed HMAC fingerprint is used for deduplication; no plaintext recipient address is used as a unique database key.
-- Outbound notices contain only case reference, category, severity and a restricted internal URL. Case summary, narrative, subject reference, applicant contact information, identity-document data and evidence are excluded.
+- Assignment notices contain only case reference, category, severity and a restricted internal URL. External emergency-contact notices contain only reference, category and severity and include no internal URL. Case summary, narrative, subject reference, applicant contact information, identity-document data and evidence are excluded.
 - The dispatcher requires an explicit enable flag and rejects `log` and `array` mailers. Delivery retries are bounded, stale processing claims are recovered, and raw transport exception messages are not persisted. Dispatch is at-least-once and may duplicate a message if the process crashes after provider acceptance but before database acknowledgement.
 - Critical and minor-safety cases are escalated only to valid addresses explicitly configured by the deployment operator. Missing contacts create a case event and access-audit event rather than a false delivery claim.
 - Email is not an emergency response channel or guaranteed delivery. Failed outbox items require operational monitoring; maintain independent emergency contacts and human response procedures.
