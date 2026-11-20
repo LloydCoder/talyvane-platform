@@ -10,7 +10,6 @@ use App\Services\RecoveryCodeGenerator;
 use App\Services\ModelTalentImageLicenceService;
 use App\Services\TotpService;
 use App\Services\SafeguardingCaseRetentionService;
-use RuntimeException;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
