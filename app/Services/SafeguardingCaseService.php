@@ -72,7 +72,7 @@ class SafeguardingCaseService
                 ]);
             }
 
-            $case = SafeguardingCase::query()->create([
+            $case = new SafeguardingCase([
                 'reference' => 'SGC-'.now()->format('Y').'-'.Str::upper(Str::random(12)),
                 'case_type' => $input['case_type'],
                 'severity' => $input['severity'],
@@ -81,6 +81,13 @@ class SafeguardingCaseService
                 'assigned_to' => $specialist->id,
                 'created_by' => $reporter->id,
             ]);
+            // Legacy NOT NULL columns remain blank after migration; all confidential values live in the per-case content table.
+            $case->setAttribute('summary', '');
+            $case->setAttribute('details', '');
+            $case->setAttribute('subject_reference', '');
+            $case->setAttribute('legal_hold_reason', '');
+            $case->setAttribute('legal_hold_release_reason', '');
+            $case->save();
 
             $this->content->store($case, [
                 'subject_reference' => filled($input['subject_reference'] ?? null) ? trim((string) $input['subject_reference']) : null,
