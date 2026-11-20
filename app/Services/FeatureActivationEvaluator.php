@@ -214,7 +214,7 @@ class FeatureActivationEvaluator
 
                 $runtimeReady = class_exists(MembershipEntitlementService::class)
                     && class_exists(MembershipEntitlementCatalog::class)
-                    && class_exists(\\App\\Http\\Controllers\\ProfileMediaController::class);
+                    && class_exists(\App\Http\Controllers\ProfileMediaController::class);
 
                 if (! $schemaReady || ! $runtimeReady) {
                     $blockers[] = 'The membership grant schema, entitlement catalogue and protected-media authorization boundary must all be available.';
