@@ -71,3 +71,8 @@ Commercial releases must be reproducible from a committed `composer.lock`, inclu
 ## Hard safeguards and continuity-safe operations
 
 The feature registry is not an authority over hard safeguards. Reserved safety, privacy, safeguarding, financial-integrity and audit keys are rejected by the runtime feature resolver and cannot be changed by Super Admin feature controls. Optional feature pauses stop new work while preserving protective and close-out operations. Approved safeguarding retention, configured safeguarding notifications and model image-licence expiry continue under their independent operational prerequisites. See [ADR-0011](decisions/ADR-0011-hard-safeguards-not-feature-flags.md).
+
+
+## Deployment secret architecture
+
+Super Admin secret management uses an allowlisted `SecretCatalog`, `VaultKv2SecretStore` adapter and metadata-gated `PlatformSecretResolver`. Vault stores values; the application database stores status/version metadata and append-only operation audit events only. Runtime adapters must resolve secrets through the resolver and use the exact recorded Vault version. Controllers and views must never retrieve secret values. The Vault bootstrap token is environment-managed and separate from safeguarding Transit credentials. See [ADR-0012](decisions/ADR-0012-super-admin-secret-management.md).
