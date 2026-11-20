@@ -25,6 +25,8 @@ final class BootstrapEnvironment
             throw new RuntimeException('The application root is unavailable.');
         }
 
+        $this->ensureRuntimeDirectories($basePath);
+
         $privateDirectory = $basePath.'/storage/app/private';
         if (is_link($privateDirectory)) {
             throw new RuntimeException('The private installer state directory must not be a symbolic link.');
@@ -131,6 +133,42 @@ final class BootstrapEnvironment
         }
 
         return true;
+    }
+
+
+    private function ensureRuntimeDirectories(string $basePath): void
+    {
+        $directories = [
+            'storage/app/private',
+            'storage/framework/cache/data',
+            'storage/framework/sessions',
+            'storage/framework/views',
+            'storage/logs',
+            'bootstrap/cache',
+        ];
+
+        foreach ($directories as $relativePath) {
+            $path = $basePath;
+            foreach (explode('/', $relativePath) as $segment) {
+                $path .= DIRECTORY_SEPARATOR.$segment;
+
+                if (is_link($path)) {
+                    throw new RuntimeException('A required private runtime directory must not be a symbolic link.');
+                }
+
+                if (! file_exists($path) && ! @mkdir($path, 0700)) {
+                    throw new RuntimeException('A required private runtime directory could not be created.');
+                }
+
+                if (! is_dir($path)) {
+                    throw new RuntimeException('A required private runtime path is not a directory.');
+                }
+            }
+
+            if (realpath($path) !== $path || ! is_writable($path)) {
+                throw new RuntimeException('A required private runtime directory is unsafe or not writable.');
+            }
+        }
     }
 
     private function readExampleEnvironment(string $basePath): string
