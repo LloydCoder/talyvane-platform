@@ -47,7 +47,7 @@ class PlatformFeatureRegistryTest extends TestCase
             'is_enabled' => false,
         ]);
 
-        $this->get('/destinations')->assertNotFound();
+        $this->get('/destinations')->assertStatus(503);
         $this->get('/')->assertNotFound();
     }
 
