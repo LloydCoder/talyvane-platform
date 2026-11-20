@@ -83,7 +83,6 @@ class BrowserInstallerWorkflowTest extends TestCase
         ]);
 
         Notification::fake();
-        $this->mock(RecoveryCodeGenerator::class, fn ($mock) => $mock->shouldReceive('generate')->twice()->andReturn('111111', '222222'));
     }
 
     protected function tearDown(): void
@@ -137,6 +136,7 @@ class BrowserInstallerWorkflowTest extends TestCase
 
     public function test_browser_install_verifies_emails_creates_lock_shows_password_once_and_enforces_first_login_change(): void
     {
+        $this->mock(RecoveryCodeGenerator::class, fn ($mock) => $mock->shouldReceive('generate')->twice()->andReturn('111111', '222222'));
         $installerPage = $this->get('https://agency.example.test/install')->assertOk();
         $privateInstallerKey = trim((string) file_get_contents(storage_path('app/private/INSTALLER-ACCESS-KEY.txt')));
         $this->assertMatchesRegularExpression('/\\A[A-Za-z0-9_-]{43}\\z/D', $privateInstallerKey);
