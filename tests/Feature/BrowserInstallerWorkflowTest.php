@@ -23,6 +23,9 @@ class BrowserInstallerWorkflowTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Throttling is covered by InstallerPreflightTest. Keep this
+        // end-to-end workflow independent of shared file-cache limiter state.
+        $this->withoutMiddleware(\\Illuminate\\Routing\\Middleware\\ThrottleRequests::class);
         $this->originalDefaultConnection = (string) config('database.default');
 
         $this->temporaryRoot = sys_get_temp_dir().'/talyvane-installer-'.bin2hex(random_bytes(6));
