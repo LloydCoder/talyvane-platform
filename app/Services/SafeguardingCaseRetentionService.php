@@ -56,7 +56,7 @@ class SafeguardingCaseRetentionService
         return $erased;
     }
 
-    public function eraseIfDue(int $caseId, CarbonInterface $cutoff, string $policyVersion): bool
+    private function eraseIfDue(int $caseId, CarbonInterface $cutoff, string $policyVersion): bool
     {
         return DB::transaction(function () use ($caseId, $cutoff, $policyVersion): bool {
             $case = SafeguardingCase::query()->lockForUpdate()->find($caseId);
