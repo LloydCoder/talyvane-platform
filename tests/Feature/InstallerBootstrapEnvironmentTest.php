@@ -63,6 +63,8 @@ class InstallerBootstrapEnvironmentTest extends TestCase
         $this->assertStringContainsString("QUEUE_CONNECTION=sync", $environment);
         $this->assertStringContainsString("TALYVANE_INSTALLER_ENFORCE=true", $environment);
         $this->assertSame(0600, fileperms($this->basePath.'/.env') & 0777);
+        $this->assertSame(0700, fileperms($this->basePath.'/storage/app/private') & 0777);
+        $this->assertSame(0700, fileperms($this->basePath.'/storage/framework/sessions') & 0777);
     }
 
     public function test_existing_application_key_is_preserved_without_rewriting_environment(): void
