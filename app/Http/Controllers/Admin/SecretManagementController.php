@@ -67,6 +67,7 @@ class SecretManagementController
 
         return $this->withSecretLock($secretKey, 'secret_value', function () use ($request, $secretKey, $definition, $vault, $totp, $validated): RedirectResponse {
             $actorId = $this->consumeStepUp($request, $validated['password'], $validated['code'], $totp);
+            $correlationId = (string) Str::uuid();
             $vaultPath = trim((string) config('services.secrets_vault.prefix', 'talyvane'), '/').'/'.$definition['vault_path'];
 
             $record = PlatformSecret::query()->firstOrNew(['secret_key' => $secretKey]);
@@ -78,17 +79,17 @@ class SecretManagementController
                 'configured_by' => $actorId,
             ])->save();
 
-            $this->appendAudit($secretKey, $actorId, 'secret.write_requested', null, $validated['reason']);
+            $this->appendAudit($secretKey, $actorId, 'secret.write_requested', null, $validated['reason'], $correlationId);
 
             try {
                 $expectedVersion = $vault->currentVersion($secretKey);
                 $version = $vault->write($secretKey, $validated['secret_value'], $expectedVersion);
             } catch (Throwable) {
-                DB::transaction(function () use ($secretKey, $actorId, $validated, $wasConfigured): void {
+                DB::transaction(function () use ($secretKey, $actorId, $validated, $wasConfigured, $correlationId): void {
                     if (! $wasConfigured) {
                         PlatformSecret::query()->where('secret_key', $secretKey)->lockForUpdate()->update(['status' => 'error']);
                     }
-                    $this->appendAudit($secretKey, $actorId, 'secret.write_failed', null, $validated['reason']);
+                    $this->appendAudit($secretKey, $actorId, 'secret.write_failed', null, $validated['reason'], $correlationId);
                 });
 
                 return back()->withErrors([
@@ -96,7 +97,7 @@ class SecretManagementController
                 ]);
             }
 
-            DB::transaction(function () use ($secretKey, $actorId, $validated, $version, $wasConfigured): void {
+            DB::transaction(function () use ($secretKey, $actorId, $validated, $version, $wasConfigured, $correlationId): void {
                 $record = PlatformSecret::query()->where('secret_key', $secretKey)->lockForUpdate()->firstOrFail();
                 $record->forceFill([
                     'status' => 'configured',
@@ -112,6 +113,7 @@ class SecretManagementController
                     $wasConfigured ? 'secret.rotated' : 'secret.set',
                     $version,
                     $validated['reason'],
+                    $correlationId,
                 );
             });
 
@@ -138,17 +140,18 @@ class SecretManagementController
 
         return $this->withSecretLock($secretKey, 'secret', function () use ($request, $secretKey, $vault, $totp, $validated): RedirectResponse {
             $actorId = $this->consumeStepUp($request, $validated['password'], $validated['code'], $totp);
+            $correlationId = (string) Str::uuid();
             $record = PlatformSecret::query()->where('secret_key', $secretKey)->firstOrFail();
 
             $record->forceFill(['status' => 'pending'])->save();
-            $this->appendAudit($secretKey, $actorId, 'secret.clear_requested', null, $validated['reason']);
+            $this->appendAudit($secretKey, $actorId, 'secret.clear_requested', null, $validated['reason'], $correlationId);
 
             try {
                 $vault->clear($secretKey);
             } catch (Throwable) {
-                DB::transaction(function () use ($secretKey, $actorId, $validated): void {
+                DB::transaction(function () use ($secretKey, $actorId, $validated, $correlationId): void {
                     PlatformSecret::query()->where('secret_key', $secretKey)->lockForUpdate()->update(['status' => 'error']);
-                    $this->appendAudit($secretKey, $actorId, 'secret.clear_failed', null, $validated['reason']);
+                    $this->appendAudit($secretKey, $actorId, 'secret.clear_failed', null, $validated['reason'], $correlationId);
                 });
 
                 return back()->withErrors([
@@ -164,7 +167,7 @@ class SecretManagementController
                     'cleared_at' => now(),
                 ])->save();
 
-                $this->appendAudit($secretKey, $actorId, 'secret.cleared', null, $validated['reason']);
+                $this->appendAudit($secretKey, $actorId, 'secret.cleared', null, $validated['reason'], $correlationId);
             });
 
             return redirect()->route('admin.secrets.index')->with('status', 'Secret versions permanently removed from the configured Vault path.');
@@ -218,7 +221,7 @@ class SecretManagementController
         });
     }
 
-    private function appendAudit(string $secretKey, int $actorId, string $action, ?int $version, string $reason): void
+    private function appendAudit(string $secretKey, int $actorId, string $action, ?int $version, string $reason, string $correlationId): void
     {
         $actor = User::query()->find($actorId);
 
@@ -229,7 +232,7 @@ class SecretManagementController
             'action' => $action,
             'vault_version' => $version,
             'reason' => trim($reason),
-            'correlation_id' => (string) Str::uuid(),
+            'correlation_id' => $correlationId,
             'created_at' => now(),
         ]);
     }
