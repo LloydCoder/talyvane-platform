@@ -23,7 +23,7 @@ class ModelTalentAssignmentService
 {
     public function createDraft(ModelCastingSubmission $submission, int $actorId, array $terms): ModelTalentAssignment
     {
-        app(FeatureRegistry::class)->assertEnabled('model-agency.assignments');
+        app(FeatureRegistry::class)->assertOperationallyEnabled('model-agency.assignments');
         $this->assertTerms($terms);
 
         return DB::transaction(function () use ($submission, $actorId, $terms): ModelTalentAssignment {
@@ -86,7 +86,7 @@ class ModelTalentAssignmentService
 
     public function offer(ModelTalentAssignment $assignment, int $actorId): void
     {
-        app(FeatureRegistry::class)->assertEnabled('model-agency.assignments');
+        app(FeatureRegistry::class)->assertOperationallyEnabled('model-agency.assignments');
         DB::transaction(function () use ($assignment, $actorId): void {
             $locked = $this->lockAssignmentContext($assignment);
             $this->assertCurrentEligibility($locked);
