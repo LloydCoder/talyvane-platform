@@ -61,6 +61,7 @@ class InstallerBootstrapEnvironmentTest extends TestCase
         $this->assertStringContainsString("SESSION_SECURE_COOKIE=true", $environment);
         $this->assertStringContainsString("CACHE_STORE=file", $environment);
         $this->assertStringContainsString("QUEUE_CONNECTION=sync", $environment);
+        $this->assertStringContainsString("TALYVANE_INSTALLER_ENFORCE=true", $environment);
         $this->assertSame(0600, fileperms($this->basePath.'/.env') & 0777);
     }
 

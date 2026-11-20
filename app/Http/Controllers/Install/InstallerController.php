@@ -24,31 +24,37 @@ final class InstallerController
 {
     public function index(Request $request): View
     {
-        if (hash_equals(strtolower($validated['admin_email']), strtolower($validated['recovery_email']))) {
-            throw ValidationException::withMessages([
-                'recovery_email' => 'The recovery email must be different from the Super Admin email.',
-            ]);
-        }
-
-        $root = realpath(base_path());
-        $public = realpath(public_path());
-        $documentRoot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
-        $extensions = ['ctype', 'curl', 'dom', 'fileinfo', 'filter', 'gd', 'hash', 'mbstring', 'openssl', 'pcre', 'pdo', 'pdo_mysql', 'session', 'tokenizer', 'xml'];
-
-        $checks = [
-            'PHP 8.3 or later' => version_compare(PHP_VERSION, '8.3.0', '>='),
-            'Required PHP extensions' => count(array_filter($extensions, 'extension_loaded')) === count($extensions),
-            'HTTPS request' => $request->isSecure(),
-            'Document root serves public/' => $root !== false && $public !== false && $documentRoot !== false && $documentRoot === $public && $root !== $documentRoot,
-            'Private application storage is writable' => is_writable(storage_path()) && is_writable(storage_path('app/private')),
-            'Framework cache is writable' => is_writable(base_path('bootstrap/cache')),
-            'Unique application key is initialized' => is_string(config('app.key')) && config('app.key') !== '',
-        ];
+        $checks = $this->preflightChecks($request);
 
         return view('install.index', [
             'checks' => $checks,
             'ready' => ! in_array(false, $checks, true),
         ]);
+    }
+
+    private function preflightChecks(Request $request): array
+    {
+        $root = realpath(base_path());
+        $public = realpath(public_path());
+        $documentRoot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+        $extensions = ['ctype', 'curl', 'dom', 'fileinfo', 'filter', 'gd', 'hash', 'mbstring', 'openssl', 'pcre', 'pdo', 'pdo_mysql', 'session', 'tokenizer', 'xml'];
+        $rootIsPrivate = $root !== false && $documentRoot !== false
+            && $root !== $documentRoot
+            && ! str_starts_with($root, rtrim($documentRoot, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR);
+
+        return [
+            'PHP 8.3 or later' => version_compare(PHP_VERSION, '8.3.0', '>='),
+            'Required PHP extensions' => count(array_filter($extensions, 'extension_loaded')) === count($extensions),
+            'HTTPS request' => $request->isSecure(),
+            'Document root serves public/' => $rootIsPrivate && $public !== false && $documentRoot === $public,
+            'Private application storage is writable' => is_dir(storage_path('app/private'))
+                && ! is_link(storage_path('app/private'))
+                && is_writable(storage_path())
+                && is_writable(storage_path('app/private')),
+            'Framework cache is writable' => is_writable(base_path('bootstrap/cache')),
+            'Unique application key is initialized' => is_string(config('app.key')) && config('app.key') !== '',
+            'Production debug mode is disabled' => config('app.debug') === false,
+        ];
     }
 
     public function verifyForm(Request $request): View|RedirectResponse
@@ -92,12 +98,23 @@ final class InstallerController
             'recovery_email' => ['required', 'email', 'different:admin_email', 'max:254'],
         ]);
 
-        $root = realpath(base_path());
-        $public = realpath(public_path());
-        $documentRoot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
-        if (! $request->isSecure() || $root === false || $public === false || $documentRoot !== $public || $root === $documentRoot) {
+        if (hash_equals(strtolower($validated['admin_email']), strtolower($validated['recovery_email']))) {
             throw ValidationException::withMessages([
-                'installer' => 'This host does not meet the required HTTPS and private document-root boundary.',
+                'recovery_email' => 'The recovery email must be different from the Super Admin email.',
+            ]);
+        }
+
+        $checks = $this->preflightChecks($request);
+        if (in_array(false, $checks, true)) {
+            throw ValidationException::withMessages([
+                'installer' => 'The host does not meet every required installation preflight check. Resolve all blocked items before continuing.',
+            ]);
+        }
+
+        $submittedHost = parse_url($validated['app_url'], PHP_URL_HOST);
+        if (! is_string($submittedHost) || ! hash_equals(strtolower($request->getHost()), strtolower($submittedHost))) {
+            throw ValidationException::withMessages([
+                'app_url' => 'The canonical application URL host must match the HTTPS host serving this installer.',
             ]);
         }
 
@@ -151,6 +168,26 @@ final class InstallerController
 
             DB::purge('mysql');
             DB::connection('mysql')->select('SELECT 1');
+
+            $tables = DB::connection('mysql')->select('SHOW TABLES');
+            $schema = DB::connection('mysql')->getSchemaBuilder();
+            $hasPlatformControl = $schema->hasTable('platform_control');
+            $hasMigrations = $schema->hasTable('migrations');
+
+            if (count($tables) > 0 && (! $hasPlatformControl || ! $hasMigrations)) {
+                throw new RuntimeException('The selected database is not empty or an interrupted Talyvane installation.');
+            }
+
+            if ($hasPlatformControl) {
+                $existingControl = DB::connection('mysql')->table('platform_control')->where('id', 1)->first();
+                if (! $existingControl
+                    || $existingControl->super_admin_user_id !== null
+                    || ! empty($existingControl->installation_id)
+                    || ! empty($existingControl->installation_lock_hash)
+                    || ! empty($existingControl->installation_completed_at)) {
+                    throw new RuntimeException('The selected database already has an administrator or completed installation state.');
+                }
+            }
 
             $migrationExitCode = Artisan::call('migrate', ['--force' => true]);
             if ($migrationExitCode !== 0) {

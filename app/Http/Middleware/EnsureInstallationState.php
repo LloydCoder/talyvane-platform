@@ -65,7 +65,8 @@ final class EnsureInstallationState
             $control = DB::table('platform_control')->where('id', 1)->first();
 
             return $control !== null && (
-                ! empty($control->installation_id)
+                ! empty($control->super_admin_user_id)
+                || ! empty($control->installation_id)
                 || ! empty($control->installation_lock_hash)
                 || ! empty($control->installation_completed_at)
             );
