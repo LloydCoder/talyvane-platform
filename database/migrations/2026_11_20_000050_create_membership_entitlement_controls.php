@@ -1,0 +1,58 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('client_membership_entitlements', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('membership_id')->constrained('client_memberships')->cascadeOnDelete();
+            $table->string('entitlement_key', 120);
+            $table->foreignId('granted_by')->constrained('users')->restrictOnDelete();
+            $table->timestamp('starts_at')->nullable();
+            $table->timestamp('ends_at')->nullable();
+            $table->timestamps();
+            $table->unique(['membership_id', 'entitlement_key']);
+            $table->index(['entitlement_key', 'starts_at', 'ends_at']);
+        });
+
+        Schema::table('profile_media', function (Blueprint $table): void {
+            $table->string('access_level', 24)->default('public')->index();
+        });
+
+        DB::table('platform_features')
+            ->where('key', 'memberships.entitlements')
+            ->update([
+                'description' => 'Immutable, server-enforced membership grants for protected private gallery media.',
+                'implementation_status' => 'available',
+                'is_enabled' => false,
+                'activation_requirements' => json_encode(['server_side_entitlement_checks']),
+                'updated_at' => now(),
+            ]);
+    }
+
+    public function down(): void
+    {
+        DB::table('platform_features')
+            ->where('key', 'memberships.entitlements')
+            ->update([
+                'description' => 'Server-side access entitlements and protected-benefit enforcement. Not yet implemented.',
+                'implementation_status' => 'planned',
+                'is_enabled' => false,
+                'activation_requirements' => json_encode(['server_side_entitlement_checks']),
+                'updated_at' => now(),
+            ]);
+
+        Schema::table('profile_media', function (Blueprint $table): void {
+            $table->dropIndex(['access_level']);
+            $table->dropColumn('access_level');
+        });
+
+        Schema::dropIfExists('client_membership_entitlements');
+    }
+};
