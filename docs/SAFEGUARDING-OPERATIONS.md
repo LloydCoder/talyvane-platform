@@ -122,6 +122,10 @@ Retention token:
 
 The application token must not receive `delete`, `list`, `sudo`, or key-configuration permissions. The retention token must not receive encrypt/decrypt or create permissions. Keep Vault's global Transit key upsert disabled where operationally supported; the application explicitly creates each random key before encrypting its per-case data key.
 
+Replace `${SAFEGUARDING_KEY_NAMESPACE}` in the policy examples with the literal value configured in the deployment environment; Vault ACL policies do not interpolate shell environment variables. The namespace must be unique across every deployment sharing a Transit mount. Prefer a dedicated Transit mount and separate least-privilege credentials for each customer deployment.
+
+For a deployment that still contains legacy unnamespaced `case-{uuid}` references, keep its Transit mount dedicated to that deployment until those cases have been retained/erased or explicitly migrated. The application can still verify and decrypt active legacy references, but restore reconciliation never garbage-collects legacy unnamespaced keys. If legacy key retention is required, the retention token's legacy delete permission must be scoped to that dedicated mount; do not grant broad legacy `case-*` deletion on a mount shared by deployments. Remove the temporary legacy permission after no legacy references remain.
+
 Required environment:
 - `SAFEGUARDING_CASE_KEY_PROVIDER=vault`
 - `SAFEGUARDING_VAULT_ADDRESS=https://...`
