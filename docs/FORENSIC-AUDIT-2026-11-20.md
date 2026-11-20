@@ -1,13 +1,14 @@
 # Talyvane forensic audit baseline — 2026-11-20
 
 **Repository:** `LloydCoder/talyvane-platform`  
-**Default branch snapshot:** `main` at `df9d4abf3905ba94b115f3fd6e9523e5822e401d`  
+**Original baseline snapshot:** `main` at `df9d4abf3905ba94b115f3fd6e9523e5822e401d` (installer baseline)
+**Latest reviewed main snapshot:** `main` at `f1be8a0a22a0e90e2863f1760ff29885caf672d0` (PR #69 merged)  
 **Audit status:** Baseline established; full release audit remains open  
 **Purpose:** Preserve an evidence-based inventory of completed engineering, known gaps, external release gates and the order of remaining work.
 
 ## 1. Evidence and scope
 
-The repository tree API returned 494 entries with `truncated=false`. The inventory includes the Laravel application, 56 migration files; the highest migration identifier is 000062, Blade views, routes, cPanel wrappers, installer bootstrap, documentation, Composer lockfile and feature/unit tests.
+The original baseline tree contained 494 entries. The latest reviewed tree at `f1be8a0a22a0e90e2863f1760ff29885caf672d0` contains 498 entries with `truncated=false`. The inventory includes the Laravel application, 56 migration files; the highest migration identifier is 000062, Blade views, routes, cPanel wrappers, installer bootstrap, documentation, Composer lockfile and feature/unit tests.
 
 The review inspected repository metadata, the recursive tree, the CI workflow, product requirements, architecture, roadmap, security/privacy and compliance documents, release/hosting/installer documentation, Composer metadata, the licence history, and representative authentication, booking, payment configuration, globalization, safeguarding, settlement and installer code.
 
@@ -124,3 +125,20 @@ Features depending on these gates must remain disabled or fail closed.
 6. Re-run post-merge CI on the resulting `main` commit.
 7. Update this report and the roadmap with evidence, not assumptions.
 8. Do not declare 100% complete while code findings, failed checks, external release gates or unverified deployment claims remain open.
+
+
+## 7. Subsequent delivery and commercial-architecture update — 2026-11-20
+
+### PR #69 — Super Admin profile-media preview authorization
+
+PR #69 was merged as `f1be8a0a22a0e90e2863f1760ff29885caf672d0`. The change aligned the controller's authorization allow-list with the Super Admin route policy and added a regression test for preview response content type and private/no-store caching.
+
+The exact PR-head checks passed: PHP 8.3, PHP 8.4, PHP 8.5, standalone release-package smoke build and Semgrep. Post-merge CI workflow [#44767739711](https://github.com/LloydCoder/talyvane-platform/actions/runs/44767739711) and security workflow [#44767739841](https://github.com/LloydCoder/talyvane-platform/actions/runs/44767739841) completed successfully on the merge commit. Open PR inventory was zero at the time of this audit update.
+
+### Commercial licensing architecture
+
+The current main tree contains a proprietary source-available `LICENSE`, `LicenseRef-Talyvane-Commercial` in Composer metadata, and `COMMERCIAL-LICENSING.md`. The architecture is now recorded in [ADR-0015](decisions/ADR-0015-commercial-licensing-and-deployment.md): isolated per-customer deployments initially; explicit evaluation, single-business, enterprise, multi-deployment, reseller, white-label and separately negotiated source-assignment profiles; and a separate TLMS control plane with offline-verifiable signed entitlements.
+
+This is a documentation/architecture milestone only. It does not certify ownership, resolve historical grants, create enforceable customer agreements, implement TLMS or authorise commercial launch. Qualified counsel must review the historical Apache-2.0 publication, GitHub public-repository permissions, authorship/assignment, dependencies and assets. Preserve the history and do not claim retroactive revocation or exclusivity.
+
+The current default-branch snapshot is `f1be8a0a22a0e90e2863f1760ff29885caf672d0`. The repository tree contains 498 entries and is not truncated. This API inventory is not a complete source-line audit; the full forensic and external acceptance gates remain open.
