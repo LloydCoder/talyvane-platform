@@ -13,6 +13,7 @@ use App\Models\ProfileMediaConsentEvent;
 use App\Models\User;
 use App\Services\FeatureRegistry;
 use App\Services\MembershipEntitlementService;
+use App\Services\ClientAgeAssuranceService;
 use App\Services\MembershipEntitlementCatalog;
 use App\Services\ClientMembershipService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -149,6 +150,10 @@ class MembershipEntitlementTest extends TestCase
             'talyvane.privacy.private_gallery_consent_version' => 'private-gallery-v1',
             'talyvane.privacy.private_gallery_consent_approved' => true,
         ]);
+        $this->mock(ClientAgeAssuranceService::class, function ($mock): void {
+            $mock->shouldReceive('isOperationallyConfigured')->andReturn(true);
+            $mock->shouldReceive('hasCurrentProof')->andReturn(true);
+        });
 
         DB::table('platform_features')->where('key', 'memberships.entitlements')->update([
             'implementation_status' => 'available',
@@ -194,6 +199,25 @@ class MembershipEntitlementTest extends TestCase
 
         $this->get(route('profile-media.show', $media))->assertNotFound();
         $this->actingAs($client)->get(route('profile-media.show', $media))->assertNotFound();
+    }
+
+    public function test_private_gallery_denies_an_entitled_client_without_current_age_assurance(): void
+    {
+        $this->enableEntitlements();
+        $client = $this->client();
+        $profile = $this->profile();
+        $membership = $this->membership($client);
+        $this->grantPrivateGallery($membership);
+        $this->privateMedia($profile);
+
+        $this->mock(ClientAgeAssuranceService::class, function ($mock): void {
+            $mock->shouldReceive('isOperationallyConfigured')->andReturn(true);
+            $mock->shouldReceive('hasCurrentProof')->andReturn(false);
+        });
+
+        $this->actingAs($client)
+            ->get(route('discovery.companion', $profile->slug))
+            ->assertNotFound();
     }
 
     public function test_private_gallery_media_is_available_only_to_a_verified_entitled_client(): void
