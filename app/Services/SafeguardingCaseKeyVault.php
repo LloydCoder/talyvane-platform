@@ -10,7 +10,7 @@ class SafeguardingCaseKeyVault
 {
     public function verify(): void
     {
-        $keyName = 'preflight-'.str_replace('-', '', (string) \Illuminate\Support\Str::uuid());
+        $keyName = $this->newPreflightKeyReference();
         $plaintext = random_bytes(32);
         $created = false;
 
@@ -87,12 +87,12 @@ class SafeguardingCaseKeyVault
 
     public function newCaseKeyReference(): string
     {
-        return $this->caseKeyPrefix().\\Illuminate\\Support\\Str::uuid()->toString();
+        return $this->caseKeyPrefix().\Illuminate\Support\\Str::uuid()->toString();
     }
 
     private function newPreflightKeyReference(): string
     {
-        return $this->preflightKeyPrefix().\\Illuminate\\Support\\Str::uuid()->toString();
+        return $this->preflightKeyPrefix().\Illuminate\Support\\Str::uuid()->toString();
     }
 
     public function reconcile(array $activeKeyCiphertexts): array
@@ -124,7 +124,7 @@ class SafeguardingCaseKeyVault
         foreach ($activeKeyCiphertexts as $keyReference => $ciphertext) {
             try {
                 $plaintext = $this->decrypt($keyReference, $ciphertext);
-            } catch (\\Throwable $exception) {
+            } catch (\Throwable $exception) {
                 throw new RuntimeException(
                     'An active safeguarding case key could not decrypt its stored ciphertext.',
                     0,
