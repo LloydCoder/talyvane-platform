@@ -7,6 +7,7 @@ use Illuminate\Contracts\Auth\Authenticatable as UserContract;
 use App\Models\Destination;
 use App\Models\CountryMarket;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\DB;
 
 abstract class TestCase extends BaseTestCase
 {
