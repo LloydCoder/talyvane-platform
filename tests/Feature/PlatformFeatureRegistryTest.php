@@ -265,6 +265,11 @@ class PlatformFeatureRegistryTest extends TestCase
             'admin.model-settlements.payment',
             'admin.model-settlements.reverse',
             'admin.model-settlements.dispute',
+            'admin.model-portfolio-assets.review',
+            'admin.model-portfolio-assets.withdraw-consent',
+            'admin.model-representation-agreements.terminate',
+            'admin.model-image-licences.revoke',
+            'admin.model-casting-submissions.decision',
         ] as $name) {
             $route = $routes->getByName($name);
             $this->assertNotNull($route, 'Expected route '.$name.' to exist.');
