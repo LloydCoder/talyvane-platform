@@ -51,6 +51,14 @@ class SafeguardingCaseKeyVaultTest extends TestCase
         });
     }
 
+    public function test_key_creation_requires_a_distinct_retention_credential(): void
+    {
+        config(['services.safeguarding_vault.retention_token' => 'application-token']);
+
+        $this->expectException(RuntimeException::class);
+        app(SafeguardingCaseKeyVault::class)->createKey('case-42');
+    }
+
     public function test_key_destruction_requires_the_separate_retention_credential(): void
     {
         Http::fake([
