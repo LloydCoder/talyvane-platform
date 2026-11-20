@@ -178,14 +178,14 @@ class ModelTalentPortfolioAssetTest extends TestCase
 
         $this->actingAs($admin)
             ->post('/admin/model-applications/'.$application->id.'/portfolio-assets', $this->uploadPayload())
-            ->assertSessionHasErrors('media');
+            ->assertStatus(503);
 
         $this->configurePortfolioPolicy();
         CountryMarket::query()->where('country_code', 'GB')->update(['is_enabled' => false]);
 
         $this->actingAs($admin)
             ->post('/admin/model-applications/'.$application->id.'/portfolio-assets', $this->uploadPayload())
-            ->assertSessionHasErrors('media');
+            ->assertStatus(503);
 
         CountryMarket::query()->where('country_code', 'GB')->update(['is_enabled' => true]);
         $unverified = $this->application([

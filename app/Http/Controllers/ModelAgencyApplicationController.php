@@ -4,8 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ModelTalentApplication;
 use App\Models\ModelTalentApplicationEvent;
-use App\Models\PlatformFeature;
-use App\Services\FeatureActivationEvaluator;
+use App\Services\FeatureRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Http\Request;
@@ -14,9 +13,9 @@ use Illuminate\Support\Str;
 
 class ModelAgencyApplicationController extends Controller
 {
-    public function create(FeatureActivationEvaluator $evaluator): Response
+    public function create(FeatureRegistry $features): Response
     {
-        $this->assertFeatureReady($evaluator);
+        $this->assertFeatureReady($features);
 
         return response()->view('model-agency.apply', [
             'privacyNoticeVersion' => config('talyvane.model_agency.privacy_notice_version'),
@@ -26,9 +25,9 @@ class ModelAgencyApplicationController extends Controller
             ->header('Referrer-Policy', 'no-referrer');
     }
 
-    public function store(Request $request, FeatureActivationEvaluator $evaluator): RedirectResponse
+    public function store(Request $request, FeatureRegistry $features): RedirectResponse
     {
-        $this->assertFeatureReady($evaluator);
+        $this->assertFeatureReady($features);
 
         $privacyNoticeVersion = (string) config('talyvane.model_agency.privacy_notice_version');
         $adultEligibilityPolicyVersion = (string) config('talyvane.model_agency.adult_eligibility_policy_version');
@@ -112,10 +111,8 @@ class ModelAgencyApplicationController extends Controller
             ->header('Referrer-Policy', 'no-referrer');
     }
 
-    private function assertFeatureReady(FeatureActivationEvaluator $evaluator): void
+    private function assertFeatureReady(FeatureRegistry $features): void
     {
-        $feature = PlatformFeature::query()->findOrFail('model-agency.applications');
-
-        abort_if($evaluator->blockers($feature) !== [], 503, 'Model agency application safeguards are not configured.');
+        $features->assertOperationallyEnabled('model-agency.applications');
     }
 }

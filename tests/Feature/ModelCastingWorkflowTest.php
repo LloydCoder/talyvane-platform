@@ -16,13 +16,16 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
+use Tests\Feature\Support\EnablesModelAgencyFeatureRoutes;
 
 class ModelCastingWorkflowTest extends TestCase
 {
     use RefreshDatabase;
+    use EnablesModelAgencyFeatureRoutes;
 
     private function context(): array
     {
+        $this->enableModelAgencyFeatureRoutes(['model-agency.casting']);
         config([
             'talyvane.model_agency.image_licence_policy_version' => 'image-licence-policy-v1',
             'talyvane.model_agency.image_licence_policy_approved' => true,
@@ -161,6 +164,28 @@ class ModelCastingWorkflowTest extends TestCase
             'currency_code' => 'GBP',
             'max_submissions' => 20,
         ];
+    }
+
+    public function test_service_boundary_rejects_enabled_casting_with_an_unmet_activation_requirement(): void
+    {
+        $context = $this->context();
+        \Illuminate\Support\Facades\DB::table('platform_features')
+            ->where('key', 'model-agency.casting')
+            ->update(['activation_requirements' => json_encode(['unknown_prerequisite'])]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        app(ModelCastingWorkflowService::class)->createDraft($context['admin']->id, $this->callInput());
+    }
+
+    public function test_new_casting_drafts_are_blocked_when_the_casting_feature_is_paused(): void
+    {
+        $context = $this->context();
+        \Illuminate\Support\Facades\DB::table('platform_features')
+            ->where('key', 'model-agency.casting')
+            ->update(['is_enabled' => false]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
+        app(ModelCastingWorkflowService::class)->createDraft($context['admin']->id, $this->callInput());
     }
 
     public function test_casting_submission_requires_open_call_and_active_casting_distribution_licence(): void

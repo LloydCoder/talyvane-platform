@@ -18,8 +18,9 @@ use Illuminate\View\View;
 
 class BookingController extends Controller
 {
-    public function create(string $slug): View
+    public function create(string $slug, FeatureRegistry $features): View
     {
+        $features->assertOperationallyEnabled('bookings.companionship');
         $profile = CompanionProfile::query()
             ->publiclyDiscoverable()
             ->with('destination')
@@ -34,6 +35,7 @@ class BookingController extends Controller
 
     public function store(Request $request, FeatureRegistry $features): RedirectResponse
     {
+        $features->assertOperationallyEnabled('bookings.companionship');
         $validated = $request->validate([
             'profile_id' => ['required', 'integer', Rule::exists('companion_profiles', 'id')],
             'start_at' => ['required', 'date_format:Y-m-d\\TH:i'],
@@ -115,7 +117,7 @@ class BookingController extends Controller
                     ->where('ends_at', '>=', $localEnd->format('H:i:s'))
                     ->exists();
 
-            $canAutoConfirm = $features->isEnabled('bookings.automatic')
+            $canAutoConfirm = $features->isOperationallyEnabled('bookings.automatic')
                 && $settings->booking_mode === 'automatic'
                 && $settings->auto_confirm_enabled
                 && $availabilityMatches

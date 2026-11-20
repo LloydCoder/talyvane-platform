@@ -17,11 +17,12 @@ use Illuminate\Support\Facades\Schema;
 
 class ModelCastingAdminController extends Controller
 {
-    public function index(): Response
+    public function index(\App\Services\FeatureRegistry $features): Response
     {
         $this->assertSchemaReady();
 
         return response()->view('admin.model-agency.castings.index', [
+            'canCreateCasting' => $features->isOperationallyEnabled('model-agency.casting'),
             'calls' => ModelCastingCall::query()->with([
                 'submissions.application',
                 'submissions.portfolioAsset',

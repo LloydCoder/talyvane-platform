@@ -18,13 +18,16 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
+use Tests\Feature\Support\EnablesModelAgencyFeatureRoutes;
 
 class ModelTalentAssignmentTest extends TestCase
 {
     use RefreshDatabase;
+    use EnablesModelAgencyFeatureRoutes;
 
     private function context(string $decision = 'selected'): array
     {
+        $this->enableModelAgencyFeatureRoutes(['model-agency.assignments']);
         config([
             'talyvane.model_agency.image_licence_policy_version' => 'image-licence-policy-v1',
             'talyvane.model_agency.image_licence_policy_approved' => true,
@@ -313,8 +316,8 @@ class ModelTalentAssignmentTest extends TestCase
                 $this->assignmentTerms(),
             );
             $this->fail('Assignment creation must fail closed when the current policy is not approved.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('assignment', $exception->errors());
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            $this->assertSame(503, $exception->getStatusCode());
         }
     }
 

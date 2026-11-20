@@ -16,13 +16,16 @@ use App\Services\ModelTalentSettlementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
+use Tests\Feature\Support\EnablesModelAgencyFeatureRoutes;
 
 class ModelTalentSettlementTest extends TestCase
 {
     use RefreshDatabase;
+    use EnablesModelAgencyFeatureRoutes;
 
     private function assignment(string $status = 'completed'): array
     {
+        $this->enableModelAgencyFeatureRoutes(['model-agency.settlements']);
         config([
             'talyvane.model_agency.settlement_policy_version' => 'settlement-policy-v1',
             'talyvane.model_agency.settlement_policy_approved' => true,
@@ -219,6 +222,17 @@ class ModelTalentSettlementTest extends TestCase
         return compact('admin', 'reviewer', 'application', 'agreement', 'asset', 'licence', 'call', 'submission', 'assignment');
     }
 
+    public function test_new_settlement_creation_is_blocked_when_the_settlement_feature_is_paused(): void
+    {
+        $context = $this->assignment('completed');
+        \Illuminate\Support\Facades\DB::table('platform_features')
+            ->where('key', 'model-agency.settlements')
+            ->update(['is_enabled' => false]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
+        app(ModelTalentSettlementService::class)->createDraft($context['assignment'], $context['admin']->id);
+    }
+
     public function test_settlement_snapshots_gross_commission_approved_expenses_and_manual_payment_evidence(): void
     {
         $context = $this->assignment();
@@ -345,8 +359,8 @@ class ModelTalentSettlementTest extends TestCase
         try {
             app(ModelTalentSettlementService::class)->createDraft($context['assignment'], $context['admin']->id);
             $this->fail('Settlement creation must stop when policy approval is withdrawn.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('settlement', $exception->errors());
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            $this->assertSame(503, $exception->getStatusCode());
         }
 
         config(['talyvane.model_agency.settlement_policy_approved' => true]);

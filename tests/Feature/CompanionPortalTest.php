@@ -121,6 +121,31 @@ class CompanionPortalTest extends TestCase
         ]);
     }
 
+    public function test_unverified_companion_can_opt_out_of_automatic_bookings_when_portal_features_are_paused(): void
+    {
+        $companion = $this->companion('automatic-opt-out@example.test', false);
+        $profile = $this->profile($companion);
+        $profile->forceFill([
+            'accepts_automatic_bookings' => true,
+            'automatic_booking_consent_at' => now(),
+        ])->save();
+
+        DB::table('platform_features')->whereIn('key', ['portals.companion', 'bookings.automatic'])
+            ->update(['is_enabled' => false]);
+
+        $this->actingAs($companion)
+            ->post('/companion-portal/profiles/'.$profile->id.'/automatic-booking', [
+                'enabled' => '0',
+            ])
+            ->assertRedirect('/companion-portal');
+
+        $this->assertDatabaseHas('companion_profiles', [
+            'id' => $profile->id,
+            'accepts_automatic_bookings' => false,
+            'automatic_booking_consent_at' => null,
+        ]);
+    }
+
     public function test_companion_can_withdraw_publication_consent_and_profile_is_hidden_immediately(): void
     {
         $companion = $this->companion('companion@example.test');

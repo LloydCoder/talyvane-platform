@@ -12,6 +12,10 @@
         </div>
     </div>
 
+    @unless($canCreateSettlements)
+        <section class="admin-panel"><h2>New financial claims paused</h2><p class="field-help">New expense claims and settlement drafts are disabled by the platform feature control. Existing claims, approvals, external payment attestations, reversals and disputes remain available for financial close-out.</p></section>
+    @endunless
+
     <section class="admin-panel">
         <h2>Expense claims awaiting review</h2>
         @forelse($expenses->where('status', 'pending') as $expense)
@@ -51,7 +55,7 @@
                     <p>Agreed gross: {{ $assignment->compensation_amount }} {{ $assignment->currency_code }} · Expense cap: {{ $assignment->expense_cap_amount ?? 'Not set' }} · Commission: {{ $assignment->commission_percent }}%</p>
                 @endif
 
-                @if(in_array($assignment->status, ['in_progress','completed'], true) && $assignment->settlement === null && $assignment->expense_cap_amount !== null)
+                @if($canSubmitExpenses && in_array($assignment->status, ['in_progress','completed'], true) && $assignment->settlement === null && $assignment->expense_cap_amount !== null)
                     <details class="admin-details">
                         <summary>Submit expense claim</summary>
                         <form method="POST" action="{{ route('admin.model-settlements.expenses.store', $assignment) }}" class="admin-form-grid">
@@ -65,7 +69,7 @@
                     </details>
                 @endif
 
-                @if($assignment->status === 'completed' && $assignment->settlement === null)
+                @if($canCreateSettlements && $assignment->status === 'completed' && $assignment->settlement === null)
                     <form method="POST" action="{{ route('admin.model-settlements.create', $assignment) }}">
                         @csrf
                         <button class="button button-dark" type="submit">Calculate settlement draft</button>

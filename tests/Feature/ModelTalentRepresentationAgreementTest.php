@@ -87,6 +87,7 @@ class ModelTalentRepresentationAgreementTest extends TestCase
 
     public function test_agreement_requires_accepted_verified_applicant_and_no_legal_hold(): void
     {
+        $this->market();
         $admin = $this->createAdminUser();
         $unverified = $this->application([
             'reference' => 'MTA-2026-AGREE02',
@@ -119,7 +120,6 @@ class ModelTalentRepresentationAgreementTest extends TestCase
         $this->market();
         $application = $this->application();
         $admin = $this->createAdminUser();
-
         $this->actingAs($admin)->post('/admin/model-applications/'.$application->id.'/agreements', $this->terms())
             ->assertRedirect();
 
@@ -166,7 +166,7 @@ class ModelTalentRepresentationAgreementTest extends TestCase
     {
         config([
             'talyvane.model_agency.representation_terms_version' => 'representation-terms-v1',
-            'talyvane.model_agency.representation_terms_approved' => false,
+            'talyvane.model_agency.representation_terms_approved' => true,
         ]);
         $this->market();
         $application = $this->application();
@@ -176,8 +176,9 @@ class ModelTalentRepresentationAgreementTest extends TestCase
             ->assertRedirect();
         $agreement = ModelTalentRepresentationAgreement::query()->firstOrFail();
 
+        config(['talyvane.model_agency.representation_terms_approved' => false]);
         $this->actingAs($admin)->post('/admin/model-representation-agreements/'.$agreement->id.'/offer')
-            ->assertSessionHasErrors('agreement');
+            ->assertStatus(503);
         $this->assertSame('draft', $agreement->fresh()->status);
 
         config(['talyvane.model_agency.representation_terms_approved' => true]);
@@ -241,7 +242,7 @@ class ModelTalentRepresentationAgreementTest extends TestCase
         $admin = $this->createAdminUser();
 
         $this->actingAs($admin)->post('/admin/model-applications/'.$application->id.'/agreements', $this->terms())
-            ->assertSessionHasErrors('agreement');
+            ->assertStatus(503);
 
         $this->assertDatabaseCount('model_talent_representation_agreements', 0);
     }
@@ -263,7 +264,7 @@ class ModelTalentRepresentationAgreementTest extends TestCase
         $market->forceFill(['is_enabled' => false])->save();
 
         $this->actingAs($admin)->post('/admin/model-representation-agreements/'.$agreement->id.'/offer')
-            ->assertSessionHasErrors('agreement');
+            ->assertStatus(503);
 
         $this->assertSame('draft', $agreement->fresh()->status);
     }

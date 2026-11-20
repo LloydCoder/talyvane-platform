@@ -23,6 +23,7 @@ class FeatureActivationEvaluator
         'email_verification',
         'verified_account',
         'consent_controls',
+        'payment_provider_review',
     ];
 
     public function blockers(PlatformFeature $feature): array
@@ -34,7 +35,7 @@ class FeatureActivationEvaluator
         }
 
         foreach ($feature->dependencies ?? [] as $dependency) {
-            if (! $this->registry->isEnabled((string) $dependency)) {
+            if (! $this->registry->isOperationallyEnabled((string) $dependency)) {
                 $blockers[] = 'Required feature is not effectively enabled: '.$dependency.'.';
             }
         }
@@ -216,7 +217,9 @@ class FeatureActivationEvaluator
 
             if ($requirement === 'applicant_privacy_notice') {
                 $privacyVersion = (string) config('talyvane.model_agency.privacy_notice_version');
-                $privacyPage = SitePage::query()->where('slug', 'model-applicant-privacy')->where('is_published', true)->first();
+                $privacyPage = Schema::hasTable('site_pages')
+                    ? SitePage::query()->where('slug', 'model-applicant-privacy')->where('is_published', true)->first()
+                    : null;
 
                 if (! filled($privacyVersion)
                     || ! config('talyvane.model_agency.privacy_notice_approved')
@@ -230,7 +233,9 @@ class FeatureActivationEvaluator
 
             if ($requirement === 'adult_eligibility_policy') {
                 $eligibilityVersion = (string) config('talyvane.model_agency.adult_eligibility_policy_version');
-                $eligibilityPage = SitePage::query()->where('slug', 'model-adult-eligibility')->where('is_published', true)->first();
+                $eligibilityPage = Schema::hasTable('site_pages')
+                    ? SitePage::query()->where('slug', 'model-adult-eligibility')->where('is_published', true)->first()
+                    : null;
 
                 if (! filled($eligibilityVersion)
                     || ! config('talyvane.model_agency.adult_eligibility_policy_approved')
@@ -243,7 +248,7 @@ class FeatureActivationEvaluator
             }
 
             if (in_array($requirement, ['approved_market_policy', 'market_approval'], true)) {
-                if (! CountryMarket::query()->operationallyApproved()->exists()) {
+                if (! Schema::hasTable('country_markets') || ! CountryMarket::query()->operationallyApproved()->exists()) {
                     $blockers[] = 'At least one market must have a documented, operational compliance approval.';
                 }
 

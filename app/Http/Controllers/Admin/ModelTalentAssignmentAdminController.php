@@ -13,11 +13,12 @@ use Illuminate\Support\Facades\Schema;
 
 class ModelTalentAssignmentAdminController extends Controller
 {
-    public function index(): Response
+    public function index(\App\Services\FeatureRegistry $features): Response
     {
         $this->assertSchemaReady();
 
         return response()->view('admin.model-agency.assignments.index', [
+            'canCreateAssignments' => $features->isOperationallyEnabled('model-agency.assignments'),
             'assignments' => ModelTalentAssignment::query()
                 ->with(['application', 'submission.call', 'representationAgreement'])
                 ->latest()

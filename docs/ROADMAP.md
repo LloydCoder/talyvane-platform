@@ -109,7 +109,8 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Add dependency-aware server-side feature resolution and route middleware for public discovery, dynamic CMS pages, client/companion portals and companionship booking endpoints.
 - [x] Recheck the automatic-booking feature gate inside the booking transaction before automatic confirmation.
 - [x] Keep companion consent withdrawal and media removal outside the companion-portal feature gate, with a standalone privacy-controls page.
-- [ ] Extend feature enforcement to every relevant policy, application service, scheduled job and integration boundary.
+- [x] Enforce operational activation prerequisites in feature middleware, dependency evaluation, the admin catalog, public intake and new-work service boundaries; preserve cancellation, consent withdrawal, revocation, rejection, disputes and financial close-out when new work is paused.
+- [ ] Complete scheduled-job and integration-boundary feature enforcement, direct-database bypass testing, audit-integrity verification and comprehensive feature-gate bypass tests.
 - [x] Implement current-password plus single-use TOTP step-up, reason capture, atomic feature-state changes and append-only audit writes.
 - [x] Add an append-only feature-audit event schema, model-level update/delete protection and transactional event writes for feature state changes.
 - [ ] Add secret set/rotate/clear workflows backed by environment or dedicated secret storage; never reveal stored values.

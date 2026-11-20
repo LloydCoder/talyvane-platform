@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\FeatureRegistry;
 use App\Models\User;
+use App\Models\CountryMarket;
 use App\Models\PlatformFeatureAuditEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -13,8 +14,24 @@ class PlatformFeatureRegistryTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function approveDiscoveryMarket(): void
+    {
+        CountryMarket::query()->create([
+            'country_code' => 'GB',
+            'name' => 'United Kingdom',
+            'is_enabled' => true,
+            'compliance_status' => 'approved',
+            'compliance_reviewed_at' => now(),
+            'compliance_reviewed_by' => 'test-fixture',
+            'compliance_evidence_reference' => 'feature-registry-market-evidence',
+            'compliance_review_summary' => 'Approved test market.',
+            'market_policy' => ['test_fixture' => true],
+        ]);
+    }
+
     public function test_currently_available_public_discovery_is_enabled_by_the_registry(): void
     {
+        $this->approveDiscoveryMarket();
         $this->assertDatabaseHas('platform_features', [
             'key' => 'public.discovery',
             'implementation_status' => 'available',
@@ -36,6 +53,7 @@ class PlatformFeatureRegistryTest extends TestCase
 
     public function test_available_model_agency_features_cannot_be_enabled_before_dependencies_are_enabled(): void
     {
+        $this->approveDiscoveryMarket();
         DB::table('platform_features')->where('key', 'model-agency.casting')->update([
             'is_enabled' => true,
         ]);
@@ -184,4 +202,86 @@ class PlatformFeatureRegistryTest extends TestCase
             ->assertSee('Model agency applications')
             ->assertSee('Planned');
     }
+    public function test_activation_prerequisites_are_enforced_by_the_runtime_feature_gate(): void
+    {
+        DB::table('platform_features')->where('key', 'public.discovery')->update([
+            'activation_requirements' => json_encode(['unrecognized_security_prerequisite']),
+        ]);
+
+        $registry = app(FeatureRegistry::class);
+
+        $this->assertFalse($registry->isOperationallyEnabled('public.discovery'));
+        $this->assertFalse($registry->catalog()->firstWhere('key', 'public.discovery')->effective_enabled);
+        $this->get('/destinations')->assertStatus(503);
+    }
+
+    public function test_payment_configuration_remains_available_for_provider_review_workflows(): void
+    {
+        DB::table('platform_features')->where('key', 'payments.configuration')->update([
+            'implementation_status' => 'available',
+            'is_enabled' => true,
+        ]);
+
+        $this->assertTrue(app(FeatureRegistry::class)->isOperationallyEnabled('payments.configuration'));
+    }
+
+    public function test_dependency_prerequisites_are_checked_recursively_at_runtime(): void
+    {
+        $this->approveDiscoveryMarket();
+
+        DB::table('platform_features')->whereIn('key', [
+            'public.discovery',
+            'portals.client',
+            'bookings.companionship',
+            'bookings.automatic',
+        ])->update(['implementation_status' => 'available', 'is_enabled' => true]);
+
+        DB::table('platform_features')->where('key', 'public.discovery')->update([
+            'activation_requirements' => json_encode(['unrecognized_security_prerequisite']),
+        ]);
+
+        $registry = app(FeatureRegistry::class);
+
+        $this->assertFalse($registry->isOperationallyEnabled('bookings.companionship'));
+        $this->assertFalse($registry->isOperationallyEnabled('bookings.automatic'));
+    }
+
+    public function test_existing_booking_cancellation_and_companion_opt_out_survive_feature_disablement(): void
+    {
+        $routes = app('router')->getRoutes();
+        $cancel = $routes->getByName('bookings.cancel');
+        $optOut = $routes->getByName('companion-portal.profiles.automatic-booking');
+
+        $this->assertNotNull($cancel);
+        $this->assertNotNull($optOut);
+        $this->assertStringNotContainsString('EnsurePlatformFeatureEnabled', implode('|', $cancel->gatherMiddleware()));
+        $this->assertStringNotContainsString('EnsurePlatformFeatureEnabled', implode('|', $optOut->gatherMiddleware()));
+    }
+
+    public function test_existing_assignment_and_settlement_safety_transitions_survive_feature_disablement(): void
+    {
+        $routes = app('router')->getRoutes();
+
+        foreach ([
+            'admin.model-assignments.complete',
+            'admin.model-assignments.decline',
+            'admin.model-assignments.cancel',
+            'admin.model-assignments.dispute',
+            'admin.model-settlements.expenses.review',
+            'admin.model-settlements.approve',
+            'admin.model-settlements.payment',
+            'admin.model-settlements.reverse',
+            'admin.model-settlements.dispute',
+            'admin.model-portfolio-assets.review',
+            'admin.model-portfolio-assets.withdraw-consent',
+            'admin.model-representation-agreements.terminate',
+            'admin.model-image-licences.revoke',
+            'admin.model-casting-submissions.decision',
+        ] as $name) {
+            $route = $routes->getByName($name);
+            $this->assertNotNull($route, 'Expected route '.$name.' to exist.');
+            $this->assertStringNotContainsString('EnsurePlatformFeatureEnabled', implode('|', $route->gatherMiddleware()));
+        }
+    }
+
 }

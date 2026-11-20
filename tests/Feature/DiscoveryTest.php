@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BrandSetting;
+use App\Models\CountryMarket;
 use App\Models\Destination;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,6 +15,22 @@ use Tests\TestCase;
 class DiscoveryTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function approvePublicMarket(): void
+    {
+        CountryMarket::query()->firstOrCreate(['country_code' => 'GB'], [
+            'country_code' => 'GB',
+            'name' => 'United Kingdom',
+            'is_enabled' => true,
+            'compliance_status' => 'approved',
+            'compliance_reviewed_at' => now(),
+            'compliance_reviewed_by' => 'test-fixture',
+            'compliance_evidence_reference' => 'homepage-test-market-evidence',
+            'compliance_review_summary' => 'Approved test market.',
+            'market_policy' => ['test_fixture' => true],
+        ]);
+    }
+
 
 
     public function test_stock_photography_uses_only_reviewed_unsplash_cdn_sources(): void
@@ -35,6 +52,7 @@ class DiscoveryTest extends TestCase
 
     public function test_homepage_renders_curated_hospitality_photography(): void
     {
+        $this->approvePublicMarket();
         $this->get('/')
             ->assertOk()
             ->assertSee('editorial-gallery')
@@ -190,6 +208,7 @@ class DiscoveryTest extends TestCase
 
     public function test_companion_directory_rejects_array_filter_input(): void
     {
+        $this->approvePublicMarket();
         $this->from('/companions')
             ->get('/companions?destination[]=london')
             ->assertRedirect('/companions')

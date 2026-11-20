@@ -22,6 +22,7 @@ class ModelTalentImageLicenceService
         int $actorId,
         array $terms,
     ): ModelTalentImageLicence {
+        app(FeatureRegistry::class)->assertOperationallyEnabled('model-agency.usage-rights');
         return DB::transaction(function () use ($asset, $agreement, $actorId, $terms): ModelTalentImageLicence {
             $this->assertDraftTerms($terms);
             $application = ModelTalentApplication::query()->lockForUpdate()->findOrFail($asset->application_id);
@@ -63,6 +64,7 @@ class ModelTalentImageLicenceService
         string $executionEvidenceReference,
         string $modelConsentEvidenceReference,
     ): void {
+        app(FeatureRegistry::class)->assertOperationallyEnabled('model-agency.usage-rights');
         $this->assertPrivateEvidenceReference($executionEvidenceReference, 'private/model-licences/');
         $this->assertPrivateEvidenceReference($modelConsentEvidenceReference, 'private/model-consent/');
 

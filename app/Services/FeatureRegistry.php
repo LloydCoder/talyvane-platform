@@ -4,12 +4,13 @@ namespace App\Services;
 
 use App\Models\PlatformFeature;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Schema;
 
 class FeatureRegistry
 {
     public function isEnabled(string $key, array $visited = []): bool
     {
-        if (in_array($key, $visited, true)) {
+        if (! Schema::hasTable('platform_features') || in_array($key, $visited, true)) {
             return false;
         }
 
@@ -30,14 +31,41 @@ class FeatureRegistry
         return true;
     }
 
+    public function isOperationallyEnabled(string $key): bool
+    {
+        if (! $this->isEnabled($key)) {
+            return false;
+        }
+
+        $feature = PlatformFeature::query()->find($key);
+
+        return $feature !== null
+            && app(FeatureActivationEvaluator::class)->blockers($feature) === [];
+    }
+
+    public function assertOperationallyEnabled(string $key): void
+    {
+        if (! $this->isEnabled($key)) {
+            abort(404);
+        }
+
+        if (! $this->isOperationallyEnabled($key)) {
+            abort(503, 'Feature activation prerequisites are not satisfied.');
+        }
+    }
+
     public function catalog(): Collection
     {
+        if (! Schema::hasTable('platform_features')) {
+            return new Collection();
+        }
+
         return PlatformFeature::query()
             ->orderBy('module')
             ->orderBy('name')
             ->get()
             ->each(function (PlatformFeature $feature): void {
-                $feature->setAttribute('effective_enabled', $this->isEnabled($feature->key));
+                $feature->setAttribute('effective_enabled', $this->isOperationallyEnabled($feature->key));
             });
     }
 }

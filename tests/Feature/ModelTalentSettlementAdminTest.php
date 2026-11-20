@@ -6,26 +6,33 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
+use Tests\Feature\Support\EnablesModelAgencyFeatureRoutes;
 
 class ModelTalentSettlementAdminTest extends TestCase
 {
     use RefreshDatabase;
+    use EnablesModelAgencyFeatureRoutes;
 
     private function enableSettlementFeature(): void
     {
-        DB::table('platform_features')->whereIn('key', [
-            'model-agency.applications',
-            'model-agency.usage-rights',
-            'model-agency.casting',
-            'model-agency.assignments',
-            'model-agency.settlements',
-        ])->update([
-            'implementation_status' => 'available',
-            'is_enabled' => true,
-        ]);
+        $this->enableModelAgencyFeatureRoutes();
+        $destination = \App\Models\Destination::query()->firstOrCreate(
+            ['slug' => 'settlement-feature-admin-market'],
+            [
+                'name' => 'London',
+                'country_code' => 'GB',
+                'country_name' => 'United Kingdom',
+                'city_name' => 'London',
+                'currency_code' => 'GBP',
+                'locale' => 'en',
+                'timezone' => 'Europe/London',
+                'is_active' => true,
+            ],
+        );
+        $this->approveCountryMarket($destination);
     }
 
-    public function test_settlement_register_is_disabled_by_default_and_available_to_the_owner_when_enabled(): void
+    public function test_settlement_register_remains_available_for_close_out_while_new_claims_are_paused(): void
     {
         $owner = $this->createAdminUser([
             'name' => 'Agency Owner',
@@ -33,7 +40,7 @@ class ModelTalentSettlementAdminTest extends TestCase
             'role' => 'owner',
             'is_active' => true,
         ]);
-        $this->actingAs($owner)->get('/admin/model-settlements')->assertNotFound();
+        $this->actingAs($owner)->get('/admin/model-settlements')->assertOk()->assertSee('New financial claims paused')->assertDontSee('Submit expense');
 
         $this->enableSettlementFeature();
         $this->actingAs($owner)

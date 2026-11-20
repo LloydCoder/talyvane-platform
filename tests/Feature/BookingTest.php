@@ -69,6 +69,19 @@ class BookingTest extends TestCase
             'compliance_evidence_reference' => null,
             'compliance_review_summary' => null,
         ]);
+        $otherDestination = Destination::create([
+            'name' => 'Paris',
+            'slug' => 'paris',
+            'country_code' => 'FR',
+            'country_name' => 'France',
+            'city_name' => 'Paris',
+            'currency_code' => 'EUR',
+            'locale' => 'fr',
+            'timezone' => 'Europe/Paris',
+            'is_active' => true,
+        ]);
+        $this->approveCountryMarket($otherDestination);
+
         BookingSetting::create(['booking_mode' => 'manual']);
 
         $this->actingAs($client)
@@ -80,6 +93,30 @@ class BookingTest extends TestCase
             ->assertSessionHasErrors('profile_id');
 
         $this->assertDatabaseCount('bookings', 0);
+    }
+
+    public function test_existing_booking_can_be_cancelled_when_new_booking_and_client_portal_features_are_paused(): void
+    {
+        $client = $this->client();
+        $profile = $this->profile();
+        BookingSetting::create(['booking_mode' => 'manual', 'auto_confirm_enabled' => false]);
+
+        $this->actingAs($client)->post('/bookings', [
+            'profile_id' => $profile->id,
+            'start_at' => now()->addDays(3)->setTimezone('Europe/London')->format('Y-m-d\\TH:i'),
+            'duration_minutes' => 60,
+        ])->assertRedirect('/portal');
+
+        $booking = Booking::query()->firstOrFail();
+        \Illuminate\Support\Facades\DB::table('platform_features')
+            ->whereIn('key', ['portals.client', 'bookings.companionship'])
+            ->update(['is_enabled' => false]);
+
+        $this->actingAs($client)
+            ->post('/bookings/'.$booking->id.'/cancel')
+            ->assertRedirect('/portal');
+
+        $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'status' => 'cancelled']);
     }
 
     public function test_manual_booking_creates_a_pending_review_request(): void
