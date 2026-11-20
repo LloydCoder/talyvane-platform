@@ -1,6 +1,6 @@
 # Secure browser installer: security and acceptance specification
 
-**Status:** Approved product requirement; implementation pending  
+**Status:** Approved requirement; implementation in PR #60, final CI and release verification pending  
 **Scope:** First installation of a single Talyvane deployment on compatible cPanel/shared hosting, including hosts without SSH or Composer.  
 **Normative language:** MUST, MUST NOT, SHOULD and MAY are used as engineering requirements.
 
@@ -82,6 +82,8 @@ The implementation is not complete until automated tests cover at least:
 - Successful installation creates a durable lock and disables installer routes before the success response.
 - Automatic installer-directory deletion is attempted safely; deletion failure leaves the application locked and displays the manual-removal instruction.
 - Re-running or retrying interrupted steps cannot duplicate the Super Admin, corrupt configuration or silently rerun destructive operations.
+- A private, expiring pending-install marker prevents concurrent setup sessions from changing database/mail configuration during email verification; the marker is bound to a random session nonce and stored with restrictive permissions.
+- Runtime directories are created/validated before Laravel session middleware runs; symlinked storage ancestors are rejected and private runtime directories are restricted to owner-only permissions.
 - The full PHP compatibility matrix, complete application test suite, static/security checks and release packaging workflow pass.
 
 ## 5. cPanel operator success screen
