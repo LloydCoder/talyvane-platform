@@ -200,6 +200,29 @@ class FeatureActivationEvaluator
                 continue;
             }
 
+            if ($requirement === 'server_side_entitlement_checks') {
+                $schemaReady = Schema::hasTable('client_membership_entitlements')
+                    && Schema::hasColumns('client_membership_entitlements', [
+                        'membership_id',
+                        'entitlement_key',
+                        'granted_by',
+                        'starts_at',
+                        'ends_at',
+                    ])
+                    && Schema::hasTable('profile_media')
+                    && Schema::hasColumns('profile_media', ['access_level']);
+
+                $runtimeReady = class_exists(MembershipEntitlementService::class)
+                    && class_exists(MembershipEntitlementCatalog::class)
+                    && class_exists(\\App\\Http\\Controllers\\ProfileMediaController::class);
+
+                if (! $schemaReady || ! $runtimeReady) {
+                    $blockers[] = 'The membership grant schema, entitlement catalogue and protected-media authorization boundary must all be available.';
+                }
+
+                continue;
+            }
+
             if ($requirement === 'adult_eligibility_verification') {
                 $verificationSchemaReady = Schema::hasTable('model_talent_applications')
                     && Schema::hasColumns('model_talent_applications', [
@@ -271,6 +294,7 @@ class FeatureActivationEvaluator
             'portals.companion' => ['Companion sign-in experience', 'Companion availability, consent and booking controls'],
             'cms.pages' => ['Public deployment-managed pages'],
             'memberships' => ['Client membership display and agency assignment'],
+            'memberships.entitlements' => ['Immutable membership entitlement grants', 'Server-authorized private gallery delivery', 'Membership-aware profile detail projection'],
             'model-agency.applications' => ['Public adult model-agency application intake', 'Restricted agency review workspace', 'Append-only application status history'],
             'model-agency.usage-rights' => ['Representation agreement register', 'Private portfolio media and consent', 'Purpose-bound image usage licence ledger'],
             'model-agency.casting' => ['Private casting briefs', 'Licensed model submissions', 'Manual shortlist and selection controls'],
