@@ -1,7 +1,8 @@
 # Talyvane forensic audit baseline — 2026-11-20
 
 **Repository:** `LloydCoder/talyvane-platform`  
-**Original baseline snapshot:** `main` at `df9d4abf3905ba94b115f3fd6e9523e5822e401d` (installer baseline)\n**Latest reviewed main snapshot:** `main` at `f1be8a0a22a0e90e2863f1760ff29885caf672d0` (PR #69 merged)  
+**Original baseline snapshot:** `main` at `df9d4abf3905ba94b115f3fd6e9523e5822e401d` (installer baseline)
+**Latest reviewed main snapshot:** `main` at `f1be8a0a22a0e90e2863f1760ff29885caf672d0` (PR #69 merged)  
 **Audit status:** Baseline established; full release audit remains open  
 **Purpose:** Preserve an evidence-based inventory of completed engineering, known gaps, external release gates and the order of remaining work.
 
