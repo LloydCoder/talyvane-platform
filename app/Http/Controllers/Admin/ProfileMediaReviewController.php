@@ -39,7 +39,11 @@ class ProfileMediaReviewController
                 if ($accessLevel === 'members_only') {
                     $requiredConsentVersion = config('talyvane.privacy.private_gallery_consent_version');
                     $expectedConsentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement((string) ($brandSettings->publicBrand()['brand_name'] ?? 'Talyvane'));
-                    $grantEvent = $lockedMedia->consentEvents()->where('action', 'members_only_consent.granted')->oldest('id')->first();
+                    $grantEvent = $lockedMedia->consentEvents()
+                        ->where('action', 'members_only_consent.granted')
+                        ->where('capture_method', 'authenticated_companion_portal_checkbox')
+                        ->oldest('id')
+                        ->first();
                     if (
                         ! config('talyvane.privacy.private_gallery_consent_approved')
                         || ! filled($requiredConsentVersion)
