@@ -172,6 +172,8 @@ class AdminMfaController
 
         $destination = route(match ($user->role) { 'finance' => 'admin.model-settlements.index', 'verifier' => 'admin.adult-eligibility.index', default => 'admin.dashboard' });
 
-        return $user->role === 'finance' ? redirect($destination) : redirect()->intended($destination);
+        return in_array($user->role, ['finance', 'verifier'], true)
+            ? redirect($destination)
+            : redirect()->intended($destination);
     }
 }
