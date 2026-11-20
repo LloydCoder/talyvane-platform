@@ -127,6 +127,7 @@ jobs:
           grep -Fq 'talyvane/install/bootstrap.php' dist/package-contents.txt
           grep -Fq 'talyvane/cpanel-public-root/main-domain/index.php' dist/package-contents.txt
           grep -Fq 'talyvane/cpanel-public-root/addon-domain/index.php' dist/package-contents.txt
+          grep -Fq 'talyvane/public/.htaccess' dist/package-contents.txt
           test -f "$staging/install/RELEASE-MANIFEST.json"
           test ! -d "$staging/public/install"
           if grep -E '(^|/)\.env$|(^|/)\.git/|^talyvane/tests/|^talyvane/storage/(logs|app/private)/[^.]|^talyvane/bootstrap/cache/[^.]' dist/package-contents.txt; then
