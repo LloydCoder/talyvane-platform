@@ -75,10 +75,6 @@ class ProfileMediaTest extends TestCase
                 'members_only_confirmed' => '1',
                 'members_only_consent_statement_hash' => hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement('Talyvane')),
                 'members_only_consent_policy_version' => 'private-gallery-v1',
-                'members_only_consent_statement_hash' => hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement()),
-                'members_only_consent_policy_version' => 'private-gallery-v1',
-                'members_only_consent_statement_hash' => hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement()),
-                'members_only_consent_policy_version' => 'private-gallery-v1',
             ])
             ->assertRedirect('/companion-portal');
 
