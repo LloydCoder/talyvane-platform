@@ -34,7 +34,7 @@ class SafeguardingCaseEvent extends Model
 
         $caseId = (int) ($this->attributes['case_id'] ?? 0);
         if ($caseId < 1) {
-            throw new \\LogicException('Safeguarding event notes require a case identifier.');
+            throw new LogicException('Safeguarding event notes require a case identifier.');
         }
 
         $this->attributes['note'] = app(SafeguardingCaseContentService::class)->encryptForCase($caseId, $value);
