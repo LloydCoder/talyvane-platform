@@ -354,11 +354,10 @@ final class InstallerController
                 // A pair of familiar table names is not proof that this is a
                 // Talyvane database. Require known migration history and reject
                 // any table that is not declared by this release's migrations.
-                $migrationFiles = glob(database_path('migrations/*.php')) ?: [];
-                $knownMigrations = array_fill_keys(array_map(
-                    static fn (string $path): string => basename($path, '.php'),
-                    $migrationFiles,
-                ), true);
+                $migrator = app('migrator');
+                $migrationPaths = array_merge($migrator->paths(), [database_path('migrations')]);
+                $migrationFiles = $migrator->getMigrationFiles($migrationPaths);
+                $knownMigrations = array_fill_keys(array_keys($migrationFiles), true);
                 $appliedMigrations = $connection->table('migrations')->pluck('migration')->all();
 
                 if ($appliedMigrations === []
