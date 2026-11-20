@@ -526,12 +526,15 @@ final class InstallerController
         }
 
         $pendingState->release($pendingNonce);
-        $installerRemoved = false;
+        $installerDirectoryRemoved = false;
         try {
-            $installerRemoved = $remover->remove();
+            $installerDirectoryRemoved = $remover->remove();
         } catch (Throwable) {
-            $installerRemoved = false;
+            $installerDirectoryRemoved = false;
         }
+        // Treat the installer as fully removed only when both the private
+        // bootstrap directory and its one-time access-key file are gone.
+        $installerRemoved = $accessTokenRemoved && $installerDirectoryRemoved;
 
         $request->session()->forget(['installer.pending_admin', 'installer.pending_nonce']);
         $request->session()->invalidate();
