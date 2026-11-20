@@ -49,7 +49,7 @@ For members-only gallery activation, do not set `PRIVATE_GALLERY_CONSENT_APPROVE
 
 Before model-agency adult-eligibility verification can be activated, provision at least one active, email-verified account with the dedicated `verifier` role and MFA enrollment. The role is restricted to the eligibility queue; it is not a substitute for trained human review, written operating procedures or independent oversight. The workflow currently records human review evidence and must not be represented as an automated age-assurance provider integration.
 
-Use NIST SP 800-63A-4 as a current identity-proofing reference where relevant, while obtaining jurisdiction-specific advice for the actual age-assurance obligation and method: https://pages.nist.gov/800-63-4/sp800-63a.html
+Use NIST SP 800-63A-4 as a current identity-proofing reference where relevant, while obtaining jurisdiction-specific advice for the actual age-assurance obligation and method: https://csrc.nist.gov/pubs/sp/800/63/a/4/final
 
 ## Payment and integration activation remains blocked
 
