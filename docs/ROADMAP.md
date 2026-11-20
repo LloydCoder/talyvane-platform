@@ -1,5 +1,21 @@
 # Delivery Roadmap
 
+
+## Commercial licensing and deployment architecture
+
+- [x] Keep the public repository and adopt proprietary source-available commercial positioning for covered current materials; do not describe Talyvane as OSI-approved open source.
+- [x] Define agreement profiles for evaluation, single-business deployment, enterprise, multi-deployment, agency/reseller, white-label and separately negotiated source assignment/buyout.
+- [x] Define the initial one-isolated-installation-per-licensed-customer architecture; shared multi-tenant SaaS remains future scope.
+- [x] Define the separate TLMS control-plane boundary, signed offline-verifiable entitlement direction and safe degradation requirements.
+- [x] Document platform IP, customer materials, third-party materials, custom work and contributor boundaries.
+- [ ] Obtain qualified legal review of the exact current licence, historical Apache-2.0 publication, GitHub public-repository permissions, chain of title, contributor assignments and third-party rights.
+- [ ] Approve customer, enterprise, reseller and source-assignment contract templates and commercial terms.
+- [ ] Implement TLMS protocol/schema, signing-key lifecycle, issuance/renewal/revocation APIs, PHP verifier SDK and Talyvane adapter.
+- [ ] Complete activation, transfer/re-hosting, offline grace, clock rollback, restore-cloning, key-rotation and safe-expiry acceptance tests.
+- [ ] Complete commercial operations: customer/deployment inventory, reseller onboarding, renewal, support, audit and incident procedures.
+
+**Architecture record:** [ADR-0015 — Commercial licensing, editions and deployment authority](decisions/ADR-0015-commercial-licensing-and-deployment.md). The checked items above represent documented architecture only; they do not imply legal approval, completed TLMS implementation, published prices or production commercial readiness.
+
 ## Phase 0 — Foundation
 - [x] Verify repository ownership, public visibility and default branch.
 - [x] Establish product requirements, architecture, security and compliance baseline.
