@@ -38,7 +38,7 @@ class ClientManagementController extends Controller
             'starts_at' => ['required', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'internal_note' => ['nullable', 'string', 'max:2000'],
-            'entitlements' => ['sometimes', 'array', 'max:1'],
+            'entitlements' => ['sometimes', 'array', 'max:'.count(MembershipEntitlementCatalog::keys())],
             'entitlements.*' => ['string', Rule::in(MembershipEntitlementCatalog::keys())],
         ]);
 
