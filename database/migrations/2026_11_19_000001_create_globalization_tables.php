@@ -53,7 +53,7 @@ return new class extends Migration
             $table->foreign('base_currency_code')->references('code')->on('currencies')->restrictOnDelete();
             $table->foreign('quote_currency_code')->references('code')->on('currencies')->restrictOnDelete();
             $table->unique(['base_currency_code', 'quote_currency_code', 'provider', 'observed_at'], 'exchange_rates_pair_provider_observed_unique');
-            $table->index(['base_currency_code', 'quote_currency_code', 'expires_at']);
+            $table->index(['base_currency_code', 'quote_currency_code', 'expires_at'], 'exchange_rates_pair_expiry_index');
         });
 
         Schema::create('localized_prices', function (Blueprint $table): void {
