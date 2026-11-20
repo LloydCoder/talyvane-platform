@@ -186,4 +186,36 @@ class BrowserInstallerWorkflowTest extends TestCase
         $this->assertNull($admin->fresh()->must_change_password_at);
         $this->assertTrue(Hash::check('New-Strong-Password-934!', $admin->fresh()->password));
     }
+    public function test_installer_rejects_a_canonical_url_that_does_not_match_the_request_host(): void
+    {
+        $page = $this->get('https://agency.example.test/install')->assertOk();
+        $privateInstallerKey = trim((string) file_get_contents(storage_path('app/private/INSTALLER-ACCESS-KEY.txt')));
+        $this->assertStringNotContainsString($privateInstallerKey, $page->getContent());
+
+        $this->withServerVariables(['HTTP_HOST' => 'attacker.example.test'])
+            ->post('/install', [
+                'installer_token' => $privateInstallerKey,
+                'app_name' => 'Talyvane Agency',
+                'app_url' => 'https://agency.example.test',
+                'db_host' => '127.0.0.1',
+                'db_port' => 3306,
+                'db_database' => 'talyvane_test',
+                'db_username' => 'talyvane',
+                'db_password' => 'test-password',
+                'mail_scheme' => 'smtp',
+                'mail_host' => 'smtp.example.test',
+                'mail_port' => 587,
+                'mail_username' => 'installer@example.test',
+                'mail_password' => 'test-mail-password',
+                'mail_from_address' => 'installer@example.test',
+                'mail_from_name' => 'Talyvane Agency',
+                'admin_name' => 'Deployment Super Admin',
+                'admin_email' => 'admin@example.test',
+                'recovery_email' => 'recovery@example.test',
+            ])
+            ->assertSessionHasErrors('app_url');
+
+        $this->assertDatabaseMissing('users', ['email' => 'admin@example.test']);
+    }
+
 }
