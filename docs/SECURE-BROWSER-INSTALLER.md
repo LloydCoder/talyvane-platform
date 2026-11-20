@@ -54,6 +54,7 @@ The installer is a first-install bootstrap only. It is not a general-purpose com
 
 - Installer code and temporary state MUST be outside the public document root wherever the supported hosting layout permits. If the hosting provider cannot isolate application code and private state from public access, reject the host as incompatible.
 - Never place an executable installer script directly in public_html as a workaround.
+- The installer access key MUST be generated and stored outside the public document root with owner-only permissions. It MUST be retrieved by the deployment operator through the hosting control panel's private file manager (or a trusted CLI path) and entered manually. It MUST NEVER be rendered into HTML, returned by an API, included in a hidden field, exposed in a URL, or logged. A public GET request must not disclose or derive the key.
 - Use secure, HttpOnly, SameSite cookies; Secure cookies on HTTPS; session ID rotation; CSRF protection; strict origin/host validation; request throttling; and short installer-session expiry.
 - Protect database and mail credentials in transit and at rest as far as the hosting model permits. Never echo secrets in validation errors.
 - Restrict file writes to known application paths. Prevent path traversal, symlink escapes, archive traversal, arbitrary upload extraction and overwrite of unrelated files.
@@ -73,6 +74,7 @@ The implementation is not complete until automated tests cover at least:
 - Missing, malformed or inconsistent lock state fails closed.
 - Invalid PHP version, missing extensions, unsupported database, insufficient privileges, non-HTTPS production URL and unsafe document-root layout block installation.
 - CSRF failures, expired sessions, replayed steps, throttled attempts and invalid Host headers are rejected.
+- The private installer access key is never present in the HTML response, page source, URL, logs or analytics; a missing or invalid operator-supplied key is rejected.
 - Path traversal, symlink escape and archive traversal attempts cannot write outside approved paths.
 - Database and migration failures do not provision credentials or report success.
 - Super Admin creation is singleton-safe under concurrent requests and retry scenarios.
