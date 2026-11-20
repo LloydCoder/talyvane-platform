@@ -86,7 +86,7 @@ class ProfileMediaTest extends TestCase
             ->get(route('admin.profile-media.preview', $media))
             ->assertOk()
             ->assertHeader('Content-Type', 'image/webp')
-            ->assertHeader('Cache-Control', 'private, no-store, max-age=0');
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
     }
 
     public function test_companion_upload_is_private_pending_review_and_requires_both_attestations(): void
