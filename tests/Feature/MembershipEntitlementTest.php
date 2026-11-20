@@ -98,14 +98,15 @@ class MembershipEntitlementTest extends TestCase
     private function privateMedia(CompanionProfile $profile, string $status = 'approved', bool $withConsent = true): ProfileMedia
     {
         Storage::disk('local')->put('profile-media/private-gallery.webp', 'test-image-bytes');
+        $uploader = $this->createAdminUser([
+            'name' => 'Uploader',
+            'email' => 'uploader@example.test',
+            'role' => 'owner',
+        ]);
 
-        return ProfileMedia::query()->create([
+        $media = ProfileMedia::query()->create([
             'companion_profile_id' => $profile->id,
-            'uploaded_by' => $this->createAdminUser([
-                'name' => 'Uploader',
-                'email' => 'uploader@example.test',
-                'role' => 'owner',
-            ])->id,
+            'uploaded_by' => $uploader->id,
             'storage_path' => 'profile-media/private-gallery.webp',
             'mime_type' => 'image/webp',
             'width' => 800,
@@ -113,12 +114,31 @@ class MembershipEntitlementTest extends TestCase
             'file_size' => 17,
             'status' => $status,
             'access_level' => 'members_only',
-            'members_only_consent_at' => $withConsent ? now() : null,
+            'members_only_consent_at' => $withConsent && filled(config('talyvane.privacy.private_gallery_consent_version')) ? now() : null,
             'members_only_consent_version' => $withConsent ? config('talyvane.privacy.private_gallery_consent_version') : null,
             'rights_confirmed_at' => now(),
             'consent_version' => 'profile-publication-v1',
             'reviewed_at' => now(),
         ]);
+
+        if ($media->members_only_consent_at && $media->members_only_consent_version) {
+            $statement = MembershipEntitlementCatalog::privateGalleryConsentStatement();
+            ProfileMediaConsentEvent::query()->create([
+                'profile_media_id' => $media->id,
+                'companion_profile_id' => $profile->id,
+                'media_reference' => 'profile-media:'.$media->id,
+                'actor_id' => $uploader->id,
+                'actor_email' => $uploader->email,
+                'action' => 'members_only_consent.granted',
+                'consent_policy_version' => $media->members_only_consent_version,
+                'consent_statement' => $statement,
+                'statement_sha256' => hash('sha256', $statement),
+                'correlation_id' => (string) Str::uuid(),
+                'created_at' => now(),
+            ]);
+        }
+
+        return $media;
     }
 
     private function enableEntitlements(): void
