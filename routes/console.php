@@ -756,7 +756,7 @@ Artisan::command('talyvane:safeguarding:restore-reconcile {backup_reference}', f
 
         foreach ($activeKeyRows as $activeKeyRow) {
             if (array_key_exists($activeKeyRow->key_reference, $activeKeys)) {
-                throw new \\RuntimeException('Multiple safeguarding cases reference the same external content key.');
+                throw new \RuntimeException('Multiple safeguarding cases reference the same external content key.');
             }
 
             $activeKeys[$activeKeyRow->key_reference] = $activeKeyRow->key_ciphertext;
