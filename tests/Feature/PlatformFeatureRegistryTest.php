@@ -252,10 +252,8 @@ class PlatformFeatureRegistryTest extends TestCase
 
         $this->assertNotNull($cancel);
         $this->assertNotNull($optOut);
-        $this->assertNotContains('feature:bookings.companionship', $cancel->gatherMiddleware());
-        $this->assertNotContains('feature:portals.client', $cancel->gatherMiddleware());
-        $this->assertNotContains('feature:bookings.automatic', $optOut->gatherMiddleware());
-        $this->assertNotContains('feature:portals.companion', $optOut->gatherMiddleware());
+        $this->assertStringNotContainsString('EnsurePlatformFeatureEnabled', implode('|', $cancel->gatherMiddleware()));
+        $this->assertStringNotContainsString('EnsurePlatformFeatureEnabled', implode('|', $optOut->gatherMiddleware()));
     }
 
     public function test_existing_assignment_and_settlement_safety_transitions_survive_feature_disablement(): void
@@ -280,7 +278,7 @@ class PlatformFeatureRegistryTest extends TestCase
         ] as $name) {
             $route = $routes->getByName($name);
             $this->assertNotNull($route, 'Expected route '.$name.' to exist.');
-            $this->assertStringNotContainsString('feature:model-agency.', implode('|', $route->gatherMiddleware()));
+            $this->assertStringNotContainsString('EnsurePlatformFeatureEnabled', implode('|', $route->gatherMiddleware()));
         }
     }
 
