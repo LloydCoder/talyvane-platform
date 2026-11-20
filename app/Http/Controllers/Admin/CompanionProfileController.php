@@ -9,6 +9,7 @@ use App\Models\Destination;
 use App\Models\ProfilePublicationReview;
 use App\Models\ProfileMedia;
 use App\Models\User;
+use App\Services\FeatureRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,13 +19,14 @@ use Illuminate\View\View;
 
 class CompanionProfileController
 {
-    public function index(): View
+    public function index(FeatureRegistry $features): View
     {
         return view('admin.profiles.index', [
             'profiles' => CompanionProfile::query()->with(['destination', 'user'])->latest()->paginate(20),
             'pendingMedia' => ProfileMedia::query()->with('profile.destination')->where('status', 'pending_review')->latest()->get(),
             'approvedProviders' => config('talyvane.verification.approved_providers', []),
             'consentVersion' => config('talyvane.privacy.profile_consent_version'),
+            'membershipEntitlementsEnabled' => $features->isOperationallyEnabled('memberships.entitlements'),
         ]);
     }
 
