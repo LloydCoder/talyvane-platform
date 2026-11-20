@@ -18,7 +18,7 @@ A general public-profile publication attestation does not establish consent for 
 4. Deliver private gallery media only when the media has a separate, positive, versioned, non-withdrawn companion opt-in to the current approved members-only consent statement.
 5. Keep private media URLs out of public companion and destination listings. Recheck all conditions at final media delivery.
 6. Record companion consent grant and withdrawal events with actor identity snapshot, capture method, media reference, policy version, exact statement text and SHA-256, correlation ID and timestamp. Application model guards reject ordinary Eloquent mutation/deletion; database administrators remain outside this application-level guarantee.
-7. Keep the feature disabled by default. Super Admin activation requires the schema/runtime checks and an explicitly approved policy version. Changing the policy version invalidates older private-gallery consent until the companion opts in again.
+7. Keep the feature disabled by default. Super Admin activation requires the schema/runtime checks and an explicitly approved policy version. Changing the policy version, deployment brand identity or exact statement invalidates older private-gallery consent until the companion opts in again.
 8. Companion consent withdrawal is available independently from general public-profile publication withdrawal and immediately blocks members-only delivery.
 
 ## Consent policy
@@ -41,7 +41,7 @@ The current canonical statement is provided by `MembershipEntitlementCatalog::pr
 - Membership assignment and entitlement grants are committed in one database transaction.
 - Superseding or suspending a membership removes effective access without deleting historical grants.
 - Expired memberships and grants fail closed without requiring a scheduled revocation job.
-- Consent withdrawal and policy-version changes immediately block private media.
+- Consent withdrawal, policy-version changes, deployment-brand changes and statement-hash changes immediately block private media.
 - Additional benefits require a complete server-side enforcement path, tests and an updated catalogue before they can be offered.
 - Database-level tamper resistance, WORM retention and external evidence archival remain separate hardening work and must not be implied by model-level guards.
 
