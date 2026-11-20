@@ -76,3 +76,12 @@ The feature registry is not an authority over hard safeguards. Reserved safety, 
 ## Deployment secret architecture
 
 Super Admin secret management uses an allowlisted `SecretCatalog`, `VaultKv2SecretStore` adapter and metadata-gated `PlatformSecretResolver`. Vault stores values; the application database stores status/version metadata and append-only operation audit events only. Runtime adapters must resolve secrets through the resolver and use the exact recorded Vault version. Controllers and views must never retrieve secret values. The Vault bootstrap token is environment-managed and separate from safeguarding Transit credentials. See [ADR-0012](decisions/ADR-0012-super-admin-secret-management.md).
+
+
+## Feature gate enforcement contract
+
+Optional feature activation is checked at route and domain-service boundaries. Authorization resolvers that determine access to protected resources must independently re-evaluate operational feature state; they must not rely solely on a controller having performed the check. Direct database writes to the feature registry do not confer capability when implementation status, dependencies or activation prerequisites remain unsatisfied.
+
+Scheduled work is classified by effect. New optional work must be feature-gated at execution time and rechecked inside its state-changing transaction. Existing obligations and protective transitions—including consent withdrawal, licence expiry/revocation, approved retention, safeguarding escalation, dispute handling and financial close-out—must continue while optional features are paused. A scheduler must never silently turn a paused feature back on or start new optional work.
+
+Feature audit Eloquent models reject updates and deletes, but that is not a database-level immutability guarantee. Production audit integrity additionally requires restricted database principals, independently controlled audit export, integrity verification and tested restore procedures.
