@@ -33,7 +33,11 @@ class SafeguardingNotificationOutboxTest extends TestCase
 
     public function test_case_assignment_notice_is_outboxed_and_contains_no_confidential_narrative(): void
     {
-        config(['talyvane.safeguarding.emergency_contact_emails' => []]);
+        config([
+            'talyvane.safeguarding.emergency_contact_emails' => [],
+            'talyvane.safeguarding.notifications_enabled' => true,
+            'mail.default' => 'smtp',
+        ]);
         Notification::fake();
 
         $owner = $this->createAdminUser([
@@ -74,7 +78,11 @@ class SafeguardingNotificationOutboxTest extends TestCase
 
     public function test_critical_case_enqueues_a_separate_escalation_notice_for_configured_contacts(): void
     {
-        config(['talyvane.safeguarding.emergency_contact_emails' => ['urgent-safety@example.test']]);
+        config([
+            'talyvane.safeguarding.emergency_contact_emails' => ['urgent-safety@example.test'],
+            'talyvane.safeguarding.notifications_enabled' => true,
+            'mail.default' => 'smtp',
+        ]);
         Notification::fake();
 
         $owner = $this->createAdminUser([
@@ -94,7 +102,7 @@ class SafeguardingNotificationOutboxTest extends TestCase
         $sent = app(SafeguardingNotificationDispatcher::class)->dispatchPending();
 
         $this->assertSame(2, $sent);
-        Notification::assertSentOnDemand(SafeguardingCaseAlert::class, 2);
+        Notification::assertSentOnDemandTimes(SafeguardingCaseAlert::class, 2);
     }
 
     public function test_notification_dispatcher_does_not_include_case_content_in_outbox_payload(): void
