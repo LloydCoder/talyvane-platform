@@ -14,7 +14,7 @@ class ProfileMediaController extends Controller
 {
     public function preview(ProfileMedia $media): Response
     {
-        abort_unless(auth()->check() && in_array(auth()->user()->role, ['owner', 'admin'], true), 403);
+        abort_unless(auth()->check() && in_array(auth()->user()->role, ['super_admin', 'owner', 'admin'], true), 403);
         abort_unless($media->status === 'pending_review', 404);
         abort_unless(Storage::disk('local')->exists($media->storage_path), 404);
 

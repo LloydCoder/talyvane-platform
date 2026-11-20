@@ -57,6 +57,38 @@ class ProfileMediaTest extends TestCase
         return [$user, $profile];
     }
 
+    public function test_super_admin_can_preview_pending_profile_media(): void
+    {
+        Storage::fake('local');
+        [, $profile] = $this->companionWithProfile();
+        $path = 'profile-media/pending-preview.webp';
+        Storage::disk('local')->put($path, 'sanitized-image-bytes');
+
+        $media = ProfileMedia::create([
+            'companion_profile_id' => $profile->id,
+            'uploaded_by' => $profile->user_id,
+            'storage_path' => $path,
+            'mime_type' => 'image/webp',
+            'width' => 800,
+            'height' => 1000,
+            'file_size' => 21,
+            'status' => 'pending_review',
+            'rights_confirmed_at' => now(),
+            'consent_version' => 'profile-publication-v1',
+        ]);
+        $superAdmin = $this->createAdminUser([
+            'name' => 'Deployment Super Admin',
+            'email' => 'super-admin-preview@example.test',
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->get(route('admin.profile-media.preview', $media))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/webp')
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
+    }
+
     public function test_companion_upload_is_private_pending_review_and_requires_both_attestations(): void
     {
         Storage::fake('local');
