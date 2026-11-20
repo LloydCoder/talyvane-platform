@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Http\Controllers\ProfileMediaController;
 use App\Models\CountryMarket;
+use App\Models\ProfileMediaConsentEvent;
 use App\Models\PlatformFeature;
 use App\Models\SitePage;
 use Illuminate\Support\Facades\Schema;
@@ -225,7 +227,8 @@ class FeatureActivationEvaluator
 
                 $runtimeReady = class_exists(MembershipEntitlementService::class)
                     && class_exists(MembershipEntitlementCatalog::class)
-                    && class_exists(\App\Http\Controllers\ProfileMediaController::class);
+                    && class_exists(ProfileMediaController::class)
+                    && class_exists(ProfileMediaConsentEvent::class);
 
                 if (! $schemaReady || ! $runtimeReady) {
                     $blockers[] = 'The membership grant schema, entitlement catalogue and protected-media authorization boundary must all be available.';
