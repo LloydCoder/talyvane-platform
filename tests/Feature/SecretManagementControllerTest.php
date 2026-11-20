@@ -73,6 +73,10 @@ class SecretManagementControllerTest extends TestCase
             'action' => 'secret.set',
             'vault_version' => 1,
         ]);
+        $this->assertSame(
+            DB::table('platform_secret_audit_events')->where('action', 'secret.write_requested')->value('correlation_id'),
+            DB::table('platform_secret_audit_events')->where('action', 'secret.set')->value('correlation_id'),
+        );
         $this->assertFalse(Schema::hasColumn('platform_secrets', 'secret_value'));
         $this->assertDatabaseMissing('platform_secret_audit_events', [
             'secret_key' => 'mail.smtp.password',
@@ -123,6 +127,10 @@ class SecretManagementControllerTest extends TestCase
             'secret_key' => 'mail.smtp.password',
             'action' => 'secret.cleared',
         ]);
+        $this->assertSame(
+            DB::table('platform_secret_audit_events')->where('action', 'secret.clear_requested')->value('correlation_id'),
+            DB::table('platform_secret_audit_events')->where('action', 'secret.cleared')->value('correlation_id'),
+        );
         Http::assertSent(fn (Request $request): bool => $request->method() === 'DELETE'
             && str_ends_with($request->url(), '/v1/secret/metadata/talyvane/mail/smtp_password'));
     }
@@ -167,6 +175,10 @@ class SecretManagementControllerTest extends TestCase
             'secret_key' => 'mail.smtp.password',
             'action' => 'secret.write_failed',
         ]);
+        $this->assertSame(
+            DB::table('platform_secret_audit_events')->where('action', 'secret.write_requested')->value('correlation_id'),
+            DB::table('platform_secret_audit_events')->where('action', 'secret.write_failed')->value('correlation_id'),
+        );
 
         Http::fake([
             'vault.example.test/v1/secret/data/talyvane/mail/smtp_password*' => Http::response([
