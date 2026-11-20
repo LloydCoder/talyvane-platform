@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class SafeguardingCaseKeyVault
@@ -87,12 +88,12 @@ class SafeguardingCaseKeyVault
 
     public function newCaseKeyReference(): string
     {
-        return $this->caseKeyPrefix().\Illuminate\Support\\Str::uuid()->toString();
+        return $this->caseKeyPrefix().Str::uuid()->toString();
     }
 
     private function newPreflightKeyReference(): string
     {
-        return $this->preflightKeyPrefix().\Illuminate\Support\\Str::uuid()->toString();
+        return $this->preflightKeyPrefix().Str::uuid()->toString();
     }
 
     public function reconcile(array $activeKeyCiphertexts): array
