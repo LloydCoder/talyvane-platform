@@ -20,6 +20,7 @@ return [
     ],
     'safeguarding' => [
         'key_provider' => env('SAFEGUARDING_CASE_KEY_PROVIDER', 'local'),
+        'key_namespace' => env('SAFEGUARDING_KEY_NAMESPACE'),
         'notifications_enabled' => filter_var(env('SAFEGUARDING_NOTIFICATIONS_ENABLED', false), FILTER_VALIDATE_BOOL),
         'emergency_contact_emails' => array_values(array_filter(array_map('trim', explode(',', (string) env('SAFEGUARDING_EMERGENCY_CONTACT_EMAILS', ''))))),
         'retention' => [

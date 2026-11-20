@@ -102,7 +102,7 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Implement disabled-by-default, policy-gated removal of per-case content keys from the primary database for closed cases, excluding active legal holds and preserving case/audit metadata.
 - [x] Add a privacy-minimized safeguarding email outbox with MFA-gated internal links, critical/minor-safety escalation contacts, bounded retries and cPanel-compatible scheduled delivery.
 - [x] Add an optional HashiCorp Vault Transit key provider with non-exportable per-case keys, separate application/retention credentials, HTTPS-only transport and retry-safe remote key destruction.
-- [x] Add a maintenance-only post-restore reconciliation command that reapplies approved retention, verifies active external case keys, destroys orphaned Vault keys and records a restore verification result.
+- [x] Add maintenance-only post-restore reconciliation that reapplies approved retention, decrypt-verifies every active case ciphertext before cleanup, destroys only namespaced orphan keys for this deployment, re-lists Vault to verify postconditions, enforces unique per-case key references and records the verification result.
 - [ ] Independently verify database/Vault backup expiry and complete database-plus-Vault restore drills; complete independent safeguarding response drills.
 - [ ] Complete legacy owner/admin least-privilege migration and independent human custodian identity-proofing/operational drills.
 - [x] Implement server-side membership entitlement grants, immutable grant records, active-membership/date evaluation, private-gallery delivery authorization and public-discovery exclusion; activation remains disabled until Super Admin review.

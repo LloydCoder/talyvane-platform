@@ -4,13 +4,14 @@ namespace App\Services;
 
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class SafeguardingCaseKeyVault
 {
     public function verify(): void
     {
-        $keyName = 'preflight-'.str_replace('-', '', (string) \Illuminate\Support\Str::uuid());
+        $keyName = $this->newPreflightKeyReference();
         $plaintext = random_bytes(32);
         $created = false;
 
@@ -32,7 +33,7 @@ class SafeguardingCaseKeyVault
 
     public function createKey(string $keyName): void
     {
-        $this->assertKeyName($keyName);
+        $this->assertKeyName($keyName, false);
         $this->assertDistinctRetentionCredential();
 
         $response = $this->client()->post($this->path('keys/'.$keyName), [
@@ -85,20 +86,93 @@ class SafeguardingCaseKeyVault
         return $decoded;
     }
 
-    public function reconcile(array $activeKeyReferences): array
+    public function newCaseKeyReference(): string
+    {
+        return $this->caseKeyPrefix().Str::uuid()->toString();
+    }
+
+    private function newPreflightKeyReference(): string
+    {
+        return $this->preflightKeyPrefix().Str::uuid()->toString();
+    }
+
+    public function reconcile(array $activeKeyCiphertexts): array
     {
         $retentionToken = trim((string) config('services.safeguarding_vault.retention_token'));
         $this->assertDistinctRetentionCredential();
 
-        $active = array_values(array_unique($activeKeyReferences));
-        foreach ($active as $keyReference) {
-            if (! is_string($keyReference) || ! str_starts_with($keyReference, 'case-')) {
-                throw new RuntimeException('An active safeguarding key reference is invalid.');
+        foreach ($activeKeyCiphertexts as $keyReference => $ciphertext) {
+            if (! is_string($keyReference)
+                || ! str_starts_with($keyReference, 'case-')
+                || ! is_string($ciphertext)
+                || ! str_starts_with($ciphertext, 'vault:v')) {
+                throw new RuntimeException('An active safeguarding key reference or ciphertext is invalid.');
             }
 
             $this->assertKeyName($keyReference);
         }
 
+        $activeKeys = array_keys($activeKeyCiphertexts);
+        $remoteKeys = $this->remoteKeyInventory($retentionToken);
+        $missing = array_values(array_diff($activeKeys, $remoteKeys));
+
+        if ($missing !== []) {
+            throw new RuntimeException('An active safeguarding case key is missing from the external vault.');
+        }
+
+        // A key name in the Vault inventory is not proof that restored key material
+        // can decrypt the ciphertext actually stored for a live case.
+        foreach ($activeKeyCiphertexts as $keyReference => $ciphertext) {
+            try {
+                $plaintext = $this->decrypt($keyReference, $ciphertext);
+            } catch (\Throwable $exception) {
+                throw new RuntimeException(
+                    'An active safeguarding case key could not decrypt its stored ciphertext.',
+                    0,
+                    $exception,
+                );
+            }
+
+            if (strlen($plaintext) !== 32) {
+                throw new RuntimeException('An active safeguarding case key could not decrypt its stored ciphertext.');
+            }
+
+            if (function_exists('sodium_memzero')) {
+                sodium_memzero($plaintext);
+            }
+        }
+
+        // Only keys carrying this deployment's namespace may be garbage-collected.
+        // Legacy un-namespaced active keys are verified but never treated as orphans,
+        // because they cannot be safely attributed across shared Vault mounts.
+        $managedKeys = $this->managedKeyInventory($remoteKeys);
+        $orphans = array_values(array_diff($managedKeys, $activeKeys));
+        foreach ($orphans as $keyName) {
+            $this->destroyKey($keyName);
+        }
+
+        // Verify the remote post-condition. A successful DELETE response alone is
+        // insufficient evidence that every managed orphan has actually disappeared.
+        $remainingRemoteKeys = $this->remoteKeyInventory($retentionToken);
+        $missingAfterCleanup = array_values(array_diff($activeKeys, $remainingRemoteKeys));
+        if ($missingAfterCleanup !== []) {
+            throw new RuntimeException('An active safeguarding case key disappeared during restore reconciliation.');
+        }
+
+        $remainingManagedKeys = $this->managedKeyInventory($remainingRemoteKeys);
+        $remainingOrphans = array_values(array_diff($remainingManagedKeys, $activeKeys));
+        if ($remainingOrphans !== []) {
+            throw new RuntimeException('Orphan safeguarding case keys remain in the external vault after reconciliation.');
+        }
+
+        return [
+            'active_keys_verified' => count($activeKeys),
+            'orphan_keys_destroyed' => count($orphans),
+        ];
+    }
+
+    private function remoteKeyInventory(string $retentionToken): array
+    {
         $response = $this->client($retentionToken)->send('LIST', $this->path('keys'));
         $remoteKeys = $response->json('data.keys');
 
@@ -106,23 +180,40 @@ class SafeguardingCaseKeyVault
             throw new RuntimeException('External safeguarding key inventory could not be verified.');
         }
 
-        $managedKeys = array_values(array_filter($remoteKeys, fn ($key): bool => is_string($key)
-            && (str_starts_with($key, 'case-') || str_starts_with($key, 'preflight-'))));
+        return array_values(array_unique(array_filter($remoteKeys, fn ($key): bool => is_string($key))));
+    }
 
-        $missing = array_values(array_diff($active, $managedKeys));
-        if ($missing !== []) {
-            throw new RuntimeException('An active safeguarding case key is missing from the external vault.');
+    private function managedKeyInventory(array $remoteKeys): array
+    {
+        $casePrefix = $this->caseKeyPrefix();
+        $preflightPrefix = $this->preflightKeyPrefix();
+
+        return array_values(array_filter($remoteKeys, fn (string $key): bool => str_starts_with($key, $casePrefix)
+            || str_starts_with($key, $preflightPrefix)));
+    }
+
+    private function keyNamespace(): string
+    {
+        $namespace = strtolower(trim((string) config('talyvane.safeguarding.key_namespace')));
+        if ($namespace === '') {
+            throw new RuntimeException('A unique SAFEGUARDING_KEY_NAMESPACE is required for Vault-backed safeguarding.');
         }
 
-        $orphans = array_values(array_diff($managedKeys, $active));
-        foreach ($orphans as $keyName) {
-            $this->destroyKey($keyName);
+        if (! preg_match('/^[a-z0-9]{8,32}$/', $namespace)) {
+            throw new RuntimeException('The safeguarding key namespace must contain 8 to 32 lowercase letters or digits.');
         }
 
-        return [
-            'active_keys_verified' => count($active),
-            'orphan_keys_destroyed' => count($orphans),
-        ];
+        return $namespace;
+    }
+
+    private function caseKeyPrefix(): string
+    {
+        return 'case-'.$this->keyNamespace().'-';
+    }
+
+    private function preflightKeyPrefix(): string
+    {
+        return 'preflight-'.$this->keyNamespace().'-';
     }
 
     public function destroyKey(string $keyName): void
@@ -198,10 +289,16 @@ class SafeguardingCaseKeyVault
         }
     }
 
-    private function assertKeyName(string $keyName): void
+    private function assertKeyName(string $keyName, bool $allowLegacy = true): void
     {
-        if (! preg_match('/^[a-zA-Z0-9][a-zA-Z0-9-]{0,95}$/', $keyName)) {
-            throw new RuntimeException('External safeguarding key reference is invalid.');
+        $uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+        $namespace = preg_quote($this->keyNamespace(), '/');
+        $currentNamespace = preg_match('/^(?:case-'.$namespace.'-[a-z0-9][a-z0-9-]{0,47}|preflight-'.$namespace.'-[a-z0-9][a-z0-9-]{0,47})$/', $keyName);
+        $legacyNamespace = $allowLegacy ? preg_match('/^(?:case-'.$uuid.'|preflight-'.$uuid.')$/', $keyName) : false;
+        $valid = $currentNamespace || $legacyNamespace;
+
+        if (! $valid) {
+            throw new RuntimeException('External safeguarding key reference is invalid or belongs to another deployment.');
         }
     }
 }

@@ -9,6 +9,7 @@ use App\Services\SafeguardingCaseRetentionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Tests\TestCase;
@@ -23,6 +24,7 @@ class SafeguardingExternalKeyVaultTest extends TestCase
 
         config([
             'talyvane.safeguarding.key_provider' => 'vault',
+            'talyvane.safeguarding.key_namespace' => 'testtenant',
             'services.safeguarding_vault.address' => 'https://vault.example.test',
             'services.safeguarding_vault.mount' => 'transit',
             'services.safeguarding_vault.token' => 'application-token',
@@ -62,6 +64,34 @@ class SafeguardingExternalKeyVaultTest extends TestCase
                 'role' => 'safeguarding',
             ]),
         ];
+    }
+
+    public function test_each_safeguarding_case_must_have_a_unique_external_key_reference(): void
+    {
+        $plaintextKey = null;
+        Http::fake(function (Request $request) use (&$plaintextKey) {
+            if (str_contains($request->url(), '/encrypt/')) {
+                $plaintextKey = $request['plaintext'];
+
+                return Http::response(['data' => ['ciphertext' => 'vault:v1:case-key-ciphertext']]);
+            }
+
+            if (str_contains($request->url(), '/decrypt/')) {
+                return Http::response(['data' => ['plaintext' => $plaintextKey]]);
+            }
+
+            return Http::response([], 204);
+        });
+
+        [$owner, $specialist] = $this->actors('unique-key');
+        $first = $this->createCase($owner, $specialist);
+        $second = $this->createCase($owner, $specialist);
+        $firstReference = DB::table('safeguarding_case_contents')->where('case_id', $first->id)->value('key_reference');
+
+        $this->expectException(QueryException::class);
+        DB::table('safeguarding_case_contents')->where('case_id', $second->id)->update([
+            'key_reference' => $firstReference,
+        ]);
     }
 
     public function test_case_content_uses_a_vault_managed_key_and_remains_readable(): void

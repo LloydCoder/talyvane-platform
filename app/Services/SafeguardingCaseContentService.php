@@ -23,8 +23,8 @@ class SafeguardingCaseContentService
 
         try {
             if ($provider === 'vault') {
-                $keyReference = 'case-'.Str::uuid()->toString();
                 $vault = app(SafeguardingCaseKeyVault::class);
+                $keyReference = $vault->newCaseKeyReference();
                 $vault->createKey($keyReference);
                 $keyCiphertext = $vault->encrypt($keyReference, $dataKey);
             } elseif ($provider === 'local') {

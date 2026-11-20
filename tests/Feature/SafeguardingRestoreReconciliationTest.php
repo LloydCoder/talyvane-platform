@@ -20,6 +20,7 @@ class SafeguardingRestoreReconciliationTest extends TestCase
 
         config([
             'talyvane.safeguarding.key_provider' => 'vault',
+            'talyvane.safeguarding.key_namespace' => 'testtenant',
             'talyvane.safeguarding.retention.schedule_approved' => true,
             'talyvane.safeguarding.retention.days' => 30,
             'talyvane.safeguarding.retention.policy_version' => 'restore-retention-v1',
@@ -68,6 +69,34 @@ class SafeguardingRestoreReconciliationTest extends TestCase
         return $case;
     }
 
+    private function createActiveCase(): SafeguardingCase
+    {
+        $owner = $this->createAdminUser([
+            'name' => 'Agency Owner',
+            'email' => 'restore-active-owner@example.test',
+            'role' => 'owner',
+        ]);
+        $specialist = $this->createAdminUser([
+            'name' => 'Safeguarding Specialist',
+            'email' => 'restore-active-specialist@example.test',
+            'role' => 'safeguarding',
+        ]);
+
+        $this->actingAs($owner)
+            ->post('/admin/safeguarding/reports', [
+                'case_type' => 'consent_concern',
+                'severity' => 'high',
+                'subject_type' => 'model_application',
+                'subject_reference' => 'MTA-2026-RESTORE-ACTIVE',
+                'summary' => 'An active safeguarding summary for restore tests.',
+                'details' => 'An active confidential narrative used to verify restored key usability.',
+                'assigned_to' => $specialist->id,
+            ])
+            ->assertRedirect('/admin');
+
+        return SafeguardingCase::query()->latest('id')->firstOrFail();
+    }
+
     public function test_restore_reconciliation_requires_maintenance_mode(): void
     {
         $this->artisan('talyvane:safeguarding:restore-reconcile', [
@@ -79,37 +108,58 @@ class SafeguardingRestoreReconciliationTest extends TestCase
 
     public function test_restore_reconciliation_erases_due_cases_verifies_active_keys_and_records_result(): void
     {
-        $plaintextKey = null;
+        $createdKeys = [];
+        $deletedKeys = [];
+        $plaintextByKey = [];
 
-        Http::fake(function (Request $request) use (&$plaintextKey) {
+        Http::fake(function (Request $request) use (&$createdKeys, &$deletedKeys, &$plaintextByKey) {
+            $path = parse_url($request->url(), PHP_URL_PATH) ?: '';
+
             if ($request->method() === 'LIST') {
-                return Http::response(['data' => [
-                    'keys' => ['case-orphan', 'preflight-leftover'],
-                ]]);
+                $remoteKeys = array_merge(
+                    array_values(array_diff($createdKeys, $deletedKeys)),
+                    array_values(array_diff(['case-testtenant-orphan', 'preflight-testtenant-leftover'], $deletedKeys)),
+                );
+
+                return Http::response(['data' => ['keys' => $remoteKeys]]);
             }
 
-            if (str_contains($request->url(), '/keys/') && str_ends_with($request->url(), '/config')) {
+            if ($request->method() === 'POST' && preg_match('#/keys/(case-[^/]+)$#', $path, $matches)) {
+                $createdKeys[] = $matches[1];
+
                 return Http::response([], 204);
             }
 
-            if (str_contains($request->url(), '/keys/')) {
+            if (str_ends_with($path, '/config')) {
                 return Http::response([], 204);
             }
 
-            if (str_contains($request->url(), '/encrypt/')) {
-                $plaintextKey = base64_decode((string) $request['plaintext'], true);
+            if (str_contains($path, '/encrypt/')) {
+                preg_match('#/encrypt/(case-[^/]+)$#', $path, $matches);
+                $keyName = $matches[1] ?? '';
+                $plaintextByKey[$keyName] = base64_decode((string) $request['plaintext'], true);
 
-                return Http::response(['data' => ['ciphertext' => 'vault:v1:restore-case-key']]);
+                return Http::response(['data' => ['ciphertext' => 'vault:v1:restore-'.$keyName]]);
             }
 
-            if (str_contains($request->url(), '/decrypt/')) {
-                return Http::response(['data' => ['plaintext' => base64_encode((string) $plaintextKey)]]);
+            if (str_contains($path, '/decrypt/')) {
+                preg_match('#/decrypt/(case-[^/]+)$#', $path, $matches);
+                $keyName = $matches[1] ?? '';
+
+                return Http::response(['data' => ['plaintext' => base64_encode($plaintextByKey[$keyName] ?? '')]]);
+            }
+
+            if ($request->method() === 'DELETE' && preg_match('#/keys/([^/]+)$#', $path, $matches)) {
+                $deletedKeys[] = $matches[1];
+
+                return Http::response([], 204);
             }
 
             return Http::response([], 404);
         });
 
-        $case = $this->createDueCase();
+        $dueCase = $this->createDueCase();
+        $activeCase = $this->createActiveCase();
 
         Artisan::call('down');
         try {
@@ -123,14 +173,18 @@ class SafeguardingRestoreReconciliationTest extends TestCase
 
         $this->assertSame(0, $exitCode, $output);
         $this->assertDatabaseHas('safeguarding_case_contents', [
-            'case_id' => $case->id,
+            'case_id' => $dueCase->id,
             'key_ciphertext' => null,
             'key_reference' => null,
+        ]);
+        $this->assertDatabaseHas('safeguarding_case_contents', [
+            'case_id' => $activeCase->id,
+            'key_provider' => 'vault',
         ]);
         $this->assertDatabaseHas('safeguarding_restore_verifications', [
             'backup_reference' => 'backup-2026-11-20',
             'retention_cases_erased' => 1,
-            'active_keys_verified' => 0,
+            'active_keys_verified' => 1,
             'orphan_keys_destroyed' => 2,
         ]);
         $this->assertTrue(DB::table('safeguarding_restore_verifications')->exists());
