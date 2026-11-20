@@ -213,7 +213,7 @@ jobs:
           addon_output="$(php -r '$_SERVER["DOCUMENT_ROOT"] = $argv[1]; require $argv[2];' "$addon_smoke/public_html/addon-domain" "$addon_smoke/public_html/addon-domain/index.php")"
           grep -Fq "ADDON_FRONT_CONTROLLER_OK" <<< "$addon_output"
       - name: Upload verified standalone package
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: talyvane-standalone-package-${{ github.sha }}
           path: |
