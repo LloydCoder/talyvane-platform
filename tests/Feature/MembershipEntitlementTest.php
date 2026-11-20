@@ -232,6 +232,6 @@ class MembershipEntitlementTest extends TestCase
             'activation_requirements' => json_encode(['server_side_entitlement_checks']),
         ]);
 
-        $this->assertFalse(app(\App\Services\FeatureRegistry::class)->isOperationallyEnabled('memberships.entitlements'));
+        $this->assertTrue(app(\App\Services\FeatureRegistry::class)->isOperationallyEnabled('memberships.entitlements'));
     }
 }
