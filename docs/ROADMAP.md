@@ -114,6 +114,8 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Recheck the automatic-booking feature gate inside the booking transaction before automatic confirmation.
 - [x] Keep companion consent withdrawal and media removal outside the companion-portal feature gate, with a standalone privacy-controls page.
 - [x] Enforce operational activation prerequisites in feature middleware, dependency evaluation, the admin catalog, public intake and new-work service boundaries; preserve cancellation, consent withdrawal, revocation, rejection, disputes and financial close-out when new work is paused.
+- [x] Re-evaluate membership-entitlement activation inside the server-side entitlement resolver itself; prove raw database toggles cannot bypass implementation status or operational prerequisites.
+- [x] Audit scheduled command classification: existing licence expiry, approved retention and safeguarding notification work remain continuity-protected; no optional new-work scheduler is registered without an explicit policy gate.
 - [ ] Complete scheduled-job and integration-boundary feature enforcement, direct-database bypass testing, audit-integrity verification and comprehensive feature-gate bypass tests.
 - [x] Implement current-password plus single-use TOTP step-up, reason capture, atomic feature-state changes and append-only audit writes.
 - [x] Add an append-only feature-audit event schema, model-level update/delete protection and transactional event writes for feature state changes.
