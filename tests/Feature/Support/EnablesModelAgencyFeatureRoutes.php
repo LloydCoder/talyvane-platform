@@ -3,7 +3,9 @@
 namespace Tests\Feature\Support;
 
 use App\Models\SitePage;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 trait EnablesModelAgencyFeatureRoutes
 {
@@ -61,5 +63,19 @@ trait EnablesModelAgencyFeatureRoutes
             'is_published' => true,
             'published_at' => now(),
         ]);
+
+        $verifier = User::query()->firstOrCreate([
+            'email' => 'model-agency-verifier@example.test',
+        ], [
+            'name' => 'Model Agency Verifier',
+            'password' => Str::random(48),
+            'role' => 'verifier',
+            'is_active' => true,
+        ]);
+        $verifier->forceFill([
+            'email_verified_at' => now(),
+            'mfa_secret' => Str::random(32),
+            'mfa_enabled_at' => now(),
+        ])->save();
     }
 }
