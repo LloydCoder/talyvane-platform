@@ -89,6 +89,7 @@ class BrowserInstallerWorkflowTest extends TestCase
     protected function tearDown(): void
     {
         @unlink(storage_path('app/private/talyvane.install.lock'));
+        @unlink(storage_path('app/private/INSTALLER-ACCESS-KEY.txt'));
         DB::disconnect('mysql');
         DB::purge('mysql');
         config(['database.default' => $this->originalDefaultConnection]);
