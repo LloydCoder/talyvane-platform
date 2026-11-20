@@ -26,6 +26,17 @@ final class InstallerController
 {
     public function index(Request $request, InstallerAccessToken $accessToken): View
     {
+        $startedAt = filter_var($request->session()->get('installer.started_at'), FILTER_VALIDATE_INT);
+        if ($startedAt === false || $startedAt === null || $startedAt < time() - 900) {
+            if ($startedAt !== false && $startedAt !== null) {
+                $request->session()->invalidate();
+            } else {
+                $request->session()->regenerate();
+            }
+            $request->session()->regenerateToken();
+            $request->session()->put('installer.started_at', time());
+        }
+
         $accessToken->ensure();
         $checks = $this->preflightChecks($request, $accessToken);
 
@@ -85,6 +96,16 @@ final class InstallerController
 
     public function verifyForm(Request $request): View|RedirectResponse
     {
+        $installerStartedAt = filter_var($request->session()->get('installer.started_at'), FILTER_VALIDATE_INT);
+        if ($installerStartedAt === false || $installerStartedAt === null || $installerStartedAt < time() - 900) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('install.index')->withErrors([
+                'installer' => 'The installer session expired. Restart the installation process.',
+            ]);
+        }
+
         $pending = $request->session()->get('installer.pending_admin');
 
         if (! is_array($pending) || ! isset($pending['email'], $pending['recovery_email'], $pending['started_at'])
@@ -125,6 +146,16 @@ final class InstallerController
             'admin_email' => ['required', 'email', 'max:254'],
             'recovery_email' => ['required', 'email', 'different:admin_email', 'max:254'],
         ]);
+
+        $installerStartedAt = filter_var($request->session()->get('installer.started_at'), FILTER_VALIDATE_INT);
+        if ($installerStartedAt === false || $installerStartedAt === null || $installerStartedAt < time() - 900) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            throw ValidationException::withMessages([
+                'installer' => 'The installer session expired. Reload the installer and begin again.',
+            ]);
+        }
 
         if (! $accessToken->verify($validated['installer_token'])) {
             throw ValidationException::withMessages([
@@ -293,6 +324,16 @@ final class InstallerController
             'primary_code' => ['required', 'digits:6'],
             'recovery_code' => ['required', 'digits:6'],
         ]);
+
+        $installerStartedAt = filter_var($request->session()->get('installer.started_at'), FILTER_VALIDATE_INT);
+        if ($installerStartedAt === false || $installerStartedAt === null || $installerStartedAt < time() - 900) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            throw ValidationException::withMessages([
+                'installer' => 'The installer session expired. Restart the installation process.',
+            ]);
+        }
 
         $pending = $request->session()->get('installer.pending_admin');
         if (! is_array($pending)
