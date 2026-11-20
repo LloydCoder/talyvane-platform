@@ -91,6 +91,42 @@ class BrowserInstallerWorkflowTest extends TestCase
         @unlink(storage_path('app/private/talyvane.install.lock'));
         @unlink(storage_path('app/private/INSTALLER-ACCESS-KEY.txt'));
         @unlink(storage_path('app/private/talyvane.install.pending.json'));
+
+        // The successful installer test commits real installation state. Reset
+        // its fixture so later tests start uninstalled instead of inheriting a
+        // completion marker and receiving an expected 404.
+        $connection = DB::connection('mysql');
+        $schema = $connection->getSchemaBuilder();
+
+        if ($schema->hasTable('users') && $schema->hasTable('platform_control')) {
+            $adminId = $connection->table('users')
+                ->where('email', 'admin@example.test')
+                ->value('id');
+
+            if ($adminId !== null && $schema->hasTable('super_admin_recovery_events')) {
+                $connection->table('super_admin_recovery_events')
+                    ->where('super_admin_user_id', $adminId)
+                    ->delete();
+            }
+
+            $connection->table('platform_control')->where('id', 1)->update([
+                'super_admin_user_id' => null,
+                'super_admin_recovery_key_hash' => null,
+                'super_admin_recovery_key_rotated_at' => null,
+                'super_admin_recovery_email' => null,
+                'super_admin_recovery_email_verified_at' => null,
+                'super_admin_recovery_key_handoff' => null,
+                'super_admin_recovery_key_handoff_expires_at' => null,
+                'installation_id' => null,
+                'installation_lock_hash' => null,
+                'installation_completed_at' => null,
+            ]);
+
+            if ($adminId !== null) {
+                $connection->table('users')->where('id', $adminId)->delete();
+            }
+        }
+
         DB::disconnect('mysql');
         DB::purge('mysql');
         config(['database.default' => $this->originalDefaultConnection]);
