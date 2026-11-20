@@ -169,7 +169,7 @@ class SafeguardingCaseAccessTest extends TestCase
         $case = $this->createReport($reporter, $specialist, 'MTA-2026-SAFE07');
         $event = $case->events()->firstOrFail();
 
-        $this->expectException(\\LogicException::class);
+        $this->expectException(\LogicException::class);
         $event->forceFill(['event_type' => 'case.tampered'])->save();
     }
 
