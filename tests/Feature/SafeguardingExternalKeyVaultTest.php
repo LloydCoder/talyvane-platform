@@ -67,9 +67,16 @@ class SafeguardingExternalKeyVaultTest extends TestCase
 
     public function test_each_safeguarding_case_must_have_a_unique_external_key_reference(): void
     {
-        Http::fake(function (Request $request) {
+        $plaintextKey = null;
+        Http::fake(function (Request $request) use (&$plaintextKey) {
             if (str_contains($request->url(), '/encrypt/')) {
+                $plaintextKey = $request['plaintext'];
+
                 return Http::response(['data' => ['ciphertext' => 'vault:v1:case-key-ciphertext']]);
+            }
+
+            if (str_contains($request->url(), '/decrypt/')) {
+                return Http::response(['data' => ['plaintext' => $plaintextKey]]);
             }
 
             return Http::response([], 204);
