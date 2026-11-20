@@ -384,7 +384,7 @@ final class InstallerController
                 $unknownTables = array_diff(array_map('strtolower', $tables), $knownTables);
 
                 if ($unknownTables !== []) {
-                    throw new RuntimeException('The selected database contains tables outside the recognised Talyvane schema.');
+                    throw new RuntimeException('The selected database contains tables outside the recognised Talyvane schema: '.implode(', ', $unknownTables).'.');
                 }
             }
 
