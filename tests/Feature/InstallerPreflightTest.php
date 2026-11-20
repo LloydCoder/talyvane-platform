@@ -12,6 +12,7 @@ class InstallerPreflightTest extends TestCase
     protected function tearDown(): void
     {
         @unlink(storage_path('app/private/INSTALLER-ACCESS-KEY.txt'));
+        @unlink(storage_path('app/private/talyvane.install.pending.json'));
         @unlink(storage_path('app/private/talyvane.install.lock'));
         parent::tearDown();
     }
