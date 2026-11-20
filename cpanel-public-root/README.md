@@ -1,6 +1,6 @@
 # cPanel public-root front controllers
 
-Use these wrappers only when the hosting provider requires the domain document root to remain under public_html. Keep the full Talyvane application directory outside the domain document root.
+Use these wrappers only when the hosting provider requires the domain document root to remain under public_html. Extract the release archive in the account home directory, then rename its top-level talyvane/ directory to talyvane-app. Keep the full Talyvane application directory outside the domain document root.
 
 ## Main domain layout
 
