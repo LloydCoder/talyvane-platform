@@ -111,7 +111,8 @@ Application token:
 
 Retention token:
 ```hcl
- path "transit/keys" { capabilities = ["list"] }\n path "transit/keys/case-*/config" { capabilities = ["update"] }
+ path "transit/keys" { capabilities = ["list"] }
+ path "transit/keys/case-*/config" { capabilities = ["update"] }
  path "transit/keys/case-*" { capabilities = ["delete"] }
  path "transit/keys/preflight-*/config" { capabilities = ["update"] }
  path "transit/keys/preflight-*" { capabilities = ["delete"] }
