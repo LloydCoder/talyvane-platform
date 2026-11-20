@@ -16,6 +16,20 @@ class ModelTalentAssignmentAdminTest extends TestCase
     private function enableAssignmentFeature(): void
     {
         $this->enableModelAgencyFeatureRoutes();
+        $destination = \\App\\Models\\Destination::query()->firstOrCreate(
+            ['slug' => 'assignment-feature-admin-market'],
+            [
+                'name' => 'London',
+                'country_code' => 'GB',
+                'country_name' => 'United Kingdom',
+                'city_name' => 'London',
+                'currency_code' => 'GBP',
+                'locale' => 'en',
+                'timezone' => 'Europe/London',
+                'is_active' => true,
+            ],
+        );
+        $this->approveCountryMarket($destination);
     }
 
     public function test_assignment_register_remains_available_for_existing_workflows_while_creation_is_paused(): void
