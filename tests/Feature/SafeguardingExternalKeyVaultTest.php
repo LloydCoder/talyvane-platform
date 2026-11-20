@@ -138,6 +138,7 @@ class SafeguardingExternalKeyVaultTest extends TestCase
 
         $stored = DB::table('safeguarding_case_contents')->where('case_id', $case->id)->first();
         $this->assertNull($stored->key_ciphertext);
+        $this->assertNull($stored->key_reference);
         $this->assertNotNull($stored->retention_erased_at);
 
         Http::assertSent(function (Request $request): bool {
