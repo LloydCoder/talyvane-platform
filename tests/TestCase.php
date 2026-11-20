@@ -7,6 +7,7 @@ use Illuminate\Contracts\Auth\Authenticatable as UserContract;
 use App\Models\Destination;
 use App\Models\CountryMarket;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\DB;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -55,6 +56,13 @@ abstract class TestCase extends BaseTestCase
             'mfa_last_used_step' => intdiv(time(), 30) - 1,
             'mfa_recovery_codes' => [],
         ])->save();
+
+        if ($user->role === 'super_admin') {
+            DB::table('platform_control')
+                ->where('id', 1)
+                ->whereNull('super_admin_user_id')
+                ->update(['super_admin_user_id' => $user->id]);
+        }
 
         return $user;
     }

@@ -168,3 +168,9 @@ Feature pause semantics distinguish new work from existing obligations. New book
 Feature activation checks are enforced at route middleware and relevant application-service boundaries. Request-specific controls such as adult eligibility, current consent, companion opt-in, availability, verified email and deposit prerequisites remain enforced by their respective domain workflows; they are not treated as static feature activation toggles.
 
 Authorization and deny-by-default design references: [OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html) and [OWASP ASVS](https://owasp.org/www-project-application-security-verification-standard/). Feature toggles are not a substitute for role authorization, ownership checks, MFA or domain-specific policy enforcement.
+
+## Canonical Super Admin identity at authorization boundaries
+
+The `super_admin` role value alone is not sufficient to establish deployment-wide authority. Login, pending-MFA completion and role middleware compare the authenticated user ID with the singleton `platform_control.super_admin_user_id`. This prevents a direct SQL role change on an ordinary account from granting Super Admin access through the application. Regression tests exercise this threat by changing an ordinary user's role through the query builder and verifying that password login, pending MFA and authenticated privileged routes all fail closed.
+
+This remains an application authorization boundary, not protection against a database administrator or attacker who can alter the canonical `platform_control` pointer, application code or host. Restrict production database credentials, monitor privileged SQL access and maintain independently controlled backups.

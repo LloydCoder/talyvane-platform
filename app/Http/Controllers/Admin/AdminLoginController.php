@@ -41,7 +41,8 @@ class AdminLoginController
             ->whereIn('role', ['super_admin', 'owner', 'admin', 'finance', 'verifier', 'safeguarding'])
             ->first();
 
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+        if (! $user || ! Hash::check($credentials['password'], $user->password)
+            || ($user->role === 'super_admin' && ! $user->isDesignatedDeploymentSuperAdmin())) {
             RateLimiter::hit($key, 60);
 
             throw ValidationException::withMessages([

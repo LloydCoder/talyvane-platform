@@ -36,7 +36,7 @@ The current least-privilege boundary reserves deployment-wide branding, market/c
 
 Initial Super Admin provisioning verifies the primary and separate recovery notification addresses, issues a 64-character offline recovery key and stores only its hash. Existing deployments can enroll recovery controls using the current password and TOTP. Recovery contacts and the offline key can be rotated after verifying the primary identity and new recovery address. The password-plus-offline-key recovery flow rotates the key, resets TOTP, increments the per-admin session version, rotates the remember token, sends notices to verified addresses and appends recovery events.
 
-The session-version middleware protects authenticated administrator route groups, including MFA setup; pending MFA challenges also carry and revalidate the version before completion.
+The session-version middleware protects authenticated administrator route groups, including MFA setup; pending MFA challenges also carry and revalidate the version before completion. The designated Super Admin is additionally resolved against the canonical platform_control.super_admin_user_id at login, pending-MFA completion and every role-protected request. A raw SQL change that merely assigns users.role = super_admin therefore does not grant deployment authority.
 
 ## Two-owner break-glass recovery
 
@@ -60,6 +60,8 @@ Recovery email delivery is a required operational dependency. Operators must tes
 ## Remaining work
 
 - Independent review of the complete Super Admin control plane and every privileged command.
+- The canonical principal check at login, pending-MFA completion and authenticated authorization boundaries is implemented and regression-tested, including direct SQL role escalation in the users table.
+- Restrict and audit direct database access: an attacker with authority to alter both the canonical platform_control pointer and user records, or to modify application code/host state, remains outside this application authorization boundary.
 - Database-level constraints or separately controlled database procedures for invariants that must resist ordinary application SQL paths, where supported by the target database.
 - Granular per-action permissions and a documented privileged-access review process.
 - Production SMTP delivery, recovery drill, backup restoration and session-revocation verification on each supported hosting profile.

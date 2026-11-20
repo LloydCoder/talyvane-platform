@@ -153,7 +153,10 @@ class AdminMfaController
 
         $pendingVersion = filter_var($request->session()->get('pending_admin_mfa_session_version'), FILTER_VALIDATE_INT);
 
-        if (! $user || $pendingVersion === false || $pendingVersion !== (int) $user->admin_session_version) {
+        if (! $user
+            || ($user->role === 'super_admin' && ! $user->isDesignatedDeploymentSuperAdmin())
+            || $pendingVersion === false
+            || $pendingVersion !== (int) $user->admin_session_version) {
             $request->session()->forget(['pending_admin_mfa_user_id', 'pending_admin_mfa_remember', 'pending_admin_mfa_session_version']);
 
             return null;

@@ -89,6 +89,7 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Add a singleton deployment-control record and transactional CLI bootstrap that provisions at most one Super Admin.
 - [x] Restrict deployment-wide branding, globalization, destinations, booking rules, payment configuration, site pages and feature controls to `super_admin`; retain day-to-day agency operations for `owner` and `admin`.
 - [x] Protect the designated Super Admin against Eloquent-based demotion, deactivation and deletion; prevent a second principal after assignment; add regression tests. (Direct SQL bypass remains outside the application boundary.)
+- [x] Resolve deployment Super Admin authority against the canonical singleton principal at password login, pending-MFA completion and authenticated role middleware; test direct SQL role-escalation attempts against all three boundaries.
 - [x] Implement CLI-only recovery enrollment and MFA reset: verify two notification addresses, issue a hashed single-use offline key, require current password plus key for recovery, rotate the key, invalidate authenticated and pending-MFA sessions and append audit events.
 - [x] Provide an enrollment path for existing deployments using current password and TOTP.
 - [x] Provide verified recovery contact and offline-key rotation, notify old and new addresses, and revoke prior admin sessions.
@@ -121,7 +122,8 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Add audited emergency disable for optional implemented features and prerequisite-checked re-enable workflow.
 - [x] Test designated Super Admin lifecycle invariants and second-principal rejection at the Eloquent boundary.
 - [x] Exclude MFA secret, recovery-code hashes and TOTP replay state from User model serialization, with regression coverage.
-- [ ] Test authorization boundaries, direct-database bypass threat, audit integrity and attempts to bypass feature gates.
+- [x] Test authorization boundaries and direct SQL role-escalation attempts against the canonical Super Admin authentication boundary.
+- [ ] Complete broader direct-database bypass threat modelling, database privilege review, audit-integrity verification and comprehensive feature-gate bypass tests.
 - [ ] Keep hard safeguards outside the feature registry and verify they cannot be disabled by Super Admin settings.
 
 
