@@ -131,7 +131,11 @@ If the authenticator is lost but the password and offline recovery key remain av
 
 ### Without SSH/Composer
 
-Upload only a complete, prebuilt release containing its production dependencies. The current application provides CLI-only Super Admin provisioning; therefore a host without SSH is **not yet fully installable through a supported self-service workflow** until the safe browser installer or a release-specific secure bootstrap alternative is implemented and tested.
+Upload only a complete, prebuilt release containing its production dependencies. A supported browser installer is a release requirement, but it is **not yet implemented or supported**. Until the implementation and its security tests pass, a host without SSH/Composer is not eligible for self-service first installation.
+
+The approved installer design is specified in [SECURE-BROWSER-INSTALLER.md](SECURE-BROWSER-INSTALLER.md). It must use a constrained, allow-listed installation sequence; never expose an arbitrary command runner; create the canonical Super Admin; verify the installation before displaying credentials; and fail closed on errors. Its success page must display the actual Super Admin login URL and a cryptographically generated initial password exactly once. The password must be stored only as a hash, handed off through short-lived one-time state, and never placed in logs, URLs, persistent records or email. The first login must require a password change and MFA enrollment.
+
+After verified installation, installer routes must be permanently blocked by a durable install lock. The installer should remove its directory automatically where safe and permitted. If automatic removal fails, the success page must prominently instruct the operator to delete the entire installer directory immediately through cPanel File Manager. The installer must remain blocked while that directory exists.
 
 Do not work around this limitation by uploading a web-accessible PHP script that runs migrations, accepts arbitrary commands or creates an administrator from an unauthenticated request. A manual SQL import is acceptable only when supplied and versioned for that exact release, reviewed for the target database engine and accompanied by a secure first-admin provisioning procedure.
 
