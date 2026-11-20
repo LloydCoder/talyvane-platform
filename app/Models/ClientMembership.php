@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ClientMembership extends Model
 {
@@ -28,6 +29,11 @@ class ClientMembership extends Model
             ->where(fn (Builder $membership) => $membership
                 ->whereNull('ends_at')
                 ->orWhere('ends_at', '>=', now()));
+    }
+
+    public function entitlements(): HasMany
+    {
+        return $this->hasMany(ClientMembershipEntitlement::class, 'membership_id');
     }
 
     public function user(): BelongsTo
