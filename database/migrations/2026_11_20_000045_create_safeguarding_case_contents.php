@@ -65,11 +65,11 @@ return new class extends Migration
                         });
 
                     DB::table('safeguarding_cases')->where('id', $case->id)->update([
-                        'summary' => null,
-                        'details' => null,
-                        'subject_reference' => null,
-                        'legal_hold_reason' => null,
-                        'legal_hold_release_reason' => null,
+                        'summary' => '',
+                        'details' => '',
+                        'subject_reference' => '',
+                        'legal_hold_reason' => '',
+                        'legal_hold_release_reason' => '',
                     ]);
                 }
             });
