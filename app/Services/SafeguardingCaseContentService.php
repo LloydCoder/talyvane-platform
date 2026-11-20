@@ -143,7 +143,12 @@ class SafeguardingCaseContentService
             return false;
         }
 
-        if (($row->key_provider ?? 'local') === 'vault') {
+        $provider = (string) ($row->key_provider ?? 'local');
+        if (! in_array($provider, ['local', 'vault'], true)) {
+            throw new RuntimeException('Safeguarding case key provider is unsupported; refusing key destruction.');
+        }
+
+        if ($provider === 'vault') {
             if (! is_string($row->key_reference) || $row->key_reference === '') {
                 throw new RuntimeException('External safeguarding key reference is missing; retention erasure is unsafe.');
             }
@@ -175,14 +180,17 @@ class SafeguardingCaseContentService
 
     private function encrypterFromRow(object $row): Encrypter
     {
-        if (($row->key_provider ?? 'local') === 'vault') {
+        $provider = (string) ($row->key_provider ?? 'local');
+        if ($provider === 'vault') {
             if (! is_string($row->key_reference) || $row->key_reference === '') {
                 throw new RuntimeException('External safeguarding key reference is missing.');
             }
 
             $dataKey = app(SafeguardingCaseKeyVault::class)->decrypt($row->key_reference, (string) $row->key_ciphertext);
-        } else {
+        } elseif ($provider === 'local') {
             $dataKey = base64_decode(Crypt::decryptString((string) $row->key_ciphertext), true);
+        } else {
+            throw new RuntimeException('Safeguarding case key provider is unsupported.');
         }
 
         if (! is_string($dataKey) || strlen($dataKey) !== 32) {
