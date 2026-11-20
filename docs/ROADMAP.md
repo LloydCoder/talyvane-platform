@@ -104,6 +104,7 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [ ] Independently verify database/Vault backup expiry and complete database-plus-Vault restore drills; complete independent safeguarding response drills.
 - [ ] Complete legacy owner/admin least-privilege migration and independent human custodian identity-proofing/operational drills.
 - [ ] Implement membership entitlements and protected-resource authorization; current membership capability is assignment/display only.
+- [x] Record membership assignment and supersession in an actor-attributed append-only lifecycle ledger; recheck the membership feature gate inside the client-locked transaction.
 - [x] Build a Super Admin-only read-only feature catalogue showing implementation state, configured/effective state, dependencies, risk and activation prerequisites.
 - [x] Build feature mutation controls with impact preview, prerequisite evaluation, reason capture, password/TOTP step-up and transactional rollback.
 - [x] Add dependency-aware server-side feature resolution and route middleware for public discovery, dynamic CMS pages, client/companion portals and companionship booking endpoints.

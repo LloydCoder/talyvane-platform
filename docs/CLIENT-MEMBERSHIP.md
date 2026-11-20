@@ -12,7 +12,10 @@
 
 - Membership tiers are operator-defined strings; the application does not impose tier names, pricing or benefits.
 - Only MFA-protected owner/admin accounts can assign or suspend a membership.
-- Each assignment creates a new history record with the tier, client-facing benefits summary, start/end dates, status and assigning administrator.
+- Each assignment creates a new membership record with the tier, client-facing benefits summary, start/end dates, status and assigning administrator.
+- Membership assignment is performed by a domain service that rechecks the membership feature gate inside the same database transaction that locks the client and changes membership state.
+- Assignment and supersession append actor-attributed lifecycle events with before/after snapshots, a correlation identifier and a fixed operational reason. Internal agency notes are never copied into the client-facing projection.
+- Lifecycle events reject Eloquent update and delete operations. This is an application-layer append-only guard, not protection against direct SQL or privileged database administrators.
 - Replacing an active membership marks the prior active record as `superseded`; it is retained for history.
 - A client sees only the current active membership's tier, benefits summary and validity dates.
 - Internal agency notes are excluded from the client-facing query and view.

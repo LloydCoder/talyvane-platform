@@ -3,11 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\ClientMembership;
 use App\Models\User;
+use App\Services\ClientMembershipService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -24,9 +23,8 @@ class ClientManagementController extends Controller
         ]);
     }
 
-    public function assignMembership(Request $request, User $client, \App\Services\FeatureRegistry $features): RedirectResponse
+    public function assignMembership(Request $request, User $client, ClientMembershipService $memberships): RedirectResponse
     {
-        $features->assertOperationallyEnabled('memberships');
         abort_unless($client->role === 'client', 404);
 
         $validated = $request->validate([
@@ -38,23 +36,7 @@ class ClientManagementController extends Controller
             'internal_note' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        DB::transaction(function () use ($request, $client, $validated): void {
-            $lockedClient = User::query()->lockForUpdate()->findOrFail($client->id);
-            abort_unless($lockedClient->role === 'client', 404);
-
-            ClientMembership::query()
-                ->where('user_id', $lockedClient->id)
-                ->where('status', 'active')
-                ->update(['status' => 'superseded']);
-
-            ClientMembership::query()->create([
-                ...$validated,
-                'user_id' => $lockedClient->id,
-                'assigned_by' => $request->user()->id,
-                'starts_at' => $validated['starts_at'],
-                'ends_at' => $validated['ends_at'] ?? null,
-            ]);
-        });
+        $memberships->assign($client, $request->user(), $validated);
 
         return redirect()->route('admin.clients.index')->with('status', 'Client membership updated. Previous active membership is retained in history.');
     }
