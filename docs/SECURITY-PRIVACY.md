@@ -15,6 +15,7 @@ Official references:
 
 ## Identity and access
 - Server-side role and resource policies on every protected request.
+- Membership benefits are never authorization based on a tier label or client-facing summary. Use the server-owned entitlement catalogue and active/in-date grants; check at both query projection and final resource delivery. Keep private media URLs out of public discovery and cache responses.
 - MFA for administrators, finance, verification and safeguarding roles.
 - Strong password hashing, login throttling, session rotation and secure recovery.
 - TLS-only secure, HttpOnly, SameSite cookies.
