@@ -748,11 +748,20 @@ Artisan::command('talyvane:safeguarding:restore-reconcile {backup_reference}', f
 
     try {
         $erased = app(SafeguardingCaseRetentionService::class)->apply();
-        $activeKeys = DB::table('safeguarding_case_contents')
+        $activeKeyRows = DB::table('safeguarding_case_contents')
             ->where('key_provider', 'vault')
             ->whereNotNull('key_ciphertext')
-            ->pluck('key_reference')
-            ->all();
+            ->get(['key_reference', 'key_ciphertext']);
+        $activeKeys = [];
+
+        foreach ($activeKeyRows as $activeKeyRow) {
+            if (array_key_exists($activeKeyRow->key_reference, $activeKeys)) {
+                throw new \\RuntimeException('Multiple safeguarding cases reference the same external content key.');
+            }
+
+            $activeKeys[$activeKeyRow->key_reference] = $activeKeyRow->key_ciphertext;
+        }
+
         $vaultResult = app(SafeguardingCaseKeyVault::class)->reconcile($activeKeys);
 
         SafeguardingRestoreVerification::query()->create([
