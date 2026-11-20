@@ -227,6 +227,13 @@ class PlatformFeatureRegistryTest extends TestCase
 
     public function test_dependency_prerequisites_are_checked_recursively_at_runtime(): void
     {
+        DB::table('platform_features')->whereIn('key', [
+            'public.discovery',
+            'portals.client',
+            'bookings.companionship',
+            'bookings.automatic',
+        ])->update(['implementation_status' => 'available', 'is_enabled' => true]);
+
         DB::table('platform_features')->where('key', 'public.discovery')->update([
             'activation_requirements' => json_encode(['unrecognized_security_prerequisite']),
         ]);
