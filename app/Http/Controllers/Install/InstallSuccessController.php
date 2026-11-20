@@ -31,7 +31,7 @@ final class InstallSuccessController
 
         $loginPath = route('admin.login', [], false);
         $loginUrl = rtrim((string) config('app.url'), '/').$loginPath;
-        $installerRemoved = $remover->remove();
+        $installerRemoved = ($credentials['installer_removed'] ?? false) === true;
 
         $response = response()->view('install.success', [
             'loginUrl' => $loginUrl,
