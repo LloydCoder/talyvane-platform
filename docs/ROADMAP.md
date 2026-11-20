@@ -103,7 +103,8 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Add a maintenance-only post-restore reconciliation command that reapplies approved retention, verifies active external case keys, destroys orphaned Vault keys and records a restore verification result.
 - [ ] Independently verify database/Vault backup expiry and complete database-plus-Vault restore drills; complete independent safeguarding response drills.
 - [ ] Complete legacy owner/admin least-privilege migration and independent human custodian identity-proofing/operational drills.
-- [ ] Implement membership entitlements and protected-resource authorization; current membership capability is assignment/display only.
+- [x] Implement server-side membership entitlement grants, immutable grant records, active-membership/date evaluation, private-gallery delivery authorization and public-discovery exclusion; activation remains disabled until Super Admin review.
+- [ ] Implement additional protected benefits such as priority concierge handling only when their complete operational workflows and server-side enforcement are delivered.
 - [x] Record membership assignment and supersession in an actor-attributed append-only lifecycle ledger; recheck the membership feature gate inside the client-locked transaction.
 - [x] Build a Super Admin-only read-only feature catalogue showing implementation state, configured/effective state, dependencies, risk and activation prerequisites.
 - [x] Build feature mutation controls with impact preview, prerequisite evaluation, reason capture, password/TOTP step-up and transactional rollback.
