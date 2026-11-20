@@ -40,7 +40,11 @@ class AdminMfaTest extends TestCase
 
         $this->assertNotNull($admin->fresh()->mfa_enabled_at);
         $this->assertNotEmpty($admin->fresh()->mfa_recovery_codes);
-        $this->get('/admin/mfa/recovery-codes')->assertOk()->assertSee('Recovery');
+        $this->get('/admin/mfa/recovery-codes')
+            ->assertOk()
+            ->assertSee('Recovery')
+            ->assertHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        $this->get('/admin/mfa/recovery-codes')->assertRedirect('/admin');
         $this->get('/admin')->assertOk();
     }
 
