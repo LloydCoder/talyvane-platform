@@ -58,6 +58,16 @@ Official references:
 - This control records a platform preservation hold only. It does not place holds on external storage, email, messaging, payment providers, backups or third-party evidence systems.
 - Automated retention and cryptographic erasure are not enabled. A retention schedule must be approved and implemented with per-case key destruction before any automated purge is permitted.
 
+## Safeguarding content retention
+
+- Safeguarding narratives, related-record references, legal-hold reasons and case-event notes are encrypted with a unique per-case data-encryption key (DEK). The DEK is wrapped with the application encryption key; it is not stored in plaintext.
+- The migration moves existing encrypted case content and event notes into the per-case key scheme, then clears the legacy content columns. Keep the production `APP_KEY` stable and take a separately encrypted, access-controlled backup before applying this migration.
+- Retention is disabled by default. It requires an approved schedule, positive day count, policy version, and a separately approved encrypted-backup expiry period.
+- Only closed cases older than the configured retention period are eligible. An active legal hold always excludes a case. The command rechecks status, close timestamp and hold state under a row lock before removing the DEK from the primary database.
+- The primary database retains case references, status/severity metadata, event types, actor/timestamp metadata and access logs. Case narratives and event notes become unreadable in the primary database after key removal.
+- The wrapped DEK and ciphertext may still exist in older database backups. Removing the live database key row is not immediate global erasure. Backups must be separately encrypted, expire on the approved schedule, and be prevented from restoring erased keys into production. Do not claim complete cryptographic erasure until backup expiry or an independently managed external key-vault destruction process is verified.
+- Migration rollback is intentionally blocked after any case content has been retention-erased because the original content cannot be reconstructed from a destroyed key.
+
 ## Sensitive data
 Collect only necessary data for documented purposes. Never expose legal names, identity documents, private addresses, phone numbers or verification evidence publicly. Store verification evidence separately with restricted access, encryption where supported and access audit. Record consent purpose, version, actor, timestamp and withdrawal. Profile publication and automatic-booking opt-in/out are recorded as separate review events. Provider references and external payment transaction references are stored as keyed HMAC digests, not raw identifiers; no identity document is stored in public profile tables. Define retention/deletion schedules. Do not infer age, identity or sensitive traits.
 
