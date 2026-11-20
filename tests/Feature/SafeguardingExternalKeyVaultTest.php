@@ -187,7 +187,7 @@ class SafeguardingExternalKeyVaultTest extends TestCase
         $stored = DB::table('safeguarding_case_contents')->where('case_id', $case->id)->first();
         $activeKeyReference = $stored->key_reference;
 
-        $result = app(\\App\\Services\\SafeguardingCaseKeyVault::class)->verifyCredentialsForRotation();
+        $result = app(\App\Services\SafeguardingCaseKeyVault::class)->verifyCredentialsForRotation();
 
         $this->assertSame(1, $result['active_case_keys_verified']);
         $this->assertTrue($result['retention_inventory_verified']);
@@ -224,7 +224,7 @@ class SafeguardingExternalKeyVaultTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('An active safeguarding case key is missing from the external vault.');
-        app(\\App\\Services\\SafeguardingCaseKeyVault::class)->verifyCredentialsForRotation();
+        app(\App\Services\SafeguardingCaseKeyVault::class)->verifyCredentialsForRotation();
     }
 
     public function test_unknown_stored_key_provider_fails_closed(): void
