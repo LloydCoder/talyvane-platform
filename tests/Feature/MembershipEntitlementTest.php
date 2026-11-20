@@ -194,6 +194,21 @@ class MembershipEntitlementTest extends TestCase
             ->assertDontSee(route('profile-media.show', $media), false);
     }
 
+    public function test_membership_service_rejects_non_operator_actor_even_when_called_directly(): void
+    {
+        $client = $this->client('service-target@example.test');
+        $untrustedActor = $this->client('service-actor@example.test');
+
+        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\HttpException::class);
+
+        app(\\App\\Services\\ClientMembershipService::class)->assign($client, $untrustedActor, [
+            'tier_name' => 'Signature',
+            'benefits_summary' => 'A private membership benefit.',
+            'status' => 'active',
+            'starts_at' => now()->format('Y-m-d'),
+        ]);
+    }
+
     public function test_admin_assignment_records_entitlement_grants_in_the_membership_audit_snapshot(): void
     {
         $this->enableEntitlements();
