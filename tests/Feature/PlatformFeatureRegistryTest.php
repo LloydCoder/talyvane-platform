@@ -71,7 +71,7 @@ class PlatformFeatureRegistryTest extends TestCase
     public function test_optional_features_cannot_depend_on_a_reserved_hard_safeguard_flag(): void
     {
         DB::table('platform_features')->insert([
-            'key' => 'privacy.consent-withdrawal',
+            'key' => 'consent.withdrawal',
             'name' => 'Consent withdrawal',
             'module' => 'privacy',
             'description' => 'Reserved non-toggleable privacy control.',
@@ -84,7 +84,7 @@ class PlatformFeatureRegistryTest extends TestCase
             'updated_at' => now(),
         ]);
         DB::table('platform_features')->where('key', 'public.discovery')->update([
-            'dependencies' => json_encode(['privacy.consent-withdrawal']),
+            'dependencies' => json_encode(['consent.withdrawal']),
         ]);
 
         $this->assertFalse(app(FeatureRegistry::class)->isOperationallyEnabled('public.discovery'));
