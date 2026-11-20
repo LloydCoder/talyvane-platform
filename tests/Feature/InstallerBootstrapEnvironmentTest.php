@@ -76,6 +76,26 @@ class InstallerBootstrapEnvironmentTest extends TestCase
         $this->assertSame($environment, file_get_contents($this->basePath.'/.env'));
     }
 
+    public function test_existing_application_key_must_be_valid_and_environment_permissions_are_restricted(): void
+    {
+        $environment = "APP_ENV=production\nAPP_KEY=not-a-valid-key\n";
+        file_put_contents($this->basePath.'/.env', $environment);
+
+        try {
+            (new BootstrapEnvironment($this->basePath))->ensure();
+            $this->fail('Malformed application keys must be rejected.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('application key is invalid', $exception->getMessage());
+        }
+
+        $environment = "APP_ENV=production\nAPP_KEY=base64:".base64_encode(random_bytes(32))."\n";
+        file_put_contents($this->basePath.'/.env', $environment);
+        chmod($this->basePath.'/.env', 0644);
+
+        $this->assertFalse((new BootstrapEnvironment($this->basePath))->ensure());
+        $this->assertSame(0600, fileperms($this->basePath.'/.env') & 0777);
+    }
+
     public function test_blank_application_key_is_filled_without_losing_database_configuration(): void
     {
         $environment = "APP_ENV=local\nAPP_KEY=\nAPP_DEBUG=true\nDB_PASSWORD=database-secret\n";
