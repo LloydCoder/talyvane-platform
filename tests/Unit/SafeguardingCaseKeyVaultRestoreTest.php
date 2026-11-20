@@ -24,6 +24,17 @@ class SafeguardingCaseKeyVaultRestoreTest extends TestCase
         ]);
     }
 
+    public function test_new_case_keys_are_scoped_to_this_deployment_namespace(): void
+    {
+        $vault = app(SafeguardingCaseKeyVault::class);
+        $keyReference = $vault->newCaseKeyReference();
+
+        $this->assertStringStartsWith('case-testtenant-', $keyReference);
+
+        $this->expectException(RuntimeException::class);
+        $vault->createKey('case-othertenant-00000000-0000-4000-8000-000000000001');
+    }
+
     public function test_restore_reconciliation_decrypt_verifies_active_keys_before_destroying_orphans_and_verifies_inventory_afterward(): void
     {
         $deleted = [];
