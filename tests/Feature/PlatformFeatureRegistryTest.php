@@ -70,6 +70,8 @@ class PlatformFeatureRegistryTest extends TestCase
 
     public function test_optional_features_cannot_depend_on_a_reserved_hard_safeguard_flag(): void
     {
+        $this->approveDiscoveryMarket();
+
         DB::table('platform_features')->insert([
             'key' => 'consent.withdrawal',
             'name' => 'Consent withdrawal',
