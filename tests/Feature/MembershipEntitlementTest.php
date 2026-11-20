@@ -472,6 +472,19 @@ class MembershipEntitlementTest extends TestCase
         ]);
     }
 
+    public function test_membership_grant_cannot_bypass_missing_media_consent_evidence(): void
+    {
+        Storage::fake('local');
+        $this->enableEntitlements();
+        $profile = $this->profile();
+        $media = $this->privateMedia($profile, 'approved', false);
+        $client = $this->client();
+        $membership = $this->membership($client);
+        $this->grantPrivateGallery($membership);
+
+        $this->actingAs($client)->get(route('profile-media.show', $media))->assertNotFound();
+    }
+
     public function test_disabling_the_entitlement_feature_revokes_private_gallery_access_immediately(): void
     {
         Storage::fake('local');
