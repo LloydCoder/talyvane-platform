@@ -26,7 +26,7 @@ Official references:
 - `owner`: agency oversight and operational administration.
 - `admin`: day-to-day agency operations; does not receive the model settlement workspace.
 - `finance`: dedicated access to the model settlement workspace only. Finance accounts do not receive the general dashboard, profile, client, booking, model application, casting, assignment or deployment-configuration routes. Finance access requires the same session-version enforcement and TOTP MFA as other privileged accounts.
-- Finance specialists are provisioned from a trusted CLI with `php artisan talyvane:admin:create finance@example.test --role=finance`. The default role remains `owner`; the command rejects `super_admin`, which is provisioned only through the designated bootstrap flow.
+- Finance specialists and eligibility verifiers are provisioned from a trusted CLI with `php artisan talyvane:admin:create finance@example.test --role=finance` or `php artisan talyvane:admin:create verifier@example.test --role=verifier`. The default role remains `owner`; the command rejects `super_admin`, which is provisioned only through the designated bootstrap flow. The default role remains `owner`; the command rejects `super_admin`, which is provisioned only through the designated bootstrap flow.
 - The Super Admin and Owner retain settlement access for deployment/agency oversight. This is route-level separation, not a full dual-control maker-checker workflow; independent approval of one's own expense or settlement draft remains a separate control to implement and test.
 
 ## Specialist verifier access
