@@ -29,7 +29,9 @@
 
     <form method="POST" action="{{ route('install.store', [], false) }}" autocomplete="off">
         @csrf
-        <input type="hidden" name="installer_token" value="{{ $installerToken }}">
+        <h2>Private installer access</h2>
+        <p class="admin-muted">In cPanel File Manager, open the private application directory, then open <code>storage/app/private/INSTALLER-ACCESS-KEY.txt</code>. Copy its contents into the field below. This key is deliberately never sent to the browser until you enter it. Do not share it or place it in a URL.</p>
+        <label>Private installer access key<input type="password" name="installer_token" required minlength="43" maxlength="43" pattern="[A-Za-z0-9_-]{43}" autocomplete="off"></label>
         <h2>Application</h2>
         <label>Deployment name<input name="app_name" required maxlength="80" value="{{ old('app_name', 'Talyvane') }}"></label>
         <label>Canonical HTTPS URL<input type="url" name="app_url" required placeholder="https://agency.example.com" value="{{ old('app_url') }}"></label>
