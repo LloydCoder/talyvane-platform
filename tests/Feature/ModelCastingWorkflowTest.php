@@ -169,11 +169,11 @@ class ModelCastingWorkflowTest extends TestCase
     public function test_new_casting_drafts_are_blocked_when_the_casting_feature_is_paused(): void
     {
         $context = $this->context();
-        \Illuminate\\Support\\Facades\\DB::table('platform_features')
+        \Illuminate\Support\Facades\DB::table('platform_features')
             ->where('key', 'model-agency.casting')
             ->update(['is_enabled' => false]);
 
-        $this->expectException(\Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException::class);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
         app(ModelCastingWorkflowService::class)->createDraft($context['admin']->id, $this->callInput());
     }
 
