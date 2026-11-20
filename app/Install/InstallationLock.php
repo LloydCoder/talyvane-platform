@@ -202,7 +202,9 @@ final class InstallationLock
             throw new RuntimeException('The private installation state directory escapes the application root.');
         }
 
-        @chmod($realDirectory, 0700);
+        if (! chmod($realDirectory, 0700)) {
+            throw new RuntimeException('The private installation state directory permissions could not be restricted.');
+        }
     }
 
     private function uuid(): string
