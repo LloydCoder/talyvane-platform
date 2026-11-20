@@ -13,7 +13,7 @@
     @if ($installerRemoved)
         <p role="status">The private installer directory was automatically removed.</p>
     @else
-        <div role="alert" class="form-errors"><p><strong>Delete the installer directory immediately.</strong> Automatic removal was not possible. In cPanel File Manager, delete the entire <code>install/</code> directory from the private Talyvane application root. Installer routes are already blocked by the durable installation lock.</p></div>
+        <div role="alert" class="form-errors"><p><strong>Complete the installer cleanup immediately.</strong> Automatic removal was not fully successful. In cPanel File Manager, delete the entire <code>install/</code> directory from the private Talyvane application root and delete <code>storage/app/private/INSTALLER-ACCESS-KEY.txt</code> if it remains. Installer routes are already blocked by the durable installation lock.</p></div>
     @endif
     <p class="admin-muted">For security, the password is handed off once and cannot be retrieved again. If it is lost before MFA enrollment, use the initial Super Admin password recovery link on the sign-in page; both registered email addresses must be verified again.</p>
 </main></body>
