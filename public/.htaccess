@@ -4,6 +4,17 @@ DirectoryIndex index.php
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # If the project root is accidentally configured as the document root,
+    # block direct requests into private source and runtime directories.
+    RewriteCond %{DOCUMENT_ROOT}/.env -f
+    RewriteRule ^(?:app|bootstrap|config|database|docs|install|resources|routes|storage|vendor|cpanel-public-root|tests|public)(?:/|$) - [F,L,NC]
+
+    # Refuse document roots that point into private application/runtime trees.
+    # The supported in-project document root is exactly the application's public/ directory.
+    RewriteCond %{DOCUMENT_ROOT} /(?:app|bootstrap|config|database|install|storage|vendor|framework|sessions|cache|views|logs|private)(?:/|$) [NC]
+    RewriteCond %{DOCUMENT_ROOT} !/public$ [NC]
+    RewriteRule ^ - [F,L]
+
     # Preserve authorization and XSRF headers for Laravel.
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
