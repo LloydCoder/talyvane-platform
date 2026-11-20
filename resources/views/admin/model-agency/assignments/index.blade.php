@@ -12,6 +12,7 @@
         </div>
     </div>
 
+    @if($canCreateAssignments)
     <section class="admin-panel">
         <h2>Create assignment draft</h2>
         @if($selectedSubmissions->isEmpty())
@@ -51,6 +52,9 @@
             </form>
         @endif
     </section>
+    @else
+        <section class="admin-panel"><h2>New assignments paused</h2><p class="field-help">New assignment creation is disabled by the platform feature control. Existing assignments remain available for acceptance, completion, cancellation and dispute handling.</p></section>
+    @endif
 
     <section class="admin-panel">
         <h2>Assignment history</h2>
@@ -67,7 +71,7 @@
                         <p class="field-help">Casting source: {{ $assignment->submission->reference }} · Agreement: {{ $assignment->representationAgreement->reference }} · Policy: {{ $assignment->assignment_policy_version }}</p>
                     </div>
                     <div class="record-actions">
-                        @if($assignment->status === 'draft')
+                        @if($assignment->status === 'draft' && $canCreateAssignments)
                             <form method="POST" action="{{ route('admin.model-assignments.offer', $assignment) }}">@csrf<button class="button button-dark" type="submit">Issue offer externally</button></form>
                         @elseif($assignment->status === 'offered')
                             <form method="POST" action="{{ route('admin.model-assignments.accept', $assignment) }}" class="admin-form-grid">
