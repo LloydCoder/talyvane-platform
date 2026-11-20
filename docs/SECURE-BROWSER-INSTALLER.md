@@ -1,6 +1,6 @@
 # Secure browser installer: security and acceptance specification
 
-**Status:** Approved requirement; implementation in [PR #62](https://github.com/LloydCoder/talyvane-platform/pull/62). The current implementation passed the PHP 8.3/8.4/8.5 CI matrix (387 tests and 1,889 assertions per version), package checksum verification, and the standalone release-package plus first-request bootstrap smoke build on commit `f35485610166d4930d529a0479c85a4f9392cbe6` ([workflow run #44751493918](https://github.com/LloydCoder/talyvane-platform/actions/runs/44751493918)). Final forensic security review, cPanel deployment review, merge and tagged-release gates remain open.  
+**Status:** Implemented in [PR #62](https://github.com/LloydCoder/talyvane-platform/pull/62), merged to `main` at `df9d4abf3905ba94b115f3fd6e9523e5822e401d`. Post-merge [workflow run #44757620878](https://github.com/LloydCoder/talyvane-platform/actions/runs/44757620878) completed successfully with all four jobs green: PHP 8.3, PHP 8.4, PHP 8.5 and standalone release-package smoke build. The PR-head validation included 387 tests and 1,889 assertions per PHP version, plus package and cPanel-wrapper smoke checks. Repository-level implementation and CI gates are complete; live provider-specific cPanel acceptance, signed/tagged release publication and the wider platform forensic audit remain open.  
 **Normative language:** MUST, MUST NOT, SHOULD and MAY are used as engineering requirements.
 
 ## 1. Product outcome

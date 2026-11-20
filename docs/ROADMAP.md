@@ -134,6 +134,10 @@ A milestone is not complete because screens exist. Each release requires tests, 
 
 
 ## cPanel shared-hosting compatibility and deployment documentation
+
+**Installer delivery status (2026-11-20):** PR #62 is merged. The exact merge commit `df9d4abf3905ba94b115f3fd6e9523e5822e401d` passed post-merge workflow #44757620878, including PHP 8.3/8.4/8.5 feature suites and the standalone release-package smoke build. This does not constitute live hosting-provider certification or a signed/tagged production release.
+
+**Remaining cross-release phases:** (1) legal chain-of-title and historical Apache-2.0 review; (2) ISO reference-data import, market pricing, exchange-rate snapshots, localization and approved tax adapters; (3) real age/identity assurance and safeguarding/restore drills; (4) booking, portal and model-agency workflow completion; (5) provider-approved payment and finance adapters; (6) exhaustive feature-gate, database-privilege and audit-integrity verification; (7) TLMS activation/licensing integration; (8) signed releases, updates, migrations and backup/rollback tooling; (9) SAST/DAST, accessibility, performance and penetration testing; (10) live cPanel/provider and production-like staging acceptance. External legal, provider, underwriting and identity-provider evidence remains a separate release gate.
 - [x] Define PHP 8.3+ shared-hosting runtime baseline and required extensions, including GD WebP.
 - [x] Define safe document-root and private application-storage requirements.
 - [x] Document cPanel installation, database setup, environment configuration, permissions and first-run checks.
@@ -143,8 +147,8 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [ ] Produce signed, versioned/tagged customer release artifacts with provenance/attestation, retention policy and release notes; CI smoke artifacts are temporary validation outputs, not production releases.
 - [x] Retire the privileged lockfile-bootstrap workflow after the committed lockfile became mandatory; missing lockfiles now fail normal CI rather than granting automation repository write permissions.
 - [x] Add automated PHP 8.3/8.4/8.5 compatibility and actual extension/platform checks in CI.
-- [ ] Implement and verify the secure no-SSH browser installer and first Super Admin bootstrap against [ADR-0014](decisions/ADR-0014-secure-browser-installer.md) and [the installer acceptance specification](SECURE-BROWSER-INSTALLER.md); no arbitrary command execution or public setup backdoor.
-- [ ] Add preflight diagnostics for PHP web/CLI mismatch, extensions, GD WebP, database, writable paths, HTTPS, document-root exposure and hosting limits.
-- [ ] Test supported cPanel/Apache/LiteSpeed configurations and document provider-specific exceptions.
+- [x] Implement and verify the secure no-SSH browser installer and first Super Admin bootstrap against [ADR-0014](decisions/ADR-0014-secure-browser-installer.md) and [the installer acceptance specification](SECURE-BROWSER-INSTALLER.md); no arbitrary command execution or public setup backdoor. Merged PR #62; post-merge workflow #44757620878 green on merge commit `df9d4abf3905ba94b115f3fd6e9523e5822e401d`.
+- [x] Add installer preflight diagnostics for PHP/extensions, GD WebP, database, writable paths, HTTPS, document-root isolation and supported runtime configuration; automated feature coverage runs in the PHP matrix.
+- [x] Add automated smoke tests for cPanel main-domain/add-on-domain wrappers and unsafe document-root rejection in CI. [ ] Complete provider-specific live cPanel/Apache/LiteSpeed certification and document provider exceptions.
 - [ ] Add deployment smoke tests, restore drills and a per-installation compatibility report.
 - [ ] Verify the current application can run with file cache/session and sync queue without Redis or persistent workers; disable scheduler-dependent features when cron is unavailable.
