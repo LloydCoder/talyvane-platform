@@ -438,8 +438,13 @@ final class InstallerController
                 'exception_code' => (string) $exception->getCode(),
             ]);
 
+            $message = 'Configuration could not be verified during the '.$stage.' step. Check the database and SMTP settings, then retry. Secret values and internal diagnostics are not displayed.';
+            if (app()->environment('testing')) {
+                $message .= ' ['.$exception::class.': '.$exception->getMessage().']';
+            }
+
             throw ValidationException::withMessages([
-                'installer' => 'Configuration could not be verified during the '.$stage.' step. Check the database and SMTP settings, then retry. Secret values and internal diagnostics are not displayed.',
+                'installer' => $message,
             ]);
         }
 
