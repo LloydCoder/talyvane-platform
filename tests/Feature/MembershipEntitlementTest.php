@@ -546,7 +546,7 @@ class MembershipEntitlementTest extends TestCase
         $this->actingAs($client)->get(route('profile-media.show', $media))->assertOk();
 
         $this->actingAs($companion)
-            ->patch(route('companion-portal.profiles.media.withdraw-members-only-consent', [$profile, $media]))
+            ->patch(route('companion-portal.profiles.media.withdraw-members-only-consent', [$profile, $media]), ['withdraw_confirmed' => '1'])
             ->assertRedirect(route('companion-portal.dashboard'));
 
         $media->refresh();
