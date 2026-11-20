@@ -1,6 +1,6 @@
 # ADR-0014: Secure browser-based first installation
 
-- **Status:** Accepted; implementation in PR #60, CI and release verification pending
+- **Status:** Accepted; implementation in PR #61, CI and release verification pending
 - **Date:** 2026-11-20
 - **Decision owners:** Talyvane product and engineering
 
