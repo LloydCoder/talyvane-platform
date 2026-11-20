@@ -55,8 +55,6 @@ class CompanionPortalController extends Controller
                 ));
             }
         });
-        $privateGalleryConsentStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement($agencyName);
-
         return view('portal.companion-dashboard', [
             'profiles' => $profiles,
             'bookings' => $bookings,
@@ -65,7 +63,7 @@ class CompanionPortalController extends Controller
             'privateGalleryConsentStatementHash' => $privateGalleryConsentStatementHash,
             'privateGalleryConsentVersion' => $privateGalleryConsentVersion,
             'privateGalleryConsentAvailable' => filled($agencyName)
-                && filled(config('talyvane.privacy.private_gallery_consent_version'))
+                && filled($privateGalleryConsentVersion)
                 && config('talyvane.privacy.private_gallery_consent_approved'),
         ]);
     }
