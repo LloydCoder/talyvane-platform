@@ -16,6 +16,22 @@ class DiscoveryTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function approvePublicMarket(): void
+    {
+        CountryMarket::query()->firstOrCreate(['country_code' => 'GB'], [
+            'country_code' => 'GB',
+            'name' => 'United Kingdom',
+            'is_enabled' => true,
+            'compliance_status' => 'approved',
+            'compliance_reviewed_at' => now(),
+            'compliance_reviewed_by' => 'test-fixture',
+            'compliance_evidence_reference' => 'homepage-test-market-evidence',
+            'compliance_review_summary' => 'Approved test market.',
+            'market_policy' => ['test_fixture' => true],
+        ]);
+    }
+
+
 
     public function test_stock_photography_uses_only_reviewed_unsplash_cdn_sources(): void
     {
