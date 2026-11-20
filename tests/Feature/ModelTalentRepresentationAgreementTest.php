@@ -119,6 +119,14 @@ class ModelTalentRepresentationAgreementTest extends TestCase
         $this->market();
         $application = $this->application();
         $admin = $this->createAdminUser();
+        CountryMarket::query()->update([
+            'is_enabled' => false,
+            'compliance_status' => 'pending',
+            'compliance_reviewed_at' => null,
+            'compliance_reviewed_by' => null,
+            'compliance_evidence_reference' => null,
+            'compliance_review_summary' => null,
+        ]);
 
         $this->actingAs($admin)->post('/admin/model-applications/'.$application->id.'/agreements', $this->terms())
             ->assertRedirect();
