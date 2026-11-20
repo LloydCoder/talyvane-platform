@@ -76,7 +76,7 @@ final class InstallerController
         ]);
     }
 
-    public function store(Request $request, EnvironmentWriter $environment, RecoveryCodeGenerator $codes): RedirectResponse
+    public function store(Request $request, RecoveryCodeGenerator $codes): RedirectResponse
     {
         $validated = $request->validate([
             'app_name' => ['required', 'string', 'max:80'],
@@ -119,6 +119,7 @@ final class InstallerController
         }
 
         try {
+            $environment = new EnvironmentWriter(base_path());
             $environment->update([
                 'APP_NAME' => $validated['app_name'],
                 'APP_ENV' => 'production',
