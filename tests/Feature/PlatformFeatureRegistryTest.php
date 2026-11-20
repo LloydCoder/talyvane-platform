@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Services\FeatureActivationEvaluator;
 use App\Services\FeatureRegistry;
 use App\Models\User;
 use App\Models\CountryMarket;
@@ -64,7 +65,7 @@ class PlatformFeatureRegistryTest extends TestCase
         $this->assertFalse($registry->isOperationallyEnabled('safeguarding.case_access'));
         $this->assertFalse($feature->effective_enabled);
         $this->assertTrue($feature->hard_safeguard);
-        $this->assertContains('Hard safeguards are not configurable feature flags.', app(\\App\\Services\\FeatureActivationEvaluator::class)->blockers($feature));
+        $this->assertContains('Hard safeguards are not configurable feature flags.', app(FeatureActivationEvaluator::class)->blockers($feature));
     }
 
     public function test_optional_features_cannot_depend_on_a_reserved_hard_safeguard_flag(): void
