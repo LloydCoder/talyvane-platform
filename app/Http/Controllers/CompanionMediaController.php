@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\CompanionProfile;
 use App\Models\ProfileMedia;
+use App\Models\ProfileMediaConsentEvent;
+use App\Services\MembershipEntitlementCatalog;
 use App\Services\ProfileMediaProcessor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CompanionMediaController extends Controller
@@ -56,7 +59,7 @@ class CompanionMediaController extends Controller
                     throw ValidationException::withMessages(['media' => 'Profile publication consent changed while the image was being processed. Please review your profile status and try again.']);
                 }
 
-                ProfileMedia::query()->create([
+                $media = ProfileMedia::query()->create([
                     'companion_profile_id' => $lockedProfile->id,
                     'uploaded_by' => $request->user()->id,
                     'storage_path' => $image['path'],
@@ -70,6 +73,21 @@ class CompanionMediaController extends Controller
                     'members_only_consent_at' => $membersOnlyConsentConfirmed ? now() : null,
                     'members_only_consent_version' => $membersOnlyConsentConfirmed ? $membersOnlyConsentVersion : null,
                 ]);
+
+                if ($membersOnlyConsentConfirmed) {
+                    ProfileMediaConsentEvent::query()->create([
+                        'profile_media_id' => $media->id,
+                        'companion_profile_id' => $lockedProfile->id,
+                        'media_reference' => 'profile-media:'.$media->id,
+                        'actor_id' => $request->user()->id,
+                        'actor_email' => $request->user()->email,
+                        'action' => 'members_only_consent.granted',
+                        'consent_policy_version' => $membersOnlyConsentVersion,
+                        'statement_sha256' => hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement()),
+                        'correlation_id' => (string) Str::uuid(),
+                        'created_at' => now(),
+                    ]);
+                }
             });
         } catch (\Throwable $exception) {
             Storage::disk('local')->delete($image['path']);
@@ -101,6 +119,19 @@ class CompanionMediaController extends Controller
                 'members_only_consent_withdrawn_at' => now(),
                 'members_only_consent_withdrawn_by' => $request->user()->id,
             ])->save();
+
+            ProfileMediaConsentEvent::query()->create([
+                'profile_media_id' => $lockedMedia->id,
+                'companion_profile_id' => $profile->id,
+                'media_reference' => 'profile-media:'.$lockedMedia->id,
+                'actor_id' => $request->user()->id,
+                'actor_email' => $request->user()->email,
+                'action' => 'members_only_consent.withdrawn',
+                'consent_policy_version' => $lockedMedia->members_only_consent_version,
+                'statement_sha256' => hash('sha256', MembershipEntitlementCatalog::privateGalleryConsentStatement()),
+                'correlation_id' => (string) Str::uuid(),
+                'created_at' => now(),
+            ]);
         });
 
         return redirect()->route('companion-portal.dashboard')->with(
