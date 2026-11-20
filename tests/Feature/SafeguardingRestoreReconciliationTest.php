@@ -187,4 +187,5 @@ class SafeguardingRestoreReconciliationTest extends TestCase
             'orphan_keys_destroyed' => 2,
         ]);
         $this->assertTrue(DB::table('safeguarding_restore_verifications')->exists());
-    }}
+    }
+}
