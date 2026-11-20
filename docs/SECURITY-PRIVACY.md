@@ -50,6 +50,14 @@ Official references:
 - This release provides authenticated internal reporting only. It is not an emergency response service, public/anonymous reporting channel, hotline, notification dispatcher, statutory reporting integration or guarantee of safeguarding intervention. Operators must maintain independent emergency contacts, trained human responders, jurisdiction-specific procedures and documented response-time commitments.
 - Retention schedules, legal-hold administration, export controls, notification/escalation, independent response drills and external safeguarding oversight remain release gates.
 
+## Safeguarding legal-hold governance
+
+- Super Admin and Owner accounts can access a metadata-only governance register. It exposes case references, category, severity, workflow state, timestamps and hold state; it never selects or renders case summaries, narratives, subject references or event notes.
+- Legal holds require a reason and record the actor, timestamp and encrypted rationale in the case and append-only event history.
+- A legal hold cannot be released by the same actor who placed it. Release requires a different active Super Admin or Owner, a separate reason, and append-only case/access audit events.
+- This control records a platform preservation hold only. It does not place holds on external storage, email, messaging, payment providers, backups or third-party evidence systems.
+- Automated retention and cryptographic erasure are not enabled. A retention schedule must be approved and implemented with per-case key destruction before any automated purge is permitted.
+
 ## Sensitive data
 Collect only necessary data for documented purposes. Never expose legal names, identity documents, private addresses, phone numbers or verification evidence publicly. Store verification evidence separately with restricted access, encryption where supported and access audit. Record consent purpose, version, actor, timestamp and withdrawal. Profile publication and automatic-booking opt-in/out are recorded as separate review events. Provider references and external payment transaction references are stored as keyed HMAC digests, not raw identifiers; no identity document is stored in public profile tables. Define retention/deletion schedules. Do not infer age, identity or sensitive traits.
 
