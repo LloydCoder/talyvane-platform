@@ -15,6 +15,6 @@
     @else
         <div role="alert" class="form-errors"><p><strong>Delete the installer directory immediately.</strong> Automatic removal was not possible. In cPanel File Manager, delete the entire <code>install/</code> directory from the private Talyvane application root. Installer routes are already blocked by the durable installation lock.</p></div>
     @endif
-    <p class="admin-muted">For security, the password is handed off once and cannot be retrieved again. If it is lost, use the supported account recovery process.</p>
+    <p class="admin-muted">For security, the password is handed off once and cannot be retrieved again. If it is lost before MFA enrollment, use the initial Super Admin password recovery link on the sign-in page; both registered email addresses must be verified again.</p>
 </main></body>
 </html>

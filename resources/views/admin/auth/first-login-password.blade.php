@@ -11,4 +11,5 @@
         <label>Confirm new password<input type="password" name="password_confirmation" minlength="14" maxlength="200" required autocomplete="new-password"></label>
         <button class="button button-dark admin-submit" type="submit">Replace password and continue</button>
     </form>
+    <p class="admin-muted"><a href="{{ route('admin.first-login.recover') }}">Lost the initial password? Verify both registered email addresses.</a></p>
 </main></body></html>

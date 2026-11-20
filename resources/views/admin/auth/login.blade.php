@@ -25,6 +25,7 @@
             <label class="remember-row"><input type="checkbox" name="remember" value="1"> Keep me signed in</label>
             <button class="button button-light admin-submit" type="submit">Sign in <span aria-hidden="true">↗</span></button>
         </form>
+        <p class="admin-muted"><a href="{{ route('admin.first-login.recover') }}">Lost the initial Super Admin password?</a></p>
         <a class="admin-back" href="{{ route('home') }}">← Return to public site</a>
     </main>
 </body>
