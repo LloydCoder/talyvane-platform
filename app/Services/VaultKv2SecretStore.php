@@ -73,12 +73,15 @@ class VaultKv2SecretStore
     /**
      * Runtime-only retrieval for approved integration adapters. Never call from a controller.
      */
-    public function read(string $secretKey): string
+    public function read(string $secretKey, ?int $version = null): string
     {
         $path = $this->secretPath($secretKey);
+        if ($version !== null && $version < 1) {
+            throw new RuntimeException('The requested secret version is invalid.');
+        }
 
         try {
-            $response = $this->client()->get($this->path('data/'.$path));
+            $response = $this->client()->get($this->path('data/'.$path), $version === null ? [] : ['version' => $version]);
             $value = $response->json('data.data.value');
 
             if (! $response->successful() || ! is_string($value) || $value === '') {
