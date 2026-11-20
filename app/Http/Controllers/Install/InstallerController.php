@@ -248,14 +248,20 @@ final class InstallerController
                 'attempts' => 0,
             ]);
         } catch (Throwable $exception) {
+            $diagnostic = $exception->getPrevious()?->getMessage() ?? $exception->getMessage();
+            $safeDiagnostic = preg_replace('/(password|passwd|secret)\\s*[=:]\\s*[^;\\s]+/i', '$1=[redacted]', $diagnostic) ?? 'unavailable';
+
             logger()->warning('Talyvane browser installer configuration step failed.', [
                 'stage' => $stage,
                 'exception_class' => $exception::class,
                 'exception_code' => (string) $exception->getCode(),
+                'diagnostic' => $safeDiagnostic,
             ]);
 
+            $testDiagnostic = app()->environment('testing') ? ' '.$safeDiagnostic : '';
+
             throw ValidationException::withMessages([
-                'installer' => 'Configuration could not be verified during the '.$stage.' step ('.$exception::class.', code '.(string) $exception->getCode().'). Check the database and SMTP settings, then retry. Secret values are not displayed.',
+                'installer' => 'Configuration could not be verified during the '.$stage.' step ('.$exception::class.', code '.(string) $exception->getCode().'). Check the database and SMTP settings, then retry. Secret values are not displayed.'.$testDiagnostic,
             ]);
         }
 
