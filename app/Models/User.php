@@ -87,7 +87,7 @@ class User extends Authenticatable implements MustVerifyEmail
             ->exists();
     }
 
-    private function isDesignatedDeploymentSuperAdmin(): bool
+    public function isDesignatedDeploymentSuperAdmin(): bool
     {
         if (! $this->exists || ! $this->getKey() || ! Schema::hasTable('platform_control')) {
             return false;
