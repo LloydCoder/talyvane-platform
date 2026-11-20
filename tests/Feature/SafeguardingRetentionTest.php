@@ -54,6 +54,20 @@ class SafeguardingRetentionTest extends TestCase
         app(SafeguardingCaseRetentionService::class)->apply();
     }
 
+    public function test_retention_refuses_to_run_without_an_approved_backup_expiry_policy(): void
+    {
+        config([
+            'talyvane.safeguarding.retention.schedule_approved' => true,
+            'talyvane.safeguarding.retention.days' => 30,
+            'talyvane.safeguarding.retention.policy_version' => 'safeguarding-retention-v1',
+            'talyvane.safeguarding.retention.backup_expiry_days' => 7,
+            'talyvane.safeguarding.retention.backup_policy_approved' => false,
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        app(SafeguardingCaseRetentionService::class)->apply();
+    }
+
     public function test_due_closed_case_content_is_erased_but_case_and_audit_metadata_are_retained(): void
     {
         $this->approveRetentionPolicy();
@@ -89,6 +103,7 @@ class SafeguardingRetentionTest extends TestCase
         $this->assertNotNull($contentsAfter->retention_erased_at);
         $this->assertSame('safeguarding-retention-v1', $contentsAfter->retention_policy_version);
         $this->assertSame($case->reference, $case->fresh()->reference);
+        $this->assertTrue($case->fresh()->content_erased);
         $this->assertNull($case->fresh()->summary);
         $this->assertNull($case->fresh()->details);
         $this->assertDatabaseHas('safeguarding_case_events', [
