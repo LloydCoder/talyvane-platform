@@ -46,7 +46,10 @@ class AdminInitialPasswordRecoveryTest extends TestCase
         ])->assertRedirect('/admin/first-login/recover/verify');
 
         Notification::assertSentOnDemandTimes(SuperAdminEmailVerificationCode::class, 2);
-        $this->get('/admin/first-login/recover/verify')->assertOk()->assertSee('DUAL-EMAIL VERIFICATION');
+        $this->get('/admin/first-login/recover/verify')
+            ->assertOk()
+            ->assertSee('DUAL-EMAIL VERIFICATION')
+            ->assertHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
         $this->post('/admin/first-login/recover/verify', [
             'primary_code' => '111111',
