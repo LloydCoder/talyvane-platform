@@ -8,6 +8,7 @@ use App\Install\InstallationLock;
 use App\Models\User;
 use App\Notifications\SuperAdminEmailVerificationCode;
 use App\Services\RecoveryCodeGenerator;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -211,6 +212,42 @@ class BrowserInstallerWorkflowTest extends TestCase
 
         $this->assertSame(1, $connection->table('users')->count());
         $this->assertSame(2, $connection->table('migrations')->count());
+    }
+
+    public function test_installer_resumes_recognised_talyvane_schema_without_user_records(): void
+    {
+        Artisan::call('migrate', ['--database' => 'mysql', '--force' => true]);
+
+        $connection = DB::connection('mysql');
+        $this->assertTrue($connection->getSchemaBuilder()->hasTable('platform_control'));
+        $this->assertSame(0, $connection->table('users')->count());
+
+        $this->get('https://agency.example.test/install')->assertOk();
+        $privateInstallerKey = trim((string) file_get_contents(storage_path('app/private/INSTALLER-ACCESS-KEY.txt')));
+
+        $this->post('https://agency.example.test/install', [
+            'installer_token' => $privateInstallerKey,
+            'app_name' => 'Talyvane Agency',
+            'app_url' => 'https://agency.example.test',
+            'db_host' => '127.0.0.1',
+            'db_port' => 3306,
+            'db_database' => 'talyvane_test',
+            'db_username' => 'talyvane',
+            'db_password' => 'test-password',
+            'mail_scheme' => 'smtp',
+            'mail_host' => 'smtp.example.test',
+            'mail_port' => 587,
+            'mail_username' => 'installer@example.test',
+            'mail_password' => 'test-mail-password',
+            'mail_from_address' => 'installer@example.test',
+            'mail_from_name' => 'Talyvane Agency',
+            'admin_name' => 'Deployment Super Admin',
+            'admin_email' => 'admin@example.test',
+            'recovery_email' => 'recovery@example.test',
+        ])->assertRedirect(route('install.verify'));
+
+        $this->assertSame(0, $connection->table('users')->count());
+        Notification::assertSentOnDemand(SuperAdminEmailVerificationCode::class, 2);
     }
 
     public function test_browser_install_verifies_emails_creates_lock_shows_password_once_and_enforces_first_login_change(): void
