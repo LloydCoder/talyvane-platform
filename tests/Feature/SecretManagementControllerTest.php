@@ -91,6 +91,7 @@ class SecretManagementControllerTest extends TestCase
             ->get('/admin/secrets')
             ->assertOk()
             ->assertSee('mail.smtp.password')
+            ->assertSee('Secret management')
             ->assertSee('Configured')
             ->assertDontSee('super-secret-value-123');
     }
