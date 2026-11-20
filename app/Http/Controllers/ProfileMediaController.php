@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ProfileMedia;
 use App\Services\MembershipEntitlementCatalog;
+use App\Services\BrandSettings;
 use App\Services\FeatureRegistry;
 use App\Services\MembershipEntitlementService;
 use Illuminate\Http\Response;
@@ -30,11 +31,12 @@ class ProfileMediaController extends Controller
         ProfileMedia $media,
         FeatureRegistry $features,
         MembershipEntitlementService $entitlements,
+        BrandSettings $brandSettings,
     ): Response {
         abort_unless($media->status === 'approved', 404);
         if ($media->access_level === 'members_only') {
             $currentConsentVersion = config('talyvane.privacy.private_gallery_consent_version');
-            $expectedStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement();
+            $expectedStatement = MembershipEntitlementCatalog::privateGalleryConsentStatement((string) ($brandSettings->publicBrand()['brand_name'] ?? 'Talyvane'));
             $grantEvent = $media->consentEvents()
                 ->where('action', 'members_only_consent.granted')
                 ->oldest('id')
