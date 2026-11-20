@@ -45,6 +45,17 @@ class InstallerAccessTokenTest extends TestCase
         $this->assertFalse($access->verify($token));
     }
 
+    public function test_token_refuses_symlinked_storage_ancestors(): void
+    {
+        $storageApp = $this->temporaryRoot.'/storage/app';
+        $realStorageApp = $this->temporaryRoot.'/storage/app-private-real';
+        rename($storageApp, $realStorageApp);
+        symlink($realStorageApp, $storageApp);
+
+        $this->expectException(\RuntimeException::class);
+        (new InstallerAccessToken($this->temporaryRoot))->ensure();
+    }
+
     public function test_completed_installation_never_generates_a_new_access_key(): void
     {
         file_put_contents($this->temporaryRoot.'/storage/app/private/talyvane.install.lock', 'installed');
