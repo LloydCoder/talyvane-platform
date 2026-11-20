@@ -20,6 +20,7 @@ class SafeguardingRestoreReconciliationTest extends TestCase
 
         config([
             'talyvane.safeguarding.key_provider' => 'vault',
+            'talyvane.safeguarding.key_namespace' => 'testtenant',
             'talyvane.safeguarding.retention.schedule_approved' => true,
             'talyvane.safeguarding.retention.days' => 30,
             'talyvane.safeguarding.retention.policy_version' => 'restore-retention-v1',
@@ -117,7 +118,7 @@ class SafeguardingRestoreReconciliationTest extends TestCase
             if ($request->method() === 'LIST') {
                 $remoteKeys = array_merge(
                     array_values(array_diff($createdKeys, $deletedKeys)),
-                    array_values(array_diff(['case-orphan', 'preflight-leftover'], $deletedKeys)),
+                    array_values(array_diff(['case-testtenant-orphan', 'preflight-testtenant-leftover'], $deletedKeys)),
                 );
 
                 return Http::response(['data' => ['keys' => $remoteKeys]]);
