@@ -1,6 +1,14 @@
 # Delivery Roadmap
 
 
+## Phase 0 — Foundation
+- [x] Verify repository ownership, public visibility and default branch.
+- [x] Establish product requirements, architecture, security and compliance baseline.
+- [ ] Legal review of licence history and chain of title.
+- [ ] Verify hosting: PHP, Composer, SSH/terminal, Node build, cron, queues, storage and document root.
+- [x] Create Laravel 13 application skeleton and CI.
+- [x] Define initial design tokens and responsive public/admin shell.
+
 ## Commercial licensing and deployment architecture
 
 - [x] Keep the public repository and adopt proprietary source-available commercial positioning for covered current materials; do not describe Talyvane as OSI-approved open source.
@@ -15,14 +23,6 @@
 - [ ] Complete commercial operations: customer/deployment inventory, reseller onboarding, renewal, support, audit and incident procedures.
 
 **Architecture record:** [ADR-0015 — Commercial licensing, editions and deployment authority](decisions/ADR-0015-commercial-licensing-and-deployment.md). The checked items above represent documented architecture only; they do not imply legal approval, completed TLMS implementation, published prices or production commercial readiness.
-
-## Phase 0 — Foundation
-- [x] Verify repository ownership, public visibility and default branch.
-- [x] Establish product requirements, architecture, security and compliance baseline.
-- [ ] Legal review of licence history and chain of title.
-- [ ] Verify hosting: PHP, Composer, SSH/terminal, Node build, cron, queues, storage and document root.
-- [x] Create Laravel 13 application skeleton and CI.
-- [x] Define initial design tokens and responsive public/admin shell.
 
 ## Release 1 — Operational foundation
 - [x] Establish Talyvane Globalization and Localization Standard (TGLS) and ADR-0008 as mandatory global architecture.
