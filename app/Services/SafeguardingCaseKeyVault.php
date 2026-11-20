@@ -85,20 +85,80 @@ class SafeguardingCaseKeyVault
         return $decoded;
     }
 
-    public function reconcile(array $activeKeyReferences): array
+    public function reconcile(array $activeKeyCiphertexts): array
     {
         $retentionToken = trim((string) config('services.safeguarding_vault.retention_token'));
         $this->assertDistinctRetentionCredential();
 
-        $active = array_values(array_unique($activeKeyReferences));
-        foreach ($active as $keyReference) {
-            if (! is_string($keyReference) || ! str_starts_with($keyReference, 'case-')) {
-                throw new RuntimeException('An active safeguarding key reference is invalid.');
+        foreach ($activeKeyCiphertexts as $keyReference => $ciphertext) {
+            if (! is_string($keyReference)
+                || ! str_starts_with($keyReference, 'case-')
+                || ! is_string($ciphertext)
+                || ! str_starts_with($ciphertext, 'vault:v')) {
+                throw new RuntimeException('An active safeguarding key reference or ciphertext is invalid.');
             }
 
             $this->assertKeyName($keyReference);
         }
 
+        $activeKeys = array_keys($activeKeyCiphertexts);
+        $managedKeys = $this->managedKeyInventory($retentionToken);
+        $missing = array_values(array_diff($activeKeys, $managedKeys));
+
+        if ($missing !== []) {
+            throw new RuntimeException('An active safeguarding case key is missing from the external vault.');
+        }
+
+        // A key name in the Vault inventory is not proof that restored key material
+        // can decrypt the ciphertext actually stored for a live case.
+        foreach ($activeKeyCiphertexts as $keyReference => $ciphertext) {
+            try {
+                $plaintext = $this->decrypt($keyReference, $ciphertext);
+            } catch (\\Throwable $exception) {
+                throw new RuntimeException(
+                    'An active safeguarding case key could not decrypt its stored ciphertext.',
+                    0,
+                    $exception,
+                );
+            }
+
+            if (strlen($plaintext) !== 32) {
+                throw new RuntimeException('An active safeguarding case key could not decrypt its stored ciphertext.');
+            }
+
+            if (function_exists('sodium_memzero')) {
+                sodium_memzero($plaintext);
+            }
+        }
+
+        // Do not begin destructive cleanup until every active case ciphertext has
+        // passed a real Transit decrypt operation.
+        $orphans = array_values(array_diff($managedKeys, $activeKeys));
+        foreach ($orphans as $keyName) {
+            $this->destroyKey($keyName);
+        }
+
+        // Verify the remote post-condition. A successful DELETE response alone is
+        // insufficient evidence that every managed orphan has actually disappeared.
+        $remainingKeys = $this->managedKeyInventory($retentionToken);
+        $missingAfterCleanup = array_values(array_diff($activeKeys, $remainingKeys));
+        if ($missingAfterCleanup !== []) {
+            throw new RuntimeException('An active safeguarding case key disappeared during restore reconciliation.');
+        }
+
+        $remainingOrphans = array_values(array_diff($remainingKeys, $activeKeys));
+        if ($remainingOrphans !== []) {
+            throw new RuntimeException('Orphan safeguarding case keys remain in the external vault after reconciliation.');
+        }
+
+        return [
+            'active_keys_verified' => count($activeKeys),
+            'orphan_keys_destroyed' => count($orphans),
+        ];
+    }
+
+    private function managedKeyInventory(string $retentionToken): array
+    {
         $response = $this->client($retentionToken)->send('LIST', $this->path('keys'));
         $remoteKeys = $response->json('data.keys');
 
@@ -109,20 +169,7 @@ class SafeguardingCaseKeyVault
         $managedKeys = array_values(array_filter($remoteKeys, fn ($key): bool => is_string($key)
             && (str_starts_with($key, 'case-') || str_starts_with($key, 'preflight-'))));
 
-        $missing = array_values(array_diff($active, $managedKeys));
-        if ($missing !== []) {
-            throw new RuntimeException('An active safeguarding case key is missing from the external vault.');
-        }
-
-        $orphans = array_values(array_diff($managedKeys, $active));
-        foreach ($orphans as $keyName) {
-            $this->destroyKey($keyName);
-        }
-
-        return [
-            'active_keys_verified' => count($active),
-            'orphan_keys_destroyed' => count($orphans),
-        ];
+        return array_values(array_unique($managedKeys));
     }
 
     public function destroyKey(string $keyName): void
