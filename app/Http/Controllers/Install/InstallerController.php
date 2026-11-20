@@ -251,10 +251,11 @@ final class InstallerController
             logger()->warning('Talyvane browser installer configuration step failed.', [
                 'stage' => $stage,
                 'exception_class' => $exception::class,
+                'exception_code' => (string) $exception->getCode(),
             ]);
 
             throw ValidationException::withMessages([
-                'installer' => 'Configuration could not be verified during the '.$stage.' step. Check the database and SMTP settings, then retry. Secret values are not displayed.',
+                'installer' => 'Configuration could not be verified during the '.$stage.' step ('.$exception::class.', code '.(string) $exception->getCode().'). Check the database and SMTP settings, then retry. Secret values are not displayed.',
             ]);
         }
 
