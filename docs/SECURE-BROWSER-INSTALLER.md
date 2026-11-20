@@ -46,8 +46,8 @@ The installer is a first-install bootstrap only. It is not a general-purpose com
 8. **Installer lockdown and removal**
    - Installer endpoints MUST refuse access whenever the durable install lock exists, regardless of browser session or directory presence.
    - Rotate/invalidate installer session state and CSRF tokens after completion.
-   - Attempt automatic removal of the installer directory only after the durable lock is committed and credential handoff is safely prepared. Never make successful installation depend on self-deletion.
-   - If filesystem permissions prevent removal, show a prominent instruction to delete the entire installer directory immediately using cPanel File Manager or the host's equivalent. Keep every installer route blocked while it remains present.
+   - Attempt removal of the installer directory and the one-time private installer access-key file only after the durable lock is committed and credential handoff is safely prepared. Never make successful installation depend on self-deletion.
+   - Treat cleanup as incomplete if either artifact remains. Show a prominent instruction to delete the entire installer directory and `storage/app/private/INSTALLER-ACCESS-KEY.txt` if present, using cPanel File Manager or the host's equivalent. Keep every installer route blocked while any artifact remains.
    - The application MUST fail closed if the lock is missing, malformed or inconsistent with the completed installation state. Provide a documented, authenticated recovery procedure rather than a public reset route.
 
 ## 3. Required security controls
