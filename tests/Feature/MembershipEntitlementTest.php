@@ -203,7 +203,7 @@ class MembershipEntitlementTest extends TestCase
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
 
-        app(\App\Services\ClientMembershipService::class)->assign($client, $untrustedActor, [
+        app(ClientMembershipService::class)->assign($client, $untrustedActor, [
             'tier_name' => 'Signature',
             'benefits_summary' => 'A private membership benefit.',
             'status' => 'active',
