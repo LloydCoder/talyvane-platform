@@ -95,7 +95,8 @@ A milestone is not complete because screens exist. Each release requires tests, 
 - [x] Add a dedicated finance role with MFA/session-version enforcement and an isolated model-settlement route/workspace boundary; general administrators cannot access the finance workspace.
 - [x] Enforce independent maker-checker separation for expense review, settlement approval and payment attestation at the service transaction boundary; no owner/Super Admin self-approval exception.
 - [x] Add a dedicated verifier role with MFA, a minimal eligibility-only queue, and no access to general agency or finance workspaces.
-- [x] Add a dedicated safeguarding specialist role with MFA, assigned-case-only access, encrypted case content, immutable case events and detail-view access auditing.\n- [ ] Add safeguarding retention/legal-hold operations, emergency notification/escalation workflows, and independent safeguarding response drills.
+- [x] Add a dedicated safeguarding specialist role with MFA, assigned-case-only access, encrypted case content, immutable case events and detail-view access auditing.
+- [ ] Add safeguarding retention/legal-hold operations, emergency notification/escalation workflows, and independent safeguarding response drills.
 - [ ] Complete legacy owner/admin least-privilege migration and independent human custodian identity-proofing/operational drills.
 - [ ] Implement membership entitlements and protected-resource authorization; current membership capability is assignment/display only.
 - [x] Build a Super Admin-only read-only feature catalogue showing implementation state, configured/effective state, dependencies, risk and activation prerequisites.
