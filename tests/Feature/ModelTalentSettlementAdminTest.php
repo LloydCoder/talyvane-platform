@@ -16,6 +16,20 @@ class ModelTalentSettlementAdminTest extends TestCase
     private function enableSettlementFeature(): void
     {
         $this->enableModelAgencyFeatureRoutes();
+        $destination = \\App\\Models\\Destination::query()->firstOrCreate(
+            ['slug' => 'settlement-feature-admin-market'],
+            [
+                'name' => 'London',
+                'country_code' => 'GB',
+                'country_name' => 'United Kingdom',
+                'city_name' => 'London',
+                'currency_code' => 'GBP',
+                'locale' => 'en',
+                'timezone' => 'Europe/London',
+                'is_active' => true,
+            ],
+        );
+        $this->approveCountryMarket($destination);
     }
 
     public function test_settlement_register_remains_available_for_close_out_while_new_claims_are_paused(): void
