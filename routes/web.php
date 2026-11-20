@@ -7,7 +7,7 @@ use App\Http\Controllers\Admin\AdminFirstLoginPasswordController;
 use App\Http\Controllers\Admin\AdminInitialPasswordRecoveryController;
 use App\Http\Controllers\Install\InstallerController;
 use App\Http\Controllers\Install\InstallSuccessController;
-use App\Http\Middleware\NoStoreInstallerResponses;
+use App\Http\Middleware\NoStoreSensitiveResponses;
 use App\Http\Controllers\Admin\BookingAdminController;
 use App\Http\Controllers\Admin\ClientManagementController;
 use App\Http\Controllers\Admin\BookingSettingsController;
@@ -49,7 +49,7 @@ use App\Models\SitePage;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(NoStoreInstallerResponses::class)->prefix('install')->name('install.')->group(function (): void {
+Route::middleware(NoStoreSensitiveResponses::class)->prefix('install')->name('install.')->group(function (): void {
     Route::get('/', [InstallerController::class, 'index'])->name('index');
     Route::post('/', [InstallerController::class, 'store'])->middleware('throttle:5,1')->name('store');
     Route::get('/verify', [InstallerController::class, 'verifyForm'])->name('verify');
@@ -150,9 +150,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::post('/mfa/recovery', [AdminMfaController::class, 'verifyRecovery'])->middleware('throttle:5,1')->name('mfa.recovery.verify');
 
     Route::middleware(['auth', 'role:super_admin,owner,admin,finance,verifier,safeguarding', 'admin.session-current'])->group(function (): void {
-        Route::get('/mfa/setup', [AdminMfaController::class, 'setup'])->name('mfa.setup');
+        Route::get('/mfa/setup', [AdminMfaController::class, 'setup'])->middleware(NoStoreSensitiveResponses::class)->name('mfa.setup');
         Route::post('/mfa/setup', [AdminMfaController::class, 'confirmSetup'])->middleware('throttle:5,1')->name('mfa.setup.confirm');
-        Route::get('/mfa/recovery-codes', [AdminMfaController::class, 'recoveryCodes'])->name('mfa.recovery-codes');
+        Route::get('/mfa/recovery-codes', [AdminMfaController::class, 'recoveryCodes'])->middleware(NoStoreSensitiveResponses::class)->name('mfa.recovery-codes');
     });
 
     // Eligibility verifiers receive a dedicated, purpose-limited queue only. They cannot enter agency or finance workspaces.
