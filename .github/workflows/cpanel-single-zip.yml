@@ -33,6 +33,8 @@ jobs:
           bash -n scripts/build-cpanel-single-zip.sh
           bash -n tests/Packaging/cpanel-single-zip-contract.sh
           bash -n tests/Http/cpanel-single-zip-bootstrap.sh
+          bash -n tests/Http/cpanel-single-zip-apache.sh
           bash scripts/build-cpanel-single-zip.sh . dist "$GITHUB_SHA"
           bash tests/Packaging/cpanel-single-zip-contract.sh "dist/Talyvane-cPanel-$GITHUB_SHA.zip" "$GITHUB_SHA"
           bash tests/Http/cpanel-single-zip-bootstrap.sh "dist/Talyvane-cPanel-$GITHUB_SHA.zip"
+          bash tests/Http/cpanel-single-zip-apache.sh
