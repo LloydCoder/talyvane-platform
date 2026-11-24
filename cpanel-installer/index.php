@@ -256,8 +256,18 @@ if (! is_dir($privateApplication)) {
     $privateApplication = talyvane_extract_private_application($documentRoot, $accountDirectory);
 } else {
     $leftoverPayload = $documentRoot.DIRECTORY_SEPARATOR.TALYVANE_PAYLOAD_FILE;
-    if (is_file($leftoverPayload) && ! is_link($leftoverPayload)) {
-        @unlink($leftoverPayload);
+
+    // Never follow a stale symlink from the public document root. Remove the
+    // link itself, and fail closed if any leftover entry cannot be removed.
+    if (is_link($leftoverPayload)) {
+        if (! @unlink($leftoverPayload) || file_exists($leftoverPayload) || is_link($leftoverPayload)) {
+            talyvane_fail(500, 'A leftover private payload entry could not be removed safely. Remove the hidden .talyvane-payload.zip entry from the document root and reload.');
+        }
+    } elseif (file_exists($leftoverPayload)) {
+        if (! is_file($leftoverPayload) || ! @unlink($leftoverPayload)
+            || file_exists($leftoverPayload) || is_link($leftoverPayload)) {
+            talyvane_fail(500, 'A leftover private payload entry could not be removed safely. Remove the hidden .talyvane-payload.zip entry from the document root and reload.');
+        }
     }
 }
 
