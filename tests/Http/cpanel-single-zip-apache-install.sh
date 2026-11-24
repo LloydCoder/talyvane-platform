@@ -57,7 +57,16 @@ done
 payload_code="$(curl --silent --show-error -o "$tmp/payload-response.txt" -w '%{http_code}' "http://127.0.0.1:$port/.talyvane-payload.zip")"
 [[ "$payload_code" == "403" ]] || { echo "Private payload should be denied before bootstrap; got HTTP $payload_code." >&2; cat "$tmp/payload-response.txt" >&2; exit 1; }
 
-install_code="$(curl --silent --show-error -H 'Host: localhost' -o "$tmp/installer.html" -w '%{http_code}' "http://127.0.0.1:$port/install")"
+set +e
+install_code="$(curl --silent --show-error --max-time 30 -H 'Host: localhost' -o "$tmp/installer.html" -w '%{http_code}' "http://127.0.0.1:$port/install" 2>"$tmp/install-curl.stderr")"
+curl_status=$?
+set -e
+if [[ "$curl_status" -ne 0 ]]; then
+  echo "curl failed while requesting the installer (exit $curl_status); HTTP status captured: $install_code" >&2
+  cat "$tmp/install-curl.stderr" >&2 || true
+  docker logs "$container" >&2 || true
+  exit 1
+fi
 [[ "$install_code" == "200" ]] || { docker logs "$container" >&2; echo "Expected packaged installer HTTP 200, got $install_code." >&2; cat "$tmp/installer.html" >&2; exit 1; }
 
 if ! grep -Fq 'FIRST-TIME SETUP' "$tmp/installer.html" || ! grep -Fq 'Hosting preflight' "$tmp/installer.html"; then
