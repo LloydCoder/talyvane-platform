@@ -17,7 +17,7 @@ concurrency:
 jobs:
   browser-install:
     name: Real MySQL + SMTP + HTTPS browser installation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     services:
       mysql:
