@@ -17,6 +17,7 @@ trap 'rm -rf "$work"' EXIT
 [[ "$commit_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Commit SHA must be a full 40-character SHA." >&2; exit 1; }
 
 mkdir -p "$output_dir" "$work/package" "$work/payload/talyvane"
+output_dir="$(cd "$output_dir" && pwd)"
 for path in app artisan bootstrap config database docs install public resources routes storage vendor composer.json composer.lock .env.example README.md LICENSE COMMERCIAL-LICENSING.md; do
   if [[ ! -e "$app_dir/$path" ]]; then
     echo "Required production payload path is missing: $path" >&2
