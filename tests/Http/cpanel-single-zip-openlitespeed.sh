@@ -103,6 +103,7 @@ docker exec "$container" sh -lc '
   set -eu
   app="$(find /var/www/vhosts/localhost/.talyvane/apps -type f -path "*/talyvane-app/vendor/autoload.php" -print -quit | sed "s#/vendor/autoload.php##")"
   test -n "$app"
+  test "$(stat -c "%a" "$app")" = 700
   test -f "$app/.env"
   test -f "$app/storage/app/private/INSTALLER-ACCESS-KEY.txt"
   test "$(stat -c "%a" "$app/.env")" = 600
