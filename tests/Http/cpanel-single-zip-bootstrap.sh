@@ -160,6 +160,48 @@ assert_malicious_archive_rejected "traversal" "unsafe path"
 assert_malicious_archive_rejected "symlink" "unsafe path"
 assert_malicious_archive_rejected "incomplete" "incomplete"
 
+# A domain document root nested inside an existing private app is a distinct,
+# unsafe layout. The bootstrap must explain the conflict and preserve files.
+nested_account="$tmp/nested-layout-account"
+nested_document_root="$nested_account/talyvane-app/public"
+mkdir -p "$nested_document_root"
+printf '%s\n' 'EXISTING_PRIVATE_APP_PRESERVED' > "$nested_account/talyvane-app/keep.txt"
+cp "$repo_root/cpanel-installer/index.php" "$nested_document_root/index.php"
+cp "$repo_root/cpanel-installer/.htaccess" "$nested_document_root/.htaccess"
+: > "$nested_document_root/.talyvane-payload.zip"
+chmod 0600 "$nested_document_root/.talyvane-payload.zip"
+cat > "$tmp/nested-layout-router.php" <<'PHP'
+<?php
+$_SERVER['HOME'] = getenv('TALYVANE_TEST_HOME') ?: '';
+require $_SERVER['DOCUMENT_ROOT'].'/index.php';
+PHP
+nested_port="$((20000 + RANDOM % 20000))"
+TALYVANE_TEST_HOME="$nested_account" php -S "127.0.0.1:$nested_port" -t "$nested_document_root" "$tmp/nested-layout-router.php" > "$tmp/nested-layout-server.log" 2>&1 &
+server_pid=$!
+nested_status=""
+for _ in $(seq 1 40); do
+  nested_status="$(curl --silent --show-error -o "$tmp/nested-layout-response.html" -w '%{http_code}' "http://127.0.0.1:$nested_port/" || true)"
+  if [[ "$nested_status" == "409" ]]; then break; fi
+  sleep 0.25
+done
+if [[ "$nested_status" != "409" ]]; then
+  echo "Nested layout response body:" >&2
+  cat "$tmp/nested-layout-response.html" >&2 || true
+  echo "Nested layout PHP server log:" >&2
+  cat "$tmp/nested-layout-server.log" >&2 || true
+  echo "Expected nested private-app document root to fail with HTTP 409; got $nested_status." >&2
+  exit 1
+fi
+grep -Fq 'document root is inside an existing talyvane-app directory' "$tmp/nested-layout-response.html"
+grep -Fq 'separate public document root' "$tmp/nested-layout-response.html"
+grep -Fq 'EXISTING_PRIVATE_APP_PRESERVED' "$nested_account/talyvane-app/keep.txt"
+test -f "$nested_document_root/.talyvane-payload.zip"
+test -z "$(find "$nested_account" -maxdepth 1 -type d -name '.talyvane-stage-*' -print)"
+kill "$server_pid" 2>/dev/null || true
+wait "$server_pid" 2>/dev/null || true
+server_pid=""
+echo "Nested private-app/public-root conflict is diagnosed without overwriting files."
+
 # Exercise the complete packaged Laravel browser installer, not just a fixture.
 actual_account="$tmp/actual-account"
 actual_document_root="$actual_account/public_html"
