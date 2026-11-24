@@ -84,18 +84,23 @@ fi
 echo "All Apache/PHP preflight checks passed."
 # The private application is owned by the PHP/Apache account (www-data).
 # Inspect it inside the container rather than bypassing its filesystem permissions
-# from the unprivileged GitHub runner. The installer creates .env during setup;
-# the package must keep .env.example private and must not publish a premature .env.
+# from the unprivileged GitHub runner. The first-request bootstrap creates a
+# private .env and one-time installer key, both of which must be mode 0600.
 docker exec "$container" sh -lc '
   set -eu
-  test -f /var/talyvane-account/talyvane-app/vendor/autoload.php
-  test -f /var/talyvane-account/talyvane-app/public/index.php
-  test -f /var/talyvane-account/talyvane-app/.env.example
-  test ! -L /var/talyvane-account/talyvane-app
-  test ! -L /var/talyvane-account/talyvane-app/vendor
-  test ! -L /var/talyvane-account/talyvane-app/vendor/autoload.php
+  app=/var/talyvane-account/talyvane-app
+  test -f "$app/vendor/autoload.php"
+  test -f "$app/public/index.php"
+  test -f "$app/.env.example"
+  test -f "$app/.env"
+  test -f "$app/storage/app/private/INSTALLER-ACCESS-KEY.txt"
+  test "$(stat -c "%a" "$app/.env")" = 600
+  test "$(stat -c "%a" "$app/storage/app/private/INSTALLER-ACCESS-KEY.txt")" = 600
+  test ! -L "$app"
+  test ! -L "$app/vendor"
+  test ! -L "$app/vendor/autoload.php"
 '
-echo "Private application files exist outside the web root and retain expected ownership-safe access."
+echo "Private application, generated environment and installer key exist outside the web root with mode 0600 secrets."
 for forbidden in "$webroot/.talyvane-payload.zip" "$webroot/vendor" "$webroot/.env"; do
   if [[ -e "$forbidden" ]]; then
     echo "Private file remained in public document root: $forbidden" >&2
