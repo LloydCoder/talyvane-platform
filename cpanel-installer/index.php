@@ -87,6 +87,25 @@ function talyvane_resolve_private_parent(string $documentRoot): ?string
         }
     }
 
+    // If the domain's document root is an existing Laravel public/ folder,
+    // its parent is an application checkout, not the account home. Step one
+    // level above that checkout so the new private deployment is a sibling and
+    // never collides with or overwrites the existing source tree.
+    if (strtolower(basename($documentRoot)) === 'public') {
+        $existingProject = realpath(dirname($documentRoot));
+        if ($existingProject !== false
+            && is_file($existingProject.DIRECTORY_SEPARATOR.'artisan')
+            && is_dir($existingProject.DIRECTORY_SEPARATOR.'app')
+            && is_dir($existingProject.DIRECTORY_SEPARATOR.'bootstrap')) {
+            $accountHome = realpath(dirname($existingProject));
+            if ($accountHome !== false && is_dir($accountHome)
+                && ! talyvane_inside($documentRoot, $accountHome)
+                && ! talyvane_contains_public_root_component($accountHome)) {
+                return $accountHome;
+            }
+        }
+    }
+
     // cPanel addon domains are commonly nested below public_html. Also
     // recognize the conventional www/htdocs/httpdocs/public/web roots.
     // Select the parent of the outermost public-root component.
