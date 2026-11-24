@@ -51,6 +51,7 @@ for required in \
   }
 done
 grep -Eq '^talyvane/database/migrations/[^/]+\.php
+if grep -Eq '(^|/)\.env$|(^|/)storage/(logs|app/private)/[^.]|(^|/)bootstrap/cache/[^.]' "$tmp/private-list.txt"; then
   echo "Private payload contains an environment secret or runtime state." >&2
   exit 1
 fi
