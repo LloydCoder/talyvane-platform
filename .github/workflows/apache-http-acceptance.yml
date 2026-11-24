@@ -1,0 +1,93 @@
+name: Apache HTTP release acceptance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'bootstrap/**'
+      - 'cpanel-public-root/**'
+      - 'install/**'
+      - 'public/**'
+      - 'tests/Http/**'
+      - 'composer.json'
+      - 'composer.lock'
+      - '.github/workflows/apache-http-acceptance.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'bootstrap/**'
+      - 'cpanel-public-root/**'
+      - 'install/**'
+      - 'public/**'
+      - 'tests/Http/**'
+      - 'composer.json'
+      - 'composer.lock'
+      - '.github/workflows/apache-http-acceptance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apache-http-release-acceptance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apache-http:
+    name: Packaged cPanel layouts over real Apache HTTP
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install PHP and required extensions
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.3'
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, tokenizer, xml
+          coverage: none
+
+      - name: Install production dependencies from lockfile
+        run: composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+        env:
+          APP_KEY: 0123456789abcdef0123456789abcdef
+
+      - name: Build the same standalone and public-root release bundles used by CI
+        env:
+          APP_KEY: 0123456789abcdef0123456789abcdef
+        run: |
+          set -Eeuo pipefail
+          staging="dist/talyvane"
+          mkdir -p "$staging"
+          for path in app artisan bootstrap config cpanel-public-root database docs install public resources routes storage vendor composer.json composer.lock .env.example README.md LICENSE COMMERCIAL-LICENSING.md; do
+            test -e "$path"
+            cp -a "$path" "$staging/"
+          done
+          find "$staging/bootstrap/cache" -type f ! -name '.gitkeep' -delete
+          find "$staging/storage/framework/views" -type f ! -name '.gitkeep' -delete
+          tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -C dist -cf - talyvane | gzip -n > dist/talyvane-http-acceptance.tar.gz
+          mkdir -p dist/cpanel-main-public dist/cpanel-addon-public
+          cp -a "$staging/public/." dist/cpanel-main-public/
+          cp -a "$staging/public/." dist/cpanel-addon-public/
+          cp "$staging/cpanel-public-root/main-domain/index.php" dist/cpanel-main-public/index.php
+          cp "$staging/cpanel-public-root/addon-domain/index.php" dist/cpanel-addon-public/index.php
+          (cd dist/cpanel-main-public && zip -X -qr ../talyvane-cpanel-main-public-http-acceptance.zip .)
+          (cd dist/cpanel-addon-public && zip -X -qr ../talyvane-cpanel-addon-public-http-acceptance.zip .)
+          tar -tzf dist/talyvane-http-acceptance.tar.gz | grep -Fq 'talyvane/public/.htaccess'
+          unzip -Z1 dist/talyvane-cpanel-main-public-http-acceptance.zip | grep -Fxq '.htaccess'
+          unzip -Z1 dist/talyvane-cpanel-addon-public-http-acceptance.zip | grep -Fxq 'index.php'
+
+      - name: Validate acceptance harness syntax
+        run: bash -n tests/Http/apache-release-layout.sh
+
+      - name: Exercise packaged main-domain and add-on-domain layouts over HTTP
+        run: |
+          bash tests/Http/apache-release-layout.sh \
+            dist/talyvane-http-acceptance.tar.gz \
+            dist/talyvane-cpanel-main-public-http-acceptance.zip \
+            dist/talyvane-cpanel-addon-public-http-acceptance.zip
