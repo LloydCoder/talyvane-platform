@@ -15,29 +15,28 @@ trap 'rm -rf "$work"' EXIT
 
 [[ -d "$app_dir/public" && -f "$app_dir/vendor/autoload.php" ]] || { echo "Private app directory is incomplete." >&2; exit 1; }
 [[ "$commit_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "Commit SHA must be a full 40-character SHA." >&2; exit 1; }
-command -v rsync >/dev/null || { echo "rsync is required to create a clean production payload." >&2; exit 1; }
 
 mkdir -p "$output_dir" "$work/package" "$work/payload/talyvane"
-rsync -a --delete \
-  --exclude='/.git/' \
-  --exclude='/.github/' \
-  --exclude='/tests/' \
-  --exclude='/dist/' \
-  --exclude='/node_modules/' \
-  --exclude='/.env' \
-  --include='/.env.example' \
-  --exclude='/.env.*' \
-  --exclude='/storage/app/private/*' \
-  --exclude='/storage/logs/*' \
-  --exclude='/storage/framework/cache/data/*' \
-  --exclude='/storage/framework/sessions/*' \
-  --exclude='/storage/framework/views/*' \
-  --exclude='/bootstrap/cache/*' \
-  "$app_dir/" "$work/payload/talyvane/"
+for path in app artisan bootstrap config database docs install public resources routes storage vendor composer.json composer.lock .env.example README.md LICENSE COMMERCIAL-LICENSING.md; do
+  if [[ ! -e "$app_dir/$path" ]]; then
+    echo "Required production payload path is missing: $path" >&2
+    exit 1
+  fi
+  cp -a "$app_dir/$path" "$work/payload/talyvane/"
+done
+
+# Never ship a developer checkout's runtime state or compiled caches.
+find "$work/payload/talyvane/bootstrap/cache" -type f ! -name '.gitkeep' -delete
+find "$work/payload/talyvane/storage/framework/views" -type f ! -name '.gitkeep' -delete
+find "$work/payload/talyvane/storage/framework/sessions" -type f ! -name '.gitkeep' -delete
+find "$work/payload/talyvane/storage/framework/cache" -type f ! -name '.gitkeep' -delete
+find "$work/payload/talyvane/storage/logs" -type f ! -name '.gitkeep' -delete
+find "$work/payload/talyvane/storage/app/private" -type f ! -name '.gitkeep' -delete
 
 test -f "$work/payload/talyvane/vendor/autoload.php"
 test -f "$work/payload/talyvane/public/index.php"
 test -f "$work/payload/talyvane/install/bootstrap.php"
+test -f "$work/payload/talyvane/.env.example"
 test ! -e "$work/payload/talyvane/.env"
 test ! -e "$work/payload/talyvane/.git"
 test ! -d "$work/payload/talyvane/tests"
