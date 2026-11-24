@@ -28,14 +28,14 @@ docker run -d --name "$container_name" \
   php:8.3-apache bash -lc '
     set -e
     apt-get update -qq
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libwebp-dev libonig-dev libxml2-dev libcurl4-openssl-dev
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libwebp-dev libonig-dev libxml2-dev libcurl4-openssl-dev openssl
     docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
     docker-php-ext-install -j2 curl gd mbstring pdo_mysql zip
     a2enmod rewrite headers env ssl >/dev/null
     sed -ri "s/AllowOverride None/AllowOverride All/g" /etc/apache2/apache2.conf
     mkdir -p /etc/apache2/ssl
     openssl req -x509 -nodes -days 1 -newkey rsa:2048 -keyout /etc/apache2/ssl/talyvane.key -out /etc/apache2/ssl/talyvane.crt -subj "/CN=localhost" >/dev/null 2>&1
-    printf "\\nListen 443\\n" >> /etc/apache2/ports.conf
+    grep -Eq "^[[:space:]]*Listen[[:space:]]+443([[:space:]]|$)" /etc/apache2/ports.conf || printf "\\nListen 443\\n" >> /etc/apache2/ports.conf
     cat > /etc/apache2/sites-available/talyvane-ssl.conf <<APACHE
 <VirtualHost *:443>
     ServerName localhost
@@ -122,4 +122,4 @@ echo "Private payload and environment files are absent from the web root."
 asset_code="$(curl --insecure --silent --show-error -o "$tmp/asset.css" -w '%{http_code}' "https://127.0.0.1:$port/css/app.css")"
 [[ "$asset_code" == "200" ]] || { echo "Public CSS should be served from the document root; got HTTP $asset_code." >&2; exit 1; }
 
-echo "Single-ZIP package passed Apache/PHP HTTPSS installation preflight and private-file isolation."
+echo "Single-ZIP package passed Apache/PHP HTTPS installation preflight and private-file isolation."
