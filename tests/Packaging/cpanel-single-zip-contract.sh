@@ -43,6 +43,7 @@ fi
 grep -Fq 'Require all denied' "$tmp/customer/.htaccess"
 grep -Fq 'HTTP_AUTHORIZATION' "$tmp/customer/.htaccess"
 grep -Fq 'HTTP_X_XSRF_TOKEN' "$tmp/customer/.htaccess"
+grep -Fq 'RewriteRule ^(?:app|bootstrap|config|database|resources|routes|storage|tests|vendor)' "$tmp/customer/.htaccess"
 grep -Fq 'TALYVANE_PAYLOAD_FILE' "$tmp/customer/index.php"
 grep -Fq 'ZipArchive' "$tmp/customer/index.php"
 grep -Fq 'is_link' "$tmp/customer/index.php"
