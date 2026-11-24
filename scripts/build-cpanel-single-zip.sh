@@ -25,6 +25,7 @@ rsync -a --delete \
   --exclude='/dist/' \
   --exclude='/node_modules/' \
   --exclude='/.env' \
+  --include='/.env.example' \
   --exclude='/.env.*' \
   --exclude='/storage/app/private/*' \
   --exclude='/storage/logs/*' \
