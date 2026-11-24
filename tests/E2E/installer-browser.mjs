@@ -92,9 +92,23 @@ try {
     const stat = fs.statSync(path.join(sessionDirectory, name));
     return { name, size: stat.size, mode: (stat.mode & 0o777).toString(8) };
   });
-  const initialCookies = (await context.cookies(baseUrl)).map(({ name, domain, path: cookiePath, secure, sameSite, value }) => ({
+  const browserCookies = await context.cookies(baseUrl);
+  const initialCookies = browserCookies.map(({ name, domain, path: cookiePath, secure, sameSite, value }) => ({
     name, domain, path: cookiePath, secure, sameSite, valueLength: value.length,
   }));
+  const sessionCookie = browserCookies.find((cookie) => cookie.name === 'talyvane-session');
+  assert.ok(sessionCookie, 'installer must issue its session cookie');
+  let sessionCookiePayload = { valid: false };
+  try {
+    const parsed = JSON.parse(Buffer.from(decodeURIComponent(sessionCookie.value), 'base64').toString('utf8'));
+    sessionCookiePayload = {
+      valid: true,
+      keys: Object.keys(parsed),
+      ivLength: typeof parsed.iv === 'string' ? parsed.iv.length : 0,
+      encryptedValueLength: typeof parsed.value === 'string' ? parsed.value.length : 0,
+      macLength: typeof parsed.mac === 'string' ? parsed.mac.length : 0,
+    };
+  } catch {}
   const initialSessionFiles = sessionFilesBeforeSubmit();
   const sessionFile = initialSessionFiles.find((file) => file.name !== '.gitkeep');
   assert.ok(sessionFile, 'installer must persist its file-backed session');
@@ -180,9 +194,11 @@ try {
       `Visible errors: ${alert.join(' | ')}`,
       `Page text: ${body}`,
       `Initial session cookies: ${JSON.stringify(initialCookies)}`,
+      `Session cookie payload shape: ${JSON.stringify(sessionCookiePayload)}`,
       `Initial session files: ${JSON.stringify(initialSessionFiles)}`,
       `Initial session inspection: ${JSON.stringify(initialSessionInspection)}`,
       `POST cookie names: ${String((await submitResponse.request().allHeaders()).cookie ?? '').split(';').filter(Boolean).map((part) => part.trim().split('=')[0]).join(',')}`,
+      `POST session cookie matches initial: ${String((await submitResponse.request().allHeaders()).cookie ?? '').split(';').map((part) => part.trim()).some((part) => part.startsWith('talyvane-session=') && decodeURIComponent(part.slice('talyvane-session='.length)) === decodeURIComponent(sessionCookie.value))}`,
       `Session settings: ${fs.readFileSync(path.join(privateAppPath, '.env'), 'utf8').split('\n').filter((line) => /^SESSION_(DRIVER|ENCRYPT|SECURE_COOKIE|HTTP_ONLY|SAME_SITE)=/.test(line)).join('; ')}`,
       `Sanitized application log tail: ${applicationLog}`,
     ].join('\n'));
