@@ -31,10 +31,17 @@ docker run -d --name "$container_name" \
   litespeedtech/openlitespeed:1.8.2-lsphp83 >/dev/null
 container="$container_name"
 
-# The official OpenLiteSpeed image serves /var/www/vhosts/localhost/html
-# and runs PHP through LSPHP. Give that account ownership of the mounted
-# test tree, matching a per-account shared-hosting deployment.
-docker exec "$container" sh -lc 'chown -R nobody:nogroup /var/www/vhosts/localhost'
+# Discover the effective LSPHP worker identity through the web SAPI.
+# Do not assume the container's default nobody/lsadm identity.
+cat > "$webroot/runtime-user.php" <<'PHP'
+<?php
+if (! function_exists('posix_geteuid') || ! function_exists('posix_getegid')) {
+    http_response_code(500);
+    exit('POSIX_IDENTITY_UNAVAILABLE');
+}
+header('Content-Type: text/plain; charset=UTF-8');
+echo posix_geteuid().':'.posix_getegid();
+PHP
 
 ready=0
 for _ in $(seq 1 120); do
@@ -43,6 +50,11 @@ for _ in $(seq 1 120); do
   sleep 1
 done
 [[ "$ready" -eq 1 ]] || { docker logs "$container" >&2; echo "OpenLiteSpeed/LSPHP container did not serve the packaged public asset." >&2; exit 1; }
+
+runtime_identity="$(curl --insecure --silent --show-error --fail -H 'Host: localhost' "https://127.0.0.1:$port/runtime-user.php")"
+[[ "$runtime_identity" =~ ^[0-9]+:[0-9]+$ ]] || { docker logs "$container" >&2; echo "Could not determine the actual LSPHP UID/GID: $runtime_identity" >&2; exit 1; }
+docker exec "$container" chown -R "$runtime_identity" /var/www/vhosts/localhost
+rm -f "$webroot/runtime-user.php"
 
 payload_code="$(curl --insecure --silent --show-error -H 'Host: localhost' -o "$tmp/payload-response.txt" -w '%{http_code}' "https://127.0.0.1:$port/.talyvane-payload.zip")"
 [[ "$payload_code" == "403" ]] || { docker logs "$container" >&2; echo "OpenLiteSpeed should deny direct private payload access; got HTTP $payload_code." >&2; cat "$tmp/payload-response.txt" >&2; exit 1; }
