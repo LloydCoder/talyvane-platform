@@ -8,9 +8,19 @@ declare(strict_types=1);
 $_SERVER['HTTPS'] = 'on';
 $_SERVER['SERVER_PORT'] = '443';
 
+$documentRoot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-if (is_string($path) && $path !== '/' && is_file(__DIR__.'/../../public'.$path)) {
-    return false;
+
+if ($documentRoot === false) {
+    http_response_code(500);
+    exit('The customer package document root is unavailable.');
 }
 
-require __DIR__.'/../../public/index.php';
+if (is_string($path) && $path !== '/' && ! str_contains($path, '..')) {
+    $staticFile = $documentRoot.DIRECTORY_SEPARATOR.ltrim($path, '/');
+    if (is_file($staticFile)) {
+        return false;
+    }
+}
+
+require $documentRoot.DIRECTORY_SEPARATOR.'index.php';
