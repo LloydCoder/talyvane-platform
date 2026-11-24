@@ -199,7 +199,7 @@ function talyvane_extract_private_application(string $documentRoot, string $priv
     }
 
     if (! is_writable($privateApplicationParent)) {
-        talyvane_fail(500, 'The directory one level above the domain document root is not writable by PHP. This hosting layout cannot safely install Talyvane.');
+        talyvane_fail(500, 'The automatically resolved private application directory is not writable by PHP. This hosting account cannot safely install Talyvane in its current filesystem policy.');
     }
 
     $archive = new ZipArchive();
