@@ -171,6 +171,15 @@ asset_code="$(curl --silent --show-error -H 'Host: localhost' -o "$tmp/asset.css
 test "$asset_code" = '200'
 grep -Fq 'color-scheme: dark' "$tmp/asset.css"
 
+# A stale symlink at the temporary payload path must be removed as a link,
+# never followed to or used to delete the private .env target.
+ln -s "$actual_account/talyvane-app/.env" "$actual_document_root/.talyvane-payload.zip"
+stale_payload_code="$(curl --silent --show-error -H 'Host: localhost' -o "$tmp/stale-payload.html" -w '%{http_code}' "http://127.0.0.1:$actual_port/install")"
+test "$stale_payload_code" = '200'
+test ! -L "$actual_document_root/.talyvane-payload.zip"
+test -f "$actual_account/talyvane-app/.env"
+test "$(stat -c '%a' "$actual_account/talyvane-app/.env")" = '600'
+
 kill "$actual_server_pid" 2>/dev/null || true
 wait "$actual_server_pid" 2>/dev/null || true
 server_pid=""
