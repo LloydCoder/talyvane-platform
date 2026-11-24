@@ -45,6 +45,16 @@ test ! -d "$work/payload/talyvane/tests"
 cp "$repo_root/cpanel-installer/index.php" "$work/package/index.php"
 cp "$repo_root/cpanel-installer/.htaccess" "$work/package/.htaccess"
 cp "$repo_root/cpanel-installer/README.txt" "$work/package/README.txt"
+# Laravel's public path is the customer's document root after bootstrap. Ship
+# public assets at the archive root while keeping the bootstrap index and
+# hardened rewrite file authoritative.
+while IFS= read -r -d '' public_entry; do
+  public_name="$(basename "$public_entry")"
+  case "$public_name" in
+    index.php|.htaccess) continue ;;
+  esac
+  cp -a "$public_entry" "$work/package/"
+done < <(find "$app_dir/public" -mindepth 1 -maxdepth 1 -print0)
 (
   cd "$work/payload"
   zip -X -q -r "$work/package/.talyvane-payload.zip" talyvane
