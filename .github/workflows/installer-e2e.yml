@@ -95,7 +95,7 @@ jobs:
             if curl --noproxy '*' --connect-timeout 2 --max-time 5 --insecure --fail --silent --show-error --output /dev/null https://127.0.0.1:8443/up; then ready=1; break; fi
             sleep 1
           done
-                    if [ "$ready" != "1" ]; then
+          if [ "$ready" != "1" ]; then
             echo "HTTPS test origin did not become healthy; collecting listener and proxy diagnostics"
             docker ps --all --filter name=talyvane-e2e-caddy
             docker logs talyvane-e2e-caddy 2>&1 | tail -n 200 || true
