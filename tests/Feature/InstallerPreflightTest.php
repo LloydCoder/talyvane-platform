@@ -17,6 +17,20 @@ class InstallerPreflightTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_public_rewrite_rules_do_not_block_the_laravel_installer_route(): void
+    {
+        $rules = (string) file_get_contents(public_path('.htaccess'));
+        $this->assertNotSame('', $rules);
+
+        preg_match('/^\\s*RewriteRule\\s+\\^\\(\\?:.*$/m', $rules, $matches);
+        $this->assertNotEmpty($matches, 'The private-directory deny rule must remain present.');
+
+        $privatePathRule = $matches[0];
+        $this->assertStringNotContainsString('|install|', $privatePathRule);
+        $this->assertStringContainsString('|storage|', $privatePathRule);
+        $this->assertStringContainsString('|vendor|', $privatePathRule);
+    }
+
     public function test_installer_screen_displays_hosting_preflight_before_configuration(): void
     {
         config(['talyvane.installer.enforce' => false]);
