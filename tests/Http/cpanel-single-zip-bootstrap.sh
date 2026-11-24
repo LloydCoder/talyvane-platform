@@ -165,9 +165,8 @@ assert_malicious_archive_rejected "incomplete" "incomplete"
 nested_account="$tmp/nested-layout-account"
 nested_document_root="$nested_account/talyvane-app/public"
 mkdir -p "$nested_document_root"
-printf '%s\\n' '<?php echo "EXISTING_PRIVATE_APP_PRESERVED";' > "$nested_document_root/index.php"
-cp "$repo_root/cpanel-installer/index.php" "$nested_document_root/index.php.bootstrap"
-mv "$nested_document_root/index.php.bootstrap" "$nested_document_root/index.php"
+printf '%s\\n' 'EXISTING_PRIVATE_APP_PRESERVED' > "$nested_account/talyvane-app/keep.txt"
+cp "$repo_root/cpanel-installer/index.php" "$nested_document_root/index.php"
 cp "$repo_root/cpanel-installer/.htaccess" "$nested_document_root/.htaccess"
 : > "$nested_document_root/.talyvane-payload.zip"
 chmod 0600 "$nested_document_root/.talyvane-payload.zip"
@@ -187,9 +186,9 @@ if [[ "$nested_status" != "409" ]]; then
 fi
 grep -Fq 'document root is inside an existing talyvane-app directory' "$tmp/nested-layout-response.html"
 grep -Fq 'separate public document root' "$tmp/nested-layout-response.html"
-grep -Fq 'EXISTING_PRIVATE_APP_PRESERVED' "$nested_document_root/index.php"
+grep -Fq 'EXISTING_PRIVATE_APP_PRESERVED' "$nested_account/talyvane-app/keep.txt"
 test -f "$nested_document_root/.talyvane-payload.zip"
-test ! -e "$nested_account/.talyvane-stage-"*
+test -z "$(find "$nested_account" -maxdepth 1 -type d -name '.talyvane-stage-*' -print)"
 kill "$server_pid" 2>/dev/null || true
 wait "$server_pid" 2>/dev/null || true
 server_pid=""
