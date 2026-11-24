@@ -149,6 +149,18 @@ final class InstallerController
     {
         $installerStartedAt = filter_var($request->session()->get('installer.started_at'), FILTER_VALIDATE_INT);
         if ($installerStartedAt === false || $installerStartedAt === null || $installerStartedAt < time() - 900) {
+            logger()->warning('Talyvane installer session continuity check failed.', [
+                'session_id_hash' => hash('sha256', $request->session()->getId()),
+                'session_has_started_at' => $request->session()->has('installer.started_at'),
+                'session_started_at_type' => get_debug_type($request->session()->get('installer.started_at')),
+                'session_driver' => config('session.driver'),
+                'session_cookie_present' => $request->cookies->has((string) config('session.cookie')),
+                'session_cookie_value_length' => strlen((string) $request->cookie((string) config('session.cookie'), '')),
+                'session_file_exists' => is_file(storage_path('framework/sessions/'.$request->session()->getId())),
+                'app_key_hash' => hash('sha256', (string) config('app.key')),
+                'secure_request' => $request->isSecure(),
+            ]);
+
             $pendingNonce = $request->session()->get('installer.pending_nonce');
             if (is_string($pendingNonce)) {
                 $pendingState->release($pendingNonce);
