@@ -42,3 +42,12 @@ jobs:
           bash tests/Http/cpanel-single-zip-apache.sh
           bash tests/Http/cpanel-single-zip-apache-install.sh "dist/Talyvane-cPanel-$GITHUB_SHA.zip"
           bash tests/Http/cpanel-single-zip-openlitespeed.sh "dist/Talyvane-cPanel-$GITHUB_SHA.zip"
+      - name: Upload verified test package and checksum
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08
+        with:
+          name: Talyvane-cPanel-test-${{ github.sha }}
+          path: |
+            dist/Talyvane-cPanel-${{ github.sha }}.zip
+            dist/Talyvane-cPanel-${{ github.sha }}.sha256
+          if-no-files-found: error
+          retention-days: 14
