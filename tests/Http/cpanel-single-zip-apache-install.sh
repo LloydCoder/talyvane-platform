@@ -33,7 +33,7 @@ docker run -d --name "$container_name" \
     docker-php-ext-install -j2 gd mbstring pdo_mysql zip
     a2enmod rewrite headers env >/dev/null
     sed -ri "s/AllowOverride None/AllowOverride All/g" /etc/apache2/apache2.conf
-    cat >> /etc/apache2/apache2.conf <<'APACHE'
+    cat >> /etc/apache2/apache2.conf <<APACHE
 <Directory /var/talyvane-account/public_html>
     Options FollowSymLinks
     AllowOverride All
