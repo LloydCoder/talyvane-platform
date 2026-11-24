@@ -27,6 +27,7 @@ php -l "$tmp/customer/index.php"
 grep -Fq "commit=$expected_commit" "$tmp/customer/RELEASE-MANIFEST.txt"
 grep -Fq 'distribution=single-zip-cpanel-customer-installer' "$tmp/customer/RELEASE-MANIFEST.txt"
 
+test "$(stat -c '%a' "$tmp/customer/.talyvane-payload.zip")" = '600'
 unzip -tq "$tmp/customer/.talyvane-payload.zip"
 unzip -Z1 "$tmp/customer/.talyvane-payload.zip" > "$tmp/private-list.txt"
 grep -Fxq 'talyvane/public/index.php' "$tmp/private-list.txt"
@@ -40,7 +41,6 @@ if grep -Eq '(^|/)\.env$|(^|/)storage/(logs|app/private)/[^.]|(^|/)bootstrap/cac
 fi
 
 grep -Fq 'Require all denied' "$tmp/customer/.htaccess"
-grep -Fq 'Document root is isolated and serves only public files' "$tmp/customer/.talyvane-payload.zip" 2>/dev/null || true
 grep -Fq 'TALYVANE_PAYLOAD_FILE' "$tmp/customer/index.php"
 grep -Fq 'ZipArchive' "$tmp/customer/index.php"
 grep -Fq 'is_link' "$tmp/customer/index.php"
