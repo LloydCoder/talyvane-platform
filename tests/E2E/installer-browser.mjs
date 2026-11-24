@@ -96,14 +96,13 @@ try {
     name, domain, path: cookiePath, secure, sameSite, valueLength: value.length,
   }));
   const initialSessionFiles = sessionFilesBeforeSubmit();
-  const sessionCookie = (await context.cookies(baseUrl)).find((cookie) => cookie.name === 'talyvane-session');
-  assert.ok(sessionCookie, 'installer must issue its encrypted session cookie');
+  const sessionFile = initialSessionFiles.find((file) => file.name !== '.gitkeep');
+  assert.ok(sessionFile, 'installer must persist its file-backed session');
   const phpSessionInspector = [
     'require "vendor/autoload.php";',
     '$app = require "bootstrap/app.php";',
     '$app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();',
-    '$decrypted = app("encrypter")->decryptString(getenv("TALYVANE_E2E_SESSION_COOKIE"));',
-    '$sessionId = substr($decrypted, strrpos($decrypted, "|") + 1);',
+    '$sessionId = getenv("TALYVANE_E2E_SESSION_ID");',
     '$store = app("session")->driver();',
     '$store->setId($sessionId);',
     '$store->start();',
@@ -111,7 +110,7 @@ try {
   ].join('\n');
   const initialSessionInspection = JSON.parse(execFileSync('php', ['-r', phpSessionInspector], {
     cwd: privateAppPath,
-    env: { ...process.env, TALYVANE_E2E_SESSION_COOKIE: sessionCookie.value },
+    env: { ...process.env, TALYVANE_E2E_SESSION_ID: sessionFile.name },
     encoding: 'utf8',
   }));
 
