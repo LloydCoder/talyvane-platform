@@ -180,7 +180,10 @@ for _ in $(seq 1 40); do
   sleep 0.25
 done
 if [[ "$nested_status" != "409" ]]; then
-  cat "$tmp/nested-layout-server.log" >&2
+  echo "Nested layout response body:" >&2
+  cat "$tmp/nested-layout-response.html" >&2 || true
+  echo "Nested layout PHP server log:" >&2
+  cat "$tmp/nested-layout-server.log" >&2 || true
   echo "Expected nested private-app document root to fail with HTTP 409; got $nested_status." >&2
   exit 1
 fi
