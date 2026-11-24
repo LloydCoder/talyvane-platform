@@ -31,11 +31,36 @@ function talyvane_inside(string $path, string $directory): bool
     return $path === $directory || str_starts_with($path, rtrim($directory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR);
 }
 
+function talyvane_is_public_root_directory(string $path): bool
+{
+    $name = strtolower(basename($path));
+
+    // /var/www is the operating system's conventional web-server directory,
+    // not a customer's document root. OpenLiteSpeed's default vhost lives
+    // below /var/www/vhosts/<name>/html, so treating this ancestor as a
+    // customer web root incorrectly resolves the private parent to /var.
+    if ($name === 'www'
+        && in_array(strtolower(basename(dirname($path))), ['var', 'usr', 'opt'], true)) {
+        return false;
+    }
+
+    return in_array($name, ['public_html', 'www', 'htdocs', 'httpdocs', 'public', 'web'], true);
+}
+
 function talyvane_contains_public_root_component(string $path): bool
 {
-    $publicRootNames = ['public_html', 'www', 'htdocs', 'httpdocs', 'public', 'web'];
-    foreach (explode(DIRECTORY_SEPARATOR, trim($path, DIRECTORY_SEPARATOR)) as $segment) {
-        if (in_array(strtolower($segment), $publicRootNames, true)) {
+    $segments = explode(DIRECTORY_SEPARATOR, trim($path, DIRECTORY_SEPARATOR));
+    foreach ($segments as $index => $segment) {
+        $name = strtolower($segment);
+
+        // Ignore system-level /var/www, /usr/www and /opt/www components.
+        // A user-owned /home/<account>/www remains a public-root component.
+        if ($name === 'www' && $index > 0
+            && in_array(strtolower($segments[$index - 1]), ['var', 'usr', 'opt'], true)) {
+            continue;
+        }
+
+        if (in_array($name, ['public_html', 'www', 'htdocs', 'httpdocs', 'public', 'web'], true)) {
             return true;
         }
     }
@@ -68,7 +93,7 @@ function talyvane_resolve_private_parent(string $documentRoot): ?string
     $publicRootParent = null;
     $cursor = $documentRoot;
     while (true) {
-        if (in_array(strtolower(basename($cursor)), ['public_html', 'www', 'htdocs', 'httpdocs', 'public', 'web'], true)) {
+        if (talyvane_is_public_root_directory($cursor)) {
             $candidate = realpath(dirname($cursor));
             if ($candidate !== false && is_dir($candidate) && talyvane_inside($documentRoot, $candidate)) {
                 // Keep walking so nested document roots cannot cause us to
