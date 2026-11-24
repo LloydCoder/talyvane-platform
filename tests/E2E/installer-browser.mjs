@@ -6,7 +6,8 @@ import { chromium } from 'playwright';
 
 const baseUrl = process.env.TALYVANE_E2E_BASE_URL;
 const mailpitApi = process.env.TALYVANE_E2E_MAILPIT_API;
-assert.ok(baseUrl && mailpitApi, 'E2E origin and Mailpit API must be configured');
+const privateAppPath = process.env.TALYVANE_E2E_PRIVATE_APP_PATH;
+assert.ok(baseUrl && mailpitApi && privateAppPath, 'E2E origin, Mailpit API and extracted private app path must be configured');
 
 const adminEmail = 'founder@talyvane-e2e.example';
 const recoveryEmail = 'recovery@talyvane-e2e.example';
@@ -79,13 +80,15 @@ const context = await browser.newContext({ ignoreHTTPSErrors: true });
 const page = await context.newPage();
 
 try {
-  const installerKeyPath = path.resolve('storage/app/private/INSTALLER-ACCESS-KEY.txt');
+  // The first request must extract the exact customer ZIP into the private
+  // account directory before Laravel's browser installer can be displayed.
+  const installResponse = await page.goto(`${baseUrl}/install/`, { waitUntil: 'networkidle' });
+  assert.equal(installResponse.status(), 200, 'fresh customer ZIP must bootstrap and serve installer over HTTPS');
+  assert.match(await page.title(), /Install Talyvane/i);
+
+  const installerKeyPath = path.join(privateAppPath, 'storage/app/private/INSTALLER-ACCESS-KEY.txt');
   const installerKey = fs.readFileSync(installerKeyPath, 'utf8').trim();
   assert.match(installerKey, /^[A-Za-z0-9_-]{43}$/);
-
-  const installResponse = await page.goto(`${baseUrl}/install/`, { waitUntil: 'networkidle' });
-  assert.equal(installResponse.status(), 200, 'fresh deployment must serve installer over HTTPS');
-  assert.match(await page.title(), /Install Talyvane/i);
 
   const blockedChecks = await page.locator('.install-checks li').evaluateAll((items) =>
     items.filter((item) => item.innerText.includes('BLOCKED')).map((item) => item.innerText),
@@ -152,9 +155,9 @@ try {
   assert.match(password, /^[A-Za-z0-9_-]{60,}$/);
 
   assert.equal(fs.existsSync(installerKeyPath), false, 'one-time installer access key must be consumed');
-  assert.equal(fs.existsSync('install'), false, 'private installer directory must be removed');
-  assert.equal(fs.existsSync('storage/app/private/talyvane.install.lock'), true, 'durable signed install lock must exist');
-  assert.equal((fs.statSync('.env').mode & 0o777).toString(8), '600', 'environment file must remain private');
+  assert.equal(fs.existsSync(path.join(privateAppPath, 'install')), false, 'private installer directory must be removed');
+  assert.equal(fs.existsSync(path.join(privateAppPath, 'storage/app/private/talyvane.install.lock')), true, 'durable signed install lock must exist');
+  assert.equal((fs.statSync(path.join(privateAppPath, '.env')).mode & 0o777).toString(8), '600', 'environment file must remain private');
 
   const lockedInstaller = await context.request.get(`${baseUrl}/install/`);
   assert.equal(lockedInstaller.status(), 404, 'installer routes must be inaccessible after completion');
