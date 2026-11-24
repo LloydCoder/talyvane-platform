@@ -59,6 +59,59 @@ kill "$server_pid" 2>/dev/null || true
 wait "$server_pid" 2>/dev/null || true
 server_pid=""
 
+
+assert_malicious_archive_rejected() {
+  local attack="$1"
+  local expected="$2"
+  local attack_account="$tmp/attack-$attack"
+  local attack_root="$attack_account/public_html"
+  mkdir -p "$attack_root"
+  python3 - "$attack_root/.talyvane-payload.zip" "$attack" <<'PY'
+import stat
+import sys
+import zipfile
+
+path, attack = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+    archive.writestr("talyvane/", "")
+    archive.writestr("talyvane/public/index.php", '<?php echo "SHOULD_NOT_RUN";')
+    archive.writestr("talyvane/vendor/autoload.php", "<?php")
+    if attack == "symlink":
+        entry = zipfile.ZipInfo("talyvane/public/escape-link")
+        entry.create_system = 3
+        entry.external_attr = (stat.S_IFLNK | 0o777) << 16
+        archive.writestr(entry, "../../outside.txt")
+    else:
+        archive.writestr("talyvane/../../outside.txt", "outside")
+PY
+  chmod 0600 "$attack_root/.talyvane-payload.zip"
+  cp "$repo_root/cpanel-installer/index.php" "$attack_root/index.php"
+  cp "$repo_root/cpanel-installer/.htaccess" "$attack_root/.htaccess"
+  local attack_port="$((20000 + RANDOM % 20000))"
+  php -S "127.0.0.1:$attack_port" -t "$attack_root" > "$tmp/$attack-server.log" 2>&1 &
+  server_pid=$!
+  local status=""
+  for _ in $(seq 1 40); do
+    status="$(curl --silent --show-error -o "$tmp/$attack-response.html" -w '%{http_code}' "http://127.0.0.1:$attack_port/" || true)"
+    if [[ "$status" == "500" ]]; then break; fi
+    sleep 0.25
+  done
+  if [[ "$status" != "500" ]]; then
+    cat "$tmp/$attack-server.log" >&2
+    echo "Expected the $attack archive to be rejected with HTTP 500; got $status." >&2
+    exit 1
+  fi
+  grep -Fq "$expected" "$tmp/$attack-response.html"
+  test ! -e "$attack_account/talyvane-app"
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+  server_pid=""
+  echo "Unsafe $attack archive rejected before extraction."
+}
+
+assert_malicious_archive_rejected "traversal" "unsafe path or symbolic link"
+assert_malicious_archive_rejected "symlink" "unsafe path or symbolic link"
+
 # Exercise the complete packaged Laravel browser installer, not just a fixture.
 actual_account="$tmp/actual-account"
 actual_document_root="$actual_account/public_html"
