@@ -1,0 +1,194 @@
+import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { chromium } from 'playwright';
+
+const baseUrl = process.env.TALYVANE_E2E_BASE_URL;
+const mailpitApi = process.env.TALYVANE_E2E_MAILPIT_API;
+assert.ok(baseUrl && mailpitApi, 'E2E origin and Mailpit API must be configured');
+
+const adminEmail = 'founder@talyvane-e2e.example';
+const recoveryEmail = 'recovery@talyvane-e2e.example';
+const changedPassword = 'Talyvane-First-Login-2026!';
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function messagesFor(address) {
+  const response = await fetch(`${mailpitApi}/api/v1/messages`);
+  assert.equal(response.status, 200, 'Mailpit message API must be available');
+  const payload = await response.json();
+  const messages = payload.messages ?? payload.Messages ?? [];
+  const matching = messages.filter((message) =>
+    (message.To ?? message.to ?? []).some((recipient) =>
+      String(recipient.Address ?? recipient.address ?? recipient).toLowerCase() === address.toLowerCase(),
+    ),
+  );
+
+  const details = [];
+  for (const message of matching) {
+    const id = message.ID ?? message.Id ?? message.id;
+    if (!id) continue;
+    const detailResponse = await fetch(`${mailpitApi}/api/v1/message/${encodeURIComponent(id)}`);
+    if (detailResponse.ok) details.push(await detailResponse.json());
+  }
+  return details;
+}
+
+async function waitForCode(address) {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const messages = await messagesFor(address);
+    for (const message of messages) {
+      const content = [message.Text, message.HTML, message.text, message.html, message.Snippet]
+        .filter(Boolean)
+        .join('\n');
+      const match = content.match(/\b([0-9]{6})\b/);
+      if (match) return match[1];
+    }
+    await sleep(500);
+  }
+  throw new Error(`No verification code arrived for ${address}`);
+}
+
+function base32Decode(value) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const character of value.toUpperCase().replace(/=+$/, '')) {
+    const index = alphabet.indexOf(character);
+    assert.notEqual(index, -1, 'MFA secret must be valid Base32');
+    bits += index.toString(2).padStart(5, '0');
+  }
+  let output = '';
+  for (let index = 0; index + 8 <= bits.length; index += 8) {
+    output += String.fromCharCode(Number.parseInt(bits.slice(index, index + 8), 2));
+  }
+  return Buffer.from(output, 'binary');
+}
+
+function totp(secret, timestamp = Date.now()) {
+  const counter = BigInt(Math.floor(timestamp / 30000));
+  const message = Buffer.alloc(8);
+  message.writeBigUInt64BE(counter);
+  const digest = crypto.createHmac('sha1', base32Decode(secret)).update(message).digest();
+  const offset = digest[digest.length - 1] & 0x0f;
+  const binary = digest.readUInt32BE(offset) & 0x7fffffff;
+  return String(binary % 1_000_000).padStart(6, '0');
+}
+
+const browser = await chromium.launch({ headless: true });
+const context = await browser.newContext({ ignoreHTTPSErrors: true });
+const page = await context.newPage();
+
+try {
+  const installerKeyPath = path.resolve('storage/app/private/INSTALLER-ACCESS-KEY.txt');
+  const installerKey = fs.readFileSync(installerKeyPath, 'utf8').trim();
+  assert.match(installerKey, /^[A-Za-z0-9_-]{43}$/);
+
+  const installResponse = await page.goto(`${baseUrl}/install/`, { waitUntil: 'networkidle' });
+  assert.equal(installResponse.status(), 200, 'fresh deployment must serve installer over HTTPS');
+  assert.match(await page.title(), /Install Talyvane/i);
+
+  const blockedChecks = await page.locator('.install-checks li').evaluateAll((items) =>
+    items.filter((item) => item.innerText.includes('BLOCKED')).map((item) => item.innerText),
+  );
+  assert.deepEqual(blockedChecks, [], `all hosting preflight checks must pass: ${blockedChecks.join('; ')}`);
+
+  const fields = {
+    installer_token: installerKey,
+    app_name: 'Talyvane E2E',
+    app_url: baseUrl,
+    db_host: process.env.TALYVANE_E2E_DB_HOST,
+    db_port: process.env.TALYVANE_E2E_DB_PORT,
+    db_database: process.env.TALYVANE_E2E_DB_NAME,
+    db_username: process.env.TALYVANE_E2E_DB_USER,
+    db_password: process.env.TALYVANE_E2E_DB_PASSWORD,
+    mail_scheme: 'smtp',
+    mail_host: '127.0.0.1',
+    mail_port: '1025',
+    mail_username: 'e2e-user',
+    mail_password: 'e2e-password',
+    mail_from_address: 'no-reply@talyvane-e2e.example',
+    mail_from_name: 'Talyvane E2E',
+    admin_name: 'Talyvane E2E Founder',
+    admin_email: adminEmail,
+    recovery_email: recoveryEmail,
+  };
+
+  for (const [name, value] of Object.entries(fields)) {
+    await page.locator(`[name="${name}"]`).fill(String(value));
+  }
+
+  await Promise.all([
+    page.waitForURL('**/install/verify'),
+    page.getByRole('button', { name: /Verify configuration and continue/i }).click(),
+  ]);
+  assert.match(await page.locator('body').innerText(), /Verify ownership/i);
+
+  const [primaryCode, recoveryCode] = await Promise.all([
+    waitForCode(adminEmail),
+    waitForCode(recoveryEmail),
+  ]);
+  assert.notEqual(primaryCode, recoveryCode, 'two independent addresses must receive distinct codes');
+
+  // A failed verification attempt must not complete provisioning.
+  const invalidCode = ['000000', '000001', '000002'].find((candidate) =>
+    candidate !== primaryCode && candidate !== recoveryCode,
+  );
+  await page.locator('[name="primary_code"]').fill(invalidCode);
+  await page.locator('[name="recovery_code"]').fill(invalidCode);
+  await page.getByRole('button', { name: /Verify and complete installation/i }).click();
+  await page.waitForSelector('[role="alert"]');
+  assert.match(await page.locator('[role="alert"]').innerText(), /invalid/i);
+
+  await page.locator('[name="primary_code"]').fill(primaryCode);
+  await page.locator('[name="recovery_code"]').fill(recoveryCode);
+  await Promise.all([
+    page.waitForURL('**/install/success'),
+    page.getByRole('button', { name: /Verify and complete installation/i }).click(),
+  ]);
+
+  assert.match(await page.locator('body').innerText(), /INSTALLATION VERIFIED/i);
+  assert.match(await page.locator('body').innerText(), /automatically removed/i);
+  const password = (await page.locator('.install-secret code').innerText()).trim();
+  assert.match(password, /^[A-Za-z0-9_-]{60,}$/);
+
+  assert.equal(fs.existsSync(installerKeyPath), false, 'one-time installer access key must be consumed');
+  assert.equal(fs.existsSync('install'), false, 'private installer directory must be removed');
+  assert.equal(fs.existsSync('storage/app/private/talyvane.install.lock'), true, 'durable signed install lock must exist');
+  assert.equal((fs.statSync('.env').mode & 0o777).toString(8), '600', 'environment file must remain private');
+
+  const lockedInstaller = await context.request.get(`${baseUrl}/install/`);
+  assert.equal(lockedInstaller.status(), 404, 'installer routes must be inaccessible after completion');
+  const replayedHandoff = await context.request.get(`${baseUrl}/install/success`);
+  assert.equal(replayedHandoff.status(), 404, 'initial password handoff must be one-time');
+
+  await page.goto(`${baseUrl}/admin/login`, { waitUntil: 'networkidle' });
+  await page.locator('[name="email"]').fill(adminEmail);
+  await page.locator('[name="password"]').fill(password);
+  await page.getByRole('button', { name: /Sign in/i }).click();
+  await page.waitForURL('**/admin/first-login/password');
+
+  await page.locator('[name="password"]').fill(changedPassword);
+  await page.locator('[name="password_confirmation"]').fill(changedPassword);
+  await page.getByRole('button', { name: /Replace password and continue/i }).click();
+  await page.waitForURL('**/admin/mfa/setup');
+  assert.match(await page.locator('body').innerText(), /authenticator app/i);
+
+  const secret = (await page.locator('.mfa-secret').innerText()).trim();
+  assert.match(secret, /^[A-Z2-7]{32}$/);
+  await page.locator('[name="code"]').fill(totp(secret));
+  await page.getByRole('button', { name: /Enable MFA/i }).click();
+  await page.waitForURL('**/admin/mfa/recovery-codes');
+
+  const recoveryCodes = await page.locator('.mfa-recovery-codes li').allInnerTexts();
+  assert.equal(recoveryCodes.length, 10, 'ten one-time MFA recovery codes must be handed off');
+  assert.match(await page.locator('body').innerText(), /Offline deployment recovery key/i);
+  assert.match(await page.locator('.install-secret code').innerText(), /^[a-f0-9]{64}$/i);
+
+  const dashboardResponse = await page.goto(`${baseUrl}/admin`, { waitUntil: 'networkidle' });
+  assert.equal(dashboardResponse.status(), 200, 'MFA-enrolled Super Admin must reach administration');
+
+  console.log('PASS: HTTPS preflight, MySQL migrations, SMTP delivery to two addresses, invalid-code rejection, Super Admin provisioning, one-time password handoff, installer lock/removal, first-login password replacement, TOTP MFA enrollment and recovery handoff.');
+} finally {
+  await context.close();
+  await browser.close();
+}
