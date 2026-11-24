@@ -52,16 +52,16 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.3'
-          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, mbstring, openssl, pcre, pdo, pdo_mysql, session, tokenizer, xml
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, mbstring, openssl, pcre, pdo, pdo_mysql, session, tokenizer, xml, zip
           coverage: none
 
       - name: Install locked application dependencies
-        run: composer install --prefer-dist --no-interaction --no-progress
+        run: composer install --no-dev --prefer-dist --no-interaction --no-progress
 
       - name: Verify PHP platform requirements and dependency advisories
         run: |
-          composer check-platform-reqs
-          composer audit --no-interaction
+          composer check-platform-reqs --no-dev
+          composer audit --no-dev --no-interaction
 
       - name: Set up Node.js and browser automation
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -73,17 +73,22 @@ jobs:
           npm install --no-save --no-package-lock playwright@1.55.0
           npx playwright install --with-deps chromium
 
-      - name: Initialize the first-request private environment
+      - name: Build and extract the exact customer ZIP
         run: |
-          php -r 'require "vendor/autoload.php"; require "install/bootstrap.php";'
-          test -f storage/app/private/INSTALLER-ACCESS-KEY.txt
-          test "$(stat -c '%a' .env)" = "600"
-          test "$(stat -c '%a' storage/app/private/INSTALLER-ACCESS-KEY.txt)" = "600"
+          set -euo pipefail
+          archive="$RUNNER_TEMP/dist/Talyvane-cPanel-$GITHUB_SHA.zip"
+          bash scripts/build-cpanel-single-zip.sh . "$RUNNER_TEMP/dist" "$GITHUB_SHA"
+          bash tests/Packaging/cpanel-single-zip-contract.sh "$archive" "$GITHUB_SHA"
+          mkdir -p "$RUNNER_TEMP/talyvane-customer-root"
+          unzip -q "$archive" -d "$RUNNER_TEMP/talyvane-customer-root"
+          site_key="$(php -r 'echo substr(hash("sha256", realpath($argv[1])), 0, 32);' "$RUNNER_TEMP/talyvane-customer-root")"
+          printf 'TALYVANE_E2E_DOCROOT=%s\n' "$RUNNER_TEMP/talyvane-customer-root" >> "$GITHUB_ENV"
+          printf 'TALYVANE_E2E_PRIVATE_APP_PATH=%s\n' "$RUNNER_TEMP/.talyvane/apps/$site_key/talyvane-app" >> "$GITHUB_ENV"
 
       - name: Start the HTTPS-only browser test origin
         run: |
           set -euo pipefail
-          php -S 0.0.0.0:8000 -t public tests/E2E/https-router.php > /tmp/talyvane-php-server.log 2>&1 &
+          HOME="$RUNNER_TEMP" php -S 0.0.0.0:8000 -t "$TALYVANE_E2E_DOCROOT" tests/E2E/https-router.php > /tmp/talyvane-php-server.log 2>&1 &
           echo $! > /tmp/talyvane-php-server.pid
           docker run --detach --name talyvane-e2e-caddy \
             --add-host=host.docker.internal:host-gateway \
@@ -113,6 +118,7 @@ jobs:
           TALYVANE_E2E_DB_USER: talyvane
           TALYVANE_E2E_DB_PASSWORD: e2e-db-password
           TALYVANE_E2E_MAILPIT_API: http://127.0.0.1:8025
+          TALYVANE_E2E_PRIVATE_APP_PATH: ${{ env.TALYVANE_E2E_PRIVATE_APP_PATH }}
         run: node tests/E2E/installer-browser.mjs
 
       - name: Collect application and proxy diagnostics
