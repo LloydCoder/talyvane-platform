@@ -66,11 +66,13 @@ if ! grep -Fq 'FIRST-TIME SETUP' "$tmp/installer.html" || ! grep -Fq 'Hosting pr
   docker logs "$container" >&2 || true
   exit 1
 fi
+echo "Apache Laravel installer page markers passed."
 if grep -Fq 'BLOCKED' "$tmp/installer.html"; then
   echo "Apache/PHP hosting preflight reported blocked requirements:" >&2
   grep -F -B1 -A1 'BLOCKED' "$tmp/installer.html" >&2
   exit 1
 fi
+echo "All Apache/PHP preflight checks passed."
 for required in "$account/talyvane-app/vendor/autoload.php" "$account/talyvane-app/.env"; do
   if [[ ! -f "$required" ]]; then
     echo "Expected private bootstrap file is missing: $required" >&2
@@ -79,12 +81,14 @@ for required in "$account/talyvane-app/vendor/autoload.php" "$account/talyvane-a
     exit 1
   fi
 done
+echo "Private application files exist outside the web root."
 for forbidden in "$webroot/.talyvane-payload.zip" "$webroot/vendor" "$webroot/.env"; do
   if [[ -e "$forbidden" ]]; then
     echo "Private file remained in public document root: $forbidden" >&2
     exit 1
   fi
 done
+echo "Private payload and environment files are absent from the web root."
 
 asset_code="$(curl --silent --show-error -o "$tmp/asset.css" -w '%{http_code}' "http://127.0.0.1:$port/css/app.css")"
 [[ "$asset_code" == "200" ]] || { echo "Public CSS should be served from the document root; got HTTP $asset_code." >&2; exit 1; }
