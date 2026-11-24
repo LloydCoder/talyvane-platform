@@ -40,7 +40,7 @@ if (! function_exists('posix_geteuid') || ! function_exists('posix_getegid')) {
     exit('POSIX_IDENTITY_UNAVAILABLE');
 }
 header('Content-Type: text/plain; charset=UTF-8');
-echo posix_geteuid().':'.posix_getegid();
+echo posix_geteuid().':'.posix_getegid().'|'.(is_writable('/var/www/vhosts/localhost') ? '1' : '0').'|'.(ini_get('open_basedir') ?: 'NONE');
 PHP
 
 ready=0
@@ -52,8 +52,17 @@ done
 [[ "$ready" -eq 1 ]] || { docker logs "$container" >&2; echo "OpenLiteSpeed/LSPHP container did not serve the packaged public asset." >&2; exit 1; }
 
 runtime_identity="$(curl --insecure --silent --show-error --fail -H 'Host: localhost' "https://127.0.0.1:$port/runtime-user.php")"
-[[ "$runtime_identity" =~ ^[0-9]+:[0-9]+$ ]] || { docker logs "$container" >&2; echo "Could not determine the actual LSPHP UID/GID: $runtime_identity" >&2; exit 1; }
-docker exec "$container" chown -R "$runtime_identity" /var/www/vhosts/localhost
+[[ "$runtime_identity" =~ ^[0-9]+:[0-9]+\\|[01]\\|.*$ ]] || { docker logs "$container" >&2; echo "Could not determine the actual LSPHP UID/GID and filesystem policy: $runtime_identity" >&2; exit 1; }
+runtime_uid_gid="${runtime_identity%%|*}"
+docker exec "$container" chown -R "$runtime_uid_gid" /var/www/vhosts/localhost
+runtime_permissions="$(curl --insecure --silent --show-error --fail -H 'Host: localhost' "https://127.0.0.1:$port/runtime-user.php")"
+runtime_writable="${runtime_permissions#*|}"
+runtime_writable="${runtime_writable%%|*}"
+if [[ "$runtime_writable" != "1" ]]; then
+  echo "LSPHP cannot write to its account home after ownership alignment. Runtime probe: $runtime_permissions" >&2
+  docker logs "$container" >&2 || true
+  exit 1
+fi
 rm -f "$webroot/runtime-user.php"
 
 payload_code="$(curl --insecure --silent --show-error -H 'Host: localhost' -o "$tmp/payload-response.txt" -w '%{http_code}' "https://127.0.0.1:$port/.talyvane-payload.zip")"
