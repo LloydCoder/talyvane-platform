@@ -118,7 +118,6 @@ jobs:
           TALYVANE_E2E_DB_USER: talyvane
           TALYVANE_E2E_DB_PASSWORD: e2e-db-password
           TALYVANE_E2E_MAILPIT_API: http://127.0.0.1:8025
-          TALYVANE_E2E_PRIVATE_APP_PATH: ${{ env.TALYVANE_E2E_PRIVATE_APP_PATH }}
         run: node tests/E2E/installer-browser.mjs
 
       - name: Collect application and proxy diagnostics
