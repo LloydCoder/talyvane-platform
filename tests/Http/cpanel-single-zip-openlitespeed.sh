@@ -19,6 +19,8 @@ webroot="$account/html"
 mkdir -p "$webroot"
 chmod 755 "$account" "$webroot"
 unzip -q "$archive" -d "$webroot"
+printf '%s\\n' 'APP_KEY=OLS_PRIVATE_ROOT_SENTINEL' > "$webroot/.env"
+chmod 0644 "$webroot/.env"
 
 port="$((20000 + RANDOM % 20000))"
 container_name="talyvane-single-zip-ols-$RANDOM"
@@ -44,6 +46,13 @@ done
 
 payload_code="$(curl --insecure --silent --show-error -H 'Host: localhost' -o "$tmp/payload-response.txt" -w '%{http_code}' "https://127.0.0.1:$port/.talyvane-payload.zip")"
 [[ "$payload_code" == "403" ]] || { docker logs "$container" >&2; echo "OpenLiteSpeed should deny direct private payload access; got HTTP $payload_code." >&2; cat "$tmp/payload-response.txt" >&2; exit 1; }
+
+env_code="$(curl --insecure --silent --show-error -H 'Host: localhost' -o "$tmp/env-response.txt" -w '%{http_code}' "https://127.0.0.1:$port/.env")"
+[[ "$env_code" == "403" ]] || { docker logs "$container" >&2; echo "OpenLiteSpeed should deny direct .env access; got HTTP $env_code." >&2; cat "$tmp/env-response.txt" >&2; exit 1; }
+if grep -Fq 'OLS_PRIVATE_ROOT_SENTINEL' "$tmp/env-response.txt"; then
+  echo "OpenLiteSpeed exposed the public-root environment sentinel." >&2
+  exit 1
+fi
 
 set +e
 install_code="$(curl --insecure --silent --show-error --max-time 45 -H 'Host: localhost' -o "$tmp/installer.html" -w '%{http_code}' "https://127.0.0.1:$port/install" 2>"$tmp/install-curl.stderr")"
