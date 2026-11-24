@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euxo pipefail
 
 archive="${1:?usage: cpanel-single-zip-apache-install.sh <customer-archive.zip>}"
 tmp="$(mktemp -d)"
