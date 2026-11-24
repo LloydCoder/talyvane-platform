@@ -101,7 +101,7 @@ try {
   const phpSessionInspector = [
     'require "vendor/autoload.php";',
     '$app = require "bootstrap/app.php";',
-    '$app->make(Illuminate\\\\Contracts\\\\Console\\\\Kernel::class)->bootstrap();',
+    '$app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();',
     '$decrypted = app("encrypter")->decryptString(getenv("TALYVANE_E2E_SESSION_COOKIE"));',
     '$sessionId = substr($decrypted, strrpos($decrypted, "|") + 1);',
     '$store = app("session")->driver();',
