@@ -170,8 +170,13 @@ cp "$repo_root/cpanel-installer/index.php" "$nested_document_root/index.php"
 cp "$repo_root/cpanel-installer/.htaccess" "$nested_document_root/.htaccess"
 : > "$nested_document_root/.talyvane-payload.zip"
 chmod 0600 "$nested_document_root/.talyvane-payload.zip"
+cat > "$tmp/nested-layout-router.php" <<'PHP'
+<?php
+$_SERVER['HOME'] = getenv('TALYVANE_TEST_HOME') ?: '';
+require $_SERVER['DOCUMENT_ROOT'].'/index.php';
+PHP
 nested_port="$((20000 + RANDOM % 20000))"
-HOME="$nested_account" php -S "127.0.0.1:$nested_port" -t "$nested_document_root" > "$tmp/nested-layout-server.log" 2>&1 &
+TALYVANE_TEST_HOME="$nested_account" php -S "127.0.0.1:$nested_port" -t "$nested_document_root" "$tmp/nested-layout-router.php" > "$tmp/nested-layout-server.log" 2>&1 &
 server_pid=$!
 nested_status=""
 for _ in $(seq 1 40); do
