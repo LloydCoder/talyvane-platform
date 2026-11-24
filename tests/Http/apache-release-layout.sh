@@ -40,11 +40,13 @@ run_layout() {
   local private_root="$tmp/$kind/talyvane-app"
   local document_root="/var/www/html"
   local public_mount="$webroot"
+  local test_docroot="$webroot"
   local container_name="talyvane-http-$kind-$RANDOM"
   if [[ "$kind" == "addon" ]]; then document_root="/var/www/html/addon-domain"; fi
   mkdir -p "$webroot" "$private_root/public" "$private_root/app" "$private_root/storage"
   unzip -q "$public_zip" -d "$webroot"
-  if [[ "$kind" == "addon" ]]; then public_mount="$tmp/$kind/web-server-root"; mkdir -p "$public_mount/addon-domain"; cp -a "$webroot/." "$public_mount/addon-domain/"; fi
+  if [[ "$kind" == "addon" ]]; then public_mount="$tmp/$kind/web-server-root"; mkdir -p "$public_mount/addon-domain"; cp -a "$webroot/." "$public_mount/addon-domain/"; test_docroot="$public_mount/addon-domain"; fi
+  printf '%s\n' '<?php echo "TALYVANE_PHP_HANDLER_OK";' > "$test_docroot/handler-probe.php"
   cp -a "$app_source/." "$private_root/"
   # Keep the exact release's public rules and wrapper, but use a deterministic
   # front-controller fixture so this test isolates HTTP routing and path layout.
@@ -84,6 +86,8 @@ run_layout() {
   }
 
   assert_response "/" "200" "TALYVANE_HTTP_FRONT_CONTROLLER_OK:/"
+  assert_response "/handler-probe.php" "200" "TALYVANE_PHP_HANDLER_OK"
+  assert_response "/css/app.css" "200" "color-scheme: dark"
   assert_response "/index.php" "200" "TALYVANE_HTTP_FRONT_CONTROLLER_OK:/index.php"
   assert_response "/install/" "200" "TALYVANE_HTTP_FRONT_CONTROLLER_OK:/install/"
   assert_response "/up" "200" "TALYVANE_HTTP_FRONT_CONTROLLER_OK:/up"
