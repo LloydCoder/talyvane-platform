@@ -12,9 +12,9 @@ DirectoryIndex index.php
     # Enforce private-file protection with rewrite rules as well as FilesMatch.
     # LiteSpeed-compatible deployments may not apply every Apache FilesMatch
     # rule in per-directory context, so sensitive paths must fail closed here.
-    RewriteRule (^|/)\\.(?!well-known(?:/|$)) - [F,L]
-    RewriteRule \\.(?:zip|tar|gz|sql|log|bak|old)$ - [F,L,NC]
-    RewriteRule ^(?:composer\\.(?:json|lock)|artisan|phpunit\\.xml)$ - [F,L,NC]
+    RewriteRule (^|/)\.(?!well-known(?:/|$)) - [F,L]
+    RewriteRule \.(?:zip|tar|gz|sql|log|bak|old)$ - [F,L,NC]
+    RewriteRule ^(?:composer\.(?:json|lock)|artisan|phpunit\.xml)$ - [F,L,NC]
 
     # /install is a Laravel route, not a public directory. The physical install/ directory stays private with the app payload.
     RewriteRule ^(?:app|bootstrap|config|database|resources|routes|tests|vendor)(?:/|$) - [F,L,NC]
