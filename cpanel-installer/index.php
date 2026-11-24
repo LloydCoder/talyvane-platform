@@ -31,6 +31,54 @@ function talyvane_inside(string $path, string $directory): bool
     return $path === $directory || str_starts_with($path, rtrim($directory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR);
 }
 
+function talyvane_resolve_private_parent(string $documentRoot): ?string
+{
+    $homeCandidates = [
+        (string) ($_SERVER['HOME'] ?? ''),
+        (string) (getenv('HOME') ?: ''),
+    ];
+
+    foreach (array_unique($homeCandidates) as $candidate) {
+        if ($candidate === '') {
+            continue;
+        }
+        $home = realpath($candidate);
+        if ($home !== false && is_dir($home) && $home !== $documentRoot
+            && talyvane_inside($documentRoot, $home)) {
+            return $home;
+        }
+    }
+
+    // cPanel addon domains are commonly nested below /home/account/public_html.
+    // Place the private application beside public_html, never inside it.
+    $cursor = $documentRoot;
+    while (true) {
+        if (strtolower(basename($cursor)) === 'public_html') {
+            $home = realpath(dirname($cursor));
+            return $home !== false && is_dir($home) && talyvane_inside($documentRoot, $home)
+                ? $home
+                : null;
+        }
+        $parent = dirname($cursor);
+        if ($parent === $cursor) {
+            break;
+        }
+        $cursor = $parent;
+    }
+
+    // For custom cPanel document roots without a discoverable HOME or
+    // public_html ancestor, use the immediate parent only when it is not itself
+    // a conventional public web root.
+    $parent = realpath(dirname($documentRoot));
+    if ($parent === false || ! is_dir($parent)
+        || in_array(strtolower(basename($parent)), ['public_html', 'www', 'htdocs', 'httpdocs'], true)
+        || ! talyvane_inside($documentRoot, $parent)) {
+        return null;
+    }
+
+    return $parent;
+}
+
 function talyvane_extract_private_application(string $documentRoot, string $accountDirectory): string
 {
     if (! class_exists(ZipArchive::class)) {
@@ -134,9 +182,9 @@ if ($documentRoot === false || $scriptDirectory === false || $documentRoot !== $
     talyvane_fail(500, 'The domain document root does not match the extracted installation directory. Set this domain to the directory containing the Talyvane ZIP contents.');
 }
 
-$accountDirectory = realpath(dirname($documentRoot));
-if ($accountDirectory === false || $accountDirectory === $documentRoot) {
-    talyvane_fail(500, 'The account directory above the document root could not be resolved safely.');
+$accountDirectory = talyvane_resolve_private_parent($documentRoot);
+if ($accountDirectory === null || $accountDirectory === $documentRoot) {
+    talyvane_fail(500, 'The account home directory could not be resolved safely. Configure the domain beneath the cPanel account home and ensure PHP can identify that private directory.');
 }
 
 $privateApplication = $accountDirectory.DIRECTORY_SEPARATOR.TALYVANE_APP_DIRECTORY;
