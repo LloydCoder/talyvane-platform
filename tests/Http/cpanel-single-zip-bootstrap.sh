@@ -166,7 +166,8 @@ assert_malicious_archive_rejected "incomplete" "incomplete"
 # unsafe layout. The bootstrap must explain the conflict and preserve files.
 nested_account="$tmp/nested-layout-account"
 nested_document_root="$nested_account/talyvane-app/public"
-mkdir -p "$nested_document_root"
+mkdir -p "$nested_document_root" "$nested_account/talyvane-app/app" "$nested_account/talyvane-app/bootstrap"
+printf '%s\n' '<?php // existing Laravel project root marker' > "$nested_account/talyvane-app/artisan"
 printf '%s\n' 'EXISTING_PRIVATE_APP_PRESERVED' > "$nested_account/talyvane-app/keep.txt"
 cp "$repo_root/cpanel-installer/index.php" "$nested_document_root/index.php"
 cp "$repo_root/cpanel-installer/.htaccess" "$nested_document_root/.htaccess"
@@ -180,11 +181,11 @@ printf '%s\n' '<?php // isolated autoload fixture' > "$tmp/nested-payload/talyva
 chmod 0600 "$nested_document_root/.talyvane-payload.zip"
 cat > "$tmp/nested-layout-router.php" <<'PHP'
 <?php
-$_SERVER['HOME'] = getenv('TALYVANE_TEST_HOME') ?: '';
+$_SERVER['HOME'] = '';
 require $_SERVER['DOCUMENT_ROOT'].'/index.php';
 PHP
 nested_port="$((20000 + RANDOM % 20000))"
-TALYVANE_TEST_HOME="$nested_account" php -S "127.0.0.1:$nested_port" -t "$nested_document_root" "$tmp/nested-layout-router.php" > "$tmp/nested-layout-server.log" 2>&1 &
+php -S "127.0.0.1:$nested_port" -t "$nested_document_root" "$tmp/nested-layout-router.php" > "$tmp/nested-layout-server.log" 2>&1 &
 server_pid=$!
 nested_status=""
 for _ in $(seq 1 40); do
@@ -197,7 +198,7 @@ if [[ "$nested_status" != "200" ]]; then
   cat "$tmp/nested-layout-response.html" >&2 || true
   echo "Nested layout PHP server log:" >&2
   cat "$tmp/nested-layout-server.log" >&2 || true
-  echo "Expected nested private-app document root to fail with HTTP 409; got $nested_status." >&2
+  echo "Expected nested Laravel public/ document root to bootstrap with HTTP 200; got $nested_status." >&2
   exit 1
 fi
 grep -Fq 'TALYVANE_NESTED_PUBLIC_ROOT_OK' "$tmp/nested-layout-response.html"
