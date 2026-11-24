@@ -28,9 +28,9 @@ docker run -d --name "$container_name" \
   php:8.3-apache bash -lc '
     set -e
     apt-get update -qq
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libwebp-dev libonig-dev libxml2-dev
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libwebp-dev libonig-dev libxml2-dev libcurl4-openssl-dev
     docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
-    docker-php-ext-install -j2 gd mbstring pdo_mysql zip
+    docker-php-ext-install -j2 curl gd mbstring pdo_mysql zip
     a2enmod rewrite headers env >/dev/null
     sed -ri "s/AllowOverride None/AllowOverride All/g" /etc/apache2/apache2.conf
     cat >> /etc/apache2/apache2.conf <<APACHE
@@ -62,6 +62,11 @@ install_code="$(curl --silent --show-error -H 'Host: localhost' -o "$tmp/install
 
 grep -Fq 'FIRST-TIME SETUP' "$tmp/installer.html"
 grep -Fq 'Hosting preflight' "$tmp/installer.html"
+if grep -Fq 'BLOCKED' "$tmp/installer.html"; then
+  echo "Apache/PHP hosting preflight reported blocked requirements:" >&2
+  grep -F -B1 -A1 'BLOCKED' "$tmp/installer.html" >&2
+  exit 1
+fi
 test -f "$account/talyvane-app/vendor/autoload.php"
 test -f "$account/talyvane-app/.env"
 test ! -e "$webroot/.talyvane-payload.zip"
