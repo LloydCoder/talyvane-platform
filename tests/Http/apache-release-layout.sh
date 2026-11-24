@@ -43,7 +43,7 @@ run_layout() {
   if [[ "$kind" == "addon" ]]; then document_root="/var/www/html/addon-domain"; fi
   mkdir -p "$webroot" "$private_root/public" "$private_root/app" "$private_root/storage"
   unzip -q "$public_zip" -d "$webroot"
-  if [[ "$kind" == "addon" ]]; then mkdir -p "$layout_root/addon-domain"; cp -a "$webroot/." "$layout_root/addon-domain/"; public_mount="$layout_root"; fi
+  if [[ "$kind" == "addon" ]]; then public_mount="$tmp/$kind/web-server-root"; mkdir -p "$public_mount/addon-domain"; cp -a "$webroot/." "$public_mount/addon-domain/"; fi
   cp -a "$app_source/." "$private_root/"
   # Keep the exact release's public rules and wrapper, but use a deterministic
   # front-controller fixture so this test isolates HTTP routing and path layout.
