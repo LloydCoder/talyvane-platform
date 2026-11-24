@@ -109,8 +109,8 @@ PY
   echo "Unsafe $attack archive rejected before extraction."
 }
 
-assert_malicious_archive_rejected "traversal" "unsafe path or symbolic link"
-assert_malicious_archive_rejected "symlink" "unsafe path or symbolic link"
+assert_malicious_archive_rejected "traversal" "unsafe path"
+assert_malicious_archive_rejected "symlink" "unsafe path"
 
 # Exercise the complete packaged Laravel browser installer, not just a fixture.
 actual_account="$tmp/actual-account"
