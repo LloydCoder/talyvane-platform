@@ -11,7 +11,7 @@ permissions:
 jobs:
   package-and-verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
@@ -35,8 +35,10 @@ jobs:
           bash -n tests/Http/cpanel-single-zip-bootstrap.sh
           bash -n tests/Http/cpanel-single-zip-apache.sh
           bash -n tests/Http/cpanel-single-zip-apache-install.sh
+          bash -n tests/Http/cpanel-single-zip-openlitespeed.sh
           bash scripts/build-cpanel-single-zip.sh . dist "$GITHUB_SHA"
           bash tests/Packaging/cpanel-single-zip-contract.sh "dist/Talyvane-cPanel-$GITHUB_SHA.zip" "$GITHUB_SHA"
           bash tests/Http/cpanel-single-zip-bootstrap.sh "dist/Talyvane-cPanel-$GITHUB_SHA.zip"
           bash tests/Http/cpanel-single-zip-apache.sh
           bash tests/Http/cpanel-single-zip-apache-install.sh "dist/Talyvane-cPanel-$GITHUB_SHA.zip"
+          bash tests/Http/cpanel-single-zip-openlitespeed.sh "dist/Talyvane-cPanel-$GITHUB_SHA.zip"
