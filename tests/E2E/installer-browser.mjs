@@ -205,6 +205,9 @@ try {
     ].join('\n'));
   }
 
+  const postSubmitCookies = await context.cookies(baseUrl);
+  assert.ok(postSubmitCookies.some((cookie) => cookie.name === 'talyvane-session'), 'installer session cookie must remain stable after APP_NAME changes');
+  assert.equal(postSubmitCookies.some((cookie) => cookie.name === 'talyvane-e2e-session'), false, 'deployment branding must not rename the installer session cookie');
   assert.match(await page.locator('body').innerText(), /Verify ownership/i);
 
   const [primaryCode, recoveryCode] = await Promise.all([
