@@ -62,7 +62,9 @@ done < <(find "$app_dir/public" -mindepth 1 -maxdepth 1 -print0)
 chmod 0600 "$work/package/.talyvane-payload.zip"
 cat > "$work/package/RELEASE-MANIFEST.txt" <<EOF
 product=Talyvane
-distribution=single-zip-cpanel-customer-installer
+distribution=single-zip-cpanel-owner-acceptance-candidate
+release_status=NOT_FOR_PRODUCTION
+scope=non-production-staging-only
 commit=$commit_sha
 private_payload=talyvane-app (placed outside document root)
 bootstrap=PHP ZipArchive; PHP 8.3+; HTTPS; writable account parent
