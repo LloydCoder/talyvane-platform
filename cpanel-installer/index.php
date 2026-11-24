@@ -99,7 +99,7 @@ function talyvane_resolve_private_parent(string $documentRoot): ?string
             && is_dir($existingProject.DIRECTORY_SEPARATOR.'bootstrap')) {
             $accountHome = realpath(dirname($existingProject));
             if ($accountHome !== false && is_dir($accountHome)
-                && ! talyvane_inside($documentRoot, $accountHome)
+                && ! talyvane_inside($accountHome, $documentRoot)
                 && ! talyvane_contains_public_root_component($accountHome)) {
                 return $accountHome;
             }
