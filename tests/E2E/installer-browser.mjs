@@ -131,10 +131,30 @@ try {
     }
   }
 
-  await Promise.all([
-    page.waitForURL('**/install/verify'),
-    page.getByRole('button', { name: /Verify configuration and continue/i }).click(),
-  ]);
+  const submitResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === 'POST' && new URL(response.url()).pathname === '/install',
+  );
+  await page.getByRole('button', { name: /Verify configuration and continue/i }).click();
+  const submitResponse = await submitResponsePromise;
+  await page.waitForLoadState('networkidle');
+
+  if (!page.url().endsWith('/install/verify')) {
+    const body = await page.locator('body').innerText();
+    const alert = await page.locator('[role="alert"]').allInnerTexts();
+    let applicationLog = '';
+    try {
+      applicationLog = fs.readFileSync(path.join(privateAppPath, 'storage/logs/laravel.log'), 'utf8').slice(-10000);
+    } catch {}
+    throw new Error([
+      'Installer submission did not advance to email verification.',
+      `HTTP status: ${submitResponse.status()}`,
+      `Current URL: ${page.url()}`,
+      `Visible errors: ${alert.join(' | ')}`,
+      `Page text: ${body}`,
+      `Sanitized application log tail: ${applicationLog}`,
+    ].join('\n'));
+  }
+
   assert.match(await page.locator('body').innerText(), /Verify ownership/i);
 
   const [primaryCode, recoveryCode] = await Promise.all([
