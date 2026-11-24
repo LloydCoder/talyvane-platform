@@ -212,6 +212,13 @@ jobs:
           printf '<?php echo "ADDON_FRONT_CONTROLLER_OK";' > "$addon_smoke/talyvane-app/public/index.php"
           addon_output="$(php -r '$_SERVER["DOCUMENT_ROOT"] = $argv[1]; require $argv[2];' "$addon_smoke/public_html/addon-domain" "$addon_smoke/public_html/addon-domain/index.php")"
           grep -Fq "ADDON_FRONT_CONTROLLER_OK" <<< "$addon_output"
+      - name: Exercise packaged cPanel layouts over real Apache HTTP
+        run: |
+          bash -n tests/Http/apache-release-layout.sh
+          bash tests/Http/apache-release-layout.sh \
+            "dist/talyvane-${GITHUB_SHA}.tar.gz" \
+            "dist/talyvane-cpanel-main-public-${GITHUB_SHA}.zip" \
+            "dist/talyvane-cpanel-addon-public-${GITHUB_SHA}.zip"
       - name: Upload verified standalone package
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
