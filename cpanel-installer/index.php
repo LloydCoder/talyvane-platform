@@ -71,10 +71,14 @@ function talyvane_extract_private_application(string $documentRoot, string $acco
         $mode = 0;
         $opsys = 0;
         $attributes = 0;
-        if ($archive->getExternalAttributesIndex($i, $opsys, $attributes) && $opsys === ZipArchive::OPSYS_UNIX) {
+        if (! $archive->getExternalAttributesIndex($i, $opsys, $attributes)) {
+            $archive->close();
+            talyvane_fail(500, 'The application archive contains unreadable file metadata and was rejected.');
+        }
+        if ($opsys === ZipArchive::OPSYS_UNIX) {
             $mode = ($attributes >> 16) & 0170000;
         }
-        if ($normalized === '' || str_starts_with($normalized, '/') || preg_match('/^[A-Za-z]:/', $normalized)
+        if ($normalized === '' || str_contains($normalized, "\0") || str_starts_with($normalized, '/') || preg_match('/^[A-Za-z]:/', $normalized)
             || in_array('..', $parts, true) || $parts[0] !== 'talyvane'
             || ($mode === 0120000)) {
             $archive->close();
