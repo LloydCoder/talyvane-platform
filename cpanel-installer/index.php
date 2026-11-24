@@ -287,6 +287,20 @@ if ($accountDirectory === null || $accountDirectory === $documentRoot) {
 }
 
 $privateApplication = $accountDirectory.DIRECTORY_SEPARATOR.TALYVANE_APP_DIRECTORY;
+
+// Detect a public document root nested in an existing private application
+// before deciding whether extraction is needed. This must run for both fresh
+// and already-populated private directories.
+if (file_exists($privateApplication) || is_link($privateApplication)) {
+    $resolvedExistingApplication = realpath($privateApplication);
+    if ($resolvedExistingApplication !== false && talyvane_inside($documentRoot, $resolvedExistingApplication)) {
+        talyvane_fail(409, 'The domain document root is inside an existing talyvane-app directory. This single-ZIP installer requires a separate public document root and a private talyvane-app directory outside it. Do not extract the installer into talyvane-app/public. Preserve the existing application and have the domain document root configured to a separate public directory before using this package.');
+    }
+    if ($resolvedExistingApplication !== false && talyvane_inside($resolvedExistingApplication, $documentRoot)) {
+        talyvane_fail(409, 'The existing talyvane-app directory resolves inside the public document root. This is not a safe installation layout. Preserve the files and configure the private application outside the public document root before retrying.');
+    }
+}
+
 if (! is_dir($privateApplication)) {
     $privateApplication = talyvane_extract_private_application($documentRoot, $accountDirectory);
 } else {
