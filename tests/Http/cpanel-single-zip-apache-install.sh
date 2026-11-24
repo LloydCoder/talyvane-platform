@@ -41,7 +41,7 @@ container="$container_name"
 
 ready=0
 for _ in $(seq 1 90); do
-  if curl --silent --output /dev/null "http://127.0.0.1:$port/"; then ready=1; break; fi
+  if curl --silent --output /dev/null "http://127.0.0.1:$port/css/app.css"; then ready=1; break; fi
   sleep 1
 done
 [[ "$ready" -eq 1 ]] || { docker logs "$container" >&2; echo "Apache/PHP container did not become ready." >&2; exit 1; }
