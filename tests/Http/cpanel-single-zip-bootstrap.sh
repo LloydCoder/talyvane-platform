@@ -74,15 +74,18 @@ import zipfile
 path, attack = sys.argv[1], sys.argv[2]
 with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
     archive.writestr("talyvane/", "")
-    archive.writestr("talyvane/public/index.php", '<?php echo "SHOULD_NOT_RUN";')
-    archive.writestr("talyvane/vendor/autoload.php", "<?php")
-    if attack == "symlink":
-        entry = zipfile.ZipInfo("talyvane/public/escape-link")
-        entry.create_system = 3
-        entry.external_attr = (stat.S_IFLNK | 0o777) << 16
-        archive.writestr(entry, "../../outside.txt")
+    if attack == "incomplete":
+        archive.writestr("talyvane/vendor/autoload.php", "<?php")
     else:
-        archive.writestr("talyvane/../../outside.txt", "outside")
+        archive.writestr("talyvane/public/index.php", '<?php echo "SHOULD_NOT_RUN";')
+        archive.writestr("talyvane/vendor/autoload.php", "<?php")
+        if attack == "symlink":
+            entry = zipfile.ZipInfo("talyvane/public/escape-link")
+            entry.create_system = 3
+            entry.external_attr = (stat.S_IFLNK | 0o777) << 16
+            archive.writestr(entry, "../../outside.txt")
+        else:
+            archive.writestr("talyvane/../../outside.txt", "outside")
 PY
   chmod 0600 "$attack_root/.talyvane-payload.zip"
   cp "$repo_root/cpanel-installer/index.php" "$attack_root/index.php"
@@ -103,6 +106,10 @@ PY
   fi
   grep -Fq "$expected" "$tmp/$attack-response.html"
   test ! -e "$attack_account/talyvane-app"
+  if [[ "$attack" == "incomplete" ]]; then
+    staging_directories="$(find "$attack_account" -maxdepth 1 -type d -name '.talyvane-stage-*' -print)"
+    test -z "$staging_directories"
+  fi
   kill "$server_pid" 2>/dev/null || true
   wait "$server_pid" 2>/dev/null || true
   server_pid=""
@@ -111,6 +118,7 @@ PY
 
 assert_malicious_archive_rejected "traversal" "unsafe path"
 assert_malicious_archive_rejected "symlink" "unsafe path"
+assert_malicious_archive_rejected "incomplete" "incomplete"
 
 # Exercise the complete packaged Laravel browser installer, not just a fixture.
 actual_account="$tmp/actual-account"
