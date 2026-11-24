@@ -24,6 +24,8 @@ A hosting account is **compatible** only when every required check in this docum
 
 GD WebP support is required by the current profile-media pipeline. A host with GD but without WebP encoding is not compatible with that feature; do not silently store original uploads or skip metadata removal.
 
+The single-ZIP cPanel bootstrap additionally requires PHP's ZIP extension (ZipArchive) on the first web request so it can move the bundled private application outside the document root. This extension is a bootstrap prerequisite, not a permanent application runtime dependency; the installer must report it clearly before extraction.
+
 ## Shared-hosting design constraints
 
 Core functionality must not require:
