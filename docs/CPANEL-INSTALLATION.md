@@ -2,6 +2,8 @@
 
 This guide covers secure deployment of a Talyvane release on cPanel shared hosting. cPanel providers differ in PHP configuration, document-root restrictions, filesystem permissions and open_basedir; confirm compatibility before purchasing or deploying.
 
+> **Customer-release status (24 November 2026):** The single-ZIP cPanel bootstrap candidate has been merged in [PR #74](https://github.com/LloydCoder/talyvane-platform/pull/74) at `aae35c99dbaa1e0076cac06958c07b49b0f8c09a`. Its Apache/PHP and OpenLiteSpeed/LSPHP 8.3 container acceptance and PHP 8.3/8.4/8.5 CI passed on the tested PR head. No signed/tagged customer release has been published, and no live provider has been certified. Do not assemble a customer ZIP from the branch or use a CI artifact as a release. The deployment procedure below remains the documented path for an approved tagged release until the new single-ZIP release gate is complete.
+
 ## 1. Hosting requirements
 
 Confirm that the plan provides:
