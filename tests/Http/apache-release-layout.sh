@@ -18,6 +18,7 @@ command -v unzip >/dev/null
 command -v tar >/dev/null
 
 tmp="$(mktemp -d)"
+chmod 755 "$tmp"
 container=""
 cleanup() {
   if [[ -n "$container" ]]; then docker logs "$container" >&2 || true; docker rm -f "$container" >/dev/null 2>&1 || true; fi
