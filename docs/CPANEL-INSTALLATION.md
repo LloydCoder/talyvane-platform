@@ -1,182 +1,81 @@
-# cPanel installation guide
+# cPanel customer installation
 
-This guide covers secure deployment of a Talyvane release on cPanel shared hosting. cPanel providers differ in PHP configuration, document-root restrictions, filesystem permissions and open_basedir; confirm compatibility before purchasing or deploying.
+This is the customer-facing installation procedure for the single-ZIP cPanel package. It replaces the older multi-archive/public-root bundle procedure. The ZIP must come from an approved, versioned Talyvane release; a GitHub source archive or CI test artifact is not a customer installer.
 
-> **Customer-release status (24 November 2026):** The single-ZIP cPanel bootstrap candidate has been merged in [PR #74](https://github.com/LloydCoder/talyvane-platform/pull/74) at `aae35c99dbaa1e0076cac06958c07b49b0f8c09a`. Its Apache/PHP and OpenLiteSpeed/LSPHP 8.3 container acceptance and PHP 8.3/8.4/8.5 CI passed on the tested PR head. No signed/tagged customer release has been published, and no live provider has been certified. Do not assemble a customer ZIP from the branch or use a CI artifact as a release. The deployment procedure below remains the documented path for an approved tagged release until the new single-ZIP release gate is complete.
+## Hosting requirements
 
-## 1. Hosting requirements
+Confirm these capabilities with the hosting provider before purchase or deployment:
 
-Confirm that the plan provides:
+- PHP 8.3 or later for the domain's **web** PHP handler (not merely CLI PHP).
+- PHP extensions: ZIP/ZipArchive, PDO MySQL, GD with WebP, cURL, Mbstring, OpenSSL, DOM, Fileinfo and XML, plus Laravel's standard requirements.
+- MySQL or supported MariaDB, with a dedicated empty database and a database user allowed to create/alter tables.
+- HTTPS and Apache or LiteSpeed-compatible `.htaccess` rewrite support.
+- PHP can create a private application directory in the cPanel account home, outside every public document root.
+- Sufficient disk quota and upload/extraction limits for the release archive.
 
-- PHP 8.3 or later for the website runtime, with the extensions listed in HOSTING-COMPATIBILITY.md, including PDO MySQL and GD with WebP support.
-- MySQL or a supported MariaDB version, a dedicated database/user and migration privileges.
-- HTTPS for the installation domain.
-- PHP access to a private application directory outside the domain document root.
-- Writable private runtime directories and the ability to set owner-only permissions.
-- PHP open_basedir and filesystem rules that permit the public front controller to include the private Laravel front controller.
-- Sufficient disk quota, memory and upload limits.
+cPanel plans differ. A plan that prevents PHP from writing outside the document root or including the private Laravel front controller is not compatible with this package. Do not disable WAF or weaken filesystem permissions to force compatibility.
 
-Do not purchase a plan based only on the word cPanel. The installer performs runtime checks and rejects unsafe layouts.
+## Before uploading
 
-## 2. Choose a tagged release
+1. Create a dedicated domain/subdomain and confirm its document root in cPanel **Domains**.
+2. The document root must be a separate public directory, not the Laravel project root and not a directory nested inside an existing private `talyvane-app`.
+3. In the cPanel account home, confirm that a `talyvane-app` directory does not already exist. The installer intentionally refuses to overwrite an existing directory. Back up and investigate any existing directory; do not delete or rename it without confirming what it contains.
+4. Create a new, empty MySQL/MariaDB database and a dedicated user. Do not use an existing application database.
+5. Enable HTTPS and verify the domain opens without a certificate warning.
 
-Use a tagged, tested release artifact from the project release process. Do not deploy directly from an unreviewed development branch.
+For a typical cPanel subdomain, the document root is something like `/home/CPANEL_USER/public_html/talyvane.example.com`; the private application is placed at `/home/CPANEL_USER/talyvane-app`. The exact public path is assigned by cPanel. The bootstrap resolves the account home and refuses unsafe or ambiguous layouts.
 
-The standalone release includes production vendor dependencies, compiled public assets, migrations, a private bootstrap directory and the cPanel front-controller templates. CI also publishes dedicated public-root ZIP bundles for the main domain and add-on domain; these contain only public assets, the hardened .htaccess file and the matching guarded index.php wrapper. Production hosting does not need Node.js or Composer for the browser-based first installation.
+## Install using File Manager and a browser
 
-Before uploading or extracting an archive, download the matching `SHA256SUMS` file from the same release bundle and verify the archive locally. On Linux use `sha256sum -c SHA256SUMS`; on macOS use `shasum -a 256 -c SHA256SUMS`. On Windows, use PowerShell `Get-FileHash` with SHA-256 and compare the result with the matching archive entry in `SHA256SUMS`. Verify the standalone archive and the public-root ZIP bundle you intend to deploy. Do not upload an artifact whose checksum does not match.
+1. Download the approved Talyvane cPanel customer ZIP and its matching SHA-256 checksum from the same release.
+2. Open cPanel **File Manager** and navigate to the domain's exact document root.
+3. Enable **Show Hidden Files** in File Manager settings.
+4. Upload the one customer ZIP into that document root and use File Manager's **Extract** action there.
+5. Confirm the extracted root contains `index.php`, `.htaccess`, `README.txt`, `RELEASE-MANIFEST.txt`, public assets and the hidden `.talyvane-payload.zip`. Do not extract the hidden payload separately or move individual files.
+6. Open the domain over HTTPS in a browser. The bootstrap validates the archive and hosting layout, extracts the private Laravel application outside the document root, removes the temporary payload, and forwards the request into Laravel. An uninstalled application redirects to the browser wizard at `/install`.
+7. If the bootstrap returns an error, stop and follow the exact message. Do not change permissions to 0777, move private application files into the public directory, disable WAF, or repeatedly re-extract over existing files.
 
-The constrained browser installer was implemented in [PR #62](https://github.com/LloydCoder/talyvane-platform/pull/62) and merged to `main` at `df9d4abf3905ba94b115f3fd6e9523e5822e401d`. Post-merge [workflow #44757620878](https://github.com/LloydCoder/talyvane-platform/actions/runs/44757620878) passed all four jobs: PHP 8.3, PHP 8.4, PHP 8.5 and standalone release-package smoke build. Repository-level implementation and CI verification are complete. This guide is not a provider certification: a signed/tagged release, live cPanel/Apache/LiteSpeed acceptance, and deployment-specific compatibility checks remain required before production use. Do not deploy an untagged branch.
+The bootstrap uses the private directory `talyvane-app` in the account home. It fails closed if that directory already exists or if the domain document root is nested inside it. This is intentional protection against overwriting an existing application or exposing private source code.
 
-## 3. Create the database
+## Complete the browser wizard
 
-In cPanel, open MySQL Database Wizard (or the provider's equivalent):
+1. In File Manager, open the private account-home directory `talyvane-app/storage/app/private/INSTALLER-ACCESS-KEY.txt`. Copy the one-time key. Never put it in a URL, email, screenshot or support ticket.
+2. Return to `https://your-domain.example/install` and enter the key.
+3. Complete hosting preflight. All checks must pass before configuration can be submitted.
+4. Enter the exact HTTPS application URL, database connection details, SMTP connection details, Super Admin name/email and a separate recovery email address.
+5. The wizard tests the database and applies the fixed Laravel migrations. It rejects unrelated databases, completed deployments and databases with existing user records.
+6. The wizard sends separate six-digit verification codes to the Super Admin email and recovery email. Both addresses must be different and both codes must be verified within five minutes. Verification is limited to five attempts.
+7. After successful verification, Talyvane creates the single Super Admin, commits the durable installation lock and displays the initial password through a one-time handoff.
+8. Store the password securely, sign in, change it when prompted and complete mandatory MFA enrollment. Store MFA recovery codes and the Super Admin recovery key separately and securely.
+9. Confirm the installer reports successful cleanup. If cleanup is incomplete, follow its explicit instructions in File Manager. The durable installation lock must remain active even if cleanup needs manual completion.
 
-1. Create a dedicated database for this Talyvane deployment.
-2. Create a dedicated database user with a unique, strong password.
-3. Grant that user the privileges required by the application's migrations and runtime.
-4. Record the provider-specific database host, database name and username (cPanel commonly prefixes database names and users).
-5. Keep phpMyAdmin private to the hosting account; never expose it through the application.
+## Verify before opening to customers
 
-Use a separate database and credentials for every customer deployment. The browser installer accepts a newly created empty database or a recognised interrupted Talyvane first-install schema only. It rejects unknown tables, unrecognised migration history, existing user records and completed installation state. Never point it at an existing production or customer database, even if some table names appear familiar.
+- Super Admin can sign in and complete MFA; a subsequent login requires MFA.
+- Installer routes are locked and the one-time access key is consumed.
+- HTTPS, secure cookies, SMTP delivery, database operations and public assets work.
+- Requests for `.env`, `vendor/`, `app/`, `storage/`, private payloads, logs and backups are denied.
+- Public uploads and media are stored and served using the application's authorization controls.
+- Privacy, consent, safeguarding, retention, notification, payment and market settings remain disabled until separately reviewed and approved.
 
-## 4. Keep the application outside the public document root
+## Troubleshooting
 
-The complete Laravel application must remain outside the domain's public document root. Only public assets and a guarded front controller belong in the document root.
+- **Standalone PHP file returns 403 while static files work:** this is a web-server/PHP-handler/access-control issue before Laravel executes. Ask the provider for the domain's access/error log entry, PHP-FPM/LSPHP handler status and effective file ownership. Do not assume it is an application bug and do not disable WAF.
+- **The installer returns HTTP 409 about an existing `talyvane-app`:** stop. The installer will not overwrite it. Back up and identify the existing directory before planning a clean deployment.
+- **The installer reports a nested document root:** the domain is pointing inside the private application directory. Configure a separate public document root before using this package. Never point the domain at the private project root.
+- **ZIP extension missing:** enable PHP ZIP/ZipArchive for the domain's web PHP version.
+- **Private account directory is not writable:** ask the provider to confirm the PHP process identity and safe write access outside the document root. Never use 0777.
+- **Installer preflight is blocked:** resolve each named requirement; do not bypass the check.
+- **Verification email does not arrive:** verify SMTP host, port, TLS mode, credentials, sender authorization, outbound SMTP policy and spam/quarantine. The installer does not create the Super Admin until both codes are verified.
 
-There are two supported layouts.
+Preserve the exact URL, timestamp, response and provider error-log entry when reporting a failure. Do not repeatedly upload archives over an existing installation.
 
-### Option A — direct Laravel public root
+## Backup, restore and upgrades
 
-Use this when the provider allows the domain document root to point directly to the application's public/ directory:
+Before production use, back up the database, private uploads/user-generated files, deployment configuration and encryption keys. Keep encrypted backups outside the public document root and preferably outside the hosting account. Perform a restore into a separate staging account/database and verify application boot, authentication, private files and media. A backup that has never been restored is not a verified recovery plan.
 
-    /home/CPANEL_USER/
-      talyvane-app/             # complete private Laravel application
-        app/
-        bootstrap/
-        config/
-        database/
-        install/
-        public/
-        storage/
-        vendor/
-        .env                    # created by the browser installer
+Do not extract a new release over a live application. A production upgrade package must specify compatible source/database versions, a pre-upgrade backup, migration behavior, maintenance window, rollback boundary and post-upgrade checks. Database migrations may not be reversible; rollback may require restoring the matching pre-upgrade database and files.
 
-Set the domain document root to /home/CPANEL_USER/talyvane-app/public.
+## Release status
 
-### Option B — standard cPanel public_html layout
-
-Use this when cPanel requires the domain document root to remain under public_html:
-
-**Main domain**
-
-- Private application root: /home/CPANEL_USER/talyvane-app
-- Public document root: /home/CPANEL_USER/public_html
-- Upload the matching talyvane-cpanel-main-public ZIP artifact to the home directory and extract its contents into public_html/.
-
-**Add-on domain or subdomain**
-
-- Private application root: /home/CPANEL_USER/talyvane-app
-- Public document root: /home/CPANEL_USER/public_html/example.com
-- Upload the matching talyvane-cpanel-addon-public ZIP artifact to the home directory and extract its contents into public_html/example.com/.
-
-The wrappers include the private Laravel front controller, reject an application root inside the public document root and reject symlinked application roots/front controllers. Laravel resolves its public path to the actual document root so assets and installer preflight checks use the public directory.
-
-In cPanel File Manager, enable Show Hidden Files before copying so the public .htaccess file is included. Back up any existing website before replacing its public files. For an existing main-domain website, prefer a new add-on domain or subdomain with its own document root.
-
-Do not copy install/, .env, vendor/, storage/, bootstrap/, source code or backups into public_html. Do not weaken the wrapper's path checks. If PHP open_basedir or the hosting filesystem prevents including the private front controller, the host is incompatible.
-
-cPanel's default behavior matters: the main domain's document root cannot be changed in the Domains interface, and add-on/subdomain roots are normally restricted to public_html unless the hosting administrator changes the WHM restriction. The reviewed wrappers support the safe public_html arrangement without requiring that WHM setting. See the [cPanel domain document-root documentation](https://docs.cpanel.net/cpanel/domains/domains/create-a-new-domain/) and [cPanel's document-root restriction setting](https://docs.cpanel.net/whm/server-configuration/tweak-settings/domains/).
-
-## 5. First installation without SSH or Composer
-
-This path is available only in a tagged release that has passed the installer release gate.
-
-1. Upload the complete standalone release ZIP into /home/CPANEL_USER/ using cPanel File Manager and extract it there. The archive creates a top-level talyvane/ directory; rename that directory to talyvane-app so it matches the wrapper paths and the examples below.
-2. Configure the public document root using Option A or Option B above. For Option B, also upload and extract the matching main-domain or add-on-domain public-root ZIP into the document root. Back up any existing public files first.
-3. Confirm the domain has a valid TLS certificate and opens over HTTPS.
-4. Visit the HTTPS domain. The private first-request bootstrap creates a deployment-unique application key, private runtime directories and a random installer access key. It does not run arbitrary commands.
-5. In cPanel File Manager, open the private application root (not public_html), then open `storage/app/private/INSTALLER-ACCESS-KEY.txt`. Copy the complete key. The installer page never displays or embeds this secret; enter it only in the protected installer form. Do not paste it into a URL, ticket, email or screenshot.
-6. Complete every hosting preflight check. Resolve any PHP extension, GD/WebP, HTTPS, document-root, symlink or permission failure before proceeding.
-7. Enter the application URL, database credentials, SMTP credentials, Super Admin details and a distinct recovery email address.
-8. The installer writes the production environment configuration, tests the database, runs the fixed migrations and sends separate verification codes to the Super Admin and recovery email addresses.
-9. Enter both codes within the verification window. The installer creates the canonical Super Admin and durable installation lock.
-10. The success screen displays the actual Super Admin sign-in URL and generated initial password exactly once. Store the password securely, sign in, change it immediately and complete mandatory MFA enrollment before privileged administration.
-11. The installer attempts to remove its private install/ directory and one-time access-key file before showing the success screen. If it reports that cleanup was incomplete, use cPanel File Manager to delete the entire talyvane-app/install/ directory and storage/app/private/INSTALLER-ACCESS-KEY.txt if present. The durable installation lock blocks installer routes even if either artifact remains.
-
-The browser installer session expires after 15 minutes. Only one pending verification flow can modify deployment configuration at a time. Credentials are not sent by email or placed in URLs. Never share the initial password, recovery key, database password or SMTP password with support personnel.
-
-## 6. Installation with SSH/Terminal and Composer
-
-If the host provides SSH/Terminal and Composer, use the private application root and the PHP binary/version selected for the domain:
-
-    composer install --no-dev --prefer-dist --optimize-autoloader
-    php artisan key:generate
-    php artisan migrate --force
-    php artisan storage:link
-    php artisan optimize
-
-Run key:generate only for a first installation when no valid key exists. Do not replace an existing production key casually; encrypted data may become unreadable.
-
-Provision the deployment's single Super Admin from a trusted terminal:
-
-    php artisan migrate --force
-    php artisan talyvane:super-admin:create admin@example.com
-
-The command requires SMTP, a strong password and a distinct recovery notification address. It sends separate verification codes to the primary and recovery addresses and requires both to be confirmed within five minutes. It creates the singleton Super Admin, stores only a hash of a new offline recovery key and displays that key once. Store it offline and separately from the server and database. Sign in immediately and complete mandatory TOTP MFA.
-
-For an existing Super Admin without enrolled recovery credentials, run:
-
-    php artisan talyvane:super-admin:enroll-recovery
-
-To rotate a recovery mailbox and key later:
-
-    php artisan talyvane:super-admin:rotate-recovery-contacts
-
-If the authenticator is lost but the password and offline recovery key remain available, run:
-
-    php artisan talyvane:super-admin:recover
-
-Follow SUPER-ADMIN-RECOVERY.md. Do not place passwords, TOTP codes or recovery keys in shell arguments, deployment logs or tickets. Never create a public route that executes arbitrary Artisan commands.
-
-## 7. Permissions and private storage
-
-The PHP runtime must be able to write to storage/, its framework/cache/session/log subdirectories and bootstrap/cache/. The bootstrap restricts private runtime directories to owner-only permissions and the environment file and installer state files to owner-only file permissions.
-
-Use the narrowest ownership and permissions the host supports. Never use 0777 as a general fix. Keep private identity evidence and unpublished media outside public storage. Publicly approved assets must be delivered through the application's authorized media path.
-
-## 8. First-run verification
-
-Before opening the site to customers:
-
-1. Visit the HTTPS homepage and health endpoint.
-2. Verify login, email verification and administrator MFA.
-3. Confirm the Super Admin is provisioned through the approved bootstrap process.
-4. Confirm a non-admin cannot access administration routes.
-5. Confirm private storage, installer state and environment files are not downloadable.
-6. Verify mail delivery, uploads, image re-encoding and WebP processing.
-7. Run a test booking through the manual workflow in a non-production test account.
-8. Verify every market and payment method remains disabled until separately reviewed and approved.
-9. Verify backups and restoration.
-10. Confirm the installer directory is absent or delete it manually as instructed; ensure debug mode is off.
-
-## 9. Cron and scheduled tasks
-
-If the release requires Laravel's scheduler, add a cPanel cron entry using the exact PHP CLI binary and private application path provided by the host. Standard Laravel scheduler invocation is once per minute:
-
-    * * * * * /usr/local/bin/php /home/CPANEL_USER/talyvane-app/artisan schedule:run >> /dev/null 2>&1
-
-The PHP path is provider-specific; discover it from the provider or cPanel Terminal. Do not copy the example path blindly. If cron is unavailable, disable or clearly mark scheduler-dependent features as unavailable.
-
-The model-agency retention command is scheduled daily at 02:30 when approved retention periods and the scheduler approval flag are configured. Safeguarding primary-database content-key removal is scheduled daily at 02:45 only when the safeguarding retention schedule and encrypted-backup expiry policies are both explicitly approved and configured. Keep SAFEGUARDING_CASE_RETENTION_SCHEDULE_APPROVED=false and SAFEGUARDING_CASE_BACKUP_POLICY_APPROVED=false until legal review, backup expiry and restore procedures have been verified. Configure and verify this once-per-minute scheduler entry before enabling either retention schedule.
-
-Safeguarding email dispatch is scheduled every five minutes only when SAFEGUARDING_NOTIFICATIONS_ENABLED=true and the configured mailer is a real transport (not log or array). Keep it disabled until SMTP delivery, SPF/DKIM/DMARC, recipient ownership and escalation procedures have been verified. Configure SAFEGUARDING_EMERGENCY_CONTACT_EMAILS as a comma-separated list of approved addresses. Critical and minor-safety cases enqueue notices to these contacts. Email contains only a case reference, category, severity and an authenticated internal link, not case narrative or applicant details. Outbox delivery is retried and must be monitored; it is not an emergency hotline or guaranteed response.
-
-## 10. Go-live
-
-- Confirm DNS and TLS.
-- Confirm a verified backup exists outside the web root.
-- Confirm legal, safeguarding, payment-provider and market approvals independently.
-- Confirm operational contact and incident-response procedures.
-- Record hosting environment details and deployment version.
-- Do not enable production bookings or payment methods until all applicable release gates pass.
+A merge, green CI run or CI artifact does not equal a customer release or provider certification. As of 24 November 2026, the single-ZIP installer implementation is merged and its repository CI checks pass, but clean end-to-end MySQL/SMTP/browser acceptance, failure-recovery drills, backup/restore and upgrade/rollback drills, actual target-cPanel validation and a signed/tagged customer release remain release gates. Distribute only a versioned customer ZIP explicitly approved after those gates pass.
