@@ -82,15 +82,20 @@ if grep -Fq 'BLOCKED' "$tmp/installer.html"; then
   exit 1
 fi
 echo "All Apache/PHP preflight checks passed."
-for required in "$account/talyvane-app/vendor/autoload.php" "$account/talyvane-app/.env"; do
-  if [[ ! -f "$required" ]]; then
-    echo "Expected private bootstrap file is missing: $required" >&2
-    find "$account" -maxdepth 4 -type f -printf '%p\\n' >&2 || true
-    docker logs "$container" >&2 || true
-    exit 1
-  fi
-done
-echo "Private application files exist outside the web root."
+# The private application is owned by the PHP/Apache account (www-data).
+# Inspect it inside the container rather than bypassing its filesystem permissions
+# from the unprivileged GitHub runner. The installer creates .env during setup;
+# the package must keep .env.example private and must not publish a premature .env.
+docker exec "$container" sh -lc '
+  set -eu
+  test -f /var/talyvane-account/talyvane-app/vendor/autoload.php
+  test -f /var/talyvane-account/talyvane-app/public/index.php
+  test -f /var/talyvane-account/talyvane-app/.env.example
+  test ! -L /var/talyvane-account/talyvane-app
+  test ! -L /var/talyvane-account/talyvane-app/vendor
+  test ! -L /var/talyvane-account/talyvane-app/vendor/autoload.php
+'
+echo "Private application files exist outside the web root and retain expected ownership-safe access."
 for forbidden in "$webroot/.talyvane-payload.zip" "$webroot/vendor" "$webroot/.env"; do
   if [[ -e "$forbidden" ]]; then
     echo "Private file remained in public document root: $forbidden" >&2
