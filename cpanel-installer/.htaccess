@@ -8,7 +8,8 @@ DirectoryIndex index.php
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteRule ^(?:app|bootstrap|config|database|install|resources|routes|storage|tests|vendor)(?:/|$) - [F,L,NC]
+    # /install is a Laravel route, not a public directory. The physical install/ directory stays private with the app payload.
+    RewriteRule ^(?:app|bootstrap|config|database|resources|routes|storage|tests|vendor)(?:/|$) - [F,L,NC]
 
     # Preserve authentication and XSRF headers for Laravel middleware.
     RewriteCond %{HTTP:Authorization} .
