@@ -1,0 +1,44 @@
+name: Single-ZIP cPanel package
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.3'
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, mbstring, openssl, pcre, pdo, pdo_mysql, pdo_sqlite, session, tokenizer, xml, zip
+          coverage: none
+      - name: Install production dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+        env:
+          APP_KEY: 0123456789abcdef0123456789abcdef
+      - name: Verify production dependencies
+        run: |
+          composer check-platform-reqs --no-dev
+          composer audit --no-dev --no-interaction
+      - name: Lint and build customer package
+        run: |
+          php -l cpanel-installer/index.php
+          bash -n scripts/build-cpanel-single-zip.sh
+          bash -n tests/Packaging/cpanel-single-zip-contract.sh
+          bash -n tests/Http/cpanel-single-zip-bootstrap.sh
+          bash -n tests/Http/cpanel-single-zip-apache.sh
+          bash -n tests/Http/cpanel-single-zip-apache-install.sh
+          bash -n tests/Http/cpanel-single-zip-openlitespeed.sh
+          bash scripts/build-cpanel-single-zip.sh . dist "$GITHUB_SHA"
+          bash tests/Packaging/cpanel-single-zip-contract.sh "dist/Talyvane-cPanel-$GITHUB_SHA.zip" "$GITHUB_SHA"
+          bash tests/Http/cpanel-single-zip-bootstrap.sh "dist/Talyvane-cPanel-$GITHUB_SHA.zip"
+          bash tests/Http/cpanel-single-zip-apache.sh
+          bash tests/Http/cpanel-single-zip-apache-install.sh "dist/Talyvane-cPanel-$GITHUB_SHA.zip"
+          bash tests/Http/cpanel-single-zip-openlitespeed.sh "dist/Talyvane-cPanel-$GITHUB_SHA.zip"

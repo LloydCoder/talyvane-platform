@@ -24,6 +24,8 @@ A hosting account is **compatible** only when every required check in this docum
 
 GD WebP support is required by the current profile-media pipeline. A host with GD but without WebP encoding is not compatible with that feature; do not silently store original uploads or skip metadata removal.
 
+The single-ZIP cPanel bootstrap additionally requires PHP's ZIP extension (ZipArchive) on the first web request so it can move the bundled private application outside the document root. This extension is a bootstrap prerequisite, not a permanent application runtime dependency; the installer must report it clearly before extraction.
+
 ## Shared-hosting design constraints
 
 Core functionality must not require:
@@ -43,6 +45,10 @@ Preferred. Install dependencies on the host or upload a reproducible release art
 
 ### Tier B — cPanel File Manager, no SSH/Composer, cron available
 The constrained browser installer and reviewed main-domain/add-on-domain public-root wrappers were implemented in PR #62 and merged to `main` (merge commit `df9d4abf3905ba94b115f3fd6e9523e5822e401d`). Post-merge workflow #44757620878 passed all three PHP feature-suite jobs and the standalone release-package smoke build. This is repository-level verification only. Tier B is a supported product target only for a tagged release and a provider/account that passes every compatibility and deployment acceptance check below; provider-specific live cPanel/Apache/LiteSpeed certification remains pending. Never expose an unrestricted Artisan runner or public setup endpoint.
+
+The single-ZIP customer installation path is tracked in [issue #73](https://github.com/LloydCoder/talyvane-platform/issues/73) and draft [PR #74](https://github.com/LloydCoder/talyvane-platform/pull/74). Its current candidate has passed the automated package build, real Apache/PHP HTTPS installer acceptance, an OpenLiteSpeed/LSPHP 8.3 HTTPS smoke test, the PHP 8.3/8.4/8.5 feature matrix, the standalone release-package smoke build, and Semgrep. The OpenLiteSpeed test verifies rewrite-based denial of the payload and `.env`, first-request extraction, the `/var/www/vhosts/<vhost>/html` account layout, and private-file isolation. This is still repository-level verification: the candidate is not merged or released, and no provider-specific cPanel, LiteSpeed Enterprise configuration, PHP-FPM setup, or live-account certification is implied.
+
+The first public bootstrap request requires PHP `ZipArchive` and write access to the cPanel account directory outside the document root. After extraction, the Laravel application itself remains outside the public root. If the host cannot provide that safe layout, installation must stop with an actionable compatibility error rather than expose the private application.
 
 ### Tier C — no SSH, no Composer, no cron
 Limited compatibility. The site can serve synchronous requests if all prerequisites are prebuilt, but scheduled reminders, expiry, cleanup, queue processing and recurring integrations will not run automatically. The UI must disclose disabled operational capabilities. Do not certify as fully operational for production until a reliable provider scheduler or equivalent is available.
@@ -67,6 +73,14 @@ A deployment is compatible only after:
 - [ ] Backup and restore have been tested.
 - [ ] Production debug mode is off; secrets are unique and not committed.
 - [ ] Super Admin bootstrap and recovery procedures are available and secured.
+
+## PHP request 403 diagnosis
+
+If a static asset is served successfully but a minimal standalone PHP probe in the same document root returns HTTP 403, treat that as a PHP-handler or server-access problem until logs prove otherwise. It is not evidence of a Laravel route or installer-code defect: the probe does not execute Laravel.
+
+For cPanel, verify the domain's active PHP version in MultiPHP Manager and confirm the web SAPI—not only CLI PHP—has the required handler and extensions. If the provider uses LiteSpeed, its cPanel integration runs PHP through LSPHP and selects the version configured by cPanel MultiPHP Manager / CloudLinux PHP Selector. LiteSpeed's own 403 guide lists a missing PHP handler, file permissions, incorrect ownership, `.htaccess` denial rules and firewall/WAF blocks as possible causes. Inspect the provider's error log at the exact request timestamp; do not globally disable ModSecurity/WAF or weaken permissions as a diagnostic shortcut.
+
+References: [cPanel PHP version and extension management](https://docs.cpanel.net/ea4/php/how-to-locate-and-install-a-php-version-or-extension/), [LiteSpeed PHP on cPanel](https://docs.litespeedtech.com/lsws/cp/cpanel/php/), and [LiteSpeed 403 troubleshooting](https://docs.litespeedtech.com/lsws/cp/cpanel/403-error/).
 
 ## Support boundary
 
