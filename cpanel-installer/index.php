@@ -281,7 +281,7 @@ function talyvane_extract_private_application(string $documentRoot, string $priv
     }
 
     @rmdir($staging);
-    @chmod($target, 0750);
+    @chmod($target, 0700);
 
     if (! is_file($target.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'index.php')) {
         talyvane_fail(500, 'The private application move could not be verified. Contact hosting support before retrying.');
@@ -322,9 +322,11 @@ foreach ([$privateRoot, $privateAppsRoot, $privateApplicationParent] as $private
     }
     @chmod($privateDirectory, 0700);
     $resolvedDirectory = realpath($privateDirectory);
+    $directoryPermissions = $resolvedDirectory !== false ? @fileperms($resolvedDirectory) : false;
     if ($resolvedDirectory === false || ! talyvane_inside($resolvedDirectory, $accountDirectory)
-        || talyvane_inside($resolvedDirectory, $documentRoot)) {
-        talyvane_fail(500, 'The private application directory could not be verified as outside the public document root.');
+        || talyvane_inside($resolvedDirectory, $documentRoot)
+        || $directoryPermissions === false || ($directoryPermissions & 0777) !== 0700) {
+        talyvane_fail(500, 'The private application directory could not be verified as private, writable and outside the public document root.');
     }
 }
 
