@@ -17,7 +17,7 @@ command -v curl >/dev/null
 php -r 'exit(class_exists(ZipArchive::class) ? 0 : 1);'
 
 account="$tmp/account"
-document_root="$account/public_html"
+document_root="$account/public_html/addon-domain"
 mkdir -p "$document_root" "$tmp/payload/talyvane/public" "$tmp/payload/talyvane/vendor"
 printf '%s\n' '<?php echo "TALYVANE_BOOTSTRAP_HTTP_OK";' > "$tmp/payload/talyvane/public/index.php"
 printf '%s\n' '<?php // isolated autoload fixture' > "$tmp/payload/talyvane/vendor/autoload.php"
