@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright';
 
 const baseUrl = process.env.TALYVANE_E2E_BASE_URL;
@@ -95,6 +96,24 @@ try {
     name, domain, path: cookiePath, secure, sameSite, valueLength: value.length,
   }));
   const initialSessionFiles = sessionFilesBeforeSubmit();
+  const sessionCookie = (await context.cookies(baseUrl)).find((cookie) => cookie.name === 'talyvane-session');
+  assert.ok(sessionCookie, 'installer must issue its encrypted session cookie');
+  const phpSessionInspector = [
+    'require "vendor/autoload.php";',
+    '$app = require "bootstrap/app.php";',
+    '$app->make(Illuminate\\\\Contracts\\\\Console\\\\Kernel::class)->bootstrap();',
+    '$decrypted = app("encrypter")->decryptString(getenv("TALYVANE_E2E_SESSION_COOKIE"));',
+    '$sessionId = substr($decrypted, strrpos($decrypted, "|") + 1);',
+    '$store = app("session")->driver();',
+    '$store->setId($sessionId);',
+    '$store->start();',
+    'echo json_encode(["session_file_exists" => is_file(storage_path("framework/sessions/".$sessionId)), "has_started_at" => $store->has("installer.started_at"), "keys" => array_keys($store->all())]);',
+  ].join('\\n');
+  const initialSessionInspection = JSON.parse(execFileSync('php', ['-r', phpSessionInspector], {
+    cwd: privateAppPath,
+    env: { ...process.env, TALYVANE_E2E_SESSION_COOKIE: sessionCookie.value },
+    encoding: 'utf8',
+  }));
 
   const installerKeyPath = path.join(privateAppPath, 'storage/app/private/INSTALLER-ACCESS-KEY.txt');
   const customerDocroot = process.env.TALYVANE_E2E_DOCROOT;
@@ -163,6 +182,7 @@ try {
       `Page text: ${body}`,
       `Initial session cookies: ${JSON.stringify(initialCookies)}`,
       `Initial session files: ${JSON.stringify(initialSessionFiles)}`,
+      `Initial session inspection: ${JSON.stringify(initialSessionInspection)}`,
       `POST cookie names: ${String((await submitResponse.request().allHeaders()).cookie ?? '').split(';').filter(Boolean).map((part) => part.trim().split('=')[0]).join(',')}`,
       `Session settings: ${fs.readFileSync(path.join(privateAppPath, '.env'), 'utf8').split('\n').filter((line) => /^SESSION_(DRIVER|ENCRYPT|SECURE_COOKIE|HTTP_ONLY|SAME_SITE)=/.test(line)).join('; ')}`,
       `Sanitized application log tail: ${applicationLog}`,
