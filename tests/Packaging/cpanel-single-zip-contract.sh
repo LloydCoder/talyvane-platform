@@ -50,27 +50,10 @@ for required in \
     exit 1
   }
 done
-grep -Eq '^talyvane/database/migrations/[^/]+\.php
-if grep -Eq '(^|/)\.env$|(^|/)storage/(logs|app/private)/[^.]|(^|/)bootstrap/cache/[^.]' "$tmp/private-list.txt"; then
-  echo "Private payload contains an environment secret or runtime state." >&2
-  exit 1
-fi
-
-grep -Fq 'Require all denied' "$tmp/customer/.htaccess"
-grep -Fq 'HTTP_AUTHORIZATION' "$tmp/customer/.htaccess"
-grep -Fq 'HTTP_X_XSRF_TOKEN' "$tmp/customer/.htaccess"
-grep -Fq 'RewriteRule ^(?:app|bootstrap|config|database|resources|routes|tests|vendor)' "$tmp/customer/.htaccess"
-grep -Fq 'TALYVANE_PAYLOAD_FILE' "$tmp/customer/index.php"
-grep -Fq 'ZipArchive' "$tmp/customer/index.php"
-grep -Fq 'is_link' "$tmp/customer/index.php"
-grep -Fq 'talyvane-app' "$tmp/customer/index.php"
-
-echo "Single-ZIP cPanel package contract passed."
- "$tmp/private-list.txt" || {
+grep -Eq '^talyvane/database/migrations/[^/]+\.php$' "$tmp/private-list.txt" || {
   echo "Private Laravel payload is missing database migrations." >&2
   exit 1
 }
-
 if grep -Eq '(^|/)\.env$|(^|/)storage/(logs|app/private)/[^.]|(^|/)bootstrap/cache/[^.]' "$tmp/private-list.txt"; then
   echo "Private payload contains an environment secret or runtime state." >&2
   exit 1
