@@ -51,6 +51,7 @@ fi
 grep -Fq 'TALYVANE_BOOTSTRAP_HTTP_OK' "$tmp/response.txt"
 private_app="$(find "$account/.talyvane/apps" -type f -path "*/talyvane-app/public/index.php" -print -quit | sed 's#/public/index.php##')"
 test -n "$private_app"
+test "$(stat -c '%a' "$private_app")" = '700'
 test -f "$private_app/vendor/autoload.php"
 test ! -e "$document_root/.talyvane-payload.zip"
 test ! -e "$account/talyvane-app/.env"
@@ -206,6 +207,7 @@ grep -Fq 'TALYVANE_NESTED_PUBLIC_ROOT_OK' "$tmp/nested-layout-response.html"
 grep -Fq 'EXISTING_PRIVATE_APP_PRESERVED' "$nested_account/talyvane-app/keep.txt"
 nested_private_app="$(find "$nested_account/.talyvane/apps" -type f -path "*/talyvane-app/public/index.php" -print -quit | sed 's#/public/index.php##')"
 test -n "$nested_private_app"
+test "$(stat -c '%a' "$nested_private_app")" = '700'
 test ! -e "$nested_document_root/.talyvane-payload.zip"
 test -z "$(find "$nested_account/.talyvane/apps" -type d -name '.talyvane-stage-*' -print)"
 kill "$server_pid" 2>/dev/null || true
@@ -255,6 +257,7 @@ grep -Fq 'Hosting preflight' "$tmp/actual-installer.html"
 grep -Fq 'PHP 8.3 or later' "$tmp/actual-installer.html"
 actual_private_app="$(find "$actual_account/.talyvane/apps" -type f -path "*/talyvane-app/vendor/autoload.php" -print -quit | sed 's#/vendor/autoload.php##')"
 test -n "$actual_private_app"
+test "$(stat -c '%a' "$actual_private_app")" = '700'
 test -f "$actual_private_app/.env"
 test ! -e "$actual_document_root/.talyvane-payload.zip"
 test ! -e "$actual_document_root/vendor"
