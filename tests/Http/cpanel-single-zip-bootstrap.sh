@@ -59,6 +59,46 @@ kill "$server_pid" 2>/dev/null || true
 wait "$server_pid" 2>/dev/null || true
 server_pid=""
 
+# OpenLiteSpeed's default vhost lives below /var/www/vhosts/<name>/html.
+# The /var/www system directory is not the customer's public web root; the
+# private application must be placed beside the vhost's html directory.
+ols_account="$tmp/var/www/vhosts/localhost"
+ols_document_root="$ols_account/html"
+mkdir -p "$ols_document_root" "$tmp/ols-payload/talyvane/public" "$tmp/ols-payload/talyvane/vendor"
+printf '%s\\n' '<?php echo "TALYVANE_BOOTSTRAP_OLS_LAYOUT_OK";' > "$tmp/ols-payload/talyvane/public/index.php"
+printf '%s\\n' '<?php // isolated autoload fixture' > "$tmp/ols-payload/talyvane/vendor/autoload.php"
+(
+  cd "$tmp/ols-payload"
+  zip -X -q -r "$ols_document_root/.talyvane-payload.zip" talyvane
+)
+chmod 0600 "$ols_document_root/.talyvane-payload.zip"
+cp "$repo_root/cpanel-installer/index.php" "$ols_document_root/index.php"
+cp "$repo_root/cpanel-installer/.htaccess" "$ols_document_root/.htaccess"
+ols_port="$((20000 + RANDOM % 20000))"
+HOME="$tmp/no-account-home" php -S "127.0.0.1:$ols_port" -t "$ols_document_root" > "$tmp/ols-layout-server.log" 2>&1 &
+server_pid=$!
+ols_ready=0
+for _ in $(seq 1 40); do
+  if curl --silent --fail "http://127.0.0.1:$ols_port/" > "$tmp/ols-layout-response.txt"; then
+    ols_ready=1
+    break
+  fi
+  sleep 0.25
+done
+if [[ "$ols_ready" -ne 1 ]]; then
+  cat "$tmp/ols-layout-server.log" >&2
+  echo "OpenLiteSpeed-style /var/www/vhosts layout did not bootstrap." >&2
+  exit 1
+fi
+grep -Fq 'TALYVANE_BOOTSTRAP_OLS_LAYOUT_OK' "$tmp/ols-layout-response.txt"
+test -f "$ols_account/talyvane-app/public/index.php"
+test -f "$ols_account/talyvane-app/vendor/autoload.php"
+test ! -e "$tmp/var/talyvane-app"
+kill "$server_pid" 2>/dev/null || true
+wait "$server_pid" 2>/dev/null || true
+server_pid=""
+echo "OpenLiteSpeed /var/www/vhosts layout resolved to its vhost account directory."
+
 
 assert_malicious_archive_rejected() {
   local attack="$1"
