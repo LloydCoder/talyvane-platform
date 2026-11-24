@@ -86,6 +86,16 @@ try {
   assert.equal(installResponse.status(), 200, 'fresh customer ZIP must bootstrap and serve installer over HTTPS');
   assert.match(await page.title(), /Install Talyvane/i);
 
+  const sessionDirectory = path.join(privateAppPath, 'storage/framework/sessions');
+  const sessionFilesBeforeSubmit = () => fs.readdirSync(sessionDirectory).map((name) => {
+    const stat = fs.statSync(path.join(sessionDirectory, name));
+    return { name, size: stat.size, mode: (stat.mode & 0o777).toString(8) };
+  });
+  const initialCookies = (await context.cookies(baseUrl)).map(({ name, domain, path: cookiePath, secure, sameSite, value }) => ({
+    name, domain, path: cookiePath, secure, sameSite, valueLength: value.length,
+  }));
+  const initialSessionFiles = sessionFilesBeforeSubmit();
+
   const installerKeyPath = path.join(privateAppPath, 'storage/app/private/INSTALLER-ACCESS-KEY.txt');
   const customerDocroot = process.env.TALYVANE_E2E_DOCROOT;
   assert.ok(customerDocroot, 'the exact extracted customer document root must be configured');
@@ -151,6 +161,10 @@ try {
       `Current URL: ${page.url()}`,
       `Visible errors: ${alert.join(' | ')}`,
       `Page text: ${body}`,
+      `Initial session cookies: ${JSON.stringify(initialCookies)}`,
+      `Initial session files: ${JSON.stringify(initialSessionFiles)}`,
+      `POST cookie names: ${String((await submitResponse.request().allHeaders()).cookie ?? '').split(';').filter(Boolean).map((part) => part.trim().split('=')[0]).join(',')}`,
+      `Session settings: ${fs.readFileSync(path.join(privateAppPath, '.env'), 'utf8').split('\n').filter((line) => /^SESSION_(DRIVER|ENCRYPT|SECURE_COOKIE|HTTP_ONLY|SAME_SITE)=/.test(line)).join('; ')}`,
       `Sanitized application log tail: ${applicationLog}`,
     ].join('\n'));
   }
