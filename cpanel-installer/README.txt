@@ -12,7 +12,7 @@ Confirm with your hosting provider that the domain has:
 - PHP extensions required by Talyvane, including ZIP / ZipArchive for the first request, GD with WebP support, PDO MySQL, cURL, Mbstring, OpenSSL, DOM, Fileinfo, XML, and the other Laravel-required extensions.
 - HTTPS enabled and working for the domain.
 - MySQL or a supported MariaDB database.
-- Permission for the domain's PHP process to write to the cPanel account directory outside the public document root.
+- Permission for the domain's PHP process to create a private application directory in the cPanel account home, outside the public document root.
 - Apache or LiteSpeed-compatible .htaccess and rewrite support.
 
 The exact PHP version and extensions used by the web request matter. CLI PHP settings do not prove that the domain's web PHP handler has the same configuration.
@@ -43,22 +43,20 @@ STEP 3 — START THE BROWSER INSTALLER
 2. The bootstrap checks the package and hosting layout, extracts the private Laravel application into the account area outside public web roots, removes the temporary payload and opens the Laravel installer.
 3. If the bootstrap reports an unsupported layout or permissions error, stop. Do not move the application into the public document root and do not set permissions to 0777.
 
-The private application directory is named talyvane-app. On a typical cPanel account it is placed in the account home directory, beside public_html. For an addon domain nested under public_html, it is placed outside the outermost public_html tree.
+The private application is automatically placed in a per-domain directory beneath the cPanel account's private .talyvane/apps directory. The installer resolves the account home and generates a unique directory for each domain. It does not require you to change the document root, create directories, or edit paths.
 
 STEP 4 — RETRIEVE THE PRIVATE INSTALLER KEY
 
 The installer access key is deliberately not displayed in the browser and is not placed in a URL.
 
-1. In cPanel File Manager, use the account's Home directory (not the domain's public document root).
-2. Open talyvane-app.
-3. Open storage, then app, then private.
-4. Open INSTALLER-ACCESS-KEY.txt and copy its complete contents.
-5. Return to the HTTPS installer page and paste the key into the Private installer access key field.
+1. In cPanel File Manager, open the account's Home directory (not the domain's public document root).
+2. Use File Manager's Search function to find INSTALLER-ACCESS-KEY.txt within the account home. Enable Show Hidden Files if required.
+3. Open the matching file inside .talyvane/apps/<domain-specific-directory>/talyvane-app/storage/app/private and copy its complete contents.
+4. Return to the HTTPS installer page and paste the key into the Private installer access key field.
 
-Typical path:
-talyvane-app/storage/app/private/INSTALLER-ACCESS-KEY.txt
+The hidden private directory is generated automatically and is unique to this domain. Do not create or rename it manually.
 
-If you cannot see talyvane-app in the account Home directory, do not guess another path or create a second copy. The bootstrap may have stopped before private extraction; read its error and resolve that first.
+If the key file does not exist, the bootstrap may have stopped before private extraction; read its error and resolve that first.
 
 Never share the key, put it in a URL, email it, or save it inside the public document root.
 
@@ -114,7 +112,7 @@ TROUBLESHOOTING
 - PHP diagnostic returns 403 while static files work: this is a web-server/PHP-handler/access-control issue to investigate with the hosting provider's error log. The Laravel installer cannot cause a standalone PHP probe to return 403 before Laravel executes.
 - ZIP extension missing: enable PHP ZIP / ZipArchive for the domain's web PHP version, then retry.
 - Account directory is not writable: ask the provider to confirm the PHP handler's effective account identity and safe write access outside the document root. Never use 0777.
-- Existing talyvane-app directory: stop and back it up or investigate it before retrying. The installer intentionally does not overwrite it.
+- Existing talyvane-app directory: it is preserved. The installer uses an isolated per-domain private path and does not overwrite an existing application.
 - Preflight reports BLOCKED: resolve each named requirement before submitting configuration.
 - Email codes do not arrive: verify SMTP host, port, TLS mode, credentials, sender authorization, outbound SMTP policy and spam/quarantine.
 - HTTP 403/500 after upload: preserve the files and error response; record the exact URL, timestamp, PHP version/handler and provider error-log entry. Do not disable WAF or rewrite protections globally.

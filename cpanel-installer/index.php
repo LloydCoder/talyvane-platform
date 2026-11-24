@@ -87,6 +87,25 @@ function talyvane_resolve_private_parent(string $documentRoot): ?string
         }
     }
 
+    // If the domain's document root is an existing Laravel public/ folder,
+    // its parent is an application checkout, not the account home. Step one
+    // level above that checkout so the new private deployment is a sibling and
+    // never collides with or overwrites the existing source tree.
+    if (strtolower(basename($documentRoot)) === 'public') {
+        $existingProject = realpath(dirname($documentRoot));
+        if ($existingProject !== false
+            && is_file($existingProject.DIRECTORY_SEPARATOR.'artisan')
+            && is_dir($existingProject.DIRECTORY_SEPARATOR.'app')
+            && is_dir($existingProject.DIRECTORY_SEPARATOR.'bootstrap')) {
+            $accountHome = realpath(dirname($existingProject));
+            if ($accountHome !== false && is_dir($accountHome)
+                && ! talyvane_inside($accountHome, $documentRoot)
+                && ! talyvane_contains_public_root_component($accountHome)) {
+                return $accountHome;
+            }
+        }
+    }
+
     // cPanel addon domains are commonly nested below public_html. Also
     // recognize the conventional www/htdocs/httpdocs/public/web roots.
     // Select the parent of the outermost public-root component.
@@ -153,7 +172,7 @@ function talyvane_remove_staging_directory(string $directory): void
     @rmdir($directory);
 }
 
-function talyvane_extract_private_application(string $documentRoot, string $accountDirectory): string
+function talyvane_extract_private_application(string $documentRoot, string $privateApplicationParent): string
 {
     if (! class_exists(ZipArchive::class)) {
         talyvane_fail(500, 'This hosting account does not have PHP ZipArchive enabled. Enable the PHP ZIP extension and reload.');
@@ -164,7 +183,7 @@ function talyvane_extract_private_application(string $documentRoot, string $acco
         talyvane_fail(500, 'The bundled application archive is missing or unreadable. Re-upload the original Talyvane installation ZIP and extract it again.');
     }
 
-    $target = $accountDirectory.DIRECTORY_SEPARATOR.TALYVANE_APP_DIRECTORY;
+    $target = $privateApplicationParent.DIRECTORY_SEPARATOR.TALYVANE_APP_DIRECTORY;
     if (file_exists($target) || is_link($target)) {
         $resolvedTarget = realpath($target);
 
@@ -179,8 +198,8 @@ function talyvane_extract_private_application(string $documentRoot, string $acco
         talyvane_fail(409, 'A talyvane-app directory already exists in the private account location. Nothing was overwritten. Back up and inspect that directory before retrying; the installer will not replace an existing application.');
     }
 
-    if (! is_writable($accountDirectory)) {
-        talyvane_fail(500, 'The directory one level above the domain document root is not writable by PHP. This hosting layout cannot safely install Talyvane.');
+    if (! is_writable($privateApplicationParent)) {
+        talyvane_fail(500, 'The automatically resolved private application directory is not writable by PHP. This hosting account cannot safely install Talyvane in its current filesystem policy.');
     }
 
     $archive = new ZipArchive();
@@ -236,7 +255,7 @@ function talyvane_extract_private_application(string $documentRoot, string $acco
         }
     }
 
-    $staging = $accountDirectory.DIRECTORY_SEPARATOR.'.talyvane-stage-'.bin2hex(random_bytes(12));
+    $staging = $privateApplicationParent.DIRECTORY_SEPARATOR.'.talyvane-stage-'.bin2hex(random_bytes(12));
     if (! mkdir($staging, 0700)) {
         $archive->close();
         talyvane_fail(500, 'A private staging directory could not be created. Check the account directory permissions.');
@@ -262,7 +281,7 @@ function talyvane_extract_private_application(string $documentRoot, string $acco
     }
 
     @rmdir($staging);
-    @chmod($target, 0750);
+    @chmod($target, 0700);
 
     if (! is_file($target.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'index.php')) {
         talyvane_fail(500, 'The private application move could not be verified. Contact hosting support before retrying.');
@@ -286,7 +305,32 @@ if ($accountDirectory === null || $accountDirectory === $documentRoot) {
     talyvane_fail(500, 'The account home directory could not be resolved safely. Configure the domain beneath the cPanel account home and ensure PHP can identify that private directory.');
 }
 
-$privateApplication = $accountDirectory.DIRECTORY_SEPARATOR.TALYVANE_APP_DIRECTORY;
+// Give each distinct document root its own private application directory.
+// Deriving the key only from the canonical filesystem path avoids trusting the
+// HTTP Host header and prevents host-header-driven directory creation.
+$siteKey = substr(hash('sha256', $documentRoot), 0, 32);
+$privateRoot = $accountDirectory.DIRECTORY_SEPARATOR.'.talyvane';
+$privateAppsRoot = $privateRoot.DIRECTORY_SEPARATOR.'apps';
+$privateApplicationParent = $privateAppsRoot.DIRECTORY_SEPARATOR.$siteKey;
+
+foreach ([$privateRoot, $privateAppsRoot, $privateApplicationParent] as $privateDirectory) {
+    if (is_link($privateDirectory) || (file_exists($privateDirectory) && ! is_dir($privateDirectory))) {
+        talyvane_fail(500, 'The private Talyvane storage path contains an unsafe file or symbolic link. No existing files were changed.');
+    }
+    if (! is_dir($privateDirectory) && ! @mkdir($privateDirectory, 0700)) {
+        talyvane_fail(500, 'The hosting account does not allow PHP to create a private application directory outside the document root. Ask the hosting provider to correct the account ownership or PHP execution permissions.');
+    }
+    @chmod($privateDirectory, 0700);
+    $resolvedDirectory = realpath($privateDirectory);
+    $directoryPermissions = $resolvedDirectory !== false ? @fileperms($resolvedDirectory) : false;
+    if ($resolvedDirectory === false || ! talyvane_inside($resolvedDirectory, $accountDirectory)
+        || talyvane_inside($resolvedDirectory, $documentRoot)
+        || $directoryPermissions === false || ($directoryPermissions & 0777) !== 0700) {
+        talyvane_fail(500, 'The private application directory could not be verified as private, writable and outside the public document root.');
+    }
+}
+
+$privateApplication = $privateApplicationParent.DIRECTORY_SEPARATOR.TALYVANE_APP_DIRECTORY;
 
 // Detect a public document root nested in an existing private application
 // before deciding whether extraction is needed. This must run for both fresh
@@ -302,7 +346,7 @@ if (file_exists($privateApplication) || is_link($privateApplication)) {
 }
 
 if (! is_dir($privateApplication)) {
-    $privateApplication = talyvane_extract_private_application($documentRoot, $accountDirectory);
+    $privateApplication = talyvane_extract_private_application($documentRoot, $privateApplicationParent);
 } else {
     $leftoverPayload = $documentRoot.DIRECTORY_SEPARATOR.TALYVANE_PAYLOAD_FILE;
 

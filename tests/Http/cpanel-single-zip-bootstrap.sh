@@ -49,8 +49,10 @@ if [[ "$ready" -ne 1 ]]; then
 fi
 
 grep -Fq 'TALYVANE_BOOTSTRAP_HTTP_OK' "$tmp/response.txt"
-test -f "$account/talyvane-app/public/index.php"
-test -f "$account/talyvane-app/vendor/autoload.php"
+private_app="$(find "$account/.talyvane/apps" -type f -path "*/talyvane-app/public/index.php" -print -quit | sed 's#/public/index.php##')"
+test -n "$private_app"
+test "$(stat -c '%a' "$private_app")" = '700'
+test -f "$private_app/vendor/autoload.php"
 test ! -e "$document_root/.talyvane-payload.zip"
 test ! -e "$account/talyvane-app/.env"
 
@@ -91,8 +93,9 @@ if [[ "$ols_ready" -ne 1 ]]; then
   exit 1
 fi
 echo '<?php echo "TALYVANE_BOOTSTRAP_OLS_LAYOUT_OK";' > "$tmp/ols-payload/talyvane/public/index.php"
-test -f "$ols_account/talyvane-app/public/index.php"
-test -f "$ols_account/talyvane-app/vendor/autoload.php"
+ols_private_app="$(find "$ols_account/.talyvane/apps" -type f -path "*/talyvane-app/public/index.php" -print -quit | sed 's#/public/index.php##')"
+test -n "$ols_private_app"
+test -f "$ols_private_app/vendor/autoload.php"
 test ! -e "$tmp/var/talyvane-app"
 kill "$server_pid" 2>/dev/null || true
 wait "$server_pid" 2>/dev/null || true
@@ -145,9 +148,9 @@ PY
     exit 1
   fi
   grep -Fq "$expected" "$tmp/$attack-response.html"
-  test ! -e "$attack_account/talyvane-app"
+  test -z "$(find "$attack_account/.talyvane/apps" -type f -path "*/talyvane-app/public/index.php" -print -quit 2>/dev/null)"
   if [[ "$attack" == "incomplete" ]]; then
-    staging_directories="$(find "$attack_account" -maxdepth 1 -type d -name '.talyvane-stage-*' -print)"
+    staging_directories="$(find "$attack_account/.talyvane/apps" -type d -name '.talyvane-stage-*' -print 2>/dev/null)"
     test -z "$staging_directories"
   fi
   kill "$server_pid" 2>/dev/null || true
@@ -160,47 +163,57 @@ assert_malicious_archive_rejected "traversal" "unsafe path"
 assert_malicious_archive_rejected "symlink" "unsafe path"
 assert_malicious_archive_rejected "incomplete" "incomplete"
 
-# A domain document root nested inside an existing private app is a distinct,
-# unsafe layout. The bootstrap must explain the conflict and preserve files.
+# A domain document root nested inside an existing Laravel public/ directory
+# must bootstrap into a separate private per-domain path and preserve the
+# existing checkout, even when the PHP environment does not expose HOME.
 nested_account="$tmp/nested-layout-account"
 nested_document_root="$nested_account/talyvane-app/public"
-mkdir -p "$nested_document_root"
+mkdir -p "$nested_document_root" "$nested_account/talyvane-app/app" "$nested_account/talyvane-app/bootstrap"
+printf '%s\n' '<?php // existing Laravel project root marker' > "$nested_account/talyvane-app/artisan"
 printf '%s\n' 'EXISTING_PRIVATE_APP_PRESERVED' > "$nested_account/talyvane-app/keep.txt"
 cp "$repo_root/cpanel-installer/index.php" "$nested_document_root/index.php"
 cp "$repo_root/cpanel-installer/.htaccess" "$nested_document_root/.htaccess"
-: > "$nested_document_root/.talyvane-payload.zip"
+mkdir -p "$tmp/nested-payload/talyvane/public" "$tmp/nested-payload/talyvane/vendor"
+printf '%s\n' '<?php echo "TALYVANE_NESTED_PUBLIC_ROOT_OK";' > "$tmp/nested-payload/talyvane/public/index.php"
+printf '%s\n' '<?php // isolated autoload fixture' > "$tmp/nested-payload/talyvane/vendor/autoload.php"
+(
+  cd "$tmp/nested-payload"
+  zip -X -q -r "$nested_document_root/.talyvane-payload.zip" talyvane
+)
 chmod 0600 "$nested_document_root/.talyvane-payload.zip"
 cat > "$tmp/nested-layout-router.php" <<'PHP'
 <?php
-$_SERVER['HOME'] = getenv('TALYVANE_TEST_HOME') ?: '';
+$_SERVER['HOME'] = '';
 require $_SERVER['DOCUMENT_ROOT'].'/index.php';
 PHP
 nested_port="$((20000 + RANDOM % 20000))"
-TALYVANE_TEST_HOME="$nested_account" php -S "127.0.0.1:$nested_port" -t "$nested_document_root" "$tmp/nested-layout-router.php" > "$tmp/nested-layout-server.log" 2>&1 &
+php -S "127.0.0.1:$nested_port" -t "$nested_document_root" "$tmp/nested-layout-router.php" > "$tmp/nested-layout-server.log" 2>&1 &
 server_pid=$!
 nested_status=""
 for _ in $(seq 1 40); do
   nested_status="$(curl --silent --show-error -o "$tmp/nested-layout-response.html" -w '%{http_code}' "http://127.0.0.1:$nested_port/" || true)"
-  if [[ "$nested_status" == "409" ]]; then break; fi
+  if [[ "$nested_status" == "200" ]]; then break; fi
   sleep 0.25
 done
-if [[ "$nested_status" != "409" ]]; then
+if [[ "$nested_status" != "200" ]]; then
   echo "Nested layout response body:" >&2
   cat "$tmp/nested-layout-response.html" >&2 || true
   echo "Nested layout PHP server log:" >&2
   cat "$tmp/nested-layout-server.log" >&2 || true
-  echo "Expected nested private-app document root to fail with HTTP 409; got $nested_status." >&2
+  echo "Expected nested Laravel public/ document root to bootstrap with HTTP 200; got $nested_status." >&2
   exit 1
 fi
-grep -Fq 'document root is inside an existing talyvane-app directory' "$tmp/nested-layout-response.html"
-grep -Fq 'separate public document root' "$tmp/nested-layout-response.html"
+grep -Fq 'TALYVANE_NESTED_PUBLIC_ROOT_OK' "$tmp/nested-layout-response.html"
 grep -Fq 'EXISTING_PRIVATE_APP_PRESERVED' "$nested_account/talyvane-app/keep.txt"
-test -f "$nested_document_root/.talyvane-payload.zip"
-test -z "$(find "$nested_account" -maxdepth 1 -type d -name '.talyvane-stage-*' -print)"
+nested_private_app="$(find "$nested_account/.talyvane/apps" -type f -path "*/talyvane-app/public/index.php" -print -quit | sed 's#/public/index.php##')"
+test -n "$nested_private_app"
+test "$(stat -c '%a' "$nested_private_app")" = '700'
+test ! -e "$nested_document_root/.talyvane-payload.zip"
+test -z "$(find "$nested_account/.talyvane/apps" -type d -name '.talyvane-stage-*' -print)"
 kill "$server_pid" 2>/dev/null || true
 wait "$server_pid" 2>/dev/null || true
 server_pid=""
-echo "Nested private-app/public-root conflict is diagnosed without overwriting files."
+echo "Laravel public/ document root bootstraps automatically without overwriting the existing project."
 
 # Exercise the complete packaged Laravel browser installer, not just a fixture.
 actual_account="$tmp/actual-account"
@@ -242,12 +255,14 @@ fi
 grep -Fq 'FIRST-TIME SETUP' "$tmp/actual-installer.html"
 grep -Fq 'Hosting preflight' "$tmp/actual-installer.html"
 grep -Fq 'PHP 8.3 or later' "$tmp/actual-installer.html"
-test -f "$actual_account/talyvane-app/vendor/autoload.php"
-test -f "$actual_account/talyvane-app/.env"
+actual_private_app="$(find "$actual_account/.talyvane/apps" -type f -path "*/talyvane-app/vendor/autoload.php" -print -quit | sed 's#/vendor/autoload.php##')"
+test -n "$actual_private_app"
+test "$(stat -c '%a' "$actual_private_app")" = '700'
+test -f "$actual_private_app/.env"
 test ! -e "$actual_document_root/.talyvane-payload.zip"
 test ! -e "$actual_document_root/vendor"
 test ! -e "$actual_document_root/.env"
-test "$(stat -c '%a' "$actual_account/talyvane-app/.env")" = '600'
+test "$(stat -c '%a' "$actual_private_app/.env")" = '600'
 
 asset_code="$(curl --silent --show-error -H 'Host: localhost' -o "$tmp/asset.css" -w '%{http_code}' "http://127.0.0.1:$actual_port/css/app.css")"
 test "$asset_code" = '200'
@@ -255,12 +270,12 @@ grep -Fq 'color-scheme: dark' "$tmp/asset.css"
 
 # A stale symlink at the temporary payload path must be removed as a link,
 # never followed to or used to delete the private .env target.
-ln -s "$actual_account/talyvane-app/.env" "$actual_document_root/.talyvane-payload.zip"
+ln -s "$actual_private_app/.env" "$actual_document_root/.talyvane-payload.zip"
 stale_payload_code="$(curl --silent --show-error -H 'Host: localhost' -o "$tmp/stale-payload.html" -w '%{http_code}' "http://127.0.0.1:$actual_port/install")"
 test "$stale_payload_code" = '200'
 test ! -L "$actual_document_root/.talyvane-payload.zip"
-test -f "$actual_account/talyvane-app/.env"
-test "$(stat -c '%a' "$actual_account/talyvane-app/.env")" = '600'
+test -f "$actual_private_app/.env"
+test "$(stat -c '%a' "$actual_private_app/.env")" = '600'
 
 kill "$actual_server_pid" 2>/dev/null || true
 wait "$actual_server_pid" 2>/dev/null || true
