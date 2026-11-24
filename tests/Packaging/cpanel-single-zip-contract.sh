@@ -25,7 +25,9 @@ fi
 unzip -q "$archive" -d "$tmp/customer"
 php -l "$tmp/customer/index.php"
 grep -Fq "commit=$expected_commit" "$tmp/customer/RELEASE-MANIFEST.txt"
-grep -Fq 'distribution=single-zip-cpanel-customer-installer' "$tmp/customer/RELEASE-MANIFEST.txt"
+grep -Fq 'distribution=single-zip-cpanel-owner-acceptance-candidate' "$tmp/customer/RELEASE-MANIFEST.txt"
+grep -Fq 'release_status=NOT_FOR_PRODUCTION' "$tmp/customer/RELEASE-MANIFEST.txt"
+grep -Fq 'scope=non-production-staging-only' "$tmp/customer/RELEASE-MANIFEST.txt"
 
 test "$(stat -c '%a' "$tmp/customer/.talyvane-payload.zip")" = '600'
 unzip -tq "$tmp/customer/.talyvane-payload.zip"
