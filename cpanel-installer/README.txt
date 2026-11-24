@@ -1,7 +1,7 @@
 TALYVANE — SINGLE-ZIP CPANEL INSTALLER
 =======================================
 
-CUSTOMER INSTALLATION GUIDE
+OWNER STAGING ACCEPTANCE GUIDE
 
 This is an owner-only cPanel acceptance candidate designed for a non-production staging domain using cPanel File Manager and a web browser. Upload only the inner Talyvane-cPanel-<commit>.zip supplied with its matching SHA-256 checksum. Do not upload the outer GitHub Actions artifact archive or the GitHub source-code ZIP. This candidate is not a production release and must not be used with customer production data.
 
