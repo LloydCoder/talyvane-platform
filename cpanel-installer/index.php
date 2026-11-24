@@ -305,14 +305,10 @@ if ($accountDirectory === null || $accountDirectory === $documentRoot) {
     talyvane_fail(500, 'The account home directory could not be resolved safely. Configure the domain beneath the cPanel account home and ensure PHP can identify that private directory.');
 }
 
-// Give every domain its own private application directory. This avoids collisions
-// with existing Laravel checkouts and other domains on the same cPanel account.
-// The deterministic key is derived from the vhost name and its actual document
-// root; no customer path editing or document-root changes are required.
-$serverName = strtolower(trim((string) ($_SERVER['SERVER_NAME'] ?? $_SERVER['HTTP_HOST'] ?? '')));
-$serverName = preg_replace('/:\\d+$/', '', $serverName) ?? '';
-$siteIdentity = ($serverName !== '' ? $serverName : 'default')."\\0".$documentRoot;
-$siteKey = substr(hash('sha256', $siteIdentity), 0, 32);
+// Give each distinct document root its own private application directory.
+// Deriving the key only from the canonical filesystem path avoids trusting the
+// HTTP Host header and prevents host-header-driven directory creation.
+$siteKey = substr(hash('sha256', $documentRoot), 0, 32);
 $privateRoot = $accountDirectory.DIRECTORY_SEPARATOR.'.talyvane';
 $privateAppsRoot = $privateRoot.DIRECTORY_SEPARATOR.'apps';
 $privateApplicationParent = $privateAppsRoot.DIRECTORY_SEPARATOR.$siteKey;
