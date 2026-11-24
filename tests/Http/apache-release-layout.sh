@@ -34,11 +34,15 @@ app_source="$tmp/talyvane"
 run_layout() {
   local kind="$1"
   local public_zip="$2"
-  local webroot="$tmp/$kind/public-root"
+  local layout_root="$tmp/$kind"
+  local webroot="$layout_root/public-root"
   local private_root="$tmp/$kind/talyvane-app"
+  local document_root="/var/www/html"
   local container_name="talyvane-http-$kind-$RANDOM"
+  if [[ "$kind" == "addon" ]]; then document_root="/var/www/html/addon-domain"; fi
   mkdir -p "$webroot" "$private_root/public" "$private_root/app" "$private_root/storage"
   unzip -q "$public_zip" -d "$webroot"
+  if [[ "$kind" == "addon" ]]; then mkdir -p "$layout_root/addon-domain"; cp -a "$webroot/." "$layout_root/addon-domain/"; fi
   cp -a "$app_source/." "$private_root/"
   # Keep the exact release's public rules and wrapper, but use a deterministic
   # front-controller fixture so this test isolates HTTP routing and path layout.
@@ -51,11 +55,11 @@ run_layout() {
 
   docker run -d --name "$container_name" \
     -p 127.0.0.1:18080:80 \
-    -v "$webroot:/var/www/html:ro" \
+    -e "TALYVANE_DOCUMENT_ROOT=$document_root" \
+    -v "$layout_root:/var/www/html:ro" \
     -v "$private_root:/var/www/talyvane-app:ro" \
-    php:8.3-apache >/dev/null
+    php:8.3-apache bash -lc 'a2enmod rewrite headers >/dev/null; sed -ri "s/AllowOverride None/AllowOverride All/g" /etc/apache2/apache2.conf; sed -ri "s#DocumentRoot /var/www/html#DocumentRoot $TALYVANE_DOCUMENT_ROOT#" /etc/apache2/sites-available/000-default.conf; exec apache2-foreground' >/dev/null
   container="$container_name"
-  docker exec "$container" bash -lc 'a2enmod rewrite headers >/dev/null && sed -ri "s/AllowOverride None/AllowOverride All/g" /etc/apache2/apache2.conf && apache2ctl -k graceful'
   local ready=0
   for _ in $(seq 1 40); do
     if curl --silent --output /dev/null http://127.0.0.1:18080/; then ready=1; break; fi
