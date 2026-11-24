@@ -10,20 +10,19 @@ Confirm these capabilities with the hosting provider before purchase or deployme
 - PHP extensions: ZIP/ZipArchive, PDO MySQL, GD with WebP, cURL, Mbstring, OpenSSL, DOM, Fileinfo and XML, plus Laravel's standard requirements.
 - MySQL or supported MariaDB, with a dedicated empty database and a database user allowed to create/alter tables.
 - HTTPS and Apache or LiteSpeed-compatible `.htaccess` rewrite support.
-- PHP can create a private application directory in the cPanel account home, outside every public document root.
+- PHP can create a private per-domain application directory in the cPanel account home, outside the domain's public document root.
 - Sufficient disk quota and upload/extraction limits for the release archive.
 
 cPanel plans differ. A plan that prevents PHP from writing outside the document root or including the private Laravel front controller is not compatible with this package. Do not disable WAF or weaken filesystem permissions to force compatibility.
 
 ## Before uploading
 
-1. Create a dedicated domain/subdomain and confirm its document root in cPanel **Domains**.
-2. The document root must be a separate public directory, not the Laravel project root and not a directory nested inside an existing private `talyvane-app`.
-3. In the cPanel account home, confirm that a `talyvane-app` directory does not already exist. The installer intentionally refuses to overwrite an existing directory. Back up and investigate any existing directory; do not delete or rename it without confirming what it contains.
-4. Create a new, empty MySQL/MariaDB database and a dedicated user. Do not use an existing application database.
-5. Enable HTTPS and verify the domain opens without a certificate warning.
+1. Create the domain/subdomain in cPanel and enable HTTPS.
+2. Leave the domain's assigned document root exactly as cPanel configured it. Do not point it to another directory.
+3. Create a new, empty MySQL/MariaDB database and a dedicated user. Do not use an existing application database.
+4. No manual private-directory creation is required. The bootstrap derives a per-domain private path automatically, outside the document root, and preserves existing application directories.
 
-For a typical cPanel subdomain, the document root is something like `/home/CPANEL_USER/public_html/talyvane.example.com`; the private application is placed at `/home/CPANEL_USER/talyvane-app`. The exact public path is assigned by cPanel. The bootstrap resolves the account home and refuses unsafe or ambiguous layouts.
+The installer is designed for common cPanel layouts, including `public_html`, addon-domain subdirectories, and a domain already pointed at a Laravel `public/` directory. It does not require customers to edit paths or change the domain's document root.
 
 ## Install using File Manager and a browser
 
@@ -35,11 +34,11 @@ For a typical cPanel subdomain, the document root is something like `/home/CPANE
 6. Open the domain over HTTPS in a browser. The bootstrap validates the archive and hosting layout, extracts the private Laravel application outside the document root, removes the temporary payload, and forwards the request into Laravel. An uninstalled application redirects to the browser wizard at `/install`.
 7. If the bootstrap returns an error, stop and follow the exact message. Do not change permissions to 0777, move private application files into the public directory, disable WAF, or repeatedly re-extract over existing files.
 
-The bootstrap uses the private directory `talyvane-app` in the account home. It fails closed if that directory already exists or if the domain document root is nested inside it. This is intentional protection against overwriting an existing application or exposing private source code.
+The private directory is generated automatically beneath the account home's hidden `.talyvane/apps/` directory. Its domain-specific name prevents collisions with existing Laravel checkouts and other sites on the same account. The bootstrap preserves existing directories and does not require a document-root change.
 
 ## Complete the browser wizard
 
-1. In File Manager, open the private account-home directory `talyvane-app/storage/app/private/INSTALLER-ACCESS-KEY.txt`. Copy the one-time key. Never put it in a URL, email, screenshot or support ticket.
+1. In File Manager, open the account Home directory and use Search to find `INSTALLER-ACCESS-KEY.txt` (enable Show Hidden Files if needed). The key is inside the matching per-domain directory under `.talyvane/apps/<domain-specific-directory>/talyvane-app/storage/app/private/`. Copy the one-time key. Never put it in a URL, email, screenshot or support ticket.
 2. Return to `https://your-domain.example/install` and enter the key.
 3. Complete hosting preflight. All checks must pass before configuration can be submitted.
 4. Enter the exact HTTPS application URL, database connection details, SMTP connection details, Super Admin name/email and a separate recovery email address.
@@ -61,8 +60,8 @@ The bootstrap uses the private directory `talyvane-app` in the account home. It 
 ## Troubleshooting
 
 - **Standalone PHP file returns 403 while static files work:** this is a web-server/PHP-handler/access-control issue before Laravel executes. Ask the provider for the domain's access/error log entry, PHP-FPM/LSPHP handler status and effective file ownership. Do not assume it is an application bug and do not disable WAF.
-- **The installer returns HTTP 409 about an existing `talyvane-app`:** stop. The installer will not overwrite it. Back up and identify the existing directory before planning a clean deployment.
-- **The installer reports a nested document root:** the domain is pointing inside the private application directory. Configure a separate public document root before using this package. Never point the domain at the private project root.
+- **Existing `talyvane-app` directory:** it is preserved. The installer creates a separate per-domain private application path.
+- **Private directory creation is blocked:** ask the provider to confirm the PHP process identity and safe write access in the account home outside the public document root. Never use 0777.
 - **ZIP extension missing:** enable PHP ZIP/ZipArchive for the domain's web PHP version.
 - **Private account directory is not writable:** ask the provider to confirm the PHP process identity and safe write access outside the document root. Never use 0777.
 - **Installer preflight is blocked:** resolve each named requirement; do not bypass the check.
