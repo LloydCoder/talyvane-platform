@@ -30,11 +30,30 @@ grep -Fq 'distribution=single-zip-cpanel-customer-installer' "$tmp/customer/RELE
 test "$(stat -c '%a' "$tmp/customer/.talyvane-payload.zip")" = '600'
 unzip -tq "$tmp/customer/.talyvane-payload.zip"
 unzip -Z1 "$tmp/customer/.talyvane-payload.zip" > "$tmp/private-list.txt"
-grep -Fxq 'talyvane/public/index.php' "$tmp/private-list.txt"
-grep -Fxq 'talyvane/vendor/autoload.php' "$tmp/private-list.txt"
-grep -Fxq 'talyvane/install/bootstrap.php' "$tmp/private-list.txt"
-grep -Fxq 'talyvane/composer.lock' "$tmp/private-list.txt"
-
+# The private payload must be a complete, runnable Laravel deployment,
+# not merely a ZIP that contains a public front controller.
+for required in \
+  talyvane/artisan \
+  talyvane/app/Providers/AppServiceProvider.php \
+  talyvane/bootstrap/app.php \
+  talyvane/composer.json \
+  talyvane/composer.lock \
+  talyvane/config/app.php \
+  talyvane/install/bootstrap.php \
+  talyvane/public/index.php \
+  talyvane/resources/views/home.blade.php \
+  talyvane/routes/web.php \
+  talyvane/vendor/autoload.php \
+  talyvane/.env.example; do
+  grep -Fxq "$required" "$tmp/private-list.txt" || {
+    echo "Private Laravel payload is incomplete: $required" >&2
+    exit 1
+  }
+done
+grep -Eq '^talyvane/database/migrations/[^/]+\.php$' "$tmp/private-list.txt" || {
+  echo "Private Laravel payload is missing database migrations." >&2
+  exit 1
+}
 if grep -Eq '(^|/)\.env$|(^|/)storage/(logs|app/private)/[^.]|(^|/)bootstrap/cache/[^.]' "$tmp/private-list.txt"; then
   echo "Private payload contains an environment secret or runtime state." >&2
   exit 1

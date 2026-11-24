@@ -29,6 +29,7 @@ class InstallerBootstrapEnvironmentTest extends TestCase
             'DB_USERNAME=talyvane',
             'DB_PASSWORD=',
             'SESSION_DRIVER=file',
+            'SESSION_COOKIE=talyvane-session',
             'SESSION_ENCRYPT=true',
             'SESSION_SECURE_COOKIE=false',
             'CACHE_STORE=file',
@@ -57,6 +58,7 @@ class InstallerBootstrapEnvironmentTest extends TestCase
         $this->assertStringContainsString("APP_ENV=production", $environment);
         $this->assertStringContainsString("APP_DEBUG=false", $environment);
         $this->assertStringContainsString("SESSION_DRIVER=file", $environment);
+        $this->assertStringContainsString("SESSION_COOKIE=talyvane-session", $environment);
         $this->assertStringContainsString("SESSION_ENCRYPT=true", $environment);
         $this->assertStringContainsString("SESSION_SECURE_COOKIE=true", $environment);
         $this->assertStringContainsString("CACHE_STORE=file", $environment);

@@ -1,0 +1,140 @@
+name: Installer browser end-to-end
+
+# Exercises the exact customer ZIP through its public bootstrap and private extraction.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installer-e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-install:
+    name: Real MySQL + SMTP + HTTPS browser installation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: talyvane_e2e
+          MYSQL_USER: talyvane
+          MYSQL_PASSWORD: e2e-db-password
+          MYSQL_ROOT_PASSWORD: root-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+      mailpit:
+        image: axllent/mailpit:v1.27.8
+        env:
+          MP_SMTP_AUTH_ACCEPT_ANY: "1"
+          MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+        ports:
+          - 1025:1025
+          - 8025:8025
+    steps:
+      - name: Check out source without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP with production extensions
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.3'
+          extensions: ctype, curl, dom, fileinfo, filter, gd, hash, mbstring, openssl, pcre, pdo, pdo_mysql, session, tokenizer, xml, zip
+          coverage: none
+
+      - name: Install locked application dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction --no-progress
+
+      - name: Verify PHP platform requirements and dependency advisories
+        run: |
+          composer check-platform-reqs --no-dev
+          composer audit --no-dev --no-interaction
+
+      - name: Set up Node.js and browser automation
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Install pinned Playwright and Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Build and extract the exact customer ZIP
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/dist/Talyvane-cPanel-$GITHUB_SHA.zip"
+          bash scripts/build-cpanel-single-zip.sh . "$RUNNER_TEMP/dist" "$GITHUB_SHA"
+          bash tests/Packaging/cpanel-single-zip-contract.sh "$archive" "$GITHUB_SHA"
+          mkdir -p "$RUNNER_TEMP/talyvane-customer-root"
+          unzip -q "$archive" -d "$RUNNER_TEMP/talyvane-customer-root"
+          site_key="$(php -r 'echo substr(hash("sha256", realpath($argv[1])), 0, 32);' "$RUNNER_TEMP/talyvane-customer-root")"
+          printf 'TALYVANE_E2E_DOCROOT=%s\n' "$RUNNER_TEMP/talyvane-customer-root" >> "$GITHUB_ENV"
+          printf 'TALYVANE_E2E_PRIVATE_APP_PATH=%s\n' "$RUNNER_TEMP/.talyvane/apps/$site_key/talyvane-app" >> "$GITHUB_ENV"
+
+      - name: Start the HTTPS-only browser test origin
+        run: |
+          set -euo pipefail
+          HOME="$RUNNER_TEMP" php -S 0.0.0.0:8000 -t "$TALYVANE_E2E_DOCROOT" tests/E2E/https-router.php > /tmp/talyvane-php-server.log 2>&1 &
+          echo $! > /tmp/talyvane-php-server.pid
+          docker run --detach --name talyvane-e2e-caddy \
+            --add-host=host.docker.internal:host-gateway \
+            --publish 127.0.0.1:8443:443 \
+            --volume "$PWD/.github/e2e/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.9.1-alpine
+          ready=0
+          for _ in $(seq 1 60); do
+            if curl --noproxy '*' --connect-timeout 2 --max-time 5 --insecure --fail --silent --show-error --output /dev/null https://localhost:8443/up; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then
+            echo "HTTPS test origin did not become healthy; collecting listener and proxy diagnostics"
+            docker ps --all --filter name=talyvane-e2e-caddy
+            docker logs talyvane-e2e-caddy 2>&1 | tail -n 200 || true
+            tail -n 200 /tmp/talyvane-php-server.log || true
+            curl --noproxy '*' --connect-timeout 2 --max-time 5 --insecure --verbose https://localhost:8443/up || true
+            exit 1
+          fi
+
+      - name: Run complete browser installation and first-login security journey
+        env:
+          TALYVANE_E2E_BASE_URL: https://localhost:8443
+          TALYVANE_E2E_DB_HOST: 127.0.0.1
+          TALYVANE_E2E_DB_PORT: "3306"
+          TALYVANE_E2E_DB_NAME: talyvane_e2e
+          TALYVANE_E2E_DB_USER: talyvane
+          TALYVANE_E2E_DB_PASSWORD: e2e-db-password
+          TALYVANE_E2E_MAILPIT_API: http://127.0.0.1:8025
+        run: node tests/E2E/installer-browser.mjs
+
+      - name: Collect application and proxy diagnostics
+        if: always()
+        run: |
+          if [ -f /tmp/talyvane-php-server.log ]; then tail -n 250 /tmp/talyvane-php-server.log; fi
+          docker logs talyvane-e2e-caddy 2>&1 | tail -n 150 || true
+          docker logs "${{ job.services.mailpit.id }}" 2>&1 | tail -n 100 || true
+
+      - name: Upload browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: installer-e2e-diagnostics-${{ github.sha }}
+          path: |
+            /tmp/talyvane-php-server.log
+          if-no-files-found: ignore
+          retention-days: 7
