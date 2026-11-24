@@ -92,14 +92,21 @@ jobs:
             caddy:2.9.1-alpine
           ready=0
           for _ in $(seq 1 60); do
-            if curl --insecure --silent --output /dev/null https://localhost:8443/up; then ready=1; break; fi
+            if curl --noproxy '*' --connect-timeout 2 --max-time 5 --insecure --fail --silent --show-error --output /dev/null https://127.0.0.1:8443/up; then ready=1; break; fi
             sleep 1
           done
-          test "$ready" = "1"
+          if [ "$ready" != "1" ]; then
+  echo "HTTPS test origin did not become healthy; collecting listener and proxy diagnostics"
+  docker ps --all --filter name=talyvane-e2e-caddy
+  docker logs talyvane-e2e-caddy 2>&1 | tail -n 200 || true
+  tail -n 200 /tmp/talyvane-php-server.log || true
+  curl --noproxy '*' --connect-timeout 2 --max-time 5 --insecure --verbose https://127.0.0.1:8443/up || true
+  exit 1
+fi
 
       - name: Run complete browser installation and first-login security journey
         env:
-          TALYVANE_E2E_BASE_URL: https://localhost:8443
+          TALYVANE_E2E_BASE_URL: https://127.0.0.1:8443
           TALYVANE_E2E_DB_HOST: 127.0.0.1
           TALYVANE_E2E_DB_PORT: "3306"
           TALYVANE_E2E_DB_NAME: talyvane_e2e
