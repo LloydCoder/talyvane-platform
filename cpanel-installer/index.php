@@ -117,11 +117,18 @@ function talyvane_extract_private_application(string $documentRoot, string $acco
     }
 
     $expandedBytes = 0;
+    $seenEntries = [];
     for ($i = 0; $i < $entryCount; $i++) {
         $stat = $archive->statIndex($i);
         $name = is_array($stat) ? (string) ($stat['name'] ?? '') : '';
         $normalized = str_replace('\\', '/', $name);
         $parts = explode('/', $normalized);
+        $pathSegments = $parts;
+        $isDirectoryEntry = str_ends_with($normalized, '/');
+        if ($isDirectoryEntry) {
+            array_pop($pathSegments);
+        }
+        $canonicalName = rtrim($normalized, '/');
         $mode = 0;
         $opsys = 0;
         $attributes = 0;
@@ -132,12 +139,18 @@ function talyvane_extract_private_application(string $documentRoot, string $acco
         if ($opsys === ZipArchive::OPSYS_UNIX) {
             $mode = ($attributes >> 16) & 0170000;
         }
-        if ($normalized === '' || str_contains($normalized, "\0") || str_starts_with($normalized, '/') || preg_match('/^[A-Za-z]:/', $normalized)
-            || in_array('..', $parts, true) || $parts[0] !== 'talyvane'
-            || ($mode === 0120000)) {
+        $allowedFileTypes = [0, 0100000, 0040000];
+        if ($normalized === '' || str_contains($normalized, "\0") || str_starts_with($normalized, '/')
+            || preg_match('/^[A-Za-z]:/', $normalized) || in_array('..', $pathSegments, true)
+            || in_array('.', $pathSegments, true) || in_array('', $pathSegments, true)
+            || ($pathSegments[0] ?? null) !== 'talyvane'
+            || (count($pathSegments) < 2 && ! $isDirectoryEntry)
+            || isset($seenEntries[$canonicalName])
+            || ! in_array($mode, $allowedFileTypes, true)) {
             $archive->close();
-            talyvane_fail(500, 'The application archive contains an unsafe path or symbolic link and was rejected.');
+            talyvane_fail(500, 'The application archive contains an unsafe path, duplicate entry or unsupported file type and was rejected.');
         }
+        $seenEntries[$canonicalName] = true;
         $expandedBytes += (int) ($stat['size'] ?? 0);
         if ($expandedBytes > TALYVANE_MAX_EXPANDED_BYTES) {
             $archive->close();
