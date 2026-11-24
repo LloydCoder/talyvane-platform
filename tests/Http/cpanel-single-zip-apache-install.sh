@@ -60,18 +60,31 @@ payload_code="$(curl --silent --show-error -o "$tmp/payload-response.txt" -w '%{
 install_code="$(curl --silent --show-error -H 'Host: localhost' -o "$tmp/installer.html" -w '%{http_code}' "http://127.0.0.1:$port/install")"
 [[ "$install_code" == "200" ]] || { docker logs "$container" >&2; echo "Expected packaged installer HTTP 200, got $install_code." >&2; cat "$tmp/installer.html" >&2; exit 1; }
 
-grep -Fq 'FIRST-TIME SETUP' "$tmp/installer.html"
-grep -Fq 'Hosting preflight' "$tmp/installer.html"
+if ! grep -Fq 'FIRST-TIME SETUP' "$tmp/installer.html" || ! grep -Fq 'Hosting preflight' "$tmp/installer.html"; then
+  echo "Apache returned HTTP 200 but the Laravel installer page was not rendered." >&2
+  cat "$tmp/installer.html" >&2
+  docker logs "$container" >&2 || true
+  exit 1
+fi
 if grep -Fq 'BLOCKED' "$tmp/installer.html"; then
   echo "Apache/PHP hosting preflight reported blocked requirements:" >&2
   grep -F -B1 -A1 'BLOCKED' "$tmp/installer.html" >&2
   exit 1
 fi
-test -f "$account/talyvane-app/vendor/autoload.php"
-test -f "$account/talyvane-app/.env"
-test ! -e "$webroot/.talyvane-payload.zip"
-test ! -e "$webroot/vendor"
-test ! -e "$webroot/.env"
+for required in "$account/talyvane-app/vendor/autoload.php" "$account/talyvane-app/.env"; do
+  if [[ ! -f "$required" ]]; then
+    echo "Expected private bootstrap file is missing: $required" >&2
+    find "$account" -maxdepth 4 -type f -printf '%p\\n' >&2 || true
+    docker logs "$container" >&2 || true
+    exit 1
+  fi
+done
+for forbidden in "$webroot/.talyvane-payload.zip" "$webroot/vendor" "$webroot/.env"; do
+  if [[ -e "$forbidden" ]]; then
+    echo "Private file remained in public document root: $forbidden" >&2
+    exit 1
+  fi
+done
 
 asset_code="$(curl --silent --show-error -o "$tmp/asset.css" -w '%{http_code}' "http://127.0.0.1:$port/css/app.css")"
 [[ "$asset_code" == "200" ]] || { echo "Public CSS should be served from the document root; got HTTP $asset_code." >&2; exit 1; }
