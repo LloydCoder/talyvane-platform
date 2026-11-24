@@ -51,19 +51,25 @@ function talyvane_resolve_private_parent(string $documentRoot): ?string
 
     // cPanel addon domains are commonly nested below /home/account/public_html.
     // Place the private application beside public_html, never inside it.
+    $publicRootParent = null;
     $cursor = $documentRoot;
     while (true) {
         if (strtolower(basename($cursor)) === 'public_html') {
-            $home = realpath(dirname($cursor));
-            return $home !== false && is_dir($home) && talyvane_inside($documentRoot, $home)
-                ? $home
-                : null;
+            $candidate = realpath(dirname($cursor));
+            if ($candidate !== false && is_dir($candidate) && talyvane_inside($documentRoot, $candidate)) {
+                // Keep walking so nested document roots cannot cause us to
+                // choose a directory still inside an outer public_html.
+                $publicRootParent = $candidate;
+            }
         }
         $parent = dirname($cursor);
         if ($parent === $cursor) {
             break;
         }
         $cursor = $parent;
+    }
+    if ($publicRootParent !== null) {
+        return $publicRootParent;
     }
 
     // For custom cPanel document roots without a discoverable HOME or
