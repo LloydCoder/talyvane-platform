@@ -154,6 +154,8 @@ final class InstallerController
                 'session_has_started_at' => $request->session()->has('installer.started_at'),
                 'session_started_at_type' => get_debug_type($request->session()->get('installer.started_at')),
                 'session_driver' => config('session.driver'),
+                'session_cookie_name' => (string) config('session.cookie'),
+                'request_cookie_names' => array_keys($request->cookies->all()),
                 'session_cookie_present' => $request->cookies->has((string) config('session.cookie')),
                 'session_cookie_value_length' => strlen((string) $request->cookie((string) config('session.cookie'), '')),
                 'session_file_exists' => is_file(storage_path('framework/sessions/'.$request->session()->getId())),
