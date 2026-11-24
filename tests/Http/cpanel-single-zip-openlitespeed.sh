@@ -19,7 +19,7 @@ webroot="$account/html"
 mkdir -p "$webroot"
 chmod 755 "$account" "$webroot"
 unzip -q "$archive" -d "$webroot"
-printf '%s\\n' 'APP_KEY=OLS_PRIVATE_ROOT_SENTINEL' > "$webroot/.env"
+echo 'APP_KEY=OLS_PRIVATE_ROOT_SENTINEL' > "$webroot/.env"
 chmod 0644 "$webroot/.env"
 
 port="$((20000 + RANDOM % 20000))"
