@@ -231,11 +231,25 @@ if (! is_dir($privateApplication)) {
 }
 
 $resolvedPrivateApplication = realpath($privateApplication);
-$frontController = $privateApplication.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'index.php';
+$publicDirectory = $privateApplication.DIRECTORY_SEPARATOR.'public';
+$frontController = $publicDirectory.DIRECTORY_SEPARATOR.'index.php';
+$vendorDirectory = $privateApplication.DIRECTORY_SEPARATOR.'vendor';
+$autoload = $vendorDirectory.DIRECTORY_SEPARATOR.'autoload.php';
+$resolvedPublicDirectory = realpath($publicDirectory);
+$resolvedFrontController = realpath($frontController);
+$resolvedVendorDirectory = realpath($vendorDirectory);
+$resolvedAutoload = realpath($autoload);
 if ($resolvedPrivateApplication === false || ! talyvane_inside($resolvedPrivateApplication, $accountDirectory)
     || talyvane_inside($resolvedPrivateApplication, $documentRoot)
-    || is_link($privateApplication) || ! is_file($frontController) || ! is_readable($frontController)) {
-    talyvane_fail(500, 'The private application directory is not in the required secure location. No application files were served.');
+    || is_link($privateApplication) || is_link($publicDirectory) || is_link($frontController)
+    || is_link($vendorDirectory) || is_link($autoload)
+    || $resolvedPublicDirectory === false || ! talyvane_inside($resolvedPublicDirectory, $resolvedPrivateApplication)
+    || $resolvedFrontController === false || ! talyvane_inside($resolvedFrontController, $resolvedPrivateApplication)
+    || $resolvedVendorDirectory === false || ! talyvane_inside($resolvedVendorDirectory, $resolvedPrivateApplication)
+    || $resolvedAutoload === false || ! talyvane_inside($resolvedAutoload, $resolvedPrivateApplication)
+    || ! is_file($frontController) || ! is_readable($frontController)
+    || ! is_file($autoload) || ! is_readable($autoload)) {
+    talyvane_fail(500, 'The private application directory is not in the required secure location or is incomplete. No application files were served.');
 }
 
 require $frontController;
