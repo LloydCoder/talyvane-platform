@@ -74,6 +74,9 @@ if grep -Fq 'OLS_PRIVATE_ROOT_SENTINEL' "$tmp/env-response.txt"; then
   echo "OpenLiteSpeed exposed the public-root environment sentinel." >&2
   exit 1
 fi
+# The sentinel is only an access-control fixture. Remove it before the
+# installer checks that the document root contains no environment file.
+rm -f "$webroot/.env"
 
 set +e
 install_code="$(curl --insecure --silent --show-error --max-time 45 -H 'Host: localhost' -o "$tmp/installer.html" -w '%{http_code}' "https://127.0.0.1:$port/install" 2>"$tmp/install-curl.stderr")"
