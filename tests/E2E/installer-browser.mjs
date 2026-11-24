@@ -116,15 +116,16 @@ try {
     'require "vendor/autoload.php";',
     '$app = require "bootstrap/app.php";',
     '$app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();',
-    '$sessionId = getenv("TALYVANE_E2E_SESSION_ID");',
+    '$decrypted = app("encrypter")->decryptString(rawurldecode(getenv("TALYVANE_E2E_SESSION_COOKIE")));',
+    '$sessionId = substr($decrypted, strrpos($decrypted, "|") + 1);',
     '$store = app("session")->driver();',
     '$store->setId($sessionId);',
     '$store->start();',
-    'echo json_encode(["session_file_exists" => is_file(storage_path("framework/sessions/".$sessionId)), "has_started_at" => $store->has("installer.started_at"), "keys" => array_keys($store->all())]);',
+    'echo json_encode(["cookie_session_file_exists" => is_file(storage_path("framework/sessions/".$sessionId)), "cookie_session_matches_listed_file" => hash_equals($sessionId, getenv("TALYVANE_E2E_SESSION_ID")), "cookie_session_id_hash" => hash("sha256", $sessionId), "has_started_at" => $store->has("installer.started_at"), "keys" => array_keys($store->all())]);',
   ].join('\n');
   const initialSessionInspection = JSON.parse(execFileSync('php', ['-r', phpSessionInspector], {
     cwd: privateAppPath,
-    env: { ...process.env, TALYVANE_E2E_SESSION_ID: sessionFile.name },
+    env: { ...process.env, TALYVANE_E2E_SESSION_ID: sessionFile.name, TALYVANE_E2E_SESSION_COOKIE: sessionCookie.value },
     encoding: 'utf8',
   }));
 
