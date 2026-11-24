@@ -87,6 +87,12 @@ try {
   assert.match(await page.title(), /Install Talyvane/i);
 
   const installerKeyPath = path.join(privateAppPath, 'storage/app/private/INSTALLER-ACCESS-KEY.txt');
+  const customerDocroot = process.env.TALYVANE_E2E_DOCROOT;
+  assert.ok(customerDocroot, 'the exact extracted customer document root must be configured');
+  assert.ok(path.relative(customerDocroot, privateAppPath).startsWith('..'), 'private Laravel application must be outside the public document root');
+  assert.equal(fs.existsSync(path.join(customerDocroot, '.talyvane-payload.zip')), false, 'first request must remove the temporary private payload');
+  assert.equal(fs.existsSync(path.join(customerDocroot, 'vendor')), false, 'Composer dependencies must never be exposed in the document root');
+  assert.equal(fs.existsSync(path.join(customerDocroot, 'composer.json')), false, 'Composer manifest must never be exposed in the document root');
   const installerKey = fs.readFileSync(installerKeyPath, 'utf8').trim();
   assert.match(installerKey, /^[A-Za-z0-9_-]{43}$/);
 
