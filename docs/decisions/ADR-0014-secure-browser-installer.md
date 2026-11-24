@@ -1,6 +1,6 @@
 # ADR-0014: Secure browser-based first installation
 
-- **Status:** Accepted; implementation in PR #61, CI and release verification pending
+- **Status:** Accepted; browser installer and single-ZIP cPanel bootstrap are merged (PRs #62, #74 and #77); customer release acceptance remains pending
 - **Date:** 2026-11-20
 - **Decision owners:** Talyvane product and engineering
 
@@ -29,7 +29,7 @@ Laravel's supported deployment model requires the application web root to be the
 - A verified prebuilt release must include production dependencies and the private `install/` directory.
 - The release package workflow must inspect the archive and ensure the installer directory is not inside `public/`.
 - A host that cannot keep the application root outside the document root or cannot include the private front controller from its public root is incompatible; installer convenience must not weaken this boundary.
-- The no-SSH experience remains unsupported until implementation, automated security tests, cPanel/Apache-LiteSpeed verification, release-package verification and operator documentation are complete.
+- The no-SSH experience is implemented in the repository and has automated package/Apache/OpenLiteSpeed test coverage. It is not yet an approved customer release: clean end-to-end database/SMTP/browser acceptance, recovery drills, actual provider validation, backup/restore and upgrade/rollback verification, and signed/tagged release approval remain mandatory.
 - Installer deletion is best-effort, but route lockdown is mandatory and independent of deletion success.
 
 ## Security and operational references
