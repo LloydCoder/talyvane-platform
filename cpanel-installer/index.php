@@ -69,8 +69,9 @@ function talyvane_extract_private_application(string $documentRoot, string $acco
         $normalized = str_replace('\\', '/', $name);
         $parts = explode('/', $normalized);
         $mode = 0;
-        $archive->getExternalAttributesIndex($i, $opsys, $attributes);
-        if ($opsys === ZipArchive::OPSYS_UNIX) {
+        $opsys = 0;
+        $attributes = 0;
+        if ($archive->getExternalAttributesIndex($i, $opsys, $attributes) && $opsys === ZipArchive::OPSYS_UNIX) {
             $mode = ($attributes >> 16) & 0170000;
         }
         if ($normalized === '' || str_starts_with($normalized, '/') || preg_match('/^[A-Za-z]:/', $normalized)
@@ -137,6 +138,11 @@ if ($accountDirectory === false || $accountDirectory === $documentRoot) {
 $privateApplication = $accountDirectory.DIRECTORY_SEPARATOR.TALYVANE_APP_DIRECTORY;
 if (! is_dir($privateApplication)) {
     $privateApplication = talyvane_extract_private_application($documentRoot, $accountDirectory);
+} else {
+    $leftoverPayload = $documentRoot.DIRECTORY_SEPARATOR.TALYVANE_PAYLOAD_FILE;
+    if (is_file($leftoverPayload) && ! is_link($leftoverPayload)) {
+        @unlink($leftoverPayload);
+    }
 }
 
 $resolvedPrivateApplication = realpath($privateApplication);
