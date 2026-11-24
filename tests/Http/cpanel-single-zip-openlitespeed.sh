@@ -52,7 +52,7 @@ done
 [[ "$ready" -eq 1 ]] || { docker logs "$container" >&2; echo "OpenLiteSpeed/LSPHP container did not serve the packaged public asset." >&2; exit 1; }
 
 runtime_identity="$(curl --insecure --silent --show-error --fail -H 'Host: localhost' "https://127.0.0.1:$port/runtime-user.php")"
-[[ "$runtime_identity" =~ ^[0-9]+:[0-9]+\\|[01]\\|.*$ ]] || { docker logs "$container" >&2; echo "Could not determine the actual LSPHP UID/GID and filesystem policy: $runtime_identity" >&2; exit 1; }
+[[ "$runtime_identity" =~ ^[0-9]+:[0-9]+[|][01][|].*$ ]] || { docker logs "$container" >&2; echo "Could not determine the actual LSPHP UID/GID and filesystem policy: $runtime_identity" >&2; exit 1; }
 runtime_uid_gid="${runtime_identity%%|*}"
 docker exec "$container" chown -R "$runtime_uid_gid" /var/www/vhosts/localhost
 runtime_permissions="$(curl --insecure --silent --show-error --fail -H 'Host: localhost' "https://127.0.0.1:$port/runtime-user.php")"
