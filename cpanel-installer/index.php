@@ -99,6 +99,35 @@ function talyvane_resolve_private_parent(string $documentRoot): ?string
     return $parent;
 }
 
+function talyvane_remove_staging_directory(string $directory): void
+{
+    if (is_link($directory) || ! is_dir($directory)) {
+        return;
+    }
+
+    $entries = @scandir($directory);
+    if (! is_array($entries)) {
+        return;
+    }
+
+    foreach ($entries as $entry) {
+        if ($entry === '.' || $entry === '..') {
+            continue;
+        }
+
+        $path = $directory.DIRECTORY_SEPARATOR.$entry;
+        if (is_link($path) || is_file($path)) {
+            @unlink($path);
+        } elseif (is_dir($path)) {
+            talyvane_remove_staging_directory($path);
+        } else {
+            @unlink($path);
+        }
+    }
+
+    @rmdir($directory);
+}
+
 function talyvane_extract_private_application(string $documentRoot, string $accountDirectory): string
 {
     if (! class_exists(ZipArchive::class)) {
@@ -188,10 +217,12 @@ function talyvane_extract_private_application(string $documentRoot, string $acco
         || ! talyvane_inside($resolvedApplication, $resolvedStaging)
         || ! is_file($resolvedApplication.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'index.php')
         || ! is_file($resolvedApplication.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'autoload.php')) {
+        talyvane_remove_staging_directory($staging);
         talyvane_fail(500, 'The private application could not be safely extracted or is incomplete. The original archive has been preserved for retry.');
     }
 
     if (! rename($resolvedApplication, $target)) {
+        talyvane_remove_staging_directory($staging);
         talyvane_fail(500, 'The private application was extracted but could not be moved into its final private directory. Check parent-directory permissions and reload after resolving the issue.');
     }
 
