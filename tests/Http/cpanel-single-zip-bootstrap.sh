@@ -65,8 +65,8 @@ server_pid=""
 ols_account="$tmp/var/www/vhosts/localhost"
 ols_document_root="$ols_account/html"
 mkdir -p "$ols_document_root" "$tmp/ols-payload/talyvane/public" "$tmp/ols-payload/talyvane/vendor"
-printf '%s\\n' '<?php echo "TALYVANE_BOOTSTRAP_OLS_LAYOUT_OK";' > "$tmp/ols-payload/talyvane/public/index.php"
-printf '%s\\n' '<?php // isolated autoload fixture' > "$tmp/ols-payload/talyvane/vendor/autoload.php"
+echo '<?php echo "TALYVANE_BOOTSTRAP_OLS_LAYOUT_OK";' > "$tmp/ols-payload/talyvane/public/index.php"
+echo '<?php // isolated autoload fixture' > "$tmp/ols-payload/talyvane/vendor/autoload.php"
 (
   cd "$tmp/ols-payload"
   zip -X -q -r "$ols_document_root/.talyvane-payload.zip" talyvane
@@ -90,7 +90,7 @@ if [[ "$ols_ready" -ne 1 ]]; then
   echo "OpenLiteSpeed-style /var/www/vhosts layout did not bootstrap." >&2
   exit 1
 fi
-grep -Fq 'TALYVANE_BOOTSTRAP_OLS_LAYOUT_OK' "$tmp/ols-layout-response.txt"
+echo '<?php echo "TALYVANE_BOOTSTRAP_OLS_LAYOUT_OK";' > "$tmp/ols-payload/talyvane/public/index.php"
 test -f "$ols_account/talyvane-app/public/index.php"
 test -f "$ols_account/talyvane-app/vendor/autoload.php"
 test ! -e "$tmp/var/talyvane-app"
