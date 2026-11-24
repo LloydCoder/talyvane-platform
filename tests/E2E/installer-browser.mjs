@@ -108,7 +108,7 @@ try {
     '$store->setId($sessionId);',
     '$store->start();',
     'echo json_encode(["session_file_exists" => is_file(storage_path("framework/sessions/".$sessionId)), "has_started_at" => $store->has("installer.started_at"), "keys" => array_keys($store->all())]);',
-  ].join('\\n');
+  ].join('\n');
   const initialSessionInspection = JSON.parse(execFileSync('php', ['-r', phpSessionInspector], {
     cwd: privateAppPath,
     env: { ...process.env, TALYVANE_E2E_SESSION_COOKIE: sessionCookie.value },
