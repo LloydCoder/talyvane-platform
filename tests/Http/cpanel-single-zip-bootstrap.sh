@@ -162,8 +162,9 @@ assert_malicious_archive_rejected "traversal" "unsafe path"
 assert_malicious_archive_rejected "symlink" "unsafe path"
 assert_malicious_archive_rejected "incomplete" "incomplete"
 
-# A domain document root nested inside an existing private app is a distinct,
-# unsafe layout. The bootstrap must explain the conflict and preserve files.
+# A domain document root nested inside an existing Laravel public/ directory
+# must bootstrap into a separate private per-domain path and preserve the
+# existing checkout, even when the PHP environment does not expose HOME.
 nested_account="$tmp/nested-layout-account"
 nested_document_root="$nested_account/talyvane-app/public"
 mkdir -p "$nested_document_root" "$nested_account/talyvane-app/app" "$nested_account/talyvane-app/bootstrap"
