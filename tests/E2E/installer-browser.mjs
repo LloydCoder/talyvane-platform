@@ -123,7 +123,12 @@ try {
   };
 
   for (const [name, value] of Object.entries(fields)) {
-    await page.locator(`[name="${name}"]`).fill(String(value));
+    const field = page.locator(`[name="${name}"]`);
+    if (name === 'mail_scheme') {
+      await field.selectOption(String(value));
+    } else {
+      await field.fill(String(value));
+    }
   }
 
   await Promise.all([
