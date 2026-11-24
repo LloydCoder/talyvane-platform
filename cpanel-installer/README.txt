@@ -3,7 +3,7 @@ TALYVANE — SINGLE-ZIP CPANEL INSTALLER
 
 CUSTOMER INSTALLATION GUIDE
 
-This package is designed for a cPanel account where you can use cPanel File Manager and a web browser. Do not upload the GitHub source-code ZIP. Use only the official, versioned Talyvane customer ZIP supplied with its matching SHA-256 checksum.
+This is an owner-only cPanel acceptance candidate designed for a non-production staging domain using cPanel File Manager and a web browser. Upload only the inner Talyvane-cPanel-<commit>.zip supplied with its matching SHA-256 checksum. Do not upload the outer GitHub Actions artifact archive or the GitHub source-code ZIP. This candidate is not a production release and must not be used with customer production data.
 
 BEFORE YOU UPLOAD
 
@@ -31,11 +31,11 @@ STEP 2 — UPLOAD AND EXTRACT THE ONE ZIP
 
 1. Open cPanel File Manager.
 2. Open the document root assigned to the domain you are installing (often public_html, but addon domains may use a different directory).
-3. Upload the official Talyvane customer ZIP into that directory.
+3. Upload the supplied inner Talyvane-cPanel-<commit>.zip acceptance candidate into that directory.
 4. Use File Manager's Extract action on that ZIP in the document root.
 5. Confirm that index.php, .htaccess, README.txt, RELEASE-MANIFEST.txt, the css directory and the hidden .talyvane-payload.zip are present.
 6. Do not move the private payload into a public folder, rename it, or extract it manually.
-7. Do not upload the GitHub source archive or a CI smoke-test artifact.
+7. Do not upload the outer GitHub Actions artifact archive or GitHub source archive; upload only the inner Talyvane-cPanel-<commit>.zip. Use this candidate only for controlled staging acceptance.
 
 STEP 3 — START THE BROWSER INSTALLER
 
