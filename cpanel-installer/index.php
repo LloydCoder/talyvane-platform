@@ -31,6 +31,18 @@ function talyvane_inside(string $path, string $directory): bool
     return $path === $directory || str_starts_with($path, rtrim($directory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR);
 }
 
+function talyvane_contains_public_root_component(string $path): bool
+{
+    $publicRootNames = ['public_html', 'www', 'htdocs', 'httpdocs', 'public', 'web'];
+    foreach (explode(DIRECTORY_SEPARATOR, trim($path, DIRECTORY_SEPARATOR)) as $segment) {
+        if (in_array(strtolower($segment), $publicRootNames, true)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function talyvane_resolve_private_parent(string $documentRoot): ?string
 {
     $homeCandidates = [
@@ -44,17 +56,19 @@ function talyvane_resolve_private_parent(string $documentRoot): ?string
         }
         $home = realpath($candidate);
         if ($home !== false && is_dir($home) && $home !== $documentRoot
+            && ! talyvane_contains_public_root_component($home)
             && talyvane_inside($documentRoot, $home)) {
             return $home;
         }
     }
 
-    // cPanel addon domains are commonly nested below /home/account/public_html.
-    // Place the private application beside public_html, never inside it.
+    // cPanel addon domains are commonly nested below public_html. Also
+    // recognize the conventional www/htdocs/httpdocs/public/web roots.
+    // Select the parent of the outermost public-root component.
     $publicRootParent = null;
     $cursor = $documentRoot;
     while (true) {
-        if (strtolower(basename($cursor)) === 'public_html') {
+        if (in_array(strtolower(basename($cursor)), ['public_html', 'www', 'htdocs', 'httpdocs', 'public', 'web'], true)) {
             $candidate = realpath(dirname($cursor));
             if ($candidate !== false && is_dir($candidate) && talyvane_inside($documentRoot, $candidate)) {
                 // Keep walking so nested document roots cannot cause us to
@@ -77,7 +91,7 @@ function talyvane_resolve_private_parent(string $documentRoot): ?string
     // a conventional public web root.
     $parent = realpath(dirname($documentRoot));
     if ($parent === false || ! is_dir($parent)
-        || in_array(strtolower(basename($parent)), ['public_html', 'www', 'htdocs', 'httpdocs'], true)
+        || talyvane_contains_public_root_component($parent)
         || ! talyvane_inside($documentRoot, $parent)) {
         return null;
     }
