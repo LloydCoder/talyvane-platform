@@ -49,7 +49,7 @@ if [[ "$ready" -ne 1 ]]; then
 fi
 
 grep -Fq 'TALYVANE_BOOTSTRAP_HTTP_OK' "$tmp/response.txt"
-private_app="$(find "$account/.talyvane/apps" -type f -path "*/talyvane-app/public/index.php" -print -quit | sed 's#/public/index.php$##')"
+private_app="$(find "$account/.talyvane/apps" -type f -path "*/talyvane-app/public/index.php" -print -quit | sed 's#/public/index.php##')"
 test -n "$private_app"
 test -f "$private_app/vendor/autoload.php"
 test ! -e "$document_root/.talyvane-payload.zip"
@@ -92,7 +92,7 @@ if [[ "$ols_ready" -ne 1 ]]; then
   exit 1
 fi
 echo '<?php echo "TALYVANE_BOOTSTRAP_OLS_LAYOUT_OK";' > "$tmp/ols-payload/talyvane/public/index.php"
-ols_private_app="$(find "$ols_account/.talyvane/apps" -type f -path "*/talyvane-app/public/index.php" -print -quit | sed 's#/public/index.php$##')"
+ols_private_app="$(find "$ols_account/.talyvane/apps" -type f -path "*/talyvane-app/public/index.php" -print -quit | sed 's#/public/index.php##')"
 test -n "$ols_private_app"
 test -f "$ols_private_app/vendor/autoload.php"
 test ! -e "$tmp/var/talyvane-app"
@@ -149,7 +149,7 @@ PY
   grep -Fq "$expected" "$tmp/$attack-response.html"
   test -z "$(find "$attack_account/.talyvane/apps" -type f -path "*/talyvane-app/public/index.php" -print -quit 2>/dev/null)"
   if [[ "$attack" == "incomplete" ]]; then
-    staging_directories="$(find "$attack_account" -maxdepth 1 -type d -name '.talyvane-stage-*' -print)"
+    staging_directories="$(find "$attack_account/.talyvane/apps" -type d -name '.talyvane-stage-*' -print 2>/dev/null)"
     test -z "$staging_directories"
   fi
   kill "$server_pid" 2>/dev/null || true
@@ -204,7 +204,7 @@ if [[ "$nested_status" != "200" ]]; then
 fi
 grep -Fq 'TALYVANE_NESTED_PUBLIC_ROOT_OK' "$tmp/nested-layout-response.html"
 grep -Fq 'EXISTING_PRIVATE_APP_PRESERVED' "$nested_account/talyvane-app/keep.txt"
-nested_private_app="$(find "$nested_account/.talyvane/apps" -type f -path "*/talyvane-app/public/index.php" -print -quit | sed 's#/public/index.php$##')"
+nested_private_app="$(find "$nested_account/.talyvane/apps" -type f -path "*/talyvane-app/public/index.php" -print -quit | sed 's#/public/index.php##')"
 test -n "$nested_private_app"
 test ! -e "$nested_document_root/.talyvane-payload.zip"
 test -z "$(find "$nested_account/.talyvane/apps" -type d -name '.talyvane-stage-*' -print)"
@@ -253,7 +253,7 @@ fi
 grep -Fq 'FIRST-TIME SETUP' "$tmp/actual-installer.html"
 grep -Fq 'Hosting preflight' "$tmp/actual-installer.html"
 grep -Fq 'PHP 8.3 or later' "$tmp/actual-installer.html"
-actual_private_app="$(find "$actual_account/.talyvane/apps" -type f -path "*/talyvane-app/vendor/autoload.php" -print -quit | sed 's#/vendor/autoload.php$##')"
+actual_private_app="$(find "$actual_account/.talyvane/apps" -type f -path "*/talyvane-app/vendor/autoload.php" -print -quit | sed 's#/vendor/autoload.php##')"
 test -n "$actual_private_app"
 test -f "$actual_private_app/.env"
 test ! -e "$actual_document_root/.talyvane-payload.zip"
