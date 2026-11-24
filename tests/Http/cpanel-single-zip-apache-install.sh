@@ -7,6 +7,7 @@ chmod 755 "$tmp"
 container=""
 cleanup() {
   if [[ -n "$container" ]]; then docker rm -f "$container" >/dev/null 2>&1 || true; fi
+  sudo chown -R "$(id -u):$(id -g)" "$tmp" 2>/dev/null || true
   rm -rf "$tmp"
 }
 trap cleanup EXIT
@@ -32,6 +33,13 @@ docker run -d --name "$container_name" \
     docker-php-ext-install -j2 gd mbstring pdo_mysql zip
     a2enmod rewrite headers env >/dev/null
     sed -ri "s/AllowOverride None/AllowOverride All/g" /etc/apache2/apache2.conf
+    cat >> /etc/apache2/apache2.conf <<'APACHE'
+<Directory /var/talyvane-account/public_html>
+    Options FollowSymLinks
+    AllowOverride All
+    Require all granted
+</Directory>
+APACHE
     sed -ri "s#DocumentRoot /var/www/html#DocumentRoot /var/talyvane-account/public_html#" /etc/apache2/sites-available/000-default.conf
     printf "\nSetEnv HTTPS on\n" >> /etc/apache2/sites-available/000-default.conf
     chown -R www-data:www-data /var/talyvane-account
