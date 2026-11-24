@@ -6,10 +6,13 @@ DirectoryIndex index.php
 
     # If the project root is accidentally configured as the document root,
     # block direct requests into private source and runtime directories.
+    # `install` is intentionally excluded: /install is a Laravel route, while
+    # the physical install/ directory remains outside the public document root
+    # and retains its own deny-all access rule.
     RewriteCond %{DOCUMENT_ROOT}/.env -f [OR]
     RewriteCond %{DOCUMENT_ROOT}/app -d [OR]
     RewriteCond %{DOCUMENT_ROOT}/vendor -d
-    RewriteRule ^(?:\.git|\.github|app|bootstrap|config|database|docs|install|resources|routes|storage|vendor|cpanel-public-root|tests|public)(?:/|$) - [F,L,NC]
+    RewriteRule ^(?:\.git|\.github|app|bootstrap|config|database|docs|resources|routes|storage|vendor|cpanel-public-root|tests|public)(?:/|$) - [F,L,NC]
 
     # Refuse document roots that point into private application/runtime trees.
     # The supported in-project document root is exactly the application's public/ directory.
