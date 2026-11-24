@@ -1,5 +1,7 @@
 name: Installer browser end-to-end
 
+# Exercises the exact customer ZIP through its public bootstrap and private extraction.
+
 on:
   pull_request:
     branches: [main]
