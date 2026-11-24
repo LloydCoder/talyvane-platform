@@ -2,7 +2,7 @@ Options -Indexes -MultiViews
 DirectoryIndex index.php
 
 # The single-ZIP payload is private staging material. Never serve it over HTTP.
-<FilesMatch "(?i)(^\\.|\\.(zip|tar|gz|sql|log|bak|old)$|^composer\\.(json|lock)$|^artisan$)">
+<FilesMatch "(?i)(^\.|\.(zip|tar|gz|sql|log|bak|old)$|^composer\.(json|lock)$|^artisan$)">
     Require all denied
 </FilesMatch>
 
