@@ -1,0 +1,21 @@
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+
+# The single-ZIP payload is private staging material. Never serve it over HTTP.
+<FilesMatch "(?i)(^\\.|\\.(zip|tar|gz|sql|log|bak|old)$|^composer\\.(json|lock)$|^artisan$)">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(?:app|bootstrap|config|database|install|resources|routes|storage|tests|vendor)(?:/|$) - [F,L,NC]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
