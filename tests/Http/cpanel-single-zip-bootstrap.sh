@@ -30,7 +30,7 @@ cp "$repo_root/cpanel-installer/index.php" "$document_root/index.php"
 cp "$repo_root/cpanel-installer/.htaccess" "$document_root/.htaccess"
 
 port="$((20000 + RANDOM % 20000))"
-php -S "127.0.0.1:$port" -t "$document_root" > "$tmp/php-server.log" 2>&1 &
+HOME="$account/public_html" php -S "127.0.0.1:$port" -t "$document_root" > "$tmp/php-server.log" 2>&1 &
 server_pid=$!
 
 ready=0
