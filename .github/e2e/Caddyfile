@@ -1,0 +1,4 @@
+:443 {
+    tls internal
+    reverse_proxy host.docker.internal:8000
+}
