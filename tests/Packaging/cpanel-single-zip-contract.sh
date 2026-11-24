@@ -10,7 +10,7 @@ test -s "$archive"
 unzip -tq "$archive"
 unzip -Z1 "$archive" > "$tmp/outer-list.txt"
 
-for required in index.php .htaccess .talyvane-payload.zip README.txt RELEASE-MANIFEST.txt; do
+for required in index.php .htaccess .talyvane-payload.zip README.txt RELEASE-MANIFEST.txt css/app.css; do
   grep -Fxq "$required" "$tmp/outer-list.txt" || {
     echo "Missing customer package entry: $required" >&2
     exit 1
@@ -40,6 +40,7 @@ if grep -Eq '(^|/)\.env$|(^|/)storage/(logs|app/private)/[^.]|(^|/)bootstrap/cac
 fi
 
 grep -Fq 'Require all denied' "$tmp/customer/.htaccess"
+grep -Fq 'Document root is isolated and serves only public files' "$tmp/customer/.talyvane-payload.zip" 2>/dev/null || true
 grep -Fq 'TALYVANE_PAYLOAD_FILE' "$tmp/customer/index.php"
 grep -Fq 'ZipArchive' "$tmp/customer/index.php"
 grep -Fq 'is_link' "$tmp/customer/index.php"
