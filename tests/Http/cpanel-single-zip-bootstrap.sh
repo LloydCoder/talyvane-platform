@@ -55,6 +55,9 @@ test ! -e "$document_root/.talyvane-payload.zip"
 test ! -e "$account/talyvane-app/.env"
 
 echo "Single-ZIP bootstrap fixture completed over PHP HTTP."
+kill "$server_pid" 2>/dev/null || true
+wait "$server_pid" 2>/dev/null || true
+server_pid=""
 
 # Exercise the complete packaged Laravel browser installer, not just a fixture.
 actual_account="$tmp/actual-account"
