@@ -116,7 +116,7 @@ function runModelAgencyIntegration(PDO $pdo): int
     $rights->request($applicationReference,'model-applicant@example.test','access','203.0.113.10',bin2hex(random_bytes(16)));
     preg_match('/one-time verification code is: ([0-9]{8})/',$rightsMailer->messages[0]['body'],$accessMatch);
     $accessId = $rights->verify($applicationReference,'model-applicant@example.test',$accessMatch[1] ?? '','203.0.113.11',bin2hex(random_bytes(16)));
-    $accessData = $rights->read((string) $accessId);
+    $accessData = $rights->read((string) $accessId,bin2hex(random_bytes(16)));
     $assert(is_string($accessId) && $accessData['applicant_name'] === 'Applicant Example','applicant access request requires a single-use emailed OTP');
     $rights->finish($accessId);
 
