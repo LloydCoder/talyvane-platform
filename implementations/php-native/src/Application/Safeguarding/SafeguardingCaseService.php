@@ -386,7 +386,7 @@ final class SafeguardingCaseService
             !hash_equals((string)$backup['policy_version'],(string)$policy['policy_version'])||
             trim((string)$policy['legal_basis_reference'])==='') { return null; }
         $days=(int)$policy['retention_days']+(int)$backup['expiry_days'];
-        $due=(new \\DateTimeImmutable('now',new \\DateTimeZone('UTC')))->modify('+'.$days.' days');
+        $due=(new \DateTimeImmutable('now',new \DateTimeZone('UTC')))->modify('+'.$days.' days');
         return ['due_at'=>$due->format('Y-m-d H:i:s'),'policy_version'=>(string)$policy['policy_version']];
     }
 
