@@ -55,6 +55,7 @@ jobs:
         with:
           php-version: '8.4'
           extensions: pdo_mysql,mbstring,fileinfo,zip,gd
+          ini-values: upload_max_filesize=12M,post_max_size=16M,memory_limit=256M
           coverage: none
       - name: Run MySQL migration integration smoke
         env:
