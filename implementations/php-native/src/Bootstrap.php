@@ -186,7 +186,7 @@ final class Bootstrap
         $clientMemberships = new ClientMembershipService($pdo,$audit,$membershipAvailability);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery, $clientMemberships);
         $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName);
-        $portalPrivacy = new PortalPrivacyController($authentication,new PortalPrivacyExportService($pdo));
+        $portalPrivacy = new PortalPrivacyController($authentication,new PortalPrivacyExportService($pdo,$audit));
         $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
         $clientPrivateGallery = new ClientPrivateGalleryController($authentication,$profileMedia,$views,$brandName);
         $adminClients = new AdminClientController($pdo,$authentication,$clientMemberships,$views,$brandName);
