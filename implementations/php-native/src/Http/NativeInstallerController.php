@@ -72,6 +72,46 @@ final class NativeInstallerController
         }
     }
 
+    private function submit(Request $request,array $paths,SetupKey $setupKey,InstallerLock $lock): Response
+    {
+        $handle = $this->acquireWorkflowLock($paths);
+        if ($handle === null) {
+            return $this->plainError('Another installer operation is already running. Wait a moment and retry.',409);
+        }
+        try { return $this->submitLocked($request,$paths,$setupKey,$lock); }
+        finally { $this->releaseWorkflowLock($handle); }
+    }
+
+    private function verify(Request $request,array $paths,SetupKey $setupKey,InstallerLock $lock): Response
+    {
+        $handle = $this->acquireWorkflowLock($paths);
+        if ($handle === null) {
+            return $this->plainError('Another installer operation is already running. Wait a moment and retry.',409);
+        }
+        try { return $this->verifyLocked($request,$paths,$setupKey,$lock); }
+        finally { $this->releaseWorkflowLock($handle); }
+    }
+
+    private function resend(Request $request,array $paths,SetupKey $setupKey): Response
+    {
+        $handle = $this->acquireWorkflowLock($paths);
+        if ($handle === null) {
+            return $this->plainError('Another installer operation is already running. Wait a moment and retry.',409);
+        }
+        try { return $this->resendLocked($request,$paths,$setupKey); }
+        finally { $this->releaseWorkflowLock($handle); }
+    }
+
+    private function successPage(array $paths,InstallerLock $lock): Response
+    {
+        $handle = $this->acquireWorkflowLock($paths);
+        if ($handle === null) {
+            return $this->plainError('One-time installation credentials are being retrieved. Retry once.',409);
+        }
+        try { return $this->successPageLocked($paths,$lock); }
+        finally { $this->releaseWorkflowLock($handle); }
+    }
+
     private function setupPage(Request $request,array $paths,SetupKey $setupKey,string $error='',int $status=200): Response
     {
         $configFile = $paths['config'] . '/app.php';
@@ -97,7 +137,7 @@ final class NativeInstallerController
         ],$status === 200 ? ($preflight['ok'] ? 200 : 503) : $status);
     }
 
-    private function submit(Request $request,array $paths,SetupKey $setupKey,InstallerLock $lock): Response
+    private function submitLocked(Request $request,array $paths,SetupKey $setupKey,InstallerLock $lock): Response
     {
         if (!Csrf::verify($this->field($request,'_csrf'))) {
             return $this->setupPage($request,$paths,$setupKey,'Your session expired. Refresh the installer and try again.',419);
@@ -232,7 +272,7 @@ final class NativeInstallerController
         ],$status);
     }
 
-    private function verify(Request $request,array $paths,SetupKey $setupKey,InstallerLock $lock): Response
+    private function verifyLocked(Request $request,array $paths,SetupKey $setupKey,InstallerLock $lock): Response
     {
         if (!Csrf::verify($this->field($request,'_csrf'))) {
             return $this->verifyPage($request,$paths,$setupKey,'Your session expired. Refresh this page and try again.');
@@ -368,7 +408,7 @@ final class NativeInstallerController
         return Response::redirect('/install/success');
     }
 
-    private function resend(Request $request,array $paths,SetupKey $setupKey): Response
+    private function resendLocked(Request $request,array $paths,SetupKey $setupKey): Response
     {
         if (!Csrf::verify($this->field($request,'_csrf'))) {
             return $this->verifyPage($request,$paths,$setupKey,'Your session expired. Refresh this page and try again.');
@@ -396,7 +436,7 @@ final class NativeInstallerController
         }
     }
 
-    private function successPage(array $paths,InstallerLock $lock): Response
+    private function successPageLocked(array $paths,InstallerLock $lock): Response
     {
         if (!$lock->isLocked()) {
             return $this->plainError('Installation success state is unavailable.',404);
@@ -424,6 +464,32 @@ final class NativeInstallerController
             'offlineRecoveryKey'=>(string) ($success['offline_recovery_key'] ?? ''),
             'appUrl'=>(string) ($success['app_url'] ?? ''),
         ]);
+    }
+
+    private function acquireWorkflowLock(array $paths): mixed
+    {
+        $lockPath = $paths['config'] . '/INSTALLER-WORKFLOW.lock';
+        if (is_link($lockPath)) {
+            throw new RuntimeException('Installer workflow lock must not be a symlink.');
+        }
+        $handle = @fopen($lockPath,'c+b');
+        if ($handle === false) {
+            throw new RuntimeException('Installer workflow lock is unavailable.');
+        }
+        @chmod($lockPath,0600);
+        if (!flock($handle,LOCK_EX | LOCK_NB)) {
+            fclose($handle);
+            return null;
+        }
+        return $handle;
+    }
+
+    private function releaseWorkflowLock(mixed $handle): void
+    {
+        if (is_resource($handle)) {
+            flock($handle,LOCK_UN);
+            fclose($handle);
+        }
     }
 
     private function preflight(array $paths): array
