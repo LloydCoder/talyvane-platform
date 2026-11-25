@@ -27,7 +27,7 @@ final class VaultTransitSafeguardingCaseKeyProvider implements SafeguardingCaseK
         if (!preg_match('/^[0-9a-f-]{36}$/D',$caseId) || strlen($caseKey)!==32) {
             throw new RuntimeException('Safeguarding case key material is invalid.');
         }
-        $keyName=$this->casePrefix().bin2hex(random_bytes(16));
+        $keyName=$this->casePrefix().$caseId.'-'.bin2hex(random_bytes(16));
         $created=$this->request('POST','keys/'.$keyName,[
             'type'=>'aes256-gcm96','exportable'=>false,'allow_plaintext_backup'=>false,
         ],$this->runtimeToken());
@@ -120,7 +120,7 @@ final class VaultTransitSafeguardingCaseKeyProvider implements SafeguardingCaseK
 
     private function destroyKeyName(string $keyName): void
     {
-        if (!preg_match('/^'.preg_quote($this->casePrefix(),'/').'[a-f0-9]{32}$/D',$keyName)) {
+        if (!preg_match('/^'.preg_quote($this->casePrefix(),'/').'[0-9a-f-]{36}-[a-f0-9]{32}$/D',$keyName)) {
             throw new RuntimeException('External safeguarding key reference belongs to another deployment.');
         }
         $token=$this->retentionToken();
@@ -144,7 +144,7 @@ final class VaultTransitSafeguardingCaseKeyProvider implements SafeguardingCaseK
         $keyName=is_array($data)?($data['key_name']??null):null;
         $ciphertext=is_array($data)?($data['ciphertext']??null):null;
         if (!is_string($keyName) || !is_string($ciphertext) || !str_starts_with($ciphertext,'vault:v') ||
-            !preg_match('/^'.preg_quote($this->casePrefix(),'/').'[a-f0-9]{32}$/D',$keyName)) {
+            !preg_match('/^'.preg_quote($this->casePrefix().$caseId.'-','/').'[a-f0-9]{32}$/D',$keyName)) {
             throw new RuntimeException('External safeguarding key reference is invalid or belongs to another deployment.');
         }
         return ['key_name'=>$keyName,'ciphertext'=>$ciphertext];
