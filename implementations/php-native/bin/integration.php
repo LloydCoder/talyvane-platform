@@ -19,7 +19,7 @@ $server->exec('CREATE DATABASE IF NOT EXISTS talyvane_native_test CHARACTER SET 
 $pdo = ConnectionFactory::mysql(['host'=>$host,'port'=>$port,'database'=>$name,'username'=>$user,'password'=>$password]);
 $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
 $applied = $runner->migrate();
-if (count($applied) !== 15 || $runner->migrate() !== []) {
+if (count($applied) !== 16 || $runner->migrate() !== []) {
     throw new RuntimeException('Native PHP migrations failed or are not idempotent.');
 }
 require __DIR__ . '/../tests/Integration/IdentityIntegration.php';
