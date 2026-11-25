@@ -129,7 +129,7 @@ final class MarketPolicyManagementService
     private function assertSuperAdmin(Principal $actor): void
     {
         Authorization::require($actor,'market.policy.manage',true);
-        if (!$actor->hasRole('super_admin') || count($actor->roles) !== 1) {
+        if (!$actor->hasRole('super_admin')) {
             throw new DomainException('Only the deployment Super Admin can record market compliance decisions.');
         }
     }
