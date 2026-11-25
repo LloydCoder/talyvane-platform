@@ -22,9 +22,10 @@ final class ModelAgencyAgreementService
         $this->assertAgencyAdministrator($actor);
         $scope = $terms['service_scope'] ?? null;
         $allowedScope = ['portfolio_development','casting_submissions','booking_coordination','commercial_representation'];
-        if ($commissionBasisPoints < 0 || $commissionBasisPoints > 10000 || !is_array($scope) || $scope === [] ||
-            array_diff($scope,$allowedScope) !== [] || count($scope) !== count(array_unique($scope)) ||
-            (int) ($terms['commission_basis_points'] ?? -1) !== $commissionBasisPoints ||
+        if ($commissionBasisPoints < 0 || $commissionBasisPoints > 10000 || !is_array($scope) || !array_is_list($scope) || $scope === [] ||
+            count($scope) !== count(array_filter($scope,'is_string')) || array_diff($scope,$allowedScope) !== [] ||
+            count($scope) !== count(array_unique($scope)) ||
+            !is_int($terms['commission_basis_points'] ?? null) || $terms['commission_basis_points'] !== $commissionBasisPoints ||
             !is_int($terms['term_months'] ?? null) || $terms['term_months'] < 1 || $terms['term_months'] > 60 ||
             !is_bool($terms['exclusivity'] ?? null) ||
             !is_int($terms['termination_notice_days'] ?? null) || $terms['termination_notice_days'] < 0 || $terms['termination_notice_days'] > 180 ||
