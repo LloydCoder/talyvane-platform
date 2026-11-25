@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Talyvane\\Application\\Clients;
+namespace Talyvane\Application\Clients;
 
 /**
  * Only entitlements with a complete server-side enforcement path belong here.
