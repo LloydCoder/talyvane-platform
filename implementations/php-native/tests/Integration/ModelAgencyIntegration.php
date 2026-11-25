@@ -168,7 +168,7 @@ function runModelAgencyIntegration(PDO $pdo): int
     }
     $pdo->prepare('UPDATE deployment_settings SET setting_json = JSON_SET(setting_json,"$.enabled",false),version = version + 1 WHERE setting_key = "model_agency.intake"')->execute();
     try {
-        $service->submit('Another Applicant','another-model-applicant@example.test',null,'GB','London',null,null,true,'model-privacy-v1',bin2hex(random_bytes(16)));
+        $service->submit('Another Applicant','another-model-applicant@example.test',null,'GB','London',null,null,true,true,'model-privacy-v1',bin2hex(random_bytes(16)));
         $assert(false,'model application intake fails closed when disabled');
     } catch (DomainException) {
         $assert(true,'model application intake fails closed when disabled');
