@@ -751,6 +751,19 @@ $unpublishedMediaMarkup = $authViews->render('portal/media',[
 $assert(str_contains($unpublishedMediaMarkup,'/portal/companion/publication/renew') &&
     str_contains($unpublishedMediaMarkup,'name="publication_consent_confirmed"'),
     'unpublished companion can grant a new versioned publication consent only through explicit confirmation');
+$adminClientsMarkup = $authViews->render('admin/clients',[
+    'brandName'=>'Maison Example','csrf'=>'admin-clients-csrf','error'=>'',
+    'notice'=>'Membership suspension saved.',
+    'clients'=>[[
+        'id'=>'client-1','email'=>'client@example.test','email_verified_at'=>'2026-11-25 10:00:00',
+        'membership_id'=>'membership-1','plan_key'=>'gold','tier_name'=>'Gold','membership_status'=>'active',
+    ]],
+    'entitlements'=>['media.private_gallery'=>'Private members-only gallery'],
+]);
+$assert(str_contains($adminClientsMarkup,'/admin/memberships/membership-1/suspend') &&
+    str_contains($adminClientsMarkup,'/admin/memberships/membership-1/cancel') &&
+    str_contains($adminClientsMarkup,'Membership suspension saved.'),
+    'MFA-admin membership workspace exposes suspend/cancel actions and outcome feedback');
 $adminMediaMarkup = $authViews->render('admin/profile-media',[
     'brandName'=>'Talyvane','csrf'=>'review-csrf','error'=>'','notice'=>'',
     'items'=>[['id'=>'media-1','profile_name'=>'Talent Example','profile_slug'=>'talent','destination_name'=>'London','width'=>320,'height'=>320,'created_at'=>'2026-11-25']],
