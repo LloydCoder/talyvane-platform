@@ -11,6 +11,7 @@ use Talyvane\Application\Companions\CompanionOnboardingService;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Bookings\BookingCommandService;
+use Talyvane\Application\Bookings\BookingQueryService;
 use Talyvane\Infrastructure\Database\BookingPolicyRepository;
 use Talyvane\Application\Identity\EmailVerificationService;
 use Talyvane\Infrastructure\Mail\Mailer;
@@ -271,6 +272,14 @@ function runIdentityIntegration(PDO $pdo): int
     $rescheduled->execute(['id'=>$thirdBookingId]);
     $rescheduledRow = $rescheduled->fetch();
     $assert(is_array($rescheduledRow) && $rescheduledRow['status'] === 'confirmed' && $rescheduledRow['starts_at_utc'] === $newStart->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),'client rescheduling preserves confirmed state and uses UTC storage');
+    $bookingQueries = new BookingQueryService($pdo);
+    $clientHistory = $bookingQueries->clientHistory($clientPrincipal);
+    $companionHistory = $bookingQueries->companionHistory($companionPrincipal);
+    $adminBookingQueue = $bookingQueries->adminQueue($superAdmin);
+    $assert(count($clientHistory) === 3 && count($companionHistory) === 3,'client and companion booking histories are scoped to their own identities');
+    $assert(count($adminBookingQueue) === 3 && array_key_exists('client_user_id',$adminBookingQueue[0]),'MFA-authorized administrators can inspect the booking operations queue');
+    $assert(!array_key_exists('client_user_id',$companionHistory[0]) && !array_key_exists('client_user_id',$clientHistory[0]),'client and companion booking read models omit internal account identifiers');
+
 
     return $assertions;
 }
