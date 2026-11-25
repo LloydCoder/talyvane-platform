@@ -434,6 +434,22 @@ final class SafeguardingCaseService
         $this->assertActorActive($actor,['safeguarding']);
     }
 
+    /** Re-check live role, account and MFA state; a stale browser principal is never sufficient. */
+    private function assertActorActive(Principal $actor,array $roles): void
+    {
+        $allowed=implode(',',array_map(static fn(string $role):string=>"'".str_replace("'","",$role)."'", $roles));
+        $query=$this->pdo->prepare(
+            'SELECT 1 FROM users u
+             JOIN user_roles r ON r.user_id=u.id AND r.role_key IN ('.$allowed.')
+             JOIN admin_mfa_credentials mfa ON mfa.user_id=u.id AND mfa.enabled_at IS NOT NULL
+             WHERE u.id=:id AND u.status="active" AND u.email_verified_at IS NOT NULL LIMIT 1'
+        );
+        $query->execute(['id'=>$actor->id]);
+        if ($query->fetchColumn()===false) {
+            throw new DomainException('This safeguarding action requires an active, verified account with current MFA enrollment and role authorization.');
+        }
+    }
+
     private static function uuid(): string
     {
         $bytes=random_bytes(16);
