@@ -89,7 +89,8 @@ final class ModelAgencyApplicationService
             $this->audit->record(null,'model_application.submitted','model_application',$id,'Applicant submitted a model-agency application',null,[
                 'country_code'=>$country,
                 'privacy_notice_version'=>$privacyNoticeVersion,
-                'adult_attestation_recorded'=>true,\n                'privacy_acknowledged'=>true,
+                'adult_attestation_recorded'=>true,
+                'privacy_acknowledged'=>true,
                 'retention_due_at'=>$retention->format('Y-m-d H:i:s'),
             ],$requestId,'model-agency-intake-v1');
             $this->pdo->commit();
