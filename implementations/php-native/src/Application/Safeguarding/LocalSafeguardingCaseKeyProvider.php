@@ -21,6 +21,16 @@ final class LocalSafeguardingCaseKeyProvider implements SafeguardingCaseKeyProvi
         return 'local';
     }
 
+    public function supportsDestruction(): bool
+    {
+        return false;
+    }
+
+    public function destroy(string $caseId,string $wrappedKey): void
+    {
+        throw new RuntimeException('Local application-key custody cannot guarantee cryptographic erasure across retained database and configuration backups.');
+    }
+
     public function wrap(string $caseId,string $caseKey): string
     {
         if (strlen($caseKey)!==32) {
