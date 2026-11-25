@@ -190,7 +190,7 @@ final class ProfileMediaService
         $deleteKey=null;
         try {
             $query=$this->pdo->prepare(
-                'SELECT pm.id,pm.profile_id,pm.private_storage_key,pm.sha256,pm.consent_grant_id,pm.consent_version,pm.review_status,
+                'SELECT pm.id,pm.profile_id,pm.uploaded_by,pm.rights_confirmed_at,pm.private_storage_key,pm.sha256,pm.consent_grant_id,pm.consent_version,pm.review_status,
                         p.slug,p.status,p.adult_eligibility_status,p.publication_consent_version,
                         p.publication_consent_withdrawn_at
                  FROM profile_media pm JOIN companion_profiles p ON p.id=pm.profile_id
@@ -203,6 +203,18 @@ final class ProfileMediaService
             }
             $before=['review_status'=>'pending','media_scope'=>'private'];
             if ($decision==='approved') {
+                if ($media['uploaded_by']===null || $media['rights_confirmed_at']===null) {
+                    throw new DomainException('Uploader rights and identity attestations are incomplete.');
+                }
+                $attestations=$this->pdo->prepare(
+                    'SELECT COUNT(DISTINCT action) FROM profile_media_consent_events
+                     WHERE profile_media_id=:media AND actor_id=:actor
+                       AND action IN ("image_rights.attested","depicted_adults.attested","public_publication.attested")'
+                );
+                $attestations->execute(['media'=>$mediaId,'actor'=>$media['uploaded_by']]);
+                if ((int) $attestations->fetchColumn()!==3) {
+                    throw new DomainException('Required uploader image-rights, adult-subject and publication attestations are missing.');
+                }
                 $publicProfile=$this->discovery->profile((string) $media['slug']);
                 if (!is_array($publicProfile) || (string) $publicProfile['id']!==(string) $media['profile_id'] ||
                     $media['status']!=='published' || $media['adult_eligibility_status']!=='verified' ||
@@ -223,12 +235,17 @@ final class ProfileMediaService
             }
             $update=$this->pdo->prepare(
                 'UPDATE profile_media SET review_status=:status,media_scope=:scope,reviewed_by=:actor,
-                    reviewed_at=UTC_TIMESTAMP(),review_note=:reason,updated_at=UTC_TIMESTAMP()
+                    reviewed_at=UTC_TIMESTAMP(),reviewer_adult_safety_confirmed_at=:adult_at,
+                    reviewer_rights_confirmed_at=:rights_at,reviewer_consent_confirmed_at=:consent_at,
+                    review_note=:reason,updated_at=UTC_TIMESTAMP()
                  WHERE id=:id AND review_status="pending"'
             );
             $update->execute([
                 'status'=>$decision,'scope'=>$decision==='approved'?'public':'private',
-                'actor'=>$actor->id,'reason'=>$reason,'id'=>$mediaId,
+                'actor'=>$actor->id,'adult_at'=>$decision==='approved'?gmdate('Y-m-d H:i:s'):null,
+                'rights_at'=>$decision==='approved'?gmdate('Y-m-d H:i:s'):null,
+                'consent_at'=>$decision==='approved'?gmdate('Y-m-d H:i:s'):null,
+                'reason'=>$reason,'id'=>$mediaId,
             ]);
             if ($update->rowCount()!==1) {
                 throw new DomainException('Media review state changed; reload and retry.');
@@ -367,9 +384,13 @@ final class ProfileMediaService
     public function publicMedia(string $mediaId): array
     {
         $query=$this->pdo->prepare(
-            'SELECT pm.id,pm.profile_id,pm.private_storage_key,pm.sha256,pm.consent_grant_id,pm.consent_version,p.slug,p.publication_consent_version
+            'SELECT pm.id,pm.profile_id,pm.uploaded_by,pm.rights_confirmed_at,pm.private_storage_key,pm.sha256,pm.consent_grant_id,pm.consent_version,pm.reviewer_adult_safety_confirmed_at,pm.reviewer_rights_confirmed_at,pm.reviewer_consent_confirmed_at,pm.reviewed_by,pm.reviewed_at,p.slug,p.publication_consent_version
              FROM profile_media pm JOIN companion_profiles p ON p.id=pm.profile_id
-             WHERE pm.id=:id AND pm.review_status="approved" AND pm.media_scope="public" LIMIT 1'
+             WHERE pm.id=:id AND pm.review_status="approved" AND pm.media_scope="public"
+               AND pm.uploaded_by IS NOT NULL AND pm.rights_confirmed_at IS NOT NULL
+               AND pm.reviewed_by IS NOT NULL AND pm.reviewed_at IS NOT NULL
+               AND pm.reviewer_adult_safety_confirmed_at IS NOT NULL
+               AND pm.reviewer_rights_confirmed_at IS NOT NULL AND pm.reviewer_consent_confirmed_at IS NOT NULL LIMIT 1'
         );
         $query->execute(['id'=>$mediaId]);
         $media=$query->fetch();
@@ -401,6 +422,10 @@ final class ProfileMediaService
              JOIN consent_grants cg ON cg.id=pm.consent_grant_id
              WHERE pm.profile_id=:profile AND pm.review_status="approved" AND pm.media_scope="public"
                AND pm.consent_version=p.publication_consent_version
+               AND pm.uploaded_by IS NOT NULL AND pm.rights_confirmed_at IS NOT NULL
+               AND pm.reviewed_by IS NOT NULL AND pm.reviewed_at IS NOT NULL
+               AND pm.reviewer_adult_safety_confirmed_at IS NOT NULL
+               AND pm.reviewer_rights_confirmed_at IS NOT NULL AND pm.reviewer_consent_confirmed_at IS NOT NULL
                AND cg.granted=1 AND cg.withdrawn_at IS NULL
                AND cg.policy_version=p.publication_consent_version
              ORDER BY pm.created_at ASC LIMIT 12'
