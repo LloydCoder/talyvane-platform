@@ -290,6 +290,7 @@ final class Bootstrap
         $router->add('POST', '/admin/destinations/{id}', static fn(Request $request, array $params): Response => $adminDestinations->save($request, $params));
         $router->add('POST', '/admin/destinations/{id}/cover', static fn(Request $request,array $params): Response => $adminDestinations->uploadCover($request,$params));
         $router->add('POST', '/admin/destination-covers/{id}/review', static fn(Request $request,array $params): Response => $adminDestinations->reviewCover($request,$params));
+        $router->add('POST', '/admin/destination-covers/{id}/withdraw', static fn(Request $request,array $params): Response => $adminDestinations->withdrawCover($request,$params));
         $router->add('GET', '/admin/companions', static fn(Request $request): Response => $adminCompanions->index($request));
         $router->add('POST', '/admin/companions/{id}/publish', static fn(Request $request, array $params): Response => $adminCompanions->publish($request, $params));
         $router->add('GET', '/admin/safeguarding/reports', static fn(Request $request): Response => $safeguardingController->reportForm($request));
