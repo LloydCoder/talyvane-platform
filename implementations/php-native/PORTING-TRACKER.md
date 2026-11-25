@@ -19,13 +19,13 @@ The native branch currently has an ordered PHP migration runner and initial core
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
 | Single ZIP cPanel installation | CPANEL-INSTALLATION, SECURE-BROWSER-INSTALLER | NOT_STARTED | Fresh account install on cPanel/LiteSpeed, no SSH/Composer/npm/manual edits |
-| Private app placement | HOSTING-COMPATIBILITY, ADR-0014 | NOT_STARTED | Source/config/vendor/logs/uploads/backups inaccessible over HTTP |
-| PHP/runtime preflight | HOSTING-COMPATIBILITY | NOT_STARTED | Web-SAPI extension/version check, DB and filesystem capability check |
-| One-time installer access key | SECURE-BROWSER-INSTALLER | NOT_STARTED | High entropy, hashed/one-time, HTTPS, throttled, CSRF protected |
+| Private app placement | HOSTING-COMPATIBILITY, ADR-0014 | IN_PROGRESS | Source/config/vendor/logs/uploads/backups inaccessible over HTTP |
+| PHP/runtime preflight | HOSTING-COMPATIBILITY | IN_PROGRESS | Web-SAPI extension/version check, DB and filesystem capability check |
+| One-time installer access key | SECURE-BROWSER-INSTALLER | IN_PROGRESS | High entropy, hashed/one-time, HTTPS, throttled, CSRF protected |
 | Dual-email verification | Installer and recovery requirements | NOT_STARTED | Separate mailbox codes, expiry, attempt limits and verified state |
 | Super Admin bootstrap | SUPER-ADMIN-RECOVERY | NOT_STARTED | Singleton, verified addresses, one-time credentials, offline recovery key |
-| Installer permanent lock | SECURE-BROWSER-INSTALLER | NOT_STARTED | Durable lock; malformed/missing state fails closed; cleanup not required for lock |
-| Private diagnostic logging | cPanel installer diagnostics | NOT_STARTED | Correlation ID, redaction, restrictive permissions, no public log endpoint |
+| Installer permanent lock | SECURE-BROWSER-INSTALLER | IN_PROGRESS | Durable lock; malformed/missing state fails closed; cleanup not required for lock |
+| Private diagnostic logging | cPanel installer diagnostics | IN_PROGRESS | Correlation ID, redaction, restrictive permissions, no public log endpoint |
 | Upgrade/migration process | DEPLOYMENT-OPERATIONS | IN_PROGRESS | Forward-only migration, backup, compatibility and rollback evidence |
 | Backup/restore | DEPLOYMENT-OPERATIONS | NOT_STARTED | DB + private files restore drill on isolated environment |
 | Health checks and operations | ARCHITECTURE, DEPLOYMENT-OPERATIONS | NOT_STARTED | Safe diagnostics, SMTP, storage, scheduler and disk monitoring |
@@ -179,7 +179,7 @@ The native branch currently has an ordered PHP migration runner and initial core
 
 ## 9. Non-functional and security verification
 
-Current verified scope: GitHub Actions syntax lint and 76 dependency-free assertions passed on PHP 8.3, 8.4 and 8.5. The MySQL 8.0 integration smoke also applied all 10 ordered migrations and confirmed a second migration run is idempotent. This does not yet exercise every repository/service against MySQL. Browser workflows, installer, UI, complete feature parity and real-host acceptance remain unverified.
+Current verified scope: GitHub Actions syntax lint and 76 dependency-free assertions passed on PHP 8.3, 8.4 and 8.5; the MySQL 8.0 integration smoke applied all 10 ordered migrations and confirmed a second run is idempotent. Further integration coverage for privileged authentication/MFA and installer primitives is in progress. Browser installer flow, complete feature parity and real-host acceptance remain unverified.
 
 - [ ] Applicable OWASP ASVS 5.0 requirements mapped to controls, automated tests and manual review.
 - [ ] OWASP Top 10:2025 threat model covering public site, identity, admin, bookings, media, safeguarding, payments, integrations, exports, installer, backups and upgrades.
