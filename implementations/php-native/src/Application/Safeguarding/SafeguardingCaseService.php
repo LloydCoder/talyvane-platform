@@ -351,6 +351,7 @@ final class SafeguardingCaseService
         if (!$actor->hasRole('owner') && !$actor->hasRole('super_admin')) {
             throw new DomainException('Only an MFA-verified Owner or Super Admin can access safeguarding governance.');
         }
+        $this->assertActorActive($actor,['owner','super_admin']);
     }
 
     /** @return array{due_at:string,policy_version:string}|null */
@@ -413,6 +414,7 @@ final class SafeguardingCaseService
         if (!$actor->hasRole('admin') && !$actor->hasRole('owner') && !$actor->hasRole('super_admin')) {
             throw new DomainException('Only MFA-verified administrators can submit safeguarding reports.');
         }
+        $this->assertActorActive($actor,['admin','owner','super_admin']);
     }
 
     private function assertSpecialist(Principal $actor,string $permission): void
@@ -421,6 +423,7 @@ final class SafeguardingCaseService
         if (!$actor->hasRole('safeguarding') || count($actor->roles)!==1) {
             throw new DomainException('Safeguarding specialists can access only their assigned safeguarding workspace.');
         }
+        $this->assertActorActive($actor,['safeguarding']);
     }
 
     private static function uuid(): string
