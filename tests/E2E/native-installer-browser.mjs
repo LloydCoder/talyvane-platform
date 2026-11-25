@@ -99,7 +99,7 @@ try {
     db_name: process.env.TALYVANE_NATIVE_E2E_DB_NAME,
     db_user: process.env.TALYVANE_NATIVE_E2E_DB_USER,
     db_password: process.env.TALYVANE_NATIVE_E2E_DB_PASSWORD,
-    mail_host: 'localhost',
+    mail_host: '127.0.0.1',
     mail_port: '1025',
     mail_encryption: 'tls',
     mail_username: 'native-e2e',
@@ -115,10 +115,23 @@ try {
     else await field.fill(String(value));
   }
   await page.locator('[name="installation_confirmed"]').check();
-  await Promise.all([
-    page.waitForURL('**/install/verify'),
-    page.getByRole('button', { name: /Test services and send verification codes/i }).click(),
-  ]);
+  const setupResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === 'POST' && new URL(response.url()).pathname === '/install',
+  );
+  await page.getByRole('button', { name: /Test services and send verification codes/i }).click();
+  const setupResponse = await setupResponsePromise;
+  await page.waitForLoadState('networkidle');
+  if (!page.url().endsWith('/install/verify')) {
+    const alert = await page.locator('[role="alert"]').allInnerTexts();
+    const pageText = await page.locator('body').innerText();
+    throw new Error([
+      'Native installer did not advance to dual-email verification.',
+      `HTTP status: ${setupResponse.status()}`,
+      `Current URL: ${page.url()}`,
+      `Visible errors: ${alert.join(' | ')}`,
+      `Page text: ${pageText}`,
+    ].join('\n'));
+  }
 
   const [primaryCode, recoveryCode] = await Promise.all([waitForCode(adminEmail), waitForCode(recoveryEmail)]);
   assert.notEqual(primaryCode, recoveryCode, 'The two independent mailboxes must receive distinct codes.');
