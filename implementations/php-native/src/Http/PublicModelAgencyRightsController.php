@@ -9,7 +9,7 @@ use Talyvane\Security\SessionManager;
 
 final class PublicModelAgencyRightsController
 {
-    public function __construct(private ?ModelApplicantRightsService $rights, private ViewRenderer $views) {}
+    public function __construct(private ?ModelApplicantRightsService $rights, private ViewRenderer $views, private string $brandName) {}
 
     public function requestForm(Request $request): Response
     {
@@ -166,7 +166,7 @@ final class PublicModelAgencyRightsController
     /** @param array<string,mixed> $data */
     private function page(string $screen,array $data=[],int $status=200): Response
     {
-        $payload=$data+['screen'=>$screen,'csrf'=>Csrf::issue(),'error'=>'','notice'=>'','requestType'=>'','record'=>[]];
+        $payload=$data+['screen'=>$screen,'csrf'=>Csrf::issue(),'error'=>'','notice'=>'','requestType'=>'','record'=>[],'brandName'=>$this->brandName];
         return Response::html($this->views->render('public/model-agency-rights',$payload),$status);
     }
 }
