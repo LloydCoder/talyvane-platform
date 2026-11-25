@@ -114,7 +114,7 @@ final class AuthenticationService
             unset($_SESSION['_admin_mfa_pending']);
             return false;
         }
-        if (!$this->mfa->verifyChallenge((string) $pending['user_id'], $code)) {
+        if (!$this->rateLimiter->consume('auth.mfa', (string) $pending['user_id'], 5, 300, 900)) {\n            return false;\n        }\n        if (!$this->mfa->verifyChallenge((string) $pending['user_id'], $code)) {
             return false;
         }
         $this->finalizeAdminSession((string) $user['id'], (int) $user['admin_session_version']);
@@ -134,7 +134,7 @@ final class AuthenticationService
             unset($_SESSION['_admin_mfa_pending']);
             return false;
         }
-        if (!$this->mfa->consumeRecoveryCode((string) $pending['user_id'], $code, $requestId)) {
+        if (!$this->rateLimiter->consume('auth.recovery', (string) $pending['user_id'], 5, 300, 1800)) {\n            return false;\n        }\n        if (!$this->mfa->consumeRecoveryCode((string) $pending['user_id'], $code, $requestId)) {
             return false;
         }
         $this->finalizeAdminSession((string) $user['id'], (int) $user['admin_session_version']);
@@ -143,7 +143,7 @@ final class AuthenticationService
 
     public function currentPrincipal(): ?Principal
     {
-        $userId = $_SESSION['user_id'] ?? null;
+        $now = time();\n        $authenticatedAt = (int) ($_SESSION['authenticated_at'] ?? 0);\n        $lastActivity = (int) ($_SESSION['last_activity_at'] ?? $authenticatedAt);\n        if ($authenticatedAt < 1 || $now - $lastActivity > 1800 || $now - $authenticatedAt > 43200) {\n            SessionManager::destroy();\n            return null;\n        }\n        $_SESSION['last_activity_at'] = $now;\n        $userId = $_SESSION['user_id'] ?? null;
         $sessionVersion = $_SESSION['session_version'] ?? null;
         if (!is_string($userId) || !is_int($sessionVersion)) {
             return null;
