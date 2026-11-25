@@ -6,7 +6,7 @@ on:
       - 'implementations/php-native/**'
       - '.github/workflows/php-native.yml'
   push:
-    branches: [main]
+    branches: [main, 'feat/**', 'fix/**']
     paths:
       - 'implementations/php-native/**'
       - '.github/workflows/php-native.yml'
