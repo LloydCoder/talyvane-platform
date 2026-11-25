@@ -19,7 +19,6 @@ use Talyvane\Infrastructure\Mail\SmtpMailer;
 use Talyvane\Infrastructure\Security\RateLimiter;
 use Talyvane\Installer\EnvironmentPreflight;
 use Talyvane\Installer\InstallerLock;
-use Talyvane\Installer\OneTimeRecoveryKeyHandoff;
 use Talyvane\Installer\PrivateConfigStore;
 use Talyvane\Installer\PrivateInstallerState;
 use Talyvane\Installer\PrivatePathResolver;
