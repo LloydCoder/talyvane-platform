@@ -5,7 +5,6 @@ use Talyvane\Http\NativeInstallerController;
 use Talyvane\Http\Request;
 use Talyvane\Infrastructure\Database\ConnectionFactory;
 use Talyvane\Infrastructure\Mail\Mailer;
-use Talyvane\Installer\OneTimeRecoveryKeyHandoff;
 use Talyvane\Installer\PrivateInstallerState;
 use Talyvane\Installer\SetupKey;
 use Talyvane\Security\Csrf;
@@ -168,19 +167,29 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
             !str_starts_with(realpath($configFiles[0]) ?: '',realpath($httpDocumentRoot) ?: '/invalid-public-root'),
             'installer preserves exact connection secrets and stores configuration outside the public root');
         $recoveryHandoffFiles = glob(dirname($configFiles[0]) . DIRECTORY_SEPARATOR . 'INSTALLER-RECOVERY-HANDOFF.json') ?: [];
-        $recoveryHandoff = count($recoveryHandoffFiles) === 1
-            ? new OneTimeRecoveryKeyHandoff($recoveryHandoffFiles[0],$httpDocumentRoot,new SecretBox((string) $installedConfig['app_key']))
-            : null;
-        $offlineRecoveryKey = $recoveryHandoff?->consume() ?? '';
-        $assert(strlen($offlineRecoveryKey) === 43 && !str_contains($successResponse->body,$offlineRecoveryKey) &&
-            !file_exists($recoveryHandoffFiles[0] ?? ''),
-            'offline recovery key is encrypted outside the browser and consumed once through a private CLI handoff');
-        try {
-            $recoveryHandoff?->consume();
-            $assert(false,'offline recovery key cannot be retrieved twice');
-        } catch (RuntimeException) {
-            $assert(true,'offline recovery key cannot be retrieved twice');
-        }
+        $cliScript = $applicationRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'reveal-super-admin-recovery-key.php';
+        $runRecoveryCli = static function() use ($cliScript,$applicationRoot,$httpHome,$configFiles): array {
+            $process = proc_open([PHP_BINARY,$cliScript],[
+                0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w'],
+            ],$pipes,$applicationRoot,[
+                'HOME'=>$httpHome,'TALYVANE_CONFIG'=>$configFiles[0],
+            ]);
+            if (!is_resource($process)) { throw new RuntimeException('Could not start the recovery-key CLI integration process.'); }
+            fclose($pipes[0]);
+            $stdout = stream_get_contents($pipes[1]);
+            $stderr = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            return ['status'=>proc_close($process),'stdout'=>is_string($stdout)?$stdout:'','stderr'=>is_string($stderr)?$stderr:''];
+        };
+        $cliResult = count($recoveryHandoffFiles) === 1 ? $runRecoveryCli() : ['status'=>1,'stdout'=>'','stderr'=>''];
+        $offlineRecoveryKey = trim($cliResult['stdout']);
+        $assert($cliResult['status'] === 0 && strlen($offlineRecoveryKey) === 43 &&
+            !str_contains($successResponse->body,$offlineRecoveryKey) && !file_exists($recoveryHandoffFiles[0] ?? ''),
+            'offline recovery key is encrypted outside the browser and consumed once through the private CLI');
+        $secondCliResult = $runRecoveryCli();
+        $assert($secondCliResult['status'] === 1 && trim($secondCliResult['stdout']) === '',
+            'offline recovery key cannot be retrieved twice through the CLI');
 
         $installedUser = $pdo->prepare('SELECT status,first_login_required,password_hash FROM users WHERE email = "first-admin@example.test" LIMIT 1');
         $installedUser->execute();
