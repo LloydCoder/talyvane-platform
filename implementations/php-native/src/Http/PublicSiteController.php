@@ -42,8 +42,14 @@ final class PublicSiteController
             return Response::html('Not Found', 404);
         }
         $query = $this->pdo->prepare(
-            'SELECT title,content,meta_title,meta_description,locale FROM site_pages
-             WHERE slug = :slug AND status = "published" AND locale = :locale LIMIT 1'
+            'SELECT p.title,p.locale,p.published_version,v.title AS published_title,
+                    v.content AS published_content,v.metadata_json
+             FROM site_pages p
+             INNER JOIN site_page_versions v
+                ON v.page_id = p.id AND v.version = p.published_version
+             WHERE p.slug = :slug AND p.status = "published"
+               AND p.published_version IS NOT NULL AND p.locale = :locale
+             LIMIT 1'
         );
         $query->execute(['slug'=>$slug,'locale'=>'en']);
         $page = $query->fetch();
@@ -51,12 +57,15 @@ final class PublicSiteController
             return Response::html('Not Found', 404);
         }
 
+        $metadata = json_decode((string) ($page['metadata_json'] ?? ''), true);
+        $metadata = is_array($metadata) ? $metadata : [];
+        $publishedTitle = (string) $page['published_title'];
         return Response::html($this->views->render('public/page', [
             'brand' => $this->publicBrand(),
-            'title' => (string) $page['title'],
-            'content' => (string) $page['content'],
-            'metaTitle' => is_string($page['meta_title']) && $page['meta_title'] !== '' ? (string) $page['meta_title'] : (string) $page['title'],
-            'metaDescription' => is_string($page['meta_description']) ? (string) $page['meta_description'] : '',
+            'title' => $publishedTitle,
+            'content' => (string) $page['published_content'],
+            'metaTitle' => is_string($metadata['meta_title'] ?? null) && $metadata['meta_title'] !== '' ? $metadata['meta_title'] : $publishedTitle,
+            'metaDescription' => is_string($metadata['meta_description'] ?? null) ? $metadata['meta_description'] : '',
         ]));
     }
 
