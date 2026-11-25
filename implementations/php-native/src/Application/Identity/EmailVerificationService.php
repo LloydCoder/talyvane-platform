@@ -127,11 +127,17 @@ final class EmailVerificationService
             }
             $update = $this->pdo->prepare('UPDATE email_verification_challenges SET verified_at = UTC_TIMESTAMP(), consumed_at = UTC_TIMESTAMP() WHERE id = :id AND consumed_at IS NULL');
             $update->execute(['id'=>$challenge['id']]);
-            if ($purpose === 'account_primary' || $purpose === 'admin_primary') {
-                $userUpdate = $this->pdo->prepare('UPDATE users SET email_verified_at = UTC_TIMESTAMP(), updated_at = UTC_TIMESTAMP() WHERE id = :user AND LOWER(email) = :email');
+            if ($purpose === 'account_primary') {
+                $userUpdate = $this->pdo->prepare('UPDATE users SET status = "active", email_verified_at = UTC_TIMESTAMP(), updated_at = UTC_TIMESTAMP() WHERE id = :user AND LOWER(email) = :email AND status = "pending"');
                 $userUpdate->execute(['user'=>$userId,'email'=>$email]);
                 if ($userUpdate->rowCount() !== 1) {
-                    throw new \DomainException('Account email changed during verification.');
+                    throw new \\DomainException('Pending account email changed or was already activated.');
+                }
+            } elseif ($purpose === 'admin_primary') {
+                $userUpdate = $this->pdo->prepare('UPDATE users SET email_verified_at = UTC_TIMESTAMP(), updated_at = UTC_TIMESTAMP() WHERE id = :user AND LOWER(email) = :email AND status = "pending"');
+                $userUpdate->execute(['user'=>$userId,'email'=>$email]);
+                if ($userUpdate->rowCount() !== 1) {
+                    throw new \\DomainException('Pending administrator email changed or was already activated.');
                 }
             }
             $this->pdo->commit();
