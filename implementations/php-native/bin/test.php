@@ -155,6 +155,7 @@ $portalDashboardMarkup = $authViews->render('auth/portal', [
 $assert(str_contains($portalDashboardMarkup, 'Companion workspace'), 'companion portal is visibly separated from the client portal');
 $assert(str_contains($portalDashboardMarkup, 'action="/portal/logout"'), 'portal dashboard exposes CSRF-protected sign-out');
 $assert(str_contains($portalDashboardMarkup,'href="/portal/security"'),'client and companion dashboards expose account security');
+$assert(str_contains($portalDashboardMarkup,'href="/portal/privacy/export"'),'client and companion dashboards expose a self-service account data export');
 $clientMembershipMarkup = $authViews->render('auth/portal', [
     'screen'=>'dashboard',
     'csrf'=>'portal-client-membership-csrf',
