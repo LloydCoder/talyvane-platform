@@ -7,6 +7,7 @@ use Talyvane\Application\Companions\CompanionProfilePublicationService;
 use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
+use Talyvane\Application\ModelAgency\ModelApplicantRightsService;
 use Talyvane\Application\CRM\EnquiryService;
 use Talyvane\Application\Identity\AccountRecoveryService;
 use Talyvane\Application\Identity\AuthenticationService;
@@ -22,6 +23,7 @@ use Talyvane\Http\AdminNavigationController;
 use Talyvane\Http\AdminEnquiryController;
 use Talyvane\Http\PortalAuthController;
 use Talyvane\Http\PublicModelAgencyController;
+use Talyvane\Http\PublicModelAgencyRightsController;
 use Talyvane\Http\PublicDiscoveryController;
 use Talyvane\Http\PublicEnquiryController;
 use Talyvane\Http\AdminContentController;
@@ -67,6 +69,7 @@ final class Bootstrap
         $emailVerification = null;
         $registration = null;
         $recovery = null;
+        $modelApplicantRights = null;
         if (isset($config['mail']['smtp']) && is_array($config['mail']['smtp'])) {
             try {
                 $mailer = new SmtpMailer($config['mail']['smtp']);
@@ -79,6 +82,7 @@ final class Bootstrap
                 );
                 $registration = new UserRegistrationService($pdo, $emailVerification, $rateLimiter, $audit);
                 $recovery = new AccountRecoveryService($pdo, $emailVerification, $rateLimiter, $audit);
+                $modelApplicantRights = new ModelApplicantRightsService($pdo, $mailer, $rateLimiter, $audit, hash_hmac('sha256', 'talyvane-model-applicant-rights-v1', $config['app_key']));
             } catch (\InvalidArgumentException) {
                 // Mail-dependent account creation stays unavailable; the public site and existing accounts remain usable.
             }
@@ -99,8 +103,9 @@ final class Bootstrap
         $companionPublication = new CompanionProfilePublicationService($pdo, $audit);
         $adminCompanions = new AdminCompanionController($authentication, $companionPublication, $views, $brandName);
         $modelApplications = new ModelAgencyApplicationService($pdo, $audit);
-        $publicModelAgency = new PublicModelAgencyController($pdo, $modelApplications, $contentManagement, $rateLimiter, $views);
+        $publicModelAgency = new PublicModelAgencyController($pdo, $modelApplications, $contentManagement, $rateLimiter, $modelApplicantRights, $views);
         $adminModelAgency = new AdminModelAgencyController($authentication, $modelApplications, $views, $brandName);
+        $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery);
         $router = new Router();
 
@@ -109,6 +114,13 @@ final class Bootstrap
         $router->add('POST', '/enquiries', static fn(Request $request): Response => $publicEnquiries->store($request));
         $router->add('GET', '/model-agency/apply', static fn(Request $request): Response => $publicModelAgency->form($request));
         $router->add('POST', '/model-agency/apply', static fn(Request $request): Response => $publicModelAgency->submit($request));
+        $router->add('GET', '/model-agency/privacy', static fn(Request $request): Response => $publicModelAgencyRights->requestForm($request));
+        $router->add('POST', '/model-agency/privacy', static fn(Request $request): Response => $publicModelAgencyRights->request($request));
+        $router->add('GET', '/model-agency/privacy/verify', static fn(Request $request): Response => $publicModelAgencyRights->verifyForm($request));
+        $router->add('POST', '/model-agency/privacy/verify', static fn(Request $request): Response => $publicModelAgencyRights->verify($request));
+        $router->add('POST', '/model-agency/privacy/correct', static fn(Request $request): Response => $publicModelAgencyRights->correct($request));
+        $router->add('POST', '/model-agency/privacy/withdraw', static fn(Request $request): Response => $publicModelAgencyRights->withdraw($request));
+        $router->add('POST', '/model-agency/privacy/erase', static fn(Request $request): Response => $publicModelAgencyRights->erase($request));
         $router->add('GET', '/destinations', static fn(Request $request): Response => $publicDiscovery->destinations($request));
         $router->add('GET', '/destinations/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->destination($request, $params));
         $router->add('GET', '/profiles/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->profile($request, $params));
