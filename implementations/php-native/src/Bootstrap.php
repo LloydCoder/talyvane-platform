@@ -12,7 +12,7 @@ use Talyvane\Application\Safeguarding\SafeguardingCryptoService;
 use Talyvane\Application\Safeguarding\LocalSafeguardingCaseKeyProvider;
 use Talyvane\Application\Safeguarding\SafeguardingNotificationOutbox;
 use Talyvane\Security\SecretBox;
-use Talyvane\Http\SafeguardingCaseController;
+use Talyvane\Http\AdminSafeguardingController;
 use Talyvane\Application\Clients\ClientMembershipService;
 use Talyvane\Features\FeatureAvailability;
 use Talyvane\Infrastructure\Database\FeatureStateRepository;
@@ -164,7 +164,7 @@ final class Bootstrap
         $safeguardingCrypto = new SafeguardingCryptoService(new LocalSafeguardingCaseKeyProvider($config['app_key']));
         $notificationOutbox = new SafeguardingNotificationOutbox($pdo,new SecretBox($config['app_key']),hash('sha256',$config['app_key'].'|safeguarding-outbox-fingerprint-v1',true));
         $safeguardingCases = new SafeguardingCaseService($pdo,$safeguardingCrypto,$audit,$notificationOutbox);
-        $safeguardingController = new SafeguardingCaseController($authentication,$safeguardingCases,$views,$brandName);
+        $safeguardingController = new AdminSafeguardingController($authentication,$safeguardingCases,$views,$brandName);
         $router = new Router();
 
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
@@ -248,14 +248,14 @@ final class Bootstrap
         $router->add('POST', '/admin/destinations/{id}', static fn(Request $request, array $params): Response => $adminDestinations->save($request, $params));
         $router->add('GET', '/admin/companions', static fn(Request $request): Response => $adminCompanions->index($request));
         $router->add('POST', '/admin/companions/{id}/publish', static fn(Request $request, array $params): Response => $adminCompanions->publish($request, $params));
-        $router->add('GET', '/admin/safeguarding/report', static fn(Request $request): Response => $safeguardingController->reportForm($request));
-        $router->add('POST', '/admin/safeguarding/report', static fn(Request $request): Response => $safeguardingController->report($request));
-        $router->add('GET', '/admin/safeguarding/cases', static fn(Request $request): Response => $safeguardingController->assignedIndex($request));
-        $router->add('GET', '/admin/safeguarding/cases/{id}', static fn(Request $request,array $params): Response => $safeguardingController->assignedShow($request,$params));
+        $router->add('GET', '/admin/safeguarding/reports', static fn(Request $request): Response => $safeguardingController->reportForm($request));
+        $router->add('POST', '/admin/safeguarding/reports', static fn(Request $request): Response => $safeguardingController->report($request));
+        $router->add('GET', '/admin/safeguarding/cases', static fn(Request $request): Response => $safeguardingController->assigned($request));
+        $router->add('GET', '/admin/safeguarding/cases/{id}', static fn(Request $request,array $params): Response => $safeguardingController->show($request,$params));
         $router->add('POST', '/admin/safeguarding/cases/{id}/transition', static fn(Request $request,array $params): Response => $safeguardingController->transition($request,$params));
         $router->add('GET', '/admin/safeguarding/governance', static fn(Request $request): Response => $safeguardingController->governance($request));
-        $router->add('POST', '/admin/safeguarding/cases/{id}/legal-hold', static fn(Request $request,array $params): Response => $safeguardingController->placeHold($request,$params));
-        $router->add('POST', '/admin/safeguarding/cases/{id}/legal-hold/release', static fn(Request $request,array $params): Response => $safeguardingController->releaseHold($request,$params));
+        $router->add('POST', '/admin/safeguarding/governance/{id}/hold', static fn(Request $request,array $params): Response => $safeguardingController->hold($request,$params,false));
+        $router->add('POST', '/admin/safeguarding/governance/{id}/release', static fn(Request $request,array $params): Response => $safeguardingController->hold($request,$params,true));
         $router->add('GET', '/admin/clients', static fn(Request $request): Response => $adminClients->index($request));
         $router->add('POST', '/admin/clients/{id}/membership', static fn(Request $request,array $params): Response => $adminClients->assign($request,$params));
         $router->add('GET', '/admin/enquiries', static fn(Request $request): Response => $adminEnquiries->index($request));
