@@ -18,6 +18,11 @@ final class DiscoveryService
     {
         $query = $this->pdo->query(
             'SELECT d.id,d.slug,d.country_code,d.city_name,d.display_name,d.currency_code,d.locale,d.time_zone,
+                    (SELECT a.id FROM destination_cover_assets a
+                     WHERE a.destination_id=d.id AND a.private_storage_key=d.cover_media_key
+                       AND a.review_status="approved" AND a.withdrawn_at IS NULL
+                       AND a.rights_declaration_version="destination-cover-rights-v1"
+                     ORDER BY a.reviewed_at DESC LIMIT 1) AS cover_media_id,
                     m.enabled AS market_enabled,m.decision AS market_decision,m.reviewer_id,m.reviewed_at,
                     m.expires_at,m.evidence_reference,m.review_summary
              FROM destinations d JOIN countries c ON c.alpha2 = d.country_code
@@ -37,7 +42,7 @@ final class DiscoveryService
                     'currency_code'=>$row['currency_code'] === null ? null : (string) $row['currency_code'],
                     'locale'=>$row['locale'] === null ? null : (string) $row['locale'],
                     'time_zone'=>(string) $row['time_zone'],
-            'primary_media_url'=>is_string($row['primary_media_id'] ?? null) ? '/profile-media/' . rawurlencode((string) $row['primary_media_id']) : null,
+                    'cover_url'=>is_string($row['cover_media_id']??null)?'/destination-covers/'.rawurlencode((string)$row['slug']):null,
                 ];
             }
         }
