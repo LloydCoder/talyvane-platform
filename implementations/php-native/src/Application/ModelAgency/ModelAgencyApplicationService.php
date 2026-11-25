@@ -15,6 +15,53 @@ final class ModelAgencyApplicationService
 {
     public function __construct(private PDO $pdo, private AuditLogger $audit) {}
 
+    /** @return list<array<string,mixed>> */
+    public function pendingForReview(Principal $administrator, int $limit = 50): array
+    {
+        Authorization::require($administrator,'model_applications.manage',true);
+        $this->actorRole($administrator);
+        $limit = max(1,min(100,$limit));
+        $query = $this->pdo->prepare(
+            'SELECT a.id,a.application_reference,a.applicant_name,a.email,a.phone,a.country_code,a.city,
+                    a.portfolio_url,a.experience_summary,a.status,a.legal_hold,a.created_at,
+                    v.outcome AS latest_verification_outcome,v.expires_at AS latest_verification_expires_at
+             FROM model_talent_applications a
+             LEFT JOIN model_applicant_verifications v ON v.id = (
+                 SELECT v2.id FROM model_applicant_verifications v2
+                 WHERE v2.application_id = a.id ORDER BY v2.verified_at DESC LIMIT 1
+             )
+             WHERE a.anonymized_at IS NULL AND a.status IN ("submitted","under_review","accepted")
+             ORDER BY a.created_at DESC LIMIT :limit'
+        );
+        $query->bindValue(':limit',$limit,PDO::PARAM_INT);
+        $query->execute();
+        return $query->fetchAll();
+    }
+
+    /** @return list<array<string,mixed>> */
+    public function verificationQueue(Principal $verifier, int $limit = 50): array
+    {
+        Authorization::require($verifier,'model_applications.adult_eligibility.verify',true);
+        if (!$verifier->hasRole('verifier')) {
+            throw new \\DomainException('Verifier role is required.');
+        }
+        $limit = max(1,min(100,$limit));
+        $query = $this->pdo->prepare(
+            'SELECT a.id,a.application_reference,a.country_code,a.city,a.status,a.adult_eligibility_attested_at,
+                    v.outcome AS latest_verification_outcome,v.expires_at AS latest_verification_expires_at
+             FROM model_talent_applications a
+             LEFT JOIN model_applicant_verifications v ON v.id = (
+                 SELECT v2.id FROM model_applicant_verifications v2
+                 WHERE v2.application_id = a.id ORDER BY v2.verified_at DESC LIMIT 1
+             )
+             WHERE a.anonymized_at IS NULL AND a.status IN ("submitted","under_review")
+             ORDER BY a.created_at ASC LIMIT :limit'
+        );
+        $query->bindValue(':limit',$limit,PDO::PARAM_INT);
+        $query->execute();
+        return $query->fetchAll();
+    }
+
     public function submit(
         string $applicantName,
         string $email,
