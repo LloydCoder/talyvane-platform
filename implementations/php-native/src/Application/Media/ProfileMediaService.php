@@ -173,11 +173,14 @@ final class ProfileMediaService
         return ['bytes'=>$bytes,'mime'=>'image/webp'];
     }
 
-    public function review(Principal $actor,string $mediaId,string $decision,string $reason,bool $adultSafetyConfirmed,bool $rightsConfirmed,bool $consentConfirmed,string $requestId): void
+    public function review(Principal $actor,string $mediaId,string $decision,string $reason,bool $adultSafetyConfirmed,bool $rightsConfirmed,bool $consentConfirmed,string $requestId,string $mediaScope='public'): void
     {
         $this->assertReviewer($actor);
         if (!in_array($decision,['approved','rejected'],true)) {
             throw new InvalidArgumentException('Choose an approve or reject decision.');
+        }
+        if (!in_array($mediaScope,['public','members_only'],true)) {
+            throw new InvalidArgumentException('Choose a supported media audience.');
         }
         $reason=trim($reason);
         if (strlen($reason)<10 || strlen($reason)>500) {
@@ -241,7 +244,7 @@ final class ProfileMediaService
                  WHERE id=:id AND review_status="pending"'
             );
             $update->execute([
-                'status'=>$decision,'scope'=>$decision==='approved'?'public':'private',
+                'status'=>$decision,'scope'=>$decision==='approved'?$mediaScope:'private',
                 'actor'=>$actor->id,'adult_at'=>$decision==='approved'?gmdate('Y-m-d H:i:s'):null,
                 'rights_at'=>$decision==='approved'?gmdate('Y-m-d H:i:s'):null,
                 'consent_at'=>$decision==='approved'?gmdate('Y-m-d H:i:s'):null,
