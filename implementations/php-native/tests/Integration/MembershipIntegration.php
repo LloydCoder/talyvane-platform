@@ -86,6 +86,12 @@ function runMembershipIntegration(PDO $pdo): int
     $revoked->execute(['id'=>$thirdId]);
     $assert($revoked->fetchColumn()==='cancelled','explicit membership cancellation persists a terminal status');
     $assert(!$entitlements->has($clientId,'media.private_gallery'),'cancelled membership immediately revokes effective entitlement access');
+    $assert($memberships->currentForClient(new Principal($clientId,['client'],false))===null,
+        'client portal hides cancelled membership from its current-membership projection');
+    $projectionDenied=false;
+    try { $memberships->currentForClient($actor); }
+    catch (DomainException) { $projectionDenied=true; }
+    $assert($projectionDenied,'agency administrators cannot use the client-owned membership projection');
     $eventCount->execute(['client'=>$clientId]);
     $assert((int) $eventCount->fetchColumn()===6,'supersession, assignment and cancellation are recorded as append-only lifecycle events');
     $repeatCancelRejected=false;
