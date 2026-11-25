@@ -62,6 +62,17 @@ $assert(strlen($totpSecret) >= 32 && preg_match('/^[0-9]{6}$/D', $totpCode) === 
 $assert(Totp::verify($totpSecret, $totpCode, 300) === 10, 'TOTP verifies within the current time counter');
 $assert(Totp::verify($totpSecret, $totpCode, 300, 10) === null, 'TOTP replay counter is rejected');
 
+$box = new SecretBox(str_repeat('k', 32));
+$encrypted = $box->encrypt('sensitive-provider-secret', 'provider:payments');
+$assert($box->decrypt($encrypted, 'provider:payments') === 'sensitive-provider-secret', 'encrypted secrets decrypt only with matching context');
+try { $box->decrypt($encrypted, 'provider:mail'); $assert(false, 'secret context binding enforced'); }
+catch (RuntimeException) { $assert(true, 'secret context binding enforced'); }
+
+$recovery = RecoveryCodes::issue(8);
+$remaining = RecoveryCodes::consume($recovery['plain'][0], $recovery['hashes']);
+$assert(count($recovery['plain']) === 8 && is_array($remaining) && count($remaining) === 7, 'recovery code is consumed once');
+$assert(RecoveryCodes::consume($recovery['plain'][0], $remaining) === null, 'consumed recovery code cannot be reused');
+
 $finance = new Principal('finance-1', ['finance'], true);
 $assert(Authorization::allows($finance, 'model_settlements.view'), 'finance role can access settlement workspace');
 $assert(!Authorization::allows($finance, 'dashboard.view'), 'finance role cannot access general dashboard');
