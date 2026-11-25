@@ -110,6 +110,20 @@ $portalVerifyMarkup = $authViews->render('auth/portal', [
     'email'=>'person@example.test',
 ]);
 $assert(str_contains($portalVerifyMarkup, 'action="/portal/verify"') && str_contains($portalVerifyMarkup, 'pattern="[0-9]{6}"'), 'portal email verification requires a six-digit code');
+$portalRecoveryMarkup = $authViews->render('auth/portal', [
+    'screen'=>'recovery_request',
+    'csrf'=>'recovery-request-csrf',
+    'email'=>'person@example.test',
+]);
+$assert(str_contains($portalRecoveryMarkup, 'action="/portal/recovery"'), 'portal password recovery request posts to its dedicated endpoint');
+$portalRecoveryCompleteMarkup = $authViews->render('auth/portal', [
+    'screen'=>'recovery_complete',
+    'csrf'=>'recovery-complete-csrf',
+    'email'=>'person@example.test',
+]);
+$assert(str_contains($portalRecoveryCompleteMarkup, 'action="/portal/recovery/complete"'), 'portal password recovery requires the one-time code and new password');
+$assert(str_contains($portalRecoveryCompleteMarkup, 'name="code"') && str_contains($portalRecoveryCompleteMarkup, 'name="new_password"'), 'portal recovery form collects a verification code and new password');
+
 $portalLoginMarkup = $authViews->render('auth/portal', [
     'screen'=>'login',
     'csrf'=>'portal-login-csrf',
