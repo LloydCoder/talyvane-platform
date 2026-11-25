@@ -161,6 +161,7 @@ $dashboardMarkup = $authViews->render('auth/screen', [
 $assert(str_contains($dashboardMarkup, 'Access is limited') || str_contains($dashboardMarkup, 'Control room'), 'administrator dashboard screen has an explicit identity context');
 $assert(!str_contains($dashboardMarkup, '<svg onload=alert(1)>'), 'administrator role labels are escaped');
 $assert(str_contains($dashboardMarkup, 'href="/admin/content"'), 'authorised administrator dashboard links to the CMS workspace');
+$assert(str_contains($dashboardMarkup, 'href="/admin/companions"'), 'authorised administrator dashboard links to companion profile review');
 $superAdminDashboardMarkup = $authViews->render('auth/screen', [
     'screen'=>'dashboard',
     'csrf'=>'superadmin-csrf',
@@ -231,6 +232,7 @@ $publicHomeMarkup = $authViews->render('public/home', [
 ]);
 $assert(str_contains($publicHomeMarkup, '<title>Maison Example | Official</title>'), 'public homepage applies the configured SEO title suffix');
 $assert(str_contains($publicHomeMarkup, '<meta name="robots" content="noindex,nofollow">'), 'public homepage applies the configured robots policy');
+$assert(str_contains($publicHomeMarkup, 'href="/destinations"'), 'public homepage exposes destination discovery by default');
 $publicPageMarkup = $authViews->render('public/page', [
     'brand'=>['brand_name'=>'Maison Example'],
     'title'=>'Privacy Notice',
