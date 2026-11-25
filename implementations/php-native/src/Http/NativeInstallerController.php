@@ -389,10 +389,6 @@ final class NativeInstallerController
                 throw new RuntimeException('Existing private configuration does not match the pending installation.');
             }
         }
-        if (!$lock->isLocked()) {
-            $installationId = self::uuid();
-            $lock->lock($installationId);
-        }
         $successToken = bin2hex(random_bytes(32));
         $successStore = new PrivateInstallerState(
             $paths['config'] . '/INSTALLER-SUCCESS.json',$paths['document_root'],
@@ -406,6 +402,10 @@ final class NativeInstallerController
             'app_name'=>(string) $pending['app_name'],
             'app_url'=>(string) $pending['app_url'],
         ]);
+        if (!$lock->isLocked()) {
+            $installationId = self::uuid();
+            $lock->lock($installationId);
+        }
         $pendingStore->delete();
         $setupKey->consume();
         unset($_SESSION['installer_pending_nonce']);
