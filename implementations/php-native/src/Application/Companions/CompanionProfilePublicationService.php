@@ -88,6 +88,16 @@ final class CompanionProfilePublicationService
             if ($reviewer->fetchColumn() === false) {
                 throw new \DomainException('Market approval lacks an MFA-protected compliance reviewer.');
             }
+            $adultVerifier = $this->pdo->prepare(
+                'SELECT 1 FROM user_roles ur
+                 JOIN admin_mfa_credentials mfa ON mfa.user_id = ur.user_id
+                 WHERE ur.user_id = :verifier AND ur.role_key = "verifier"
+                   AND ur.user_id <> :subject AND mfa.enabled_at IS NOT NULL LIMIT 1'
+            );
+            $adultVerifier->execute(['verifier'=>$row['adult_verified_by'],'subject'=>$row['user_id']]);
+            if ($adultVerifier->fetchColumn() === false) {
+                throw new \DomainException('Independent adult-eligibility verification is no longer valid.');
+            }
             $consent = $this->pdo->prepare(
                 'SELECT 1 FROM consent_grants WHERE subject_type = "companion_profile" AND subject_id = :profile
                  AND purpose = "profile.publication" AND audience = "public" AND policy_version = :version
