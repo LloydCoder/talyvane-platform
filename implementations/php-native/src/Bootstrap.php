@@ -162,11 +162,12 @@ final class Bootstrap
         $bookingQueries = new BookingQueryService($pdo);
         $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $discovery, $views, $brandName);
         $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit), $views, $brandName);
-        $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery);
+        $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery, $clientMemberships);
         $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName);
         $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
         $membershipAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(), static fn(string $dependency): bool => false);
-        $adminClients = new AdminClientController($pdo,$authentication,new ClientMembershipService($pdo,$audit,$membershipAvailability),$views,$brandName);
+        $clientMemberships = new ClientMembershipService($pdo,$audit,$membershipAvailability);
+        $adminClients = new AdminClientController($pdo,$authentication,$clientMemberships,$views,$brandName);
         $vaultConfig = $config['safeguarding']['vault'] ?? null;
         $caseKeyProvider = is_array($vaultConfig) && ($vaultConfig['enabled'] ?? false) === true
             ? new VaultTransitSafeguardingCaseKeyProvider($vaultConfig)
