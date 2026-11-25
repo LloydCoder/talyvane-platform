@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Clients\MembershipEntitlementService;
+use Talyvane\Application\Clients\MembershipEntitlementCatalog;
+use Talyvane\Application\Clients\MembershipGalleryPolicyReadiness;
 use Talyvane\Features\FeatureAvailability;
 use Talyvane\Application\Media\ProfileMediaService;
 use Talyvane\Infrastructure\Audit\AuditLogger;
@@ -212,6 +214,46 @@ function runProfileMediaIntegration(PDO $pdo): int
         $galleryEntitlements=new MembershipEntitlementService($pdo,$galleryFeatures);
         $galleryService=new ProfileMediaService($pdo,$storage,$discovery,$audit,$galleryEntitlements);
         $companionClient=new Principal($clientId,['client'],false);
+        $previousPolicyQuery=$pdo->prepare(
+            'SELECT enabled,config_json,updated_by FROM feature_states WHERE feature_key="memberships.private_gallery" LIMIT 1'
+        );
+        $previousPolicyQuery->execute();
+        $previousPolicy=$previousPolicyQuery->fetch(PDO::FETCH_ASSOC);
+        $savePolicy=$pdo->prepare(
+            'INSERT INTO feature_states (feature_key,enabled,config_json,updated_by,updated_at)
+             VALUES ("memberships.private_gallery",1,:config,:actor,UTC_TIMESTAMP())
+             ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),config_json=VALUES(config_json),
+                 updated_by=VALUES(updated_by),updated_at=UTC_TIMESTAMP()'
+        );
+        $savePolicy->execute(['config'=>json_encode([
+            'private_gallery_policy_approved'=>false,
+            'private_gallery_policy_version'=>MembershipEntitlementCatalog::PRIVATE_GALLERY_POLICY_VERSION,
+            'legal_approval_reference'=>'LEGAL-APPROVAL-TEST-001',
+            'private_gallery_statement_sha256'=>MembershipEntitlementCatalog::privateGalleryConsentStatementHash('Talyvane'),
+        ],JSON_THROW_ON_ERROR),'actor'=>$reviewerId]);
+        $assert(!MembershipGalleryPolicyReadiness::approved($pdo,'Talyvane'),
+            'private gallery activation fails closed without explicit deployment legal approval');
+        $savePolicy->execute(['config'=>json_encode([
+            'private_gallery_policy_approved'=>true,
+            'private_gallery_policy_version'=>MembershipEntitlementCatalog::PRIVATE_GALLERY_POLICY_VERSION,
+            'legal_approval_reference'=>'LEGAL-APPROVAL-TEST-001',
+            'private_gallery_statement_sha256'=>MembershipEntitlementCatalog::privateGalleryConsentStatementHash('Talyvane'),
+        ],JSON_THROW_ON_ERROR),'actor'=>$reviewerId]);
+        $assert(MembershipGalleryPolicyReadiness::approved($pdo,'Talyvane'),
+            'private gallery activation requires the approved current policy version and exact brand-bound statement hash');
+        $assert(!MembershipGalleryPolicyReadiness::approved($pdo,'Different Agency'),
+            'brand changes invalidate deployment policy approval until the exact statement hash is re-approved');
+        if (is_array($previousPolicy)) {
+            $pdo->prepare(
+                'UPDATE feature_states SET enabled=:enabled,config_json=:config,updated_by=:actor,updated_at=UTC_TIMESTAMP()
+                 WHERE feature_key="memberships.private_gallery"'
+            )->execute([
+                'enabled'=>$previousPolicy['enabled'],'config'=>$previousPolicy['config_json'],
+                'actor'=>$previousPolicy['updated_by'],
+            ]);
+        } else {
+            $pdo->exec('DELETE FROM feature_states WHERE feature_key="memberships.private_gallery"');
+        }
         $service->grantMembersOnlyConsent($companion,$profileId,$membersOnlyId,true,'Talyvane',$requestId);
         $gallery=$galleryService->privateGalleryForClient($companionClient,'Talyvane');
         $assert(count(array_filter($gallery,static fn(array $item): bool => $item['id']===$membersOnlyId))===1,
