@@ -20,6 +20,8 @@ final class SafeguardingNotificationDispatcher
         if ($limit<1 || $limit>100) {
             throw new \InvalidArgumentException('Notification batch size must be between 1 and 100.');
         }
+        $stale=$this->pdo->prepare('UPDATE safeguarding_notification_outbox SET status="failed",claim_token=NULL,claimed_at=NULL,last_error_code="retry_limit_after_stale_claim" WHERE status="processing" AND attempts>=8 AND claimed_at<UTC_TIMESTAMP()-INTERVAL 10 MINUTE');
+        $stale->execute();
         $this->pdo->beginTransaction();
         try {
             $query=$this->pdo->prepare(
