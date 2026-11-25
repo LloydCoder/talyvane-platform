@@ -62,7 +62,7 @@ $titles = [
 <?php elseif ($screen === 'dashboard'): ?>
 <p class="notice">Signed in as a <?= $escape($accountType) ?> account.</p>
 <p class="hint">This portal is intentionally separate from administration and from the other account type. Identity and session checks are active.</p>
-<p><a href="/portal/security">Change your password</a></p>
+<p><a href="/portal/security">Change your password</a></p><p><a href="/portal/privacy/export">Download a copy of your account data</a></p>
 <?php if ($accountType === 'client'): ?>
 <p><a href="/portal/bookings">Open your private booking history</a></p><p><a href="/portal/favorites">View your saved companions</a></p>
 <?php if (is_array($membership) && in_array("media.private_gallery",$membership["entitlements"]??[],true)): ?><p><a href="/portal/gallery">Open the members-only gallery</a></p><?php endif; ?>
