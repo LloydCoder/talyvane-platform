@@ -16,12 +16,7 @@ final class CompanionOnboardingService
 {
     public function __construct(private PDO $pdo, private AuditLogger $audit) {}
 
-    /**
-     * Creates a non-public profile only after independent adult verification,
-     * approved market review, and explicit versioned publication consent.
-     *
-     * @param list<string> $languages
-     */
+    /** @param list<string> $languages */
     public function createVerifiedProfile(
         Principal $verifier,
         string $companionUserId,
@@ -37,11 +32,14 @@ final class CompanionOnboardingService
         string $requestId
     ): string {
         Authorization::require($verifier,'companion.adult_eligibility.verify',true);
+        $displayName = trim($displayName);
         if (!$verifier->hasRole('verifier') || !$publicationConsentGranted ||
             !preg_match('/^[a-f0-9]{64}$/iD',$verificationReferenceHash) ||
-            strlen(trim($displayName)) < 1 || strlen($displayName) > 120 ||
+            $displayName === '' || strlen($displayName) > 120 ||
             ($biography !== null && strlen($biography) > 10000) ||
-            $consentPolicyVersion === '' || $consentEvidenceReference === '') {
+            ($experienceCategory !== null && strlen($experienceCategory) > 80) ||
+            $consentPolicyVersion === '' || strlen($consentEvidenceReference) < 8 ||
+            strlen($consentEvidenceReference) > 190) {
             throw new \InvalidArgumentException('Companion onboarding requirements are incomplete.');
         }
         foreach ($languages as $language) {
@@ -53,41 +51,39 @@ final class CompanionOnboardingService
             throw new \InvalidArgumentException('Too many language entries.');
         }
 
-        $destinationQuery = $this->pdo->prepare('SELECT country_code,status FROM destinations WHERE id = :id LIMIT 1');
-        $destinationQuery->execute(['id'=>$destinationId]);
-        $destination = $destinationQuery->fetch();
-        if (!is_array($destination) || $destination['status'] !== 'published') {
-            throw new \DomainException('Destination is not available for companion onboarding.');
-        }
-        $marketQuery = $this->pdo->prepare('SELECT enabled,decision,reviewer_id,reviewed_at,expires_at,evidence_reference,review_summary FROM market_policies WHERE country_code = :country LIMIT 1');
-        $marketQuery->execute(['country'=>$destination['country_code']]);
-        $market = $marketQuery->fetch();
-        if (!is_array($market)) {
-            throw new \DomainException('Destination market has no recorded compliance approval.');
-        }
-        $policy = new MarketPolicy(
-            (string) $destination['country_code'],
-            (bool) $market['enabled'],
-            (string) $market['decision'],
-            $market['reviewer_id'] === null ? null : (string) $market['reviewer_id'],
-            $market['reviewed_at'] === null ? null : new DateTimeImmutable((string) $market['reviewed_at'],new DateTimeZone('UTC')),
-            $market['expires_at'] === null ? null : new DateTimeImmutable((string) $market['expires_at'],new DateTimeZone('UTC')),
-            $market['evidence_reference'] === null ? null : (string) $market['evidence_reference'],
-            $market['review_summary'] === null ? null : (string) $market['review_summary']
-        );
         $now = new DateTimeImmutable('now',new DateTimeZone('UTC'));
-        if (!$policy->operationalAt($now)) {
-            throw new \DomainException('Companion onboarding is blocked until the market is approved and current.');
-        }
-
         $profileId = self::uuid();
-        $consent = new ConsentGrant('companion_profile',$profileId,'profile.publication','public',$consentPolicyVersion,true,$now,null);
-        if (!$consent->validFor('companion_profile',$profileId,'profile.publication','public',$consentPolicyVersion,$now)) {
+        $consent = new ConsentGrant($profileId,'profile.publication','public',$consentPolicyVersion,true,$now,null);
+        if (!$consent->validFor($profileId,'profile.publication','public',$consentPolicyVersion,$now)) {
             throw new \DomainException('Explicit publication consent is not valid for this profile.');
         }
 
         $this->pdo->beginTransaction();
         try {
+            $destinationQuery = $this->pdo->prepare(
+                'SELECT d.country_code,d.status,mp.enabled,mp.decision,mp.reviewer_id,mp.reviewed_at,mp.expires_at,mp.evidence_reference,mp.review_summary
+                 FROM destinations d LEFT JOIN market_policies mp ON mp.country_code = d.country_code
+                 WHERE d.id = :id FOR UPDATE'
+            );
+            $destinationQuery->execute(['id'=>$destinationId]);
+            $destination = $destinationQuery->fetch();
+            if (!is_array($destination) || $destination['status'] !== 'published' || $destination['decision'] === null) {
+                throw new \DomainException('Destination market has no recorded compliance approval.');
+            }
+            $market = new MarketPolicy(
+                (string) $destination['country_code'],
+                (bool) $destination['enabled'],
+                (string) $destination['decision'],
+                $destination['reviewer_id'] === null ? null : (string) $destination['reviewer_id'],
+                $destination['reviewed_at'] === null ? null : new DateTimeImmutable((string) $destination['reviewed_at'],new DateTimeZone('UTC')),
+                $destination['expires_at'] === null ? null : new DateTimeImmutable((string) $destination['expires_at'],new DateTimeZone('UTC')),
+                $destination['evidence_reference'] === null ? null : (string) $destination['evidence_reference'],
+                $destination['review_summary'] === null ? null : (string) $destination['review_summary']
+            );
+            if (!$market->operationalAt($now)) {
+                throw new \DomainException('Companion onboarding is blocked until the market is approved and current.');
+            }
+
             $userQuery = $this->pdo->prepare('SELECT status,email_verified_at FROM users WHERE id = :user FOR UPDATE');
             $userQuery->execute(['user'=>$companionUserId]);
             $user = $userQuery->fetch();
@@ -101,6 +97,7 @@ final class CompanionOnboardingService
             if ($verifierRole->fetchColumn() === false) {
                 throw new \DomainException('Adult eligibility verification must be performed by an assigned verifier.');
             }
+
             $consentInsert = $this->pdo->prepare(
                 'INSERT INTO consent_grants (id,subject_type,subject_id,purpose,audience,policy_version,granted,granted_at,withdrawn_at,evidence_reference,created_at)
                  VALUES (:id,"companion_profile",:subject,"profile.publication","public",:version,1,UTC_TIMESTAMP(),NULL,:evidence,UTC_TIMESTAMP())'
