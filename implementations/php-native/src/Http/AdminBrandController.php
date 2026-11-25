@@ -81,13 +81,9 @@ final class AdminBrandController
             throw new InvalidArgumentException('The public contact phone is invalid.');
         }
         $this->assertHttpsUrl($website, 'The public website URL');
-        $social = [];
         foreach (['instagram','linkedin','facebook','x'] as $network) {
             $url = trim($this->field($request, 'social_' . $network));
             $this->assertHttpsUrl($url, ucfirst($network) . ' URL');
-            if ($url !== '') {
-                $social[$network] = $url;
-            }
         }
 
         $robots = $this->field($request, 'seo_robots');
