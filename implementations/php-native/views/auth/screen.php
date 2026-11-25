@@ -98,6 +98,8 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
   <a class="button" href="/admin/navigation" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage navigation</a>
   <a class="button" href="/admin/enquiries" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open enquiry inbox</a>
   <a class="button" href="/admin/companions" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review companion profiles</a>
+  <a class="button" href="/admin/model-agency" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage model-agency applications</a>
+  <a class="button" href="/admin/model-agency/verifications" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open verifier queue</a>
   <?php endif; ?>
   <?php if (in_array('super_admin', $roles, true)): ?><a class="button" href="/admin/brand" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Configure brand identity</a><?php endif; ?>
   <form method="post" action="/admin/logout"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><button class="button" type="submit">Sign out securely</button></form>
