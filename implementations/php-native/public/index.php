@@ -32,7 +32,7 @@ try {
     $paths = PrivatePathResolver::resolve($documentRoot,$accountHome);
     $configCandidate = $paths['config'] . DIRECTORY_SEPARATOR . 'app.php';
     $configReal = realpath($configCandidate);
-    if ($configReal !== $configCandidate) {
+    if ($configReal !== false && $configReal !== $configCandidate) {
         throw new RuntimeException('Private application configuration must be a regular file at its canonical private path.');
     }
     if ($configReal === false || !is_file($configReal) || !is_readable($configReal)) {
