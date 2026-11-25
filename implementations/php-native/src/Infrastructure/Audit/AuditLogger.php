@@ -49,7 +49,7 @@ final class AuditLogger
     /** @param array<string,mixed> $data @return array<string,mixed> */
     private static function redact(array $data): array
     {
-        $blocked = ['password', 'passwordhash', 'secret', 'secretkey', 'token', 'apikey', 'privatekey', 'seedphrase', 'identitydocument', 'totpsecret', 'recoverycodes'];
+        $blocked = ['password', 'passwordhash', 'secret', 'secretkey', 'token', 'apikey', 'privatekey', 'seedphrase', 'identitydocument', 'totpsecret', 'recoverycodes', 'email', 'phone', 'mobile', 'telephone', 'address', 'postalcode', 'dateofbirth', 'dob', 'fullname', 'legalname', 'ipaddress', 'useragent', 'biometric', 'passport', 'nationalid', 'documentnumber'];
         foreach ($data as $key => $value) {
             $normalized = strtolower((string) preg_replace('/[^a-zA-Z0-9]/', '', (string) $key));
             if (in_array($normalized, $blocked, true) || preg_match('/(password|secret|token|apikey|privatekey|seedphrase|credential|authorization|identitydocument|totp|recoverycode)/', $normalized) === 1) {
