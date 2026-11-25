@@ -217,11 +217,9 @@ final class BookingService
     {
         $query = $this->pdo->prepare(
             'SELECT weekday,local_start,local_end,time_zone,effective_from,effective_until
-             FROM companion_availability WHERE profile_id = :profile AND enabled = 1
-             AND effective_from <= :date AND (effective_until IS NULL OR effective_until >= :date)'
+             FROM companion_availability WHERE profile_id = :profile AND enabled = 1'
         );
-        $date = $startUtc->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d');
-        $query->execute(['profile'=>$profileId,'date'=>$date]);
+        $query->execute(['profile'=>$profileId]);
         foreach ($query->fetchAll() as $row) {
             try {
                 $zone = new DateTimeZone((string) $row['time_zone']);
@@ -230,7 +228,10 @@ final class BookingService
             }
             $localStart = $startUtc->setTimezone($zone);
             $localEnd = $endUtc->setTimezone($zone);
-            if ($localStart->format('Y-m-d') !== $localEnd->format('Y-m-d') ||
+            $localDate = $localStart->format('Y-m-d');
+            if ($localDate < (string) $row['effective_from'] ||
+                ($row['effective_until'] !== null && $localDate > (string) $row['effective_until']) ||
+                $localStart->format('Y-m-d') !== $localEnd->format('Y-m-d') ||
                 (int) $localStart->format('w') !== (int) $row['weekday']) {
                 continue;
             }
