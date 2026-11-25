@@ -20,7 +20,7 @@ function runEnquiryIntegration(PDO $pdo): int
     $before = (int) $pdo->query('SELECT COUNT(*) FROM enquiries')->fetchColumn();
 
     $honeypot = $service->submit([
-        'name'=>'Automated visitor','email'=>'bot@example.test','subject'=>'Spam','message'=>'This should never be stored.','privacy_acknowledged'=>true,
+        'name'=>'Automated visitor','email'=>'bot@example.test','subject'=>'Spam','message'=>'This should never be stored.','privacy_acknowledged'=>true,'website'=>'bot-filled',
     ],'127.0.0.1','enquiry-honeypot-'.bin2hex(random_bytes(8)),'https://example.test/contact');
     $assert($honeypot === null && (int) $pdo->query('SELECT COUNT(*) FROM enquiries')->fetchColumn() === $before,
         'honeypot submissions are quietly accepted without storing personal data');
@@ -65,6 +65,12 @@ $assert(is_array($saved) && $saved['privacy_policy_version'] === 'privacy-v1',
         $assert(false,'client cannot change enquiry pipeline state');
     } catch (DomainException) {
         $assert(true,'client cannot change enquiry pipeline state');
+    }
+    try {
+        $service->list(new Principal($clientId,['client'],false),10,0);
+        $assert(false,'client cannot read the enquiry inbox');
+    } catch (DomainException) {
+        $assert(true,'client cannot read the enquiry inbox');
     }
     return $assertions;
 }
