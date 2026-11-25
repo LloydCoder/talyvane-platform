@@ -237,6 +237,10 @@ function runIdentityIntegration(PDO $pdo): int
     $savedAvailability = array_values(array_filter($availabilityRows,static fn(array $row): bool => $row['id'] === $availabilityRuleId));
     $assert(count($savedAvailability) === 1 && $savedAvailability[0]['local_start'] === '09:00:00' && $savedAvailability[0]['time_zone'] === 'Europe/London',
         'companion can create a weekly availability window using the profile destination time zone');
+    try { $availabilityService->save($companionPrincipal,$profileId,$weekday,'10:00','12:00',$localDate,null,bin2hex(random_bytes(16))); $assert(false,'overlapping companion availability windows are rejected'); }
+    catch (DomainException) { $assert(true,'overlapping companion availability windows are rejected'); }
+    try { $availabilityService->save(new Principal($registeredId,['companion'],false),$profileId,$weekday,'12:00','13:00',$localDate,null,bin2hex(random_bytes(16))); $assert(false,'a different account cannot manage another companion profile'); }
+    catch (DomainException) { $assert(true,'a different account cannot manage another companion profile'); }
     $availabilityService->delete($companionPrincipal,$profileId,$availabilityRuleId,bin2hex(random_bytes(16)));
     $afterAvailabilityDelete = array_values(array_filter($availabilityService->listForCompanion($companionPrincipal),static fn(array $row): bool => $row['id'] === $availabilityRuleId));
     $assert($afterAvailabilityDelete === [],'companion can remove only their own availability window');
