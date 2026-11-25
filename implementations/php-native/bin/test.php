@@ -30,6 +30,7 @@ use Talyvane\Security\SecretBox;
 use Talyvane\Security\Principal;
 use Talyvane\Security\Totp;
 use Talyvane\Infrastructure\Logging\StructuredLogger;
+use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
 
 $tests = 0;
 $assert = static function (bool $condition, string $message) use (&$tests): void {
