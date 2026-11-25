@@ -10,6 +10,7 @@ use Talyvane\Application\Clients\ClientFavoriteService;
 use Talyvane\Application\Safeguarding\SafeguardingCaseService;
 use Talyvane\Application\Safeguarding\SafeguardingCryptoService;
 use Talyvane\Application\Safeguarding\LocalSafeguardingCaseKeyProvider;
+use Talyvane\Application\Safeguarding\VaultTransitSafeguardingCaseKeyProvider;
 use Talyvane\Application\Safeguarding\SafeguardingNotificationOutbox;
 use Talyvane\Security\SecretBox;
 use Talyvane\Http\AdminSafeguardingController;
@@ -161,7 +162,11 @@ final class Bootstrap
         $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
         $membershipAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(), static fn(string $dependency): bool => false);
         $adminClients = new AdminClientController($pdo,$authentication,new ClientMembershipService($pdo,$audit,$membershipAvailability),$views,$brandName);
-        $safeguardingCrypto = new SafeguardingCryptoService(new LocalSafeguardingCaseKeyProvider($config['app_key']));
+        $vaultConfig = $config['safeguarding']['vault'] ?? null;
+        $caseKeyProvider = is_array($vaultConfig) && ($vaultConfig['enabled'] ?? false) === true
+            ? new VaultTransitSafeguardingCaseKeyProvider($vaultConfig)
+            : new LocalSafeguardingCaseKeyProvider($config['app_key']);
+        $safeguardingCrypto = new SafeguardingCryptoService($caseKeyProvider);
         $notificationOutbox = new SafeguardingNotificationOutbox($pdo,new SecretBox($config['app_key']),hash('sha256',$config['app_key'].'|safeguarding-outbox-fingerprint-v1',true));
         $safeguardingCases = new SafeguardingCaseService($pdo,$safeguardingCrypto,$audit,$notificationOutbox);
         $safeguardingController = new AdminSafeguardingController($authentication,$safeguardingCases,$views,$brandName);
