@@ -66,6 +66,12 @@ try {
         str_starts_with($configDirectoryReal,$publicReal . DIRECTORY_SEPARATOR)) {
         throw new RuntimeException('Private installation directory cannot be inside the public document root.');
     }
+    $configuredApplication = $privateConfig['paths']['application'] ?? null;
+    $configuredApplicationReal = is_string($configuredApplication) ? realpath($configuredApplication) : false;
+    if ($configuredApplicationReal === false || $configuredApplicationReal !== $applicationReal ||
+        is_link((string)$configuredApplication)) {
+        throw new RuntimeException('Private configuration does not point to the active native application code root.');
+    }
     $installationLock = new InstallerLock(rtrim($configDirectoryReal,DIRECTORY_SEPARATOR) . '/INSTALLATION-LOCK.json');
     if (!$installationLock->isLocked()) {
         Response::redirect('/install')->send();
