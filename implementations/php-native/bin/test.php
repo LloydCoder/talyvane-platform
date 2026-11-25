@@ -118,6 +118,7 @@ $assert(!str_contains($dashboardMarkup, '<svg onload=alert(1)>'), 'administrator
 $assert(str_contains($dashboardMarkup, 'href="/admin/content"'), 'authorised administrator dashboard links to the CMS workspace');
 $contentListMarkup = $authViews->render('admin/content', [
     'mode'=>'list',
+    'brandName'=>'Maison Example',
     'csrf'=>'cms-csrf',
     'error'=>'',
     'pages'=>[['id'=>'page-1','slug'=>'terms','title'=>'<script>alert(1)</script>','locale'=>'en','status'=>'draft','version'=>2,'updated_at'=>'2026-11-25 10:00:00']],
