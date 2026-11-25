@@ -44,7 +44,7 @@ function runSafeguardingIntegration(PDO $pdo): int {
  $dispatcher=new SafeguardingNotificationDispatcher($pdo,$box,$mailer);$dispatch=$dispatcher->dispatchBatch(10);
  $assert($dispatch['delivered']===1&&count($mailer->messages)===1&&$mailer->messages[0]['recipient']===$recipient&&!str_contains($mailer->messages[0]['body'],'potential consent issue'),'outbox dispatch delivers a minimal notification without confidential narrative');
  $again=$dispatcher->dispatchBatch(10);$assert($again['claimed']===0&&count($mailer->messages)===1,'delivered safeguarding notification is not sent again');
- $createdRetry=$service->create($admin,'consent_concern','medium','Retry delivery case','This case exercises bounded outbox retry behaviour.','',$sid,bin2hex(random_bytes(16)));
+ $createdRetry=$service->create($admin,'consent_concern','medium','Retry delivery safeguarding case','This case exercises bounded outbox retry behaviour.','',$sid,bin2hex(random_bytes(16)));
  $retryId=(string)$pdo->query('SELECT id FROM safeguarding_cases WHERE case_reference='.$pdo->quote($createdRetry['case_reference']))->fetchColumn();
  $failingMailer=new class implements Mailer { public function send(string $recipient,string $subject,string $textBody):void{throw new RuntimeException('SMTP transport unavailable');} };
  $retryDispatcher=new SafeguardingNotificationDispatcher($pdo,$box,$failingMailer);$retryResult=$retryDispatcher->dispatchBatch(10);
