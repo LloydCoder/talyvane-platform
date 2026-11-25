@@ -14,6 +14,7 @@ use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Database\ConnectionFactory;
 use Talyvane\Infrastructure\Database\MigrationRunner;
 use Talyvane\Infrastructure\Database\ReferenceDataImporter;
+use Talyvane\Infrastructure\Mail\Mailer;
 use Talyvane\Infrastructure\Mail\SmtpMailer;
 use Talyvane\Infrastructure\Security\RateLimiter;
 use Talyvane\Installer\EnvironmentPreflight;
