@@ -5,6 +5,7 @@ namespace Talyvane;
 
 use Talyvane\Application\Companions\CompanionProfilePublicationService;
 use Talyvane\Application\Destinations\DestinationManagementService;
+use Talyvane\Application\Destinations\DestinationCoverService;
 use Talyvane\Application\Globalization\MarketPolicyManagementService;
 use Talyvane\Application\Clients\ClientFavoriteService;
 use Talyvane\Application\Safeguarding\SafeguardingCaseService;
@@ -41,6 +42,7 @@ use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Application\Identity\UserRegistrationService;
 use Talyvane\Http\AdminCompanionController;
 use Talyvane\Http\AdminDestinationController;
+use Talyvane\Http\PublicDestinationCoverController;
 use Talyvane\Http\AdminMarketController;
 use Talyvane\Http\ClientFavoriteController;
 use Talyvane\Http\ClientPrivateGalleryController;
@@ -165,7 +167,9 @@ final class Bootstrap
         $adminEnquiries = new AdminEnquiryController($enquiries, $authentication, $views, $brandName);
         $companionPublication = new CompanionProfilePublicationService($pdo, $audit);
         $adminCompanions = new AdminCompanionController($authentication, $companionPublication, $views, $brandName);
-        $adminDestinations = new AdminDestinationController($authentication, new DestinationManagementService($pdo, $audit), $views, $brandName);
+        $destinationCovers = new DestinationCoverService($pdo,$mediaStorage,$audit);
+        $adminDestinations = new AdminDestinationController($authentication,new DestinationManagementService($pdo,$audit),$destinationCovers,$views,$brandName);
+        $publicDestinationCovers = new PublicDestinationCoverController($destinationCovers);
         $adminMarkets = new AdminMarketController($authentication, new MarketPolicyManagementService($pdo, $audit), $views, $brandName);
         $modelApplications = new ModelAgencyApplicationService($pdo, $audit);
         $publicModelAgency = new PublicModelAgencyController($pdo, $modelApplications, $contentManagement, $rateLimiter, $modelApplicantRights, $views);
@@ -212,6 +216,7 @@ final class Bootstrap
         $router->add('GET', '/companions', static fn(Request $request): Response => $publicDiscovery->companions($request));
         $router->add('GET', '/companions/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->companion($request,$params));
         $router->add('GET', '/destinations/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->destination($request, $params));
+        $router->add('GET', '/destination-covers/{slug}', static fn(Request $request,array $params): Response => $publicDestinationCovers->show($request,$params));
         $router->add('GET', '/profiles/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->profile($request, $params));
         $router->add('GET', '/profile-media/{id}', static fn(Request $request, array $params): Response => $publicProfileMedia->show($request,$params));
         $router->add('GET', '/pages/{slug}', static fn(Request $request, array $params): Response => $public->page($request, $params));
@@ -283,6 +288,8 @@ final class Bootstrap
         $router->add('GET', '/admin/destinations', static fn(Request $request): Response => $adminDestinations->index($request));
         $router->add('POST', '/admin/destinations', static fn(Request $request): Response => $adminDestinations->save($request));
         $router->add('POST', '/admin/destinations/{id}', static fn(Request $request, array $params): Response => $adminDestinations->save($request, $params));
+        $router->add('POST', '/admin/destinations/{id}/cover', static fn(Request $request,array $params): Response => $adminDestinations->uploadCover($request,$params));
+        $router->add('POST', '/admin/destination-covers/{id}/review', static fn(Request $request,array $params): Response => $adminDestinations->reviewCover($request,$params));
         $router->add('GET', '/admin/companions', static fn(Request $request): Response => $adminCompanions->index($request));
         $router->add('POST', '/admin/companions/{id}/publish', static fn(Request $request, array $params): Response => $adminCompanions->publish($request, $params));
         $router->add('GET', '/admin/safeguarding/reports', static fn(Request $request): Response => $safeguardingController->reportForm($request));
