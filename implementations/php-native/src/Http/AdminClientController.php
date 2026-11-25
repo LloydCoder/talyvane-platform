@@ -137,7 +137,8 @@ final class AdminClientController
         SessionManager::start();
         $principal=$this->authentication->currentPrincipal();
         if ($principal===null) { return Response::redirect('/admin/login'); }
-        if (!Authorization::allows($principal,'clients.manage',true)) {
+        if (!Authorization::allows($principal,'clients.manage',true) ||
+            (!$principal->hasRole('owner') && !$principal->hasRole('admin'))) {
             return Response::html('Forbidden',403);
         }
         return $principal;
