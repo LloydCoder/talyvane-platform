@@ -11,7 +11,7 @@ use Talyvane\Security\SessionManager;
 
 final class PublicEnquiryController
 {
-    public function __construct(private EnquiryService $enquiries,private ViewRenderer $views,private string $brandName) {}
+    public function __construct(private EnquiryService $enquiries,private ContentManagementService $content,private ViewRenderer $views,private string $brandName) {}
 
     public function create(Request $request): Response
     {
@@ -24,6 +24,9 @@ final class PublicEnquiryController
         SessionManager::start();
         if (!Csrf::verify($this->field($request,'_csrf'))) {
             return $this->render('Your form session expired. Please try again.',false,419);
+        }
+        if (!$this->privacyAvailable()) {
+            return $this->render('The enquiry form is unavailable until a Privacy Notice has been reviewed and published.',false,503);
         }
         try {
             $this->enquiries->submit($request->body,$request->ipAddress,$request->requestId,$request->header('referer'));
@@ -45,6 +48,7 @@ final class PublicEnquiryController
             'error'=>$error,
             'sent'=>$sent,
             'values'=>$values,
+            'privacyAvailable'=>$this->privacyAvailable(),
         ]);
         return new Response($body,$status,[
             'content-type'=>'text/html; charset=utf-8',
@@ -55,6 +59,11 @@ final class PublicEnquiryController
             'permissions-policy'=>'camera=(), microphone=(), geolocation=()',
             'content-security-policy'=>"default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; style-src 'self' 'unsafe-inline'",
         ]);
+    }
+
+    private function privacyAvailable(): bool
+    {
+        return $this->content->publicPage('privacy','en') !== null;
     }
 
     private function field(Request $request,string $name): string
