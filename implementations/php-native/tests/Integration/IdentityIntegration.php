@@ -279,7 +279,7 @@ function runIdentityIntegration(PDO $pdo): int
     $autoState = $pdo->prepare('SELECT status,booking_mode,companion_opt_in_snapshot FROM bookings WHERE id = :id');
     $autoState->execute(['id'=>$autoBookingId]);
     $automatic = $autoState->fetch();
-    $assert(is_array($automatic) && $automatic['status'] === 'confirmed' && $automatic['booking_mode'] === 'automatic' && (bool) $automatic['companion_opt_in_snapshot'],'automatic confirmation requires enabled rules, companion opt-in and matching local availability');
+    $assert(is_array($automatic) && $automatic['status'] === 'requested' && $automatic['booking_mode'] === 'manual' && (bool) $automatic['companion_opt_in_snapshot'],'automatic booking remains manual until deployment feature, provider, legal and safeguarding prerequisites are operational');
 
     $bookingCommands = new BookingCommandService($pdo,new BookingPolicyRepository($pdo),$audit);
     $superAdmin = new Principal($id,['super_admin'],true);
