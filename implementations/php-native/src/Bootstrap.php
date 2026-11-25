@@ -51,6 +51,7 @@ use Talyvane\Http\AdminProfileMediaController;
 use Talyvane\Http\AdminNavigationController;
 use Talyvane\Http\AdminEnquiryController;
 use Talyvane\Http\PortalAuthController;
+use Talyvane\Http\PortalSecurityController;
 use Talyvane\Http\PublicModelAgencyController;
 use Talyvane\Http\PublicProfileMediaController;
 use Talyvane\Http\PublicModelAgencyRightsController;
@@ -162,6 +163,7 @@ final class Bootstrap
         $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $discovery, $views, $brandName);
         $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit), $views, $brandName);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery);
+        $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName);
         $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
         $membershipAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(), static fn(string $dependency): bool => false);
         $adminClients = new AdminClientController($pdo,$authentication,new ClientMembershipService($pdo,$audit,$membershipAvailability),$views,$brandName);
@@ -200,6 +202,8 @@ final class Bootstrap
         $router->add('GET', '/privacy', static fn(Request $request): Response => $public->page($request, ['slug'=>'privacy']));
         $router->add('GET', '/terms', static fn(Request $request): Response => $public->page($request, ['slug'=>'terms']));
 
+        $router->add('GET', '/portal/security', static fn(Request $request): Response => $portalSecurity->index($request));
+        $router->add('POST', '/portal/security', static fn(Request $request): Response => $portalSecurity->changePassword($request));
         $router->add('GET', '/portal/register', static fn(Request $request): Response => $portalAuth->registerForm($request));
         $router->add('POST', '/portal/register', static fn(Request $request): Response => $portalAuth->register($request));
         $router->add('GET', '/portal/verify', static fn(Request $request): Response => $portalAuth->verifyForm($request));
