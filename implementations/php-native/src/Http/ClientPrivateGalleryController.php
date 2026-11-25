@@ -24,7 +24,7 @@ final class ClientPrivateGalleryController
         $client=$this->client();
         if ($client===null) { return Response::redirect('/portal/login'); }
         try {
-            $items=$this->media->privateGalleryForClient($client);
+            $items=$this->media->privateGalleryForClient($client,$this->brandName);
             $html=$this->views->render('portal/private-gallery',[
                 'brandName'=>$this->brandName,'items'=>$items,'error'=>'',
             ]);
@@ -44,7 +44,7 @@ final class ClientPrivateGalleryController
         $client=$this->client();
         if ($client===null) { return Response::redirect('/portal/login'); }
         try {
-            $image=$this->media->privateMediaForClient($client,(string)($params['id']??''));
+            $image=$this->media->privateMediaForClient($client,(string)($params['id']??''),$this->brandName);
             return new Response($image['bytes'],200,[
                 'content-type'=>'image/webp',
                 'content-disposition'=>'inline; filename="members-only-profile-image.webp"',
