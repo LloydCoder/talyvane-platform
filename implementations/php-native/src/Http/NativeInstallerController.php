@@ -208,7 +208,9 @@ final class NativeInstallerController
             $failureStage = 'database preflight';
             $this->assertInstallableDatabase($pdo);
             $failureStage = 'database migration';
-            (new MigrationRunner($pdo,$this->applicationRoot . '/database/migrations'))->migrate();
+            $migrationRunner = new MigrationRunner($pdo,$this->applicationRoot . '/database/migrations');
+            $migrationRunner->migrate();
+            $migrationWarnings = $migrationRunner->warnings();
             $migrationCount = (int) $pdo->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn();
             $migrationFiles = glob($this->applicationRoot . '/database/migrations/*.php') ?: [];
             if ($migrationCount !== count($migrationFiles)) {
@@ -227,7 +229,7 @@ final class NativeInstallerController
                 'phase'=>'preparing','app_name'=>$appName,'app_url'=>$appUrl,
                 'database'=>$database,'mail'=>$mail,'app_key'=>$appKey,
                 'primary_email'=>$primaryEmail,'recovery_email'=>$recoveryEmail,
-                'bootstrap_proof'=>$bootstrapProof,'created_at'=>time(),'expires_at'=>time()+1800,
+                'bootstrap_proof'=>$bootstrapProof,'migration_warnings'=>$migrationWarnings,'created_at'=>time(),'expires_at'=>time()+1800,
             ];
             $nonce = bin2hex(random_bytes(32));
             $pending['session_nonce_hash'] = hash('sha256',$nonce);
@@ -387,6 +389,7 @@ final class NativeInstallerController
             'app_key'=>(string) $pending['app_key'],
             'app_name'=>(string) $pending['app_name'],
             'app_url'=>(string) $pending['app_url'],
+            'migration_warnings'=>is_array($pending['migration_warnings'] ?? null) ? $pending['migration_warnings'] : [],
             'database'=>$pending['database'],
             'mail'=>$pending['mail'],
             'paths'=>[
@@ -482,6 +485,7 @@ final class NativeInstallerController
             'initialPassword'=>(string) ($success['initial_password'] ?? ''),
             'offlineRecoveryKey'=>(string) ($success['offline_recovery_key'] ?? ''),
             'appUrl'=>(string) ($success['app_url'] ?? ''),
+            'migrationWarnings'=>is_array($success['migration_warnings'] ?? null) ? $success['migration_warnings'] : [],
         ]);
         $setupKeyPath = $paths['config'] . '/INSTALLER-ACCESS-KEY.txt';
         if (is_file($setupKeyPath) && !is_link($setupKeyPath)) {
