@@ -39,7 +39,7 @@ final class AdminAuditController
         $page = is_string($pageValue) && ctype_digit($pageValue) ? (int) $pageValue : 1;
 
         try {
-            $items = $this->queries->list($filters, $page);
+            $items = $this->queries->search($filters, $page);
             $error = '';
             $status = 200;
         } catch (InvalidArgumentException $exception) {
