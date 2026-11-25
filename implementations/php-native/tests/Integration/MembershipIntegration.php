@@ -110,8 +110,9 @@ function runMembershipIntegration(PDO $pdo): int
         'SELECT m.status FROM users u
          LEFT JOIN memberships m ON m.id=(
              SELECT latest.id FROM memberships latest
-             WHERE latest.client_user_id=u.id
-             ORDER BY latest.created_at DESC,latest.id DESC LIMIT 1
+             WHERE latest.client_user_id=u.id AND latest.status IN ("active","suspended")
+             ORDER BY CASE WHEN latest.status="active" THEN 0 ELSE 1 END,
+                      latest.updated_at DESC,latest.created_at DESC,latest.id DESC LIMIT 1
          )
          WHERE u.id=:client'
     );
