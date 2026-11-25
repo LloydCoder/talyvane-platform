@@ -62,4 +62,14 @@ final class SafeguardingCryptoService
     {
         return $this->provider->name();
     }
+
+    public function supportsDestruction(): bool
+    {
+        return $this->provider->supportsDestruction();
+    }
+
+    public function destroyCaseKey(string $caseId,string $wrappedKey): void
+    {
+        $this->provider->destroy($caseId,$wrappedKey);
+    }
 }
