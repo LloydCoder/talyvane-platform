@@ -14,7 +14,7 @@ A screen, route, database table, stub, or passing unit test alone does not estab
 
 ## 1. Runtime, installation and operations
 
-The native branch currently has 13 ordered PHP migrations plus backend slices for identity, companion onboarding, bookings, model-agency applications/rights/agreements, branding and CMS. The current MySQL suite passes 13 migrations and 58 workflow assertions. A first public CMS layer now has a fixed-root PHP view renderer, escaped templates, published-page lookup and public-home rendering; these new routes are not yet CI-verified. Admin/customer/companion application flows and the remaining product domains remain open.
+The native branch currently has 13 ordered PHP migrations plus backend slices for identity, companion onboarding, bookings, model-agency applications/rights/agreements, branding and CMS. The historical MySQL suite passed 13 migrations and 58 workflow assertions before the latest changes; this is not evidence for the current branch head. The public CMS layer now includes a fixed-root PHP view renderer, escaped templates, public-home rendering, published-page lookup, and the `site_pages` schema required by CMS revisions. A regression test was added for the throttled-admin-login failure and the undefined dummy-hash constant was corrected. These latest changes are awaiting CI execution. Admin/customer/companion application flows and the remaining product domains remain open.
 
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
