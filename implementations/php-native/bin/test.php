@@ -247,8 +247,17 @@ $modelAgencyAdminMarkup = $authViews->render('admin/model-agency', [
     'items'=>[['id'=>'application-1','application_reference'=>'MOD-ABC123','country_code'=>'GB','city'=>'London','status'=>'under_review','latest_verification_outcome'=>null]],
 ]);
 $assert(str_contains($modelAgencyAdminMarkup, '/admin/model-agency/application-1/verify'), 'adult verifier queue provides a decision workflow');
-$assert(str_contains($modelAgencyAdminMarkup, '/admin/model-agency/application-1/legal-hold'), 'MFA-authorized agency administration exposes legal-hold controls');
+
 $assert(!str_contains($modelAgencyAdminMarkup, 'applicant@example.test') && !str_contains($modelAgencyAdminMarkup, 'Applicant Name'), 'verifier workspace does not expose applicant contact or name fields');
+$modelAgencyReviewMarkup = $authViews->render('admin/model-agency', [
+    'mode'=>'applications',
+    'brandName'=>'Maison Example',
+    'csrf'=>'agency-review-csrf',
+    'error'=>'',
+    'items'=>[['id'=>'application-1','application_reference'=>'MOD-ABC123','applicant_name'=>'Applicant Example','email'=>'applicant@example.test','phone'=>null,'country_code'=>'GB','city'=>'London','portfolio_url'=>null,'status'=>'under_review','legal_hold'=>0,'created_at'=>'2026-11-25 09:00:00','latest_verification_outcome'=>'verified']],
+]);
+$assert(str_contains($modelAgencyReviewMarkup, '/admin/model-agency/application-1/legal-hold'), 'MFA-authorized agency administration exposes legal-hold controls');
+
 
 $discoveryMarkup = $authViews->render('public/discovery', [
     'mode'=>'destination',
