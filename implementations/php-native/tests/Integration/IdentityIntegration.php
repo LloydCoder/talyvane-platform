@@ -211,6 +211,17 @@ function runIdentityIntegration(PDO $pdo): int
     $profileLookup->execute(['id'=>$profileId]);
     $publicSlug = (string) $profileLookup->fetchColumn();
     $publicProfile = $discovery->profile($publicSlug);
+    $favorites = new \\Talyvane\\Application\\Clients\\ClientFavoriteService($pdo,$audit,$discovery);
+    $clientFavoritePrincipal = new Principal($registeredId,['client'],false);
+    $favorites->add($clientFavoritePrincipal,$publicSlug,bin2hex(random_bytes(16)));
+    $favoriteRows = $favorites->list($clientFavoritePrincipal);
+    $assert(count($favoriteRows) === 1 && $favoriteRows[0]['slug'] === $publicSlug,
+        'client can save a currently public profile to a private shortlist');
+    $favorites->remove($clientFavoritePrincipal,$publicSlug,bin2hex(random_bytes(16)));
+    $assert($favorites->list($clientFavoritePrincipal) === [],
+        'client can remove a profile from their private shortlist');
+    try { $favorites->add(new Principal($companionId,['companion'],false),$publicSlug,bin2hex(random_bytes(16))); $assert(false,'companion cannot use client favorites'); }
+    catch (DomainException) { $assert(true,'companion cannot use client favorites'); }
     $assert(count($publicDestinations) === 1 && $publicDestinations[0]['slug'] === 'london','public discovery lists only destinations in currently approved markets');
     $assert(count($publicProfiles) === 1 && is_array($publicProfile),'public discovery exposes independently verified and consented profiles');
     $assert(is_array($publicProfile) && $publicProfile['time_zone'] === 'Europe/London',
