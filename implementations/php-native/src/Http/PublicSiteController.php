@@ -31,6 +31,7 @@ final class PublicSiteController
             'brand' => $brand,
             'sections' => $items,
             'navigation' => $this->publicNavigation('header','en'),
+            'footerNavigation' => $this->publicNavigation('footer','en'),
             'requestId' => $request->requestId,
         ]));
     }
@@ -84,6 +85,7 @@ final class PublicSiteController
             'metaDescription' => $metaDescription,
             'robots' => $robots,
             'navigation' => $this->publicNavigation('header','en'),
+            'footerNavigation' => $this->publicNavigation('footer','en'),
         ]));
     }
 
