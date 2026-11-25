@@ -643,6 +643,14 @@ $assert(str_contains($anonymousProfileMarkup, 'Client sign-in to save'), 'anonym
 $errorLogPath = $privatePaths['logs'] . DIRECTORY_SEPARATOR . 'application-error.log';
 $errorLogContents = is_file($errorLogPath) ? (string) file_get_contents($errorLogPath) : '';
 $assert($errorLogContents !== '' && str_contains($errorLogContents,'RuntimeException') && str_contains($errorLogContents,'a1b2c3d4e5f60718'), 'private runtime error log records exception class and correlation reference');
+$pdoDiagnostic = new PDOException('Sensitive SQL message must not be logged');
+$pdoDiagnostic->errorInfo = ['HY000',1142,'Access denied for this operation'];
+\Talyvane\Infrastructure\Logging\PrivateErrorLogger::record($pdoDiagnostic,$privatePaths['logs'],$privatePaths['document_root'],'a1b2c3d4e5f60719');
+$errorLogContents = (string) file_get_contents($errorLogPath);
+$assert(str_contains($errorLogContents,'"sql_state":"HY000"') && str_contains($errorLogContents,'"driver_code":1142'),
+    'private runtime error log records safe PDO SQLSTATE and native driver code');
+$assert(!str_contains($errorLogContents,'Sensitive SQL message') && !str_contains($errorLogContents,'Access denied'),
+    'private runtime error log excludes PDO exception messages');
 $assert(!str_contains($errorLogContents,'DB_PASSWORD') && !str_contains($errorLogContents,'do-not-log-secret'), 'private runtime error log never records exception messages or secrets');
 $errorLogMode = is_file($errorLogPath) ? (fileperms($errorLogPath) & 0777) : 0;
 $assert($errorLogMode === 0600, 'private runtime error log is restricted to owner read/write permissions');
