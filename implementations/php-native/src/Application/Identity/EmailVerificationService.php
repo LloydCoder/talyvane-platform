@@ -179,8 +179,25 @@ final class EmailVerificationService
             }
             throw $error;
         }
-        $this->issue($userId,$primaryEmail,'admin_primary');
-        $this->issue($userId,$recoveryEmail,'admin_recovery');
+        try {
+            $this->issue($userId,$primaryEmail,'admin_primary');
+            $this->issue($userId,$recoveryEmail,'admin_recovery');
+        } catch (\\Throwable $error) {
+            $this->pdo->beginTransaction();
+            try {
+                $deleteChallenges = $this->pdo->prepare('DELETE FROM email_verification_challenges WHERE user_id = :user');
+                $deleteChallenges->execute(['user'=>$userId]);
+                $deleteBootstrap = $this->pdo->prepare('DELETE FROM super_admin_bootstrap_challenges WHERE singleton_id = 1 AND user_id = :user AND activated_at IS NULL');
+                $deleteBootstrap->execute(['user'=>$userId]);
+                $deleteUser = $this->pdo->prepare('DELETE FROM users WHERE id = :user AND status = \'pending\'');
+                $deleteUser->execute(['user'=>$userId]);
+                $this->pdo->commit();
+            } catch (\\Throwable $cleanupError) {
+                if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
+                throw new \\RuntimeException('Email delivery failed and pending bootstrap cleanup also failed.',0,$cleanupError);
+            }
+            throw $error;
+        }
         return ['user_id'=>$userId,'bootstrap_proof'=>$bootstrapProof,'primary_email'=>$primaryEmail,'recovery_email'=>$recoveryEmail];
     }
 
