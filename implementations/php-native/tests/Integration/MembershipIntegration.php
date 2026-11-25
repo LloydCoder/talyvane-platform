@@ -39,46 +39,44 @@ function runMembershipIntegration(PDO $pdo): int
     $memberships=new ClientMembershipService($pdo,$audit,$availability);
     $entitlements=new MembershipEntitlementService($pdo,$availability);
 
-    try {
-        $membershipId=$memberships->assign(
+    $membershipId=$memberships->assign(
             $actor,$clientId,'gold','Gold','Approved members-only gallery access',
             new DateTimeImmutable('now -1 minute',new DateTimeZone('UTC')),
             new DateTimeImmutable('now +1 day',new DateTimeZone('UTC')),
             ['media.private_gallery'],'Membership assigned after client eligibility review.',
             bin2hex(random_bytes(16))
         );
-        $assert(preg_match('/^[0-9a-f-]{36}$/',$membershipId)===1,'membership assignment returns a stable UUID');
-        $assert($entitlements->has($clientId,'media.private_gallery'),'current membership and active entitlement grant authorize the approved entitlement');
-        $assert(!$entitlements->has($clientId,'unknown.entitlement'),'unknown entitlement keys fail closed');
-        $eventCount=$pdo->prepare('SELECT COUNT(*) FROM membership_events WHERE client_user_id=:client');
-        $eventCount->execute(['client'=>$clientId]);
-        $assert((int) $eventCount->fetchColumn()===1,'membership assignment creates one append-only lifecycle event');
-        $assert((int) $pdo->query('SELECT COUNT(*) FROM membership_grants WHERE membership_id='.$pdo->quote($membershipId))->fetchColumn()===1,'membership assignment creates the explicit entitlement grant');
+    $assert(preg_match('/^[0-9a-f-]{36}$/',$membershipId)===1,'membership assignment returns a stable UUID');
+    $assert($entitlements->has($clientId,'media.private_gallery'),'current membership and active entitlement grant authorize the approved entitlement');
+    $assert(!$entitlements->has($clientId,'unknown.entitlement'),'unknown entitlement keys fail closed');
+    $eventCount=$pdo->prepare('SELECT COUNT(*) FROM membership_events WHERE client_user_id=:client');
+    $eventCount->execute(['client'=>$clientId]);
+    $assert((int) $eventCount->fetchColumn()===1,'membership assignment creates one append-only lifecycle event');
+    $assert((int) $pdo->query('SELECT COUNT(*) FROM membership_grants WHERE membership_id='.$pdo->quote($membershipId))->fetchColumn()===1,'membership assignment creates the explicit entitlement grant');
 
-        $secondId=$memberships->assign(
+    $secondId=$memberships->assign(
             $actor,$clientId,'silver','Silver','Replacement membership without private gallery',
             new DateTimeImmutable('now -1 minute',new DateTimeZone('UTC')),
             new DateTimeImmutable('now +2 days',new DateTimeZone('UTC')),
             [],'Replacement assignment supersedes the previous active membership.',
             bin2hex(random_bytes(16))
         );
-        $assert($secondId!==$membershipId,'replacement membership receives a new identity');
-        $old=$pdo->prepare('SELECT status FROM memberships WHERE id=:id');
-        $old->execute(['id'=>$membershipId]);
-        $assert($old->fetchColumn()==='superseded','new membership supersedes the prior active membership atomically');
+    $assert($secondId!==$membershipId,'replacement membership receives a new identity');
+    $old=$pdo->prepare('SELECT status FROM memberships WHERE id=:id');
+    $old->execute(['id'=>$membershipId]);
+    $assert($old->fetchColumn()==='superseded','new membership supersedes the prior active membership atomically');
         $assert(!$entitlements->has($clientId,'media.private_gallery'),'superseding membership revokes effective entitlement access immediately');
         $eventCount->execute(['client'=>$clientId]);
         $assert((int) $eventCount->fetchColumn()===3,'supersession and reassignment are both recorded');
 
-        $tamperRejected=false;
-        try { $pdo->exec('UPDATE membership_events SET reason="tampered"'); }
-        catch (PDOException) { $tamperRejected=true; }
-        $assert($tamperRejected,'membership lifecycle evidence rejects direct updates at the database boundary');
+    $tamperRejected=false;
+    try { $pdo->exec('UPDATE membership_events SET reason="tampered"'); }
+    catch (PDOException) { $tamperRejected=true; }
+    $assert($tamperRejected,'membership lifecycle evidence rejects direct updates at the database boundary');
 
-        $denied=false;
-        try { $memberships->assign(new Principal($clientId,['client'],false),$clientId,'x','x','x',new DateTimeImmutable('now'),null,[],'This should be denied by role policy.',bin2hex(random_bytes(16))); }
-        catch (DomainException) { $denied=true; }
-        $assert($denied,'client principals cannot assign or modify membership records');
-    }
+    $denied=false;
+    try { $memberships->assign(new Principal($clientId,['client'],false),$clientId,'x','x','x',new DateTimeImmutable('now'),null,[],'This should be denied by role policy.',bin2hex(random_bytes(16))); }
+    catch (DomainException) { $denied=true; }
+    $assert($denied,'client principals cannot assign or modify membership records');
     return $assertions;
 }
