@@ -108,9 +108,14 @@ final class PublicSiteController
     private function publicNavigation(string $location,string $locale): array
     {
         $query = $this->pdo->prepare(
-            'SELECT id,label,target_type,target_value,sort_order FROM navigation_items
-             WHERE location_key = :location AND locale = :locale AND enabled = 1
-             ORDER BY sort_order,label LIMIT 100'
+            'SELECT n.id,n.label,n.target_type,n.target_value,n.sort_order
+             FROM navigation_items n
+             LEFT JOIN site_pages p
+                ON n.target_type = "page" AND n.target_value = CONCAT("/pages/",p.slug)
+               AND p.locale = n.locale AND p.status = "published" AND p.published_version IS NOT NULL
+             WHERE n.location_key = :location AND n.locale = :locale AND n.enabled = 1
+               AND (n.target_type <> "page" OR p.id IS NOT NULL)
+             ORDER BY n.sort_order,n.label LIMIT 100'
         );
         $query->execute(['location'=>$location,'locale'=>$locale]);
         $safe = [];
