@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Talyvane;
 
 use Talyvane\Application\Companions\CompanionProfilePublicationService;
+use Talyvane\Application\Companions\CompanionAvailabilityService;
 use Talyvane\Application\Bookings\BookingCommandService;
 use Talyvane\Application\Bookings\BookingQueryService;
 use Talyvane\Application\Bookings\BookingService;
@@ -19,6 +20,7 @@ use Talyvane\Application\Identity\MfaService;
 use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Application\Identity\UserRegistrationService;
 use Talyvane\Http\AdminCompanionController;
+use Talyvane\Http\CompanionAvailabilityController;
 use Talyvane\Http\AdminAuthController;
 use Talyvane\Http\AdminBrandController;
 use Talyvane\Http\AdminAuditController;
@@ -119,6 +121,7 @@ final class Bootstrap
         $bookingCommands = new BookingCommandService($pdo, $bookingPolicies, $audit);
         $bookingQueries = new BookingQueryService($pdo);
         $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $discovery, $views, $brandName);
+        $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit), $views, $brandName);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery);
         $router = new Router();
 
@@ -158,6 +161,9 @@ final class Bootstrap
         $router->add('POST', '/portal/bookings', static fn(Request $request): Response => $portalBookings->store($request));
         $router->add('POST', '/portal/bookings/{id}/cancel', static fn(Request $request, array $params): Response => $portalBookings->cancel($request, $params));
         $router->add('GET', '/portal/companion/bookings', static fn(Request $request): Response => $portalBookings->companionIndex($request));
+        $router->add('GET', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->index($request));
+        $router->add('POST', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->save($request));
+        $router->add('POST', '/portal/companion/availability/{id}/delete', static fn(Request $request, array $params): Response => $companionAvailability->delete($request, $params));
         $router->add('POST', '/portal/companion/bookings/{id}/decision', static fn(Request $request, array $params): Response => $portalBookings->companionDecision($request, $params));
 
         $router->add('GET', '/admin/login', static fn(Request $request): Response => $adminAuth->loginForm($request));
