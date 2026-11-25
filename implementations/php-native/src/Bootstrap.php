@@ -7,6 +7,10 @@ use Talyvane\Application\Companions\CompanionProfilePublicationService;
 use Talyvane\Application\Destinations\DestinationManagementService;
 use Talyvane\Application\Globalization\MarketPolicyManagementService;
 use Talyvane\Application\Clients\ClientFavoriteService;
+use Talyvane\Application\Clients\ClientMembershipService;
+use Talyvane\Features\FeatureAvailability;
+use Talyvane\Infrastructure\Database\FeatureStateRepository;
+use Talyvane\Http\AdminClientController;
 use Talyvane\Application\Companions\CompanionAvailabilityService;
 use Talyvane\Application\Bookings\BookingCommandService;
 use Talyvane\Application\Bookings\BookingQueryService;
@@ -149,6 +153,8 @@ final class Bootstrap
         $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit), $views, $brandName);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery);
         $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
+        $membershipAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(), static fn(string $dependency): bool => false);
+        $adminClients = new AdminClientController($pdo,$authentication,new ClientMembershipService($pdo,$audit,$membershipAvailability),$views,$brandName);
         $router = new Router();
 
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
@@ -232,6 +238,8 @@ final class Bootstrap
         $router->add('POST', '/admin/destinations/{id}', static fn(Request $request, array $params): Response => $adminDestinations->save($request, $params));
         $router->add('GET', '/admin/companions', static fn(Request $request): Response => $adminCompanions->index($request));
         $router->add('POST', '/admin/companions/{id}/publish', static fn(Request $request, array $params): Response => $adminCompanions->publish($request, $params));
+        $router->add('GET', '/admin/clients', static fn(Request $request): Response => $adminClients->index($request));
+        $router->add('POST', '/admin/clients/{id}/membership', static fn(Request $request,array $params): Response => $adminClients->assign($request,$params));
         $router->add('GET', '/admin/enquiries', static fn(Request $request): Response => $adminEnquiries->index($request));
         $router->add('POST', '/admin/enquiries/{reference}', static fn(Request $request, array $params): Response => $adminEnquiries->update($request, $params));
         $router->add('GET', '/admin/navigation', static fn(Request $request): Response => $adminNavigation->index($request));
