@@ -1,1 +1,0 @@
-<?php declare(strict_types=1); ?><!doctype html><html lang="en"><meta charset="utf-8"><h1>Assigned safeguarding cases</h1><?php foreach($cases as $case): ?><p><?= $escape($case['case_reference']) ?></p><?php endforeach; ?>
