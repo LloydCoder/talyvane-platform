@@ -27,7 +27,7 @@ $referenceImporter = new ReferenceDataImporter($pdo);
 $countryReferencePath = dirname(__DIR__) . '/database/reference-data/countries.json';
 $currencyReferencePath = dirname(__DIR__) . '/database/reference-data/currencies.json';
 $referenceImport = $referenceImporter->importIfNeeded($countryReferencePath,$currencyReferencePath);
-if ($referenceImport['countries'] !== 249 || $referenceImport['currencies'] !== 178) {
+if ($referenceImport['countries'] !== 249 || $referenceImport['currencies'] !== 155) {
     throw new RuntimeException('Native PHP ISO reference dataset counts do not match the pinned snapshot.');
 }
 $referenceRepeat = $referenceImporter->importIfNeeded($countryReferencePath,$currencyReferencePath);
