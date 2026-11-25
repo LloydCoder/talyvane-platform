@@ -95,6 +95,7 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
   <p class="hint">Authentication and administrator MFA are complete. Website content can be managed here; other operational modules will appear only after their workflows and permissions pass acceptance.</p>
   <?php if (array_intersect($roles, ['super_admin','owner','admin']) !== []): ?>
   <a class="button" href="/admin/content" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open content workspace</a>
+  <a class="button" href="/admin/destinations" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage destinations</a>
   <a class="button" href="/admin/navigation" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage navigation</a>
   <a class="button" href="/admin/enquiries" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open enquiry inbox</a>
   <a class="button" href="/admin/companions" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review companion profiles</a>
