@@ -14,7 +14,7 @@ A screen, route, database table, stub, or passing unit test alone does not estab
 
 ## 1. Runtime, installation and operations
 
-The native branch currently has an ordered PHP migration runner and initial core/globalization/discovery/booking/model-agency/safeguarding/payment/identity/CRM/branding schemas. These are schema foundations only; application workflows and integration acceptance remain open.
+The native branch currently has 13 ordered PHP migrations plus backend slices for identity, companion onboarding, bookings, model-agency applications/rights/agreements, branding and CMS. The current MySQL suite passes 13 migrations and 58 workflow assertions. HTTP route wiring, full interfaces and the remaining product domains are still open.
 
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
@@ -37,7 +37,7 @@ The native branch currently has an ordered PHP migration runner and initial core
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
 | Public visitor identity boundary | PRODUCT-REQUIREMENTS | NOT_STARTED | No implicit account creation |
-| Client registration/login/logout | routes/web.php, portal auth | NOT_STARTED | Validation, throttling, session rotation and role separation |
+| Client registration/login/logout | routes/web.php, portal auth | IN_PROGRESS | Validation, throttling, session rotation and role separation |
 | Client email verification | portal auth | NOT_STARTED | Expiring, single-use, rate-limited verification |
 | Companion provisioning/login | SECURITY-PRIVACY | NOT_STARTED | Trusted provisioning; no public companion self-registration unless approved |
 | Admin login/logout | admin routes | NOT_STARTED | Throttling, secure sessions and audit events |
@@ -59,8 +59,8 @@ The native branch currently has an ordered PHP migration runner and initial core
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
 | Responsive public homepage/brand shell | README, public views | NOT_STARTED | Mobile/tablet/desktop accessibility and visual parity |
-| Dynamic branding | BrandingController | NOT_STARTED | Name, logo, favicon, tokens, typography, contacts, social links |
-| CMS pages and navigation | SitePageController | NOT_STARTED | Draft/preview/publish/rollback/history |
+| Dynamic branding | BrandingController | IN_PROGRESS | Name, logo, favicon, tokens, typography, contacts, social links |
+| CMS pages and navigation | SitePageController | IN_PROGRESS | Draft/preview/publish/rollback/history |
 | Legal pages and policy versions | PRODUCT-REQUIREMENTS | NOT_STARTED | Versioned, publishable and auditable content |
 | SEO metadata/defaults | PRODUCT-REQUIREMENTS | NOT_STARTED | Titles, descriptions, canonical, robots, sitemap and structured data |
 | Destination/city directory | DiscoveryController | NOT_STARTED | Structured taxonomy and active-market filtering |
@@ -75,16 +75,16 @@ The native branch currently has an ordered PHP migration runner and initial core
 
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
-| Manual booking request | BookingController | NOT_STARTED | Request lifecycle and audit history |
-| Automatic booking mode | Booking domain | NOT_STARTED | Disabled by default; all eligibility gates rechecked transactionally |
-| Admin approval rules | Booking settings | NOT_STARTED | Typed rules and fail-closed defaults |
+| Manual booking request | BookingController | IN_PROGRESS | Request lifecycle and audit history |
+| Automatic booking mode | Booking domain | IN_PROGRESS | Disabled by default; all eligibility gates rechecked transactionally |
+| Admin approval rules | Booking settings | IN_PROGRESS | Typed rules and fail-closed defaults |
 | Companion explicit auto-book opt-in/out | Companion portal | NOT_STARTED | Immediate opt-out enforcement |
-| Weekly availability windows | Companion portal | NOT_STARTED | IANA/local schedule converted to UTC safely |
-| Overlap prevention | Booking domain | NOT_STARTED | Concurrent request integration tests |
-| Deposit verification gate | Booking admin | NOT_STARTED | Human attestation only; never misrepresented as chain verification |
+| Weekly availability windows | Companion portal | IN_PROGRESS | IANA/local schedule converted to UTC safely |
+| Overlap prevention | Booking domain | IN_PROGRESS | Concurrent request integration tests |
+| Deposit verification gate | Booking admin | IN_PROGRESS | Human attestation only; never misrepresented as chain verification |
 | Booking state machine | ARCHITECTURE | IN_PROGRESS | Draft/requested/review/accepted/confirmed/completed and terminal states |
 | Quote snapshot/acceptance | TGLS, BOOKING | NOT_STARTED | Currency, market, policy and rate immutable on acceptance |
-| Cancellation/rescheduling | ROADMAP | NOT_STARTED | Planned Laravel scope; explicit lifecycle and notifications |
+| Cancellation/rescheduling | ROADMAP | IN_PROGRESS | Planned Laravel scope; explicit lifecycle and notifications |
 | Calendar synchronization | ROADMAP | NOT_STARTED | Provider adapter, retries, idempotency and privacy |
 | Client portal | PRODUCT-REQUIREMENTS | NOT_STARTED | Account, history, favourites, receipts, payment status, support, privacy |
 | Client favourites | ClientFavoriteController | NOT_STARTED | Owner-scoped create/remove/list |
@@ -98,13 +98,13 @@ The native branch currently has an ordered PHP migration runner and initial core
 
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
-| Independent model application intake | PRODUCT-REQUIREMENTS | NOT_STARTED | No companion/client/booking creation; minimum fields only |
-| Applicant policy/version gate | PRODUCT-REQUIREMENTS | NOT_STARTED | Intake disabled until policies published/approved |
-| Applicant email-verified rights session | ARCHITECTURE | NOT_STARTED | OTP access/correction/withdrawal/erasure |
-| Application review/state machine | ModelAgencyApplicationAdminController | NOT_STARTED | Append-only events and admin-only access |
-| Manual adult eligibility attestation | verifier role | NOT_STARTED | Dedicated minimal verifier queue; no DOB/ID document storage |
-| Application legal hold/retention | PRODUCT-REQUIREMENTS | NOT_STARTED | Hold blocks erasure; scheduled anonymization and audit |
-| Representation agreement register | Agreement controller | NOT_STARTED | External execution evidence; not a signature service |
+| Independent model application intake | PRODUCT-REQUIREMENTS | IN_PROGRESS | No companion/client/booking creation; minimum fields only |
+| Applicant policy/version gate | PRODUCT-REQUIREMENTS | IN_PROGRESS | Intake disabled until policies published/approved |
+| Applicant email-verified rights session | ARCHITECTURE | IN_PROGRESS | OTP access/correction/withdrawal/erasure |
+| Application review/state machine | ModelAgencyApplicationAdminController | IN_PROGRESS | Append-only events and admin-only access |
+| Manual adult eligibility attestation | verifier role | IN_PROGRESS | Dedicated minimal verifier queue; no DOB/ID document storage |
+| Application legal hold/retention | PRODUCT-REQUIREMENTS | IN_PROGRESS | Hold blocks erasure; scheduled anonymization and audit |
+| Representation agreement register | Agreement controller | IN_PROGRESS | External execution evidence; not a signature service |
 | Private portfolio media intake | PortfolioAsset controller | NOT_STARTED | Private storage, sanitization, consent and eligibility gates |
 | Portfolio review/consent withdrawal | PortfolioAsset controller | NOT_STARTED | Human review, withdrawal removes private image |
 | Purpose-bound image licence ledger | ImageLicence controller | IN_PROGRESS | Asset/agreement/territory/channel/window and revocation |
@@ -134,7 +134,7 @@ The native branch currently has an ordered PHP migration runner and initial core
 | Incident/appeal/correction | PRODUCT-REQUIREMENTS | NOT_STARTED | Human-reviewed, restricted and auditable |
 | Privacy rights for applicants/clients | PRODUCT-REQUIREMENTS | NOT_STARTED | Access/correction/withdrawal/erasure workflow |
 | Data export | Administration | NOT_STARTED | Permissioned, reasoned, audited and safe |
-| Sensitive logging redaction | SECURITY-PRIVACY | NOT_STARTED | No secrets/identity evidence in logs |
+| Sensitive logging redaction | SECURITY-PRIVACY | IN_PROGRESS | No secrets/identity evidence in logs |
 | No minors/exploitation/non-consensual content | COMPLIANCE-RELEASE-GATES | NOT_STARTED | Hard application invariants and release no-go gates |
 
 ## 7. CRM, communications, payments and finance
@@ -179,7 +179,7 @@ The native branch currently has an ordered PHP migration runner and initial core
 
 ## 9. Non-functional and security verification
 
-Current verified scope: GitHub Actions syntax lint and 76 dependency-free assertions passed on PHP 8.3, 8.4 and 8.5; the MySQL 8.0 integration smoke applied all 10 ordered migrations and confirmed a second run is idempotent. Further integration coverage for privileged authentication/MFA and installer primitives is in progress. Browser installer flow, complete feature parity and real-host acceptance remain unverified.
+Current verified scope: PHP 8.3/8.4/8.5 lint and foundation tests pass; Semgrep passes with native PHP included; MySQL 8.0 applies 13 ordered migrations idempotently and passes 34 identity, 16 model-agency/privacy and 8 CMS/branding assertions. These are backend integration slices only. Browser route coverage, full feature parity and actual cPanel/LiteSpeed host acceptance remain unverified.
 
 - [ ] Applicable OWASP ASVS 5.0 requirements mapped to controls, automated tests and manual review.
 - [ ] OWASP Top 10:2025 threat model covering public site, identity, admin, bookings, media, safeguarding, payments, integrations, exports, installer, backups and upgrades.
