@@ -50,7 +50,9 @@ function runMembershipIntegration(PDO $pdo): int
         $assert(preg_match('/^[0-9a-f-]{36}$/',$membershipId)===1,'membership assignment returns a stable UUID');
         $assert($entitlements->has($clientId,'media.private_gallery'),'current membership and active entitlement grant authorize the approved entitlement');
         $assert(!$entitlements->has($clientId,'unknown.entitlement'),'unknown entitlement keys fail closed');
-        $assert((int) $pdo->query('SELECT COUNT(*) FROM membership_events')->fetchColumn()===1,'membership assignment creates one append-only lifecycle event');
+        $eventCount=$pdo->prepare('SELECT COUNT(*) FROM membership_events WHERE client_user_id=:client');
+        $eventCount->execute(['client'=>$clientId]);
+        $assert((int) $eventCount->fetchColumn()===1,'membership assignment creates one append-only lifecycle event');
         $assert((int) $pdo->query('SELECT COUNT(*) FROM membership_grants WHERE membership_id='.$pdo->quote($membershipId))->fetchColumn()===1,'membership assignment creates the explicit entitlement grant');
 
         $secondId=$memberships->assign(
@@ -65,7 +67,8 @@ function runMembershipIntegration(PDO $pdo): int
         $old->execute(['id'=>$membershipId]);
         $assert($old->fetchColumn()==='superseded','new membership supersedes the prior active membership atomically');
         $assert(!$entitlements->has($clientId,'media.private_gallery'),'superseding membership revokes effective entitlement access immediately');
-        $assert((int) $pdo->query('SELECT COUNT(*) FROM membership_events')->fetchColumn()===3,'supersession and reassignment are both recorded');
+        $eventCount->execute(['client'=>$clientId]);
+        $assert((int) $eventCount->fetchColumn()===3,'supersession and reassignment are both recorded');
 
         $tamperRejected=false;
         try { $pdo->exec('UPDATE membership_events SET reason="tampered"'); }
@@ -76,12 +79,6 @@ function runMembershipIntegration(PDO $pdo): int
         try { $memberships->assign(new Principal($clientId,['client'],false),$clientId,'x','x','x',new DateTimeImmutable('now'),null,[],'This should be denied by role policy.',bin2hex(random_bytes(16))); }
         catch (DomainException) { $denied=true; }
         $assert($denied,'client principals cannot assign or modify membership records');
-    } finally {
-        $pdo->exec('DELETE FROM membership_events WHERE actor_user_id='.$pdo->quote($ownerId).' OR client_user_id='.$pdo->quote($clientId));
-        $pdo->exec('DELETE FROM membership_grants WHERE membership_id IN (SELECT id FROM memberships WHERE client_user_id='.$pdo->quote($clientId).')');
-        $pdo->exec('DELETE FROM memberships WHERE client_user_id='.$pdo->quote($clientId));
-        $pdo->exec('DELETE FROM user_roles WHERE user_id IN ('.$pdo->quote($ownerId).','.$pdo->quote($clientId).')');
-        $pdo->exec('DELETE FROM users WHERE id IN ('.$pdo->quote($ownerId).','.$pdo->quote($clientId).')');
     }
     return $assertions;
 }
