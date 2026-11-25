@@ -145,6 +145,25 @@ $portalDashboardMarkup = $authViews->render('auth/portal', [
 $assert(str_contains($portalDashboardMarkup, 'Companion workspace'), 'companion portal is visibly separated from the client portal');
 $assert(str_contains($portalDashboardMarkup, 'action="/portal/logout"'), 'portal dashboard exposes CSRF-protected sign-out');
 $assert(str_contains($portalDashboardMarkup,'href="/portal/security"'),'client and companion dashboards expose account security');
+$clientMembershipMarkup = $authViews->render('auth/portal', [
+    'screen'=>'dashboard',
+    'csrf'=>'portal-client-membership-csrf',
+    'accountType'=>'client',
+    'membership'=>[
+        'tier_name'=>'<script>alert(1)</script>',
+        'plan_key'=>'gold',
+        'benefits_summary'=>'Verified member benefit summary',
+        'starts_at'=>'2026-11-25 00:00:00',
+        'ends_at'=>'2026-12-25 00:00:00',
+        'entitlements'=>['media.private_gallery'],
+    ],
+]);
+$assert(str_contains($clientMembershipMarkup,'Your membership') &&
+    str_contains($clientMembershipMarkup,'media.private_gallery') &&
+    str_contains($clientMembershipMarkup,'&lt;script&gt;alert(1)&lt;/script&gt;'),
+    'client dashboard renders a safe membership summary and only the effective entitlement keys');
+$assert(!str_contains($clientMembershipMarkup,'<script>alert(1)</script>'),
+    'membership summary fields are HTML-escaped');
 $portalSecurityMarkup = $authViews->render('auth/portal-security',[
     'brandName'=>'Maison Example','csrf'=>'portal-security-csrf','error'=>'','notice'=>'',
 ]);
