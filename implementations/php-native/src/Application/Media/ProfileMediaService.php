@@ -184,7 +184,7 @@ final class ProfileMediaService
         $deleteKey=null;
         try {
             $query=$this->pdo->prepare(
-                'SELECT pm.id,pm.profile_id,pm.private_storage_key,pm.sha256,pm.consent_grant_id,pm.review_status,
+                'SELECT pm.id,pm.profile_id,pm.private_storage_key,pm.sha256,pm.consent_grant_id,pm.consent_version,pm.review_status,
                         p.slug,p.status,p.adult_eligibility_status,p.publication_consent_version,
                         p.publication_consent_withdrawn_at
                  FROM profile_media pm JOIN companion_profiles p ON p.id=pm.profile_id
@@ -200,7 +200,8 @@ final class ProfileMediaService
                 $publicProfile=$this->discovery->profile((string) $media['slug']);
                 if (!is_array($publicProfile) || (string) $publicProfile['id']!==(string) $media['profile_id'] ||
                     $media['status']!=='published' || $media['adult_eligibility_status']!=='verified' ||
-                    $media['publication_consent_withdrawn_at']!==null) {
+                    $media['publication_consent_withdrawn_at']!==null ||
+                    !hash_equals((string) $media['consent_version'],(string) $media['publication_consent_version'])) {
                     throw new DomainException('Profile eligibility, market approval or public consent is no longer current.');
                 }
                 $grant=$this->activePublicationGrant((string) $media['profile_id'],(string) $media['publication_consent_version'],true);
@@ -242,7 +243,7 @@ final class ProfileMediaService
     public function publicMedia(string $mediaId): array
     {
         $query=$this->pdo->prepare(
-            'SELECT pm.id,pm.profile_id,pm.private_storage_key,pm.sha256,pm.consent_grant_id,p.slug,p.publication_consent_version
+            'SELECT pm.id,pm.profile_id,pm.private_storage_key,pm.sha256,pm.consent_grant_id,pm.consent_version,p.slug,p.publication_consent_version
              FROM profile_media pm JOIN companion_profiles p ON p.id=pm.profile_id
              WHERE pm.id=:id AND pm.review_status="approved" AND pm.media_scope="public" LIMIT 1'
         );
@@ -252,7 +253,8 @@ final class ProfileMediaService
             throw new DomainException('Public media was not found.');
         }
         $profile=$this->discovery->profile((string) $media['slug']);
-        if (!is_array($profile) || (string) $profile['id']!==(string) $media['profile_id']) {
+        if (!is_array($profile) || (string) $profile['id']!==(string) $media['profile_id'] ||
+            !hash_equals((string) $media['consent_version'],(string) $media['publication_consent_version'])) {
             throw new DomainException('Public profile eligibility or consent is no longer current.');
         }
         $grant=$this->activePublicationGrant((string) $media['profile_id'],(string) $media['publication_consent_version']);
