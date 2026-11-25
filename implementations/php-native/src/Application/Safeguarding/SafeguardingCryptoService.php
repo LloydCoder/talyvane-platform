@@ -72,4 +72,13 @@ final class SafeguardingCryptoService
     {
         $this->provider->destroy($caseId,$wrappedKey);
     }
+
+    /** @param array<string,string> $activeCaseKeys @return array{active_keys_verified:int,orphan_keys_destroyed:int} */
+    public function reconcileVault(array $activeCaseKeys): array
+    {
+        if (!$this->provider instanceof VaultTransitSafeguardingCaseKeyProvider) {
+            throw new RuntimeException('Vault restore reconciliation requires the configured external Vault Transit provider.');
+        }
+        return $this->provider->reconcile($activeCaseKeys);
+    }
 }
