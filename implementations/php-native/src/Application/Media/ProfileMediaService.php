@@ -272,9 +272,14 @@ final class ProfileMediaService
     public function publicMediaForProfile(string $profileId): array
     {
         $query=$this->pdo->prepare(
-            'SELECT id FROM profile_media
-             WHERE profile_id=:profile AND review_status="approved" AND media_scope="public"
-             ORDER BY created_at ASC LIMIT 12'
+            'SELECT pm.id FROM profile_media pm
+             JOIN companion_profiles p ON p.id=pm.profile_id
+             JOIN consent_grants cg ON cg.id=pm.consent_grant_id
+             WHERE pm.profile_id=:profile AND pm.review_status="approved" AND pm.media_scope="public"
+               AND pm.consent_version=p.publication_consent_version
+               AND cg.granted=1 AND cg.withdrawn_at IS NULL
+               AND cg.policy_version=p.publication_consent_version
+             ORDER BY pm.created_at ASC LIMIT 12'
         );
         $query->execute(['profile'=>$profileId]);
         return array_map(static fn(array $row): array=>[
