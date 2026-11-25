@@ -115,12 +115,12 @@ function runModelAgencyIntegration(PDO $pdo): int
     $withdrawn->execute(['id'=>$applicationId]);
     $assert($withdrawn->fetchColumn() === 'withdrawn','verified applicant withdrawal uses the guarded application state machine');
 
-    $pdo->prepare('UPDATE model_talent_applications SET legal_hold = 1,legal_hold_reason = "Documented test retention hold" WHERE id = :id')->execute(['id'=>$applicationId]);
+    $service->updateLegalHold($admin,$applicationId,true,'Documented test retention hold for litigation preservation',bin2hex(random_bytes(16)));
     $rights->request($applicationReference,'model-applicant@example.test','erasure','203.0.113.16',bin2hex(random_bytes(16)));
     preg_match('/one-time verification code is: ([0-9]{8})/',$rightsMailer->messages[3]['body'],$holdMatch);
     $holdId = $rights->verify($applicationReference,'model-applicant@example.test',$holdMatch[1] ?? '','203.0.113.17',bin2hex(random_bytes(16)));
     $assert(!$rights->erase((string) $holdId,bin2hex(random_bytes(16))),'documented legal hold defers applicant erasure');
-    $pdo->prepare('UPDATE model_talent_applications SET legal_hold = 0,legal_hold_reason = NULL WHERE id = :id')->execute(['id'=>$applicationId]);
+    $service->updateLegalHold($admin,$applicationId,false,'Legal hold release approved after the preservation duty ended',bin2hex(random_bytes(16)));
     $rights->request($applicationReference,'model-applicant@example.test','erasure','203.0.113.18',bin2hex(random_bytes(16)));
     preg_match('/one-time verification code is: ([0-9]{8})/',$rightsMailer->messages[4]['body'],$eraseMatch);
     $eraseId = $rights->verify($applicationReference,'model-applicant@example.test',$eraseMatch[1] ?? '','203.0.113.19',bin2hex(random_bytes(16)));
