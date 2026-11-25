@@ -47,6 +47,13 @@ $notice=is_string($notice ?? null)?$notice:'';
 <section class="panel"><h2>Your submitted images</h2>
 <?php if ($items===[]): ?><p class="muted">No images have been submitted.</p><?php endif; ?>
 <?php foreach ($items as $item): ?><div class="item"><div><strong><?= $escape(strtoupper(str_replace('_',' ',(string) ($item['review_status'] ?? 'pending')))) ?></strong><div class="muted"><?= $escape((string) ($item['width'] ?? 0)) ?> × <?= $escape((string) ($item['height'] ?? 0)) ?> px · <?= $escape((string) ($item['created_at'] ?? '')) ?></div><?php if (!empty($item['review_note'])): ?><p class="muted"><?= $escape($item['review_note']) ?></p><?php endif; ?></div>
+<?php if (($item['review_status'] ?? '')==='approved' && ($item['media_scope'] ?? '')==='members_only' && empty($item['members_only_consent_withdrawn_at'])): ?>
+<?php if (empty($item['members_only_consent_at'])): ?>
+<form method="post" action="/portal/companion/media/<?= $escape($item['id']) ?>/members-only/consent"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><label class="check"><input type="checkbox" name="members_only_consent_confirmed" value="1" required><span>I separately and voluntarily consent to this image being shown only to clients with a current active membership entitlement. I may withdraw this consent at any time.</span></label><button class="button" type="submit">Grant members-only consent</button></form>
+<?php else: ?>
+<form method="post" action="/portal/companion/media/<?= $escape($item['id']) ?>/members-only/withdraw"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><button class="button danger" type="submit">Withdraw members-only consent</button></form>
+<?php endif; ?>
+<?php endif; ?>
 <?php if (!in_array((string) ($item['review_status'] ?? ''),['withdrawn','rejected'],true)): ?><form method="post" action="/portal/companion/media/<?= $escape($item['id']) ?>/withdraw"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><button class="button danger" type="submit">Withdraw image</button></form><?php endif; ?></div><?php endforeach; ?>
 </section><?php endif; ?>
 </main></body></html>
