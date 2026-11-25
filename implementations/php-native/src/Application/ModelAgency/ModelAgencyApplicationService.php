@@ -43,7 +43,7 @@ final class ModelAgencyApplicationService
     {
         Authorization::require($verifier,'model_applications.adult_eligibility.verify',true);
         if (!$verifier->hasRole('verifier')) {
-            throw new \\DomainException('Verifier role is required.');
+            throw new \DomainException('Verifier role is required.');
         }
         $limit = max(1,min(100,$limit));
         $query = $this->pdo->prepare(
