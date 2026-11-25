@@ -92,6 +92,10 @@ $assert(strlen($totpSecret) >= 32 && preg_match('/^[0-9]{6}$/D', $totpCode) === 
 $assert(Totp::verify($totpSecret, $totpCode, 300) === 10, 'TOTP verifies within the current time counter');
 $assert(Totp::verify($totpSecret, $totpCode, 300, 10) === null, 'TOTP replay counter is rejected');
 
+$assert(PrivateMediaStorage::validKey('profile-media/0123456789abcdef0123456789abcdef.webp'), 'private media accepts opaque generated storage keys');
+$assert(!PrivateMediaStorage::validKey('../public_html/secret.webp'), 'private media rejects path traversal keys');
+$assert(!PrivateMediaStorage::validKey('model-portfolio/user-uploaded-name.jpg'), 'private media rejects user-controlled filenames');
+
 $redacted = StructuredLogger::redact(['smtpPassword'=>'do-not-log','nested'=>['api_key'=>'do-not-log-either','status'=>'failed']]);
 $assert($redacted['smtpPassword'] === '[REDACTED]' && $redacted['nested']['api_key'] === '[REDACTED]', 'structured logger redacts nested secrets');
 $assert($redacted['nested']['status'] === 'failed', 'structured logger preserves non-sensitive diagnostics');
