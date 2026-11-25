@@ -378,7 +378,7 @@ final class SafeguardingCaseService
             trim((string) $policy['legal_basis_reference'])==='') {
             return null;
         }
-        $due=(new \DateTimeImmutable('now',new \DateTimeZone('UTC')))->modify('+'.$days.' days');
+        $due=(new \DateTimeImmutable('now',new \DateTimeZone('UTC')))->modify('+'.($days+$backupDays).' days');
         return ['due_at'=>$due->format('Y-m-d H:i:s'),'policy_version'=>$version];
     }
 
