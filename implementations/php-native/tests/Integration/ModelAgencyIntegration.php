@@ -45,15 +45,16 @@ function runModelAgencyIntegration(PDO $pdo): int
         'https://portfolio.example.test/work',
         'Professional portfolio summary supplied by applicant.',
         true,
+        true,
         'model-privacy-v1',
         bin2hex(random_bytes(16))
     );
-    $rowQuery = $pdo->prepare('SELECT status,adult_eligibility_attested_at,privacy_notice_version,retention_due_at FROM model_talent_applications WHERE id = :id');
+    $rowQuery = $pdo->prepare('SELECT status,adult_eligibility_attested_at,privacy_acknowledged_at,privacy_notice_version,retention_due_at FROM model_talent_applications WHERE id = :id');
     $rowQuery->execute(['id'=>$applicationId]);
     $application = $rowQuery->fetch();
     $assert(is_array($application) && $application['status'] === 'submitted','public model application enters submitted state');
     $assert(is_array($application) && $application['adult_eligibility_attested_at'] !== null,'explicit adult attestation is timestamped without treating it as verification');
-    $assert(is_array($application) && $application['privacy_notice_version'] === 'model-privacy-v1' && $application['retention_due_at'] !== null,'privacy notice version and retention deadline are snapshotted');
+    $assert(is_array($application) && $application['privacy_notice_version'] === 'model-privacy-v1' && $application['privacy_acknowledged_at'] !== null && $application['retention_due_at'] !== null,'privacy acknowledgement, notice version and retention deadline are snapshotted');
     $roleCount = $pdo->prepare('SELECT COUNT(*) FROM user_roles WHERE role_key IN ("client","companion") AND user_id = :id');
     $roleCount->execute(['id'=>$applicationId]);
     $assert((int) $roleCount->fetchColumn() === 0,'model applicant intake does not create a client or companion identity');
