@@ -28,6 +28,39 @@ final class SafeguardingRetentionService
         if (!is_int($days)||$days<1||!is_int($backupDays)||$backupDays<1||$version===''||strlen($version)>64) {
             throw new RuntimeException('Safeguarding retention requires positive retention and backup-expiry periods and a named policy version.');
         }
+        $backupPolicy=$this->pdo->query(
+            'SELECT policy_version,expiry_days,encrypted_backups,enabled,approved_by
+             FROM safeguarding_backup_retention_policies WHERE singleton_id=1 LIMIT 1'
+        )->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($backupPolicy) || (int)$backupPolicy['enabled']!==1 ||
+            (int)$backupPolicy['encrypted_backups']!==1 || (int)$backupPolicy['expiry_days']!==$backupDays ||
+            !hash_equals($version,(string)$backupPolicy['policy_version'])) {
+            throw new RuntimeException('Safeguarding retention is blocked until the current encrypted-backup expiry policy is approved and matches the configured retention version.');
+        }
+        $approver=$this->pdo->prepare(
+            'SELECT 1 FROM users u
+             JOIN user_roles r ON r.user_id=u.id AND r.role_key IN ("owner","super_admin")
+             JOIN admin_mfa_credentials m ON m.user_id=u.id AND m.enabled_at IS NOT NULL
+             WHERE u.id=:id AND u.status="active" AND u.email_verified_at IS NOT NULL LIMIT 1'
+        );
+        $approver->execute(['id'=>$backupPolicy['approved_by']]);
+        if ($approver->fetchColumn()===false) {
+            throw new RuntimeException('Safeguarding backup policy approver is no longer an active MFA-enrolled Owner or Super Admin.');
+        }
+        $restore=$this->pdo->prepare(
+            'SELECT 1 FROM safeguarding_restore_verifications v
+             JOIN users u ON u.id=v.verified_by AND u.status="active"
+             JOIN user_roles r ON r.user_id=u.id AND r.role_key IN ("owner","super_admin")
+             JOIN admin_mfa_credentials m ON m.user_id=u.id AND m.enabled_at IS NOT NULL
+             WHERE v.policy_version=:version AND v.verification_status="passed"
+               AND v.verified_at>=UTC_TIMESTAMP()-INTERVAL 90 DAY
+               AND v.verified_by<>:approver
+             ORDER BY v.verified_at DESC LIMIT 1'
+        );
+        $restore->execute(['version'=>$version,'approver'=>$backupPolicy['approved_by']]);
+        if ($restore->fetchColumn()===false) {
+            throw new RuntimeException('Safeguarding retention requires a recent successful Vault restore and key-reconciliation verification by a second MFA-enrolled Owner or Super Admin.');
+        }
         $query=$this->pdo->prepare(
             'SELECT id FROM safeguarding_cases
              WHERE status="closed" AND legal_hold=0 AND retention_due_at IS NOT NULL
