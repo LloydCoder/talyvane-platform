@@ -172,7 +172,7 @@ The native branch currently has 17 ordered PHP migrations plus backend and brows
 | Tax configuration | TGLS | BLOCKED | Jurisdiction-specific legal/accounting approval |
 | Feature registry/control plane | Super Admin architecture | IN_PROGRESS | Dependencies, blockers, status and server-side enforcement |
 | Secret catalog/rotation | SecretManagementController | NOT_STARTED | Allowlist, masked values, secret-store adapter |
-| Append-only audit log | ARCHITECTURE | NOT_STARTED | Actor/target/before-after/reason/request ID/policy version |
+| Append-only audit log and investigation workspace | ARCHITECTURE | IN_PROGRESS | Existing AuditLogger records redacted structured events; draft PR #89 adds a Super Admin/MFA-gated, read-only metadata viewer with exact filters and bounded pagination. Database-enforced immutability, tamper-evidence/integrity verification, retention governance, complete event coverage and acceptance evidence remain open |
 | Reports/analytics | PRODUCT-REQUIREMENTS | NOT_STARTED | Role-scoped and privacy-aware |
 | Integrations | ARCHITECTURE | NOT_STARTED | Explicit adapters, retries, idempotency and safe credentials |
 | Localization and export controls | PRODUCT-REQUIREMENTS | NOT_STARTED | Locale-aware, permissioned and audited |
