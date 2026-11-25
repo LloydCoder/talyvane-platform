@@ -69,6 +69,8 @@ final class ModelApplicantRightsService
                 'id'=>self::uuid(),'application'=>$application['id'],'from_status'=>$application['status'],'to_status'=>$application['status'],
                 'reason'=>'Applicant initiated a verified privacy-rights request: ' . $requestType,
             ]);
+            $this->audit->record(null,'model_application.rights.requested','model_application',(string) $application['id'],
+                'Applicant initiated a verified privacy-rights request',null,['request_type'=>$requestType],$requestId,'applicant-rights-v1');
             $this->pdo->commit();
         } catch (Throwable $error) {
             if ($this->pdo->inTransaction()) {
@@ -160,8 +162,9 @@ final class ModelApplicantRightsService
     }
 
     /** @return array<string,mixed> */
-    public function read(string $rightsRequestId): array
+    public function read(string $rightsRequestId,string $requestId): array
     {
+        if (strlen($requestId) < 16 || strlen($requestId) > 64) { throw new \\InvalidArgumentException('Request identifier is invalid.'); }
         $this->pdo->beginTransaction();
         try {
             [$rights,$application] = $this->verifiedContext($rightsRequestId,'access');
@@ -179,6 +182,8 @@ final class ModelApplicantRightsService
                 'privacy_acknowledged_at'=>$application['privacy_acknowledged_at'],
                 'created_at'=>$application['created_at'],
             ];
+            $this->audit->record(null,'model_application.rights.accessed','model_application',(string) $application['id'],
+                'Applicant accessed their own application data',null,['rights_request_id'=>$rightsRequestId],$requestId,'applicant-rights-v1');
             $this->pdo->commit();
             return $result;
         } catch (Throwable $error) {
