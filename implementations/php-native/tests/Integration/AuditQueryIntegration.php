@@ -42,6 +42,11 @@ function runAuditQueryIntegration(PDO $pdo): int
     $assert(count($allSecond) === 5, 'audit listing returns the remaining rows on the next page');
     $assert(!array_key_exists('before_json', $allFirst[0]) && !array_key_exists('after_json', $allFirst[0]), 'audit viewer never exposes before/after payload snapshots');
     $assert(!array_key_exists('password', $allFirst[0]), 'audit viewer returns event metadata only, never credential fields');
+    $rawSnapshot = $pdo->prepare('SELECT before_json FROM audit_events WHERE target_type = "integration_fixture" AND target_id = "fixture-0" LIMIT 1');
+    $rawSnapshot->execute();
+    $snapshotData = json_decode((string) $rawSnapshot->fetchColumn(),true);
+    $assert(is_array($snapshotData) && ($snapshotData['email'] ?? null) === '[REDACTED]' && ($snapshotData['password'] ?? null) === '[REDACTED]',
+        'audit snapshots redact personal contact identifiers and credentials at write time');
 
     $filtered = $queries->search(['event_key'=>'audit.test.odd','target_type'=>'integration_fixture'], 1);
     $assert(count($filtered) === 27, 'audit filters combine event and target type with parameterized exact matching');
