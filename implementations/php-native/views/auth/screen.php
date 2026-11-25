@@ -92,13 +92,14 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
   <?php elseif ($screen === 'dashboard'): ?>
   <div class="role-list"><?php foreach ($roles as $role): ?><span><?= $escape($role) ?></span><?php endforeach; ?></div>
   <div class="rule"></div>
-  <p class="hint">Authentication and administrator MFA are complete. Website content can be managed here; other operational modules will appear only after their workflows and permissions pass acceptance.</p>
+  <p class="hint">Authentication and administrator MFA are complete. Operational workspaces are exposed only to the roles and workflows that have passed their authorization gates.</p>
   <?php if (array_intersect($roles, ['super_admin','owner','admin']) !== []): ?>
   <a class="button" href="/admin/content" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open content workspace</a>
   <a class="button" href="/admin/destinations" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage destinations</a>
   <a class="button" href="/admin/navigation" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage navigation</a>
   <a class="button" href="/admin/enquiries" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open enquiry inbox</a>
   <a class="button" href="/admin/companions" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review companion profiles</a>
+  <a class="button" href="/admin/profile-media" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review profile media</a>
   <a class="button" href="/admin/model-agency" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage model-agency applications</a>
   <a class="button" href="/admin/bookings" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage bookings</a>
   <?php if (in_array('verifier', $roles, true)): ?><a class="button" href="/admin/model-agency/verifications" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open verifier queue</a><?php endif; ?>
