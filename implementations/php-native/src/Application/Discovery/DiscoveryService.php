@@ -89,7 +89,7 @@ final class DiscoveryService
     public function profile(string $slug): ?array
     {
         $query = $this->pdo->prepare(
-            'SELECT p.id,p.slug,p.display_name,p.biography,p.languages_json,p.experience_category,
+            'SELECT p.id,p.slug,p.display_name,p.biography,p.languages_json,p.experience_category,d.country_code,
                     d.slug AS destination_slug,d.display_name AS destination_name,
                     m.enabled AS market_enabled,m.decision AS market_decision,m.reviewer_id,m.reviewed_at,
                     m.expires_at,m.evidence_reference,m.review_summary
