@@ -84,7 +84,7 @@ final class PublicModelAgencyController
         $version=$configuredVersion;
         $available=is_array($policy) && ($policy['enabled'] ?? false) === true && $version !== '' &&
             $publishedVersion !== 'privacy-v0' && hash_equals($publishedVersion,$configuredVersion) && $this->rights !== null;
-        return ['available'=>$available,'privacyVersion'=>$version,'privacyPage'=>$privacyPage,'error'=>'','values'=>[]];
+        return ['available'=>$available,'privacyVersion'=>$version,'privacyPage'=>$privacyPage,'error'=>'','values'=>[],'brandName'=>(string)($this->content->publicBrand()['brand_name']??'Talyvane')];
     }
 
     private function field(Request $request,string $name): string
