@@ -54,7 +54,12 @@ final class DiscoveryService
                     d.slug AS destination_slug,d.display_name AS destination_name,d.time_zone,
                     (SELECT pm.id FROM profile_media pm JOIN consent_grants pcg ON pcg.id=pm.consent_grant_id
                      WHERE pm.profile_id=p.id AND pm.review_status="approved" AND pm.media_scope="public"
-                       AND pm.consent_version=p.publication_consent_version AND pcg.granted=1 AND pcg.withdrawn_at IS NULL
+                       AND pm.consent_version=p.publication_consent_version
+                       AND pm.uploaded_by IS NOT NULL AND pm.rights_confirmed_at IS NOT NULL
+                       AND pm.reviewed_by IS NOT NULL AND pm.reviewed_at IS NOT NULL
+                       AND pm.reviewer_adult_safety_confirmed_at IS NOT NULL
+                       AND pm.reviewer_rights_confirmed_at IS NOT NULL AND pm.reviewer_consent_confirmed_at IS NOT NULL
+                       AND pcg.granted=1 AND pcg.withdrawn_at IS NULL
                        AND pcg.policy_version=p.publication_consent_version ORDER BY pm.created_at ASC LIMIT 1) AS primary_media_id,
                     m.enabled AS market_enabled,m.decision AS market_decision,m.reviewer_id,m.reviewed_at,
                     m.expires_at,m.evidence_reference,m.review_summary
@@ -98,7 +103,12 @@ final class DiscoveryService
                     d.slug AS destination_slug,d.display_name AS destination_name,d.time_zone,
                     (SELECT pm.id FROM profile_media pm JOIN consent_grants pcg ON pcg.id=pm.consent_grant_id
                      WHERE pm.profile_id=p.id AND pm.review_status="approved" AND pm.media_scope="public"
-                       AND pm.consent_version=p.publication_consent_version AND pcg.granted=1 AND pcg.withdrawn_at IS NULL
+                       AND pm.consent_version=p.publication_consent_version
+                       AND pm.uploaded_by IS NOT NULL AND pm.rights_confirmed_at IS NOT NULL
+                       AND pm.reviewed_by IS NOT NULL AND pm.reviewed_at IS NOT NULL
+                       AND pm.reviewer_adult_safety_confirmed_at IS NOT NULL
+                       AND pm.reviewer_rights_confirmed_at IS NOT NULL AND pm.reviewer_consent_confirmed_at IS NOT NULL
+                       AND pcg.granted=1 AND pcg.withdrawn_at IS NULL
                        AND pcg.policy_version=p.publication_consent_version ORDER BY pm.created_at ASC LIMIT 1) AS primary_media_id,
                     m.enabled AS market_enabled,m.decision AS market_decision,m.reviewer_id,m.reviewed_at,
                     m.expires_at,m.evidence_reference,m.review_summary
@@ -137,6 +147,10 @@ final class DiscoveryService
              JOIN consent_grants cg ON cg.id=pm.consent_grant_id
              WHERE pm.profile_id=:profile AND pm.review_status="approved" AND pm.media_scope="public"
                AND pm.consent_version=p.publication_consent_version
+               AND pm.uploaded_by IS NOT NULL AND pm.rights_confirmed_at IS NOT NULL
+               AND pm.reviewed_by IS NOT NULL AND pm.reviewed_at IS NOT NULL
+               AND pm.reviewer_adult_safety_confirmed_at IS NOT NULL
+               AND pm.reviewer_rights_confirmed_at IS NOT NULL AND pm.reviewer_consent_confirmed_at IS NOT NULL
                AND cg.granted=1 AND cg.withdrawn_at IS NULL
                AND cg.policy_version=p.publication_consent_version
              ORDER BY pm.created_at ASC LIMIT 12'
