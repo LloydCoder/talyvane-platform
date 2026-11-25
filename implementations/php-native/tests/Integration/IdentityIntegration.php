@@ -229,7 +229,7 @@ function runIdentityIntegration(PDO $pdo): int
     $availabilityId = substr($availabilityHex,0,8).'-'.substr($availabilityHex,8,4).'-'.substr($availabilityHex,12,4).'-'.substr($availabilityHex,16,4).'-'.substr($availabilityHex,20);
     $availabilityInsert = $pdo->prepare('INSERT INTO companion_availability (id,profile_id,weekday,local_start,local_end,time_zone,effective_from,effective_until,enabled,created_at) VALUES (:id,:profile,:weekday,"00:00:00","23:59:59","Europe/London",:date,NULL,1,UTC_TIMESTAMP())');
     $availabilityInsert->execute(['id'=>$availabilityId,'profile'=>$profileId,'weekday'=>(int) $localBookingStart->format('w'),'date'=>$localDate]);
-    $availabilityService = new \\Talyvane\\Application\\Companions\\CompanionAvailabilityService($pdo,$audit);
+    $availabilityService = new \Talyvane\Application\Companions\CompanionAvailabilityService($pdo,$audit);
     $companionPrincipal = new Principal($companionId,['companion'],false);
     $weekday = ((int) $localBookingStart->format('w') + 1) % 7;
     $availabilityRuleId = $availabilityService->save($companionPrincipal,$profileId,$weekday,'09:00','11:30',$localDate,null,bin2hex(random_bytes(16)));
