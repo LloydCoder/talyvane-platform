@@ -69,6 +69,14 @@ implementations/php-native/
 
 The final release ZIP may use a different flattened layout if required for cPanel compatibility. Build output must be reproducible and must not include development secrets, test data, or local environment files.
 
+## Native browser installer
+
+The native front controller routes /install before the application kernel. The HTTPS-only wizard creates a 256-bit setup key outside the public document root, checks the private code root and PHP environment, applies the ordered native migrations, imports pinned country/currency reference data, tests SMTP delivery by sending separate primary and recovery codes, and activates the first Super Admin only after both addresses are verified.
+
+Pending database/SMTP configuration and bootstrap proof are stored in an encrypted owner-only private state file. The one-time initial password and offline recovery key are persisted encrypted before the Super Admin activation transaction commits, then shown once after the permanent installer lock is written. The setup key is consumed after the lock. The first login requires password replacement and MFA enrollment.
+
+The native installer and one-time credential handoff still require full browser E2E, interruption/recovery, cPanel packaging and actual HostSailor cPanel/LiteSpeed acceptance. The existing Laravel installer E2E does not validate this native installer.
+
 ## Development sequence
 
 1. Requirement inventory and traceability.
