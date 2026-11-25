@@ -62,7 +62,7 @@ final class EmailVerificationService
                 $existingRecovery = $existing->fetchColumn() !== false;
             }
             if (!$bootstrapPending && !$existingRecovery) {
-                throw new \\DomainException('Administrative email verification requires an active Super Admin bootstrap or recovery record.');
+                throw new \DomainException('Administrative email verification requires an active Super Admin bootstrap or recovery record.');
             }
         }
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
@@ -131,13 +131,13 @@ final class EmailVerificationService
                 $userUpdate = $this->pdo->prepare('UPDATE users SET status = "active", email_verified_at = UTC_TIMESTAMP(), updated_at = UTC_TIMESTAMP() WHERE id = :user AND LOWER(email) = :email AND status = "pending"');
                 $userUpdate->execute(['user'=>$userId,'email'=>$email]);
                 if ($userUpdate->rowCount() !== 1) {
-                    throw new \\DomainException('Pending account email changed or was already activated.');
+                    throw new \DomainException('Pending account email changed or was already activated.');
                 }
             } elseif ($purpose === 'admin_primary') {
                 $userUpdate = $this->pdo->prepare('UPDATE users SET email_verified_at = UTC_TIMESTAMP(), updated_at = UTC_TIMESTAMP() WHERE id = :user AND LOWER(email) = :email AND status = "pending"');
                 $userUpdate->execute(['user'=>$userId,'email'=>$email]);
                 if ($userUpdate->rowCount() !== 1) {
-                    throw new \\DomainException('Pending administrator email changed or was already activated.');
+                    throw new \DomainException('Pending administrator email changed or was already activated.');
                 }
             }
             $this->pdo->commit();
@@ -166,7 +166,7 @@ final class EmailVerificationService
     public function prepareSuperAdminBootstrap(SetupKey $setupKey, string $submittedSetupKey, string $primaryEmail, string $recoveryEmail): array
     {
         if (!$setupKey->verify($submittedSetupKey)) {
-            throw new \\DomainException('Installer setup key is invalid.');
+            throw new \DomainException('Installer setup key is invalid.');
         }
         $primaryEmail = strtolower(trim($primaryEmail));
         $recoveryEmail = strtolower(trim($recoveryEmail));
@@ -177,7 +177,7 @@ final class EmailVerificationService
         $existingBootstrap = $this->pdo->query('SELECT user_id,activated_at,expires_at FROM super_admin_bootstrap_challenges WHERE singleton_id = 1')->fetch();
         if (is_array($existingBootstrap)) {
             if ($existingBootstrap['activated_at'] !== null || strtotime((string) $existingBootstrap['expires_at'] . ' UTC') > time()) {
-                throw new \\DomainException('A Super Admin bootstrap is already active or has been completed.');
+                throw new \DomainException('A Super Admin bootstrap is already active or has been completed.');
             }
             $this->pdo->beginTransaction();
             try {
@@ -196,7 +196,7 @@ final class EmailVerificationService
         }
         if ($this->pdo->query('SELECT COUNT(*) FROM super_admin_recovery')->fetchColumn() > 0 ||
             $this->pdo->query('SELECT COUNT(*) FROM super_admin_bootstrap_challenges WHERE activated_at IS NULL AND expires_at > UTC_TIMESTAMP()')->fetchColumn() > 0) {
-            throw new \\DomainException('A Super Admin bootstrap is already active or has been completed.');
+            throw new \DomainException('A Super Admin bootstrap is already active or has been completed.');
         }
         $userId = self::uuid();
         $bootstrapProof = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
@@ -206,7 +206,7 @@ final class EmailVerificationService
             $existing = $this->pdo->prepare('SELECT COUNT(*) FROM users WHERE LOWER(email) = :email');
             $existing->execute(['email'=>$primaryEmail]);
             if ((int) $existing->fetchColumn() > 0) {
-                throw new \\DomainException('Primary Super Admin email already belongs to an account.');
+                throw new \DomainException('Primary Super Admin email already belongs to an account.');
             }
             $create = $this->pdo->prepare('INSERT INTO users (id,email,password_hash,status,email_verified_at,first_login_required,admin_session_version,created_at,updated_at) VALUES (:id,:email,:hash,"pending",NULL,1,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())');
             $create->execute(['id'=>$userId,'email'=>$primaryEmail,'hash'=>password_hash($temporaryPassword,PASSWORD_DEFAULT)]);
@@ -249,7 +249,7 @@ final class EmailVerificationService
     public function resendSuperAdminVerification(SetupKey $setupKey, string $submittedSetupKey, string $bootstrapProof): void
     {
         if (!$setupKey->verify($submittedSetupKey)) {
-            throw new \\DomainException('Installer setup key is invalid.');
+            throw new \DomainException('Installer setup key is invalid.');
         }
         $query = $this->pdo->prepare('SELECT user_id,primary_email,recovery_email,proof_hash,expires_at,activated_at FROM super_admin_bootstrap_challenges WHERE singleton_id = 1 LIMIT 1');
         $query->execute();
@@ -257,7 +257,7 @@ final class EmailVerificationService
         if (!is_array($row) || $row['activated_at'] !== null ||
             strtotime((string) $row['expires_at'] . ' UTC') <= time() ||
             !hash_equals((string) $row['proof_hash'],hash_hmac('sha256',$bootstrapProof,$this->pepper))) {
-            throw new \\DomainException('Super Admin bootstrap challenge is invalid or expired.');
+            throw new \DomainException('Super Admin bootstrap challenge is invalid or expired.');
         }
         $this->issue((string) $row['user_id'],(string) $row['primary_email'],'admin_primary');
         $this->issue((string) $row['user_id'],(string) $row['recovery_email'],'admin_recovery');
@@ -267,7 +267,7 @@ final class EmailVerificationService
     public function activateSuperAdmin(string $userId, string $primaryEmail, string $recoveryEmail, string $bootstrapProof, string $requestId): array
     {
         if (!$this->bothAdminAddressesVerified($userId,$primaryEmail,$recoveryEmail) || strlen($bootstrapProof) !== 43) {
-            throw new \\DomainException('Both distinct Super Admin email addresses and the installer bootstrap proof are required.');
+            throw new \DomainException('Both distinct Super Admin email addresses and the installer bootstrap proof are required.');
         }
         $initialPassword = rtrim(strtr(base64_encode(random_bytes(24)), '+/', '-_'), '=');
         $offlineRecoveryKey = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
@@ -282,18 +282,18 @@ final class EmailVerificationService
                 strtolower((string) $bootstrap['recovery_email']) !== strtolower($recoveryEmail) ||
                 strtotime((string) $bootstrap['expires_at'] . ' UTC') <= time() ||
                 !hash_equals((string) $bootstrap['proof_hash'],hash_hmac('sha256',$bootstrapProof,$this->pepper))) {
-                throw new \\DomainException('Super Admin bootstrap proof is invalid, expired or already consumed.');
+                throw new \DomainException('Super Admin bootstrap proof is invalid, expired or already consumed.');
             }
             $userQuery = $this->pdo->prepare('SELECT email,status FROM users WHERE id = :user FOR UPDATE');
             $userQuery->execute(['user'=>$userId]);
             $user = $userQuery->fetch();
             if (!is_array($user) || strtolower((string) $user['email']) !== strtolower($primaryEmail) || $user['status'] !== 'pending') {
-                throw new \\DomainException('Super Admin bootstrap account is not eligible for activation.');
+                throw new \DomainException('Super Admin bootstrap account is not eligible for activation.');
             }
             $activate = $this->pdo->prepare('UPDATE users SET password_hash = :password,status = "active",email_verified_at = UTC_TIMESTAMP(),first_login_required = 1,updated_at = UTC_TIMESTAMP() WHERE id = :user AND status = "pending"');
             $activate->execute(['password'=>password_hash($initialPassword,PASSWORD_DEFAULT),'user'=>$userId]);
             if ($activate->rowCount() !== 1) {
-                throw new \\DomainException('Super Admin account state changed during activation.');
+                throw new \DomainException('Super Admin account state changed during activation.');
             }
             $role = $this->pdo->prepare('INSERT INTO user_roles (user_id,role_key,granted_by,granted_at) VALUES (:user,"super_admin",NULL,UTC_TIMESTAMP())');
             $role->execute(['user'=>$userId]);
