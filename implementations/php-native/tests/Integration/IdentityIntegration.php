@@ -335,7 +335,12 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(is_array($approvedCover) && $approvedCover['mime']==='image/webp' &&
         hash_equals($coverHash,hash('sha256',$approvedCover['bytes'])),
         'public destination cover delivery requires a published market-approved destination and verified approved asset');
-    unlink($coverPath);
+    $coverService->withdraw($principal,$coverAssetId,'Destination rights owner requested removal of the approved cover image',bin2hex(random_bytes(16)));
+    $assert($coverService->publicCover('manchester')===null && !is_file($coverPath),
+        'cover withdrawal immediately removes public delivery and deletes private image bytes');
+    $coverPointer=$pdo->prepare('SELECT cover_media_key FROM destinations WHERE id=:id');
+    $coverPointer->execute(['id'=>$newDestinationId]);
+    $assert($coverPointer->fetchColumn()===null,'cover withdrawal clears the destination public-media pointer');
     rmdir($coverDirectory);
     rmdir($coverPrivate);
     rmdir($coverPublic);
