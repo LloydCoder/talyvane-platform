@@ -209,6 +209,7 @@ function runIdentityIntegration(PDO $pdo): int
     $discovery = new DiscoveryService($pdo);
     $publicDestinations = $discovery->destinations();
     $publicProfiles = $discovery->profiles('london');
+    $allPublicProfiles = $discovery->profiles(null);
     $profileLookup = $pdo->prepare('SELECT slug FROM companion_profiles WHERE id = :id');
     $profileLookup->execute(['id'=>$profileId]);
     $publicSlug = (string) $profileLookup->fetchColumn();
@@ -226,6 +227,7 @@ function runIdentityIntegration(PDO $pdo): int
     catch (DomainException) { $assert(true,'companion cannot use client favorites'); }
     $assert(count($publicDestinations) === 1 && $publicDestinations[0]['slug'] === 'london','public discovery lists only destinations in currently approved markets');
     $assert(count($publicProfiles) === 1 && is_array($publicProfile),'public discovery exposes independently verified and consented profiles');
+    $assert(count($allPublicProfiles) === 1 && $allPublicProfiles[0]['slug'] === $publicSlug,'global companion discovery exposes only currently verified and consented public profiles');
     $assert(is_array($publicProfile) && $publicProfile['time_zone'] === 'Europe/London',
         'public profile projection includes the destination IANA time zone without undefined-field warnings');
     $assert(is_array($publicProfile) && !array_key_exists('user_id',$publicProfile) && !array_key_exists('verification_reference_hash',$publicProfile),'public profile projection excludes account identifiers and verification evidence');
