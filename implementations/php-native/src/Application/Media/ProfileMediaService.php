@@ -184,7 +184,7 @@ final class ProfileMediaService
         $deleteKey=null;
         try {
             $query=$this->pdo->prepare(
-                'SELECT pm.id,pm.profile_id,pm.private_storage_key,pm.sha256,pm.review_status,
+                'SELECT pm.id,pm.profile_id,pm.private_storage_key,pm.sha256,pm.consent_grant_id,pm.review_status,
                         p.slug,p.status,p.adult_eligibility_status,p.publication_consent_version,
                         p.publication_consent_withdrawn_at
                  FROM profile_media pm JOIN companion_profiles p ON p.id=pm.profile_id
@@ -204,7 +204,7 @@ final class ProfileMediaService
                     throw new DomainException('Profile eligibility, market approval or public consent is no longer current.');
                 }
                 $grant=$this->activePublicationGrant((string) $media['profile_id'],(string) $media['publication_consent_version'],true);
-                if (!is_array($grant)) {
+                if (!is_array($grant) || (string) $grant['id'] !== (string) $media['consent_grant_id']) {
                     throw new DomainException('Current public publication consent is unavailable.');
                 }
                 $bytes=$this->storage->read((string) $media['private_storage_key']);
@@ -242,7 +242,7 @@ final class ProfileMediaService
     public function publicMedia(string $mediaId): array
     {
         $query=$this->pdo->prepare(
-            'SELECT pm.id,pm.profile_id,pm.private_storage_key,pm.sha256,p.slug,p.publication_consent_version
+            'SELECT pm.id,pm.profile_id,pm.private_storage_key,pm.sha256,pm.consent_grant_id,p.slug,p.publication_consent_version
              FROM profile_media pm JOIN companion_profiles p ON p.id=pm.profile_id
              WHERE pm.id=:id AND pm.review_status="approved" AND pm.media_scope="public" LIMIT 1'
         );
@@ -256,7 +256,7 @@ final class ProfileMediaService
             throw new DomainException('Public profile eligibility or consent is no longer current.');
         }
         $grant=$this->activePublicationGrant((string) $media['profile_id'],(string) $media['publication_consent_version']);
-        if (!is_array($grant)) {
+        if (!is_array($grant) || (string) $grant['id'] !== (string) $media['consent_grant_id']) {
             throw new DomainException('Current publication consent is unavailable.');
         }
         $bytes=$this->storage->read((string) $media['private_storage_key']);
@@ -306,7 +306,7 @@ final class ProfileMediaService
             $key=(string) $media['private_storage_key'];
             $this->recordConsent($mediaId,$profileId,$actor,
                 'I withdraw this image from my profile submissions and public distribution.',
-                'media.withdrawn',(string) ($media['consent_version'] ?? 'profile-publication-v1'),$requestId);
+                'media.withdrawn',(string) ($media['consent_version'] ?? 'profile-publication-v1'),$requestId,'authenticated_companion_portal_withdrawal');
             $this->audit->record($actor->id,'profile.media.withdrawn','profile_media',$mediaId,
                 'Companion withdrew an individual profile image',
                 ['review_status'=>$media['review_status']],['review_status'=>'withdrawn','media_scope'=>'private'],
@@ -337,20 +337,21 @@ final class ProfileMediaService
     }
 
     private function recordConsent(
-        string $mediaId,string $profileId,Principal $actor,string $statement,string $action,string $version,string $requestId
+        string $mediaId,string $profileId,Principal $actor,string $statement,string $action,string $version,string $requestId,
+        string $captureMethod='authenticated_companion_portal_checkbox'
     ): void {
         $query=$this->pdo->prepare(
             'INSERT INTO profile_media_consent_events
              (id,profile_media_id,companion_profile_id,media_reference,actor_id,actor_email,action,
               capture_method,consent_policy_version,consent_statement,statement_sha256,correlation_id,created_at)
-             SELECT :id,:media,:profile,:reference,:actor,u.email,:action,
-                    "authenticated_companion_portal_checkbox",:version,:statement,:hash,:correlation,UTC_TIMESTAMP()
-             FROM users u WHERE u.id=:actor'
+             SELECT :id,:media,:profile,:reference,:actor_id,u.email,:action,
+                    :capture_method,:version,:statement,:hash,:correlation,UTC_TIMESTAMP()
+             FROM users u WHERE u.id=:user_id'
         );
         $query->execute([
             'id'=>self::uuid(),'media'=>$mediaId,'profile'=>$profileId,'reference'=>'profile-media:' . $mediaId,
-            'actor'=>$actor->id,'action'=>$action,'version'=>$version,'statement'=>$statement,
-            'hash'=>hash('sha256',$statement),'correlation'=>$requestId,
+            'actor_id'=>$actor->id,'user_id'=>$actor->id,'action'=>$action,'capture_method'=>$captureMethod,
+            'version'=>$version,'statement'=>$statement,'hash'=>hash('sha256',$statement),'correlation'=>self::uuid(),
         ]);
     }
 
