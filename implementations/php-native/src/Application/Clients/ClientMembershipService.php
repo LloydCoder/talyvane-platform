@@ -148,6 +148,62 @@ final class ClientMembershipService
         }
     }
 
+    /** @return array<string,mixed>|null Safe, client-owned projection of the current membership. */
+    public function currentForClient(Principal $actor): ?array
+    {
+        if (count($actor->roles)!==1 || !$actor->hasRole('client')) {
+            throw new DomainException('Only a client account may view its own membership summary.');
+        }
+        if (!$this->features->enabled('memberships')) {
+            return null;
+        }
+        $client=$this->pdo->prepare(
+            'SELECT u.id FROM users u
+             JOIN user_roles r ON r.user_id=u.id AND r.role_key="client"
+             WHERE u.id=:id AND u.status="active" AND u.email_verified_at IS NOT NULL LIMIT 1'
+        );
+        $client->execute(['id'=>$actor->id]);
+        if ($client->fetchColumn()===false) {
+            throw new DomainException('An active, email-verified client account is required.');
+        }
+        $query=$this->pdo->prepare(
+            'SELECT id,plan_key,tier_name,benefits_summary,status,starts_at,ends_at
+             FROM memberships
+             WHERE client_user_id=:client AND status="active"
+               AND starts_at<=UTC_TIMESTAMP() AND (ends_at IS NULL OR ends_at>UTC_TIMESTAMP())
+             ORDER BY starts_at DESC,created_at DESC LIMIT 1'
+        );
+        $query->execute(['client'=>$actor->id]);
+        $membership=$query->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($membership)) {
+            return null;
+        }
+        $grants=$this->pdo->prepare(
+            'SELECT entitlement_key FROM membership_grants
+             WHERE membership_id=:membership AND active=1
+               AND starts_at<=UTC_TIMESTAMP() AND (ends_at IS NULL OR ends_at>UTC_TIMESTAMP())
+             ORDER BY entitlement_key ASC'
+        );
+        $grants->execute(['membership'=>$membership['id']]);
+        $effective=[];
+        $entitlements=new MembershipEntitlementService($this->pdo,$this->features);
+        foreach ($grants->fetchAll(PDO::FETCH_COLUMN) as $key) {
+            if (is_string($key) && in_array($key,MembershipEntitlementService::catalogue(),true) &&
+                $entitlements->has($actor->id,$key)) {
+                $effective[]=$key;
+            }
+        }
+        return [
+            'plan_key'=>(string)$membership['plan_key'],
+            'tier_name'=>(string)$membership['tier_name'],
+            'benefits_summary'=>(string)$membership['benefits_summary'],
+            'status'=>'active',
+            'starts_at'=>(string)$membership['starts_at'],
+            'ends_at'=>$membership['ends_at']===null?null:(string)$membership['ends_at'],
+            'entitlements'=>$effective,
+        ];
+    }
+
     /** Cancel an active membership immediately; immutable grants remain as historical evidence. */
     public function cancel(Principal $actor,string $membershipId,string $reason,string $requestId): void
     {
