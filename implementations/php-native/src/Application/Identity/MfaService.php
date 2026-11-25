@@ -102,8 +102,8 @@ final class MfaService
                 $this->pdo->commit();
                 return false;
             }
-            $update = $this->pdo->prepare('UPDATE admin_mfa_credentials SET last_accepted_counter = :counter, updated_at = UTC_TIMESTAMP() WHERE user_id = :user AND last_accepted_counter < :counter');
-            $update->execute(['counter'=>$counter,'user'=>$userId]);
+            $update = $this->pdo->prepare('UPDATE admin_mfa_credentials SET last_accepted_counter = :counter_set, updated_at = UTC_TIMESTAMP() WHERE user_id = :user AND last_accepted_counter < :counter_previous');
+            $update->execute(['counter_set'=>$counter,'counter_previous'=>$counter,'user'=>$userId]);
             $valid = $update->rowCount() === 1;
             $this->pdo->commit();
             return $valid;
