@@ -146,7 +146,13 @@ try {
   await page.locator('[name="recovery_code"]').fill(invalidCode);
   await page.getByRole('button', { name: /Verify and activate Super Admin/i }).click();
   await page.waitForSelector('[role="alert"]');
-  assert.match(await page.locator('[role="alert"]').innerText(), /invalid/i, 'Invalid codes must not activate the administrator.');
+  const invalidCodeMessage = await page.locator('[role="alert"]').innerText();
+  assert.match(invalidCodeMessage, /Both verification codes must be correct and current/i,
+    'Invalid codes receive the generic dual-verification failure message.');
+  assert.equal(new URL(page.url()).pathname, '/install/verify',
+    'Invalid codes must leave the installer on the verification step without activating the administrator.');
+  assert.ok(!invalidCodeMessage.includes(adminEmail) && !invalidCodeMessage.includes(recoveryEmail),
+    'Invalid-code feedback must not disclose either verification address.');
 
   await page.locator('[name="primary_code"]').fill(primaryCode);
   await page.locator('[name="recovery_code"]').fill(recoveryCode);
