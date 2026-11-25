@@ -103,6 +103,23 @@ final class AdminDestinationController
         }
     }
 
+    /** @param array<string,string> $params */
+    public function withdrawCover(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if (!Csrf::verify($this->field($request,'_csrf'))) return $this->index($request,'Your session expired. Refresh this page and try again.',419);
+        $actor=$this->administrator();
+        if ($actor===null) return Response::redirect('/admin/login');
+        try {
+            $this->covers->withdraw($actor,(string)($params['id']??''),$this->field($request,'reason'),$request->requestId);
+            return Response::redirect('/admin/destinations?saved=1');
+        } catch (InvalidArgumentException|DomainException $error) {
+            return $this->index($request,$error->getMessage(),422);
+        } catch (\\Throwable) {
+            return $this->index($request,'Destination cover could not be withdrawn.',503);
+        }
+    }
+
     private function administrator(): ?Principal
     {
         $principal = $this->authentication->currentPrincipal();
