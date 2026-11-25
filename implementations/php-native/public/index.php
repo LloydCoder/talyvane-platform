@@ -28,9 +28,9 @@ try {
     if ($accountHome === '' && $documentRoot !== '' && basename(rtrim($documentRoot,DIRECTORY_SEPARATOR)) === 'public_html') {
         $accountHome = dirname($documentRoot);
     }
-    $paths = PrivatePathResolver::resolve($documentRoot,$accountHome);
     $configPath = getenv('TALYVANE_CONFIG');
     if (!is_string($configPath) || $configPath === '') {
+        $paths = PrivatePathResolver::resolve($documentRoot,$accountHome);
         $configPath = $paths['config'] . '/app.php';
         putenv('TALYVANE_CONFIG=' . $configPath);
         $_ENV['TALYVANE_CONFIG'] = $configPath;
@@ -39,15 +39,29 @@ try {
         Response::redirect('/install')->send();
         exit;
     }
-    $privateConfig = require $configPath;
+    $configReal = realpath($configPath);
+    $publicReal = realpath($documentRoot);
+    $applicationReal = realpath($root);
+    if ($configReal === false || $publicReal === false || $applicationReal === false ||
+        $configReal === $publicReal || str_starts_with($configReal,$publicReal . DIRECTORY_SEPARATOR) ||
+        $applicationReal === $publicReal || str_starts_with($applicationReal,$publicReal . DIRECTORY_SEPARATOR) ||
+        (fileperms($configReal) & 0077) !== 0) {
+        throw new RuntimeException('Application code and configuration must remain private and outside the public document root.');
+    }
+    $privateConfig = require $configReal;
     if (!is_array($privateConfig)) {
         throw new RuntimeException('Private application configuration is invalid.');
     }
-    $configDirectory = $privateConfig['paths']['config'] ?? dirname($configPath);
+    $configDirectory = $privateConfig['paths']['config'] ?? dirname($configReal);
     if (!is_string($configDirectory) || $configDirectory === '' || is_link($configDirectory)) {
         throw new RuntimeException('Private installation directory is invalid.');
     }
-    $installationLock = new InstallerLock(rtrim($configDirectory,DIRECTORY_SEPARATOR) . '/INSTALLATION-LOCK.json');
+    $configDirectoryReal = realpath($configDirectory);
+    if ($configDirectoryReal === false || $configDirectoryReal === $publicReal ||
+        str_starts_with($configDirectoryReal,$publicReal . DIRECTORY_SEPARATOR)) {
+        throw new RuntimeException('Private installation directory cannot be inside the public document root.');
+    }
+    $installationLock = new InstallerLock(rtrim($configDirectoryReal,DIRECTORY_SEPARATOR) . '/INSTALLATION-LOCK.json');
     if (!$installationLock->isLocked()) {
         Response::redirect('/install')->send();
         exit;
