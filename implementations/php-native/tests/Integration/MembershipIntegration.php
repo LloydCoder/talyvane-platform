@@ -83,6 +83,15 @@ function runMembershipIntegration(PDO $pdo): int
     $assert(!$entitlements->has($clientId,'media.private_gallery'),'cancelled membership immediately revokes effective entitlement access');
     $eventCount->execute(['client'=>$clientId]);
     $assert((int) $eventCount->fetchColumn()===6,'supersession, assignment and cancellation are recorded as append-only lifecycle events');
+    $repeatCancelRejected=false;
+    try { $memberships->cancel($actor,$thirdId,'Repeated cancellation must not create a second lifecycle transition.',bin2hex(random_bytes(16))); }
+    catch (DomainException) { $repeatCancelRejected=true; }
+    $assert($repeatCancelRejected,'membership cancellation is not repeatable after a terminal transition');
+
+    $cancelDenied=false;
+    try { $memberships->cancel(new Principal($clientId,['client'],false),$thirdId,'A client principal must not cancel agency-managed membership.',bin2hex(random_bytes(16))); }
+    catch (DomainException) { $cancelDenied=true; }
+    $assert($cancelDenied,'client principals cannot cancel membership records');
 
 
     $tamperRejected=false;
