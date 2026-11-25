@@ -32,6 +32,8 @@ final class PortalPrivacyController
                 'x-content-type-options'=>'nosniff',
                 'referrer-policy'=>'no-referrer',
             ]);
+        } catch (PortalPrivacyExportRateLimitException) {
+            return Response::html('Privacy export is temporarily rate limited. Try again later.',429);
         } catch (DomainException) {
             return Response::html('Privacy export is not available for this account.',403);
         } catch (JsonException) {
