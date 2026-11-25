@@ -11,6 +11,8 @@ use Talyvane\Http\Response;
 use Talyvane\Http\Router;
 use Talyvane\Security\Authorization;
 use Talyvane\Security\PasswordHasher;
+use Talyvane\Security\RecoveryCodes;
+use Talyvane\Security\SecretBox;
 use Talyvane\Security\Principal;
 use Talyvane\Security\Totp;
 
