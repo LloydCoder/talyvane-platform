@@ -22,7 +22,7 @@ final class PortalPrivacyExportService
         if (!$isClient && !$isCompanion) throw new \DomainException('A client or companion portal account is required.');
         Authorization::require($actor,$isClient?'client.booking.manage':'companion.self.view',false);
         if (!$this->limiter->consume('portal.privacy.export',$actor->id,3,3600,3600)) {
-            throw new \\DomainException('Privacy export is temporarily unavailable. Try again later.');
+            throw new \DomainException('Privacy export is temporarily unavailable. Try again later.');
         }
 
         $account=$this->pdo->prepare(
