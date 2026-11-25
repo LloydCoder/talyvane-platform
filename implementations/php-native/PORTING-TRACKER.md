@@ -162,7 +162,7 @@ The native branch currently has 18 ordered PHP migrations plus backend and brows
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
 | ISO 3166-1 reference dataset | TGLS | IN_PROGRESS | Pinned 249-entry reference snapshot with alpha-2, alpha-3 and numeric-3; provenance and licenses recorded; idempotent upsert preserves operator enablement; removed codes are disabled, never deleted. Integration acceptance pending |
-| ISO 4217 reference dataset | TGLS | IN_PROGRESS | Pinned 178-active-code snapshot with numeric code, name, symbol and minor-unit precision; withdrawn codes excluded; provenance and MIT notice recorded; idempotent upsert preserves operator enablement. Integration acceptance pending |
+| ISO 4217 reference dataset | TGLS | IN_PROGRESS | Pinned 155-current non-fund-code snapshot sourced from SIX ISO 4217 List One; numeric code, name, symbol and minor-unit precision; fund/test/unknown/withdrawn codes excluded; source provenance and license notices recorded; idempotent upsert preserves operator enablement. Integration acceptance pending |
 | Independent country/currency/locale/time-zone models | TGLS | NOT_STARTED | No conflated market setting |
 | Deployment base currency/locale/time zone | GlobalizationController | NOT_STARTED | Super Admin control and audit |
 | Market review/approval | COMPLIANCE-RELEASE-GATES | IN_PROGRESS | Super Admin/MFA-only review UI; required evidence reference, substantive summary, approve/reject decision, explicit enablement and expiry within two years; transactional audit events; destination publication rechecks current approval and MFA reviewer. Verified ISO reference-data import and browser E2E remain open |
