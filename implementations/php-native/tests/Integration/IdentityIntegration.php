@@ -7,6 +7,7 @@ use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Application\Identity\UserRegistrationService;
 use Talyvane\Application\Companions\CompanionOnboardingService;
 use Talyvane\Application\Bookings\BookingService;
+use Talyvane\Application\Bookings\BookingCommandService;
 use Talyvane\Infrastructure\Database\BookingPolicyRepository;
 use Talyvane\Application\Identity\EmailVerificationService;
 use Talyvane\Infrastructure\Mail\Mailer;
