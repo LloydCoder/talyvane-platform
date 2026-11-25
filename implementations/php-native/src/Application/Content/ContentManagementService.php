@@ -140,7 +140,7 @@ final class ContentManagementService
                 }
                 $id = $pageId;
                 $version = (int) $current['version'] + 1;
-                $before = ['slug'=>$current['slug'],'title'=>$current['title'],'version'=>(int) $current['version'],'status'=>$current['status']];
+                $before = ['slug'=>$current['slug'],'title'=>$current['title'],'version'=>(int) $current['version'],'published_version'=>$current['published_version'] === null ? null : (int) $current['published_version'],'status'=>$current['status']];
                 $this->pdo->prepare(
                     'UPDATE site_pages SET slug = :slug,title = :title,locale = :locale,content = :content,
                      meta_title = :meta_title,meta_description = :meta_description,version = :version,updated_by = :actor,updated_at = UTC_TIMESTAMP()
@@ -168,19 +168,25 @@ final class ContentManagementService
         }
         $this->pdo->beginTransaction();
         try {
-            $query = $this->pdo->prepare('SELECT status,version FROM site_pages WHERE id = :id FOR UPDATE');
+            $query = $this->pdo->prepare('SELECT status,version,published_version FROM site_pages WHERE id = :id FOR UPDATE');
             $query->execute(['id'=>$pageId]);
             $row = $query->fetch();
             if (!is_array($row)) {
                 throw new \DomainException('CMS page does not exist.');
             }
-            $this->pdo->prepare('UPDATE site_pages SET status = "published",published_at = COALESCE(published_at,UTC_TIMESTAMP()),updated_by = :actor,updated_at = UTC_TIMESTAMP() WHERE id = :id')
-                ->execute(['actor'=>$actor->id,'id'=>$pageId]);
+            $version = (int) $row['version'];
+            $publishedVersion = $row['published_version'] === null ? null : (int) $row['published_version'];
+            if ($publishedVersion === $version) {
+                throw new \DomainException('There are no unpublished changes to promote.');
+            }
+            $this->pdo->prepare('UPDATE site_pages SET status = "published",published_version = :version,published_at = COALESCE(published_at,UTC_TIMESTAMP()),updated_by = :actor,updated_at = UTC_TIMESTAMP() WHERE id = :id')
+                ->execute(['version'=>$version,'actor'=>$actor->id,'id'=>$pageId]);
             $this->audit->record($actor->id,'cms.page.published','site_page',$pageId,trim($reason),
-                ['status'=>$row['status'],'version'=>(int) $row['version']],['status'=>'published','version'=>(int) $row['version']],
+                ['status'=>$row['status'],'version'=>$version,'published_version'=>$publishedVersion],
+                ['status'=>'published','version'=>$version,'published_version'=>$version],
                 $requestId,'cms-page-v1');
             $this->pdo->commit();
-        } catch (\Throwable $error) {
+        } catch (\\Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
@@ -228,10 +234,33 @@ final class ContentManagementService
     /** @return array<string,mixed>|null */
     public function publicPage(string $slug,string $locale): ?array
     {
-        $query = $this->pdo->prepare('SELECT slug,title,locale,content,meta_title,meta_description,status,version,published_at FROM site_pages WHERE slug = :slug AND locale = :locale AND status = "published" LIMIT 1');
+        $query = $this->pdo->prepare(
+            'SELECT p.slug,p.locale,p.status,p.published_version AS version,p.published_at,
+                    v.title,v.content,v.metadata_json
+             FROM site_pages p
+             INNER JOIN site_page_versions v
+                ON v.page_id = p.id AND v.version = p.published_version
+             WHERE p.slug = :slug AND p.locale = :locale
+               AND p.status = "published" AND p.published_version IS NOT NULL
+             LIMIT 1'
+        );
         $query->execute(['slug'=>$slug,'locale'=>$locale]);
         $row = $query->fetch();
-        return is_array($row) ? $row : null;
+        if (!is_array($row)) {
+            return null;
+        }
+        $metadata = self::decodeMap($row['metadata_json'] ?? null);
+        return [
+            'slug'=>(string) $row['slug'],
+            'title'=>(string) $row['title'],
+            'locale'=>(string) $row['locale'],
+            'content'=>(string) $row['content'],
+            'meta_title'=>is_string($metadata['meta_title'] ?? null) ? $metadata['meta_title'] : null,
+            'meta_description'=>is_string($metadata['meta_description'] ?? null) ? $metadata['meta_description'] : null,
+            'status'=>(string) $row['status'],
+            'version'=>(int) $row['version'],
+            'published_at'=>$row['published_at'],
+        ];
     }
 
     public function saveNavigationItem(
