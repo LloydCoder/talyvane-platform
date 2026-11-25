@@ -12,7 +12,7 @@ final class MembershipEntitlementService
 
     public static function catalogue(): array
     {
-        return ['media.private_gallery'];
+        return MembershipEntitlementCatalog::keys();
     }
 
     public function has(string $clientId, string $entitlementKey): bool
