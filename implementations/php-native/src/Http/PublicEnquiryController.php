@@ -7,6 +7,7 @@ use InvalidArgumentException;
 use DomainException;
 use Talyvane\Application\CRM\EnquiryService;
 use Talyvane\Security\Csrf;
+use Talyvane\Security\SessionManager;
 
 final class PublicEnquiryController
 {
