@@ -188,6 +188,8 @@ final class DestinationCoverService
              WHERE d.slug=:slug AND d.status="published" AND d.cover_media_key=a.private_storage_key
                AND c.enabled=1 AND m.enabled=1 AND m.decision="approved"
                AND m.reviewed_at IS NOT NULL AND m.expires_at>UTC_TIMESTAMP()
+               AND m.evidence_reference IS NOT NULL AND CHAR_LENGTH(TRIM(m.evidence_reference))>=8
+               AND m.review_summary IS NOT NULL AND CHAR_LENGTH(TRIM(m.review_summary))>=30
                AND EXISTS (
                    SELECT 1 FROM user_roles ur JOIN admin_mfa_credentials mfa ON mfa.user_id=ur.user_id
                    WHERE ur.user_id=m.reviewer_id AND ur.role_key IN ("owner","admin","super_admin")
