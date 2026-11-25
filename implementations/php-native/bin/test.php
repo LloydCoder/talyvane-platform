@@ -105,7 +105,7 @@ $assert(!PrivateMediaStorage::validKey('../public_html/secret.webp'), 'private m
 $assert(!PrivateMediaStorage::validKey('model-portfolio/user-uploaded-name.jpg'), 'private media rejects user-controlled filenames');
 
 $smtp = new SmtpMailer(['host'=>'smtp.example.test','port'=>587,'username'=>'user','password'=>'test-only','from_email'=>'noreply@example.test','from_name'=>'Talyvane','encryption'=>'tls']);
-try { $smtp->send('person@example.test',"Subject\\r\\nBcc: attacker@example.test",'Body'); $assert(false,'SMTP header injection is rejected'); }
+try { $smtp->send('person@example.test',"Subject\r\nBcc: attacker@example.test",'Body'); $assert(false,'SMTP header injection is rejected'); }
 catch (InvalidArgumentException) { $assert(true,'SMTP header injection is rejected'); }
 try { new SmtpMailer(['host'=>'smtp.example.test','port'=>587,'username'=>'user','password'=>'test-only','from_email'=>'noreply@example.test','encryption'=>'none']); $assert(false,'SMTP encryption downgrade is rejected'); }
 catch (InvalidArgumentException) { $assert(true,'SMTP encryption downgrade is rejected'); }
