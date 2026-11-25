@@ -197,7 +197,7 @@ final class DestinationManagementService
     private function assertAdministrator(Principal $actor): void
     {
         Authorization::require($actor,'site.content.manage',true);
-        if (count(array_intersect($actor->roles,['super_admin','owner','admin'])) !== 1) {
+        if (!$actor->hasRole('super_admin') && count(array_intersect($actor->roles,['owner','admin'])) !== 1) {
             throw new DomainException('Only an authorized agency administrator can manage destinations.');
         }
     }
