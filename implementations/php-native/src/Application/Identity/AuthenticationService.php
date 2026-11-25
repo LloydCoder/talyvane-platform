@@ -126,7 +126,7 @@ final class AuthenticationService
         }
         $userId = (string) $pending['user_id'];
         $user = $this->activeUser($userId);
-        if ($user === null || (int) $user['admin_session_version'] !== (int) $pending['session_version']) {
+        if ($user === null || (bool) $user['first_login_required'] || (int) $user['admin_session_version'] !== (int) $pending['session_version']) {
             unset($_SESSION['_admin_password_change_pending']);
             throw new \\DomainException('First-login account state changed; authenticate again.');
         }
@@ -169,12 +169,15 @@ final class AuthenticationService
         }
         $userId = (string) $pending['user_id'];
         $user = $this->activeUser($userId);
-        if ($user === null || (int) $user['admin_session_version'] !== (int) $pending['session_version']) {
+        if ($user === null || (bool) $user['first_login_required'] || (int) $user['admin_session_version'] !== (int) $pending['session_version']) {
             unset($_SESSION['_admin_mfa_setup_pending']);
             throw new \\DomainException('Administrator account state changed during MFA setup.');
         }
         $roles = $this->roles($userId);
-        if ((bool) $user['first_login_required'] || !$this->rateLimiter->consume('auth.mfa_setup',$userId,5,300,900)) {\n            throw new \\DomainException('MFA setup is blocked by account state or rate limiting.');\n        }\n        $codes = $this->mfa->confirmEnrollment(new Principal($userId,$roles,false),$code,$requestId);
+        if ((bool) $user['first_login_required'] || !$this->rateLimiter->consume('auth.mfa_setup',$userId,5,300,900)) {
+            throw new \\DomainException('MFA setup is blocked by account state or rate limiting.');
+        }
+        $codes = $this->mfa->confirmEnrollment(new Principal($userId,$roles,false),$code,$requestId);
         unset($_SESSION['_admin_mfa_setup_pending']);
         $this->finalizeAdminSession($userId,(int) $user['admin_session_version']);
         return $codes;
