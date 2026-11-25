@@ -17,6 +17,7 @@ $notice=is_string($notice ?? null)?$notice:'';
 <?php if ($profile===null): ?><section class="panel"><p>No companion profile is linked to this account. Contact the agency to complete account linking.</p></section>
 <?php else: ?>
 <section class="panel"><h2><?= $escape($profile['display_name'] ?? 'Your profile') ?></h2><p class="muted"><?= $escape($profile['destination_name'] ?? '') ?> · Status: <?= $escape($profile['status'] ?? 'unknown') ?></p>
+<?php if (($profile['status'] ?? '')==='published'): ?>
 <form method="post" action="/portal/companion/media" enctype="multipart/form-data">
 <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
 <div class="field"><label for="media">Choose an image (JPEG, PNG or WebP; maximum 8 MiB)</label><input id="media" type="file" name="media" accept="image/jpeg,image/png,image/webp" required></div>
@@ -25,7 +26,24 @@ $notice=is_string($notice ?? null)?$notice:'';
 <label class="check"><input type="checkbox" name="publication_confirmed" value="1" required><span>I separately consent to this image being submitted for human review and, only if approved, displayed publicly on my profile.</span></label>
 <p class="muted">Images are decoded and re-encoded to WebP to remove embedded metadata. Original filenames and metadata are not retained.</p>
 <button class="button" type="submit">Submit image for review</button>
-</form></section>
+</form>
+<?php elseif (($profile['status'] ?? '')==='unpublished'): ?>
+<p class="muted">Your profile is unpublished because publication consent was withdrawn. Existing images remain withdrawn and cannot be restored automatically.</p>
+<form method="post" action="/portal/companion/publication/renew">
+<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<label class="check"><input type="checkbox" name="publication_consent_confirmed" value="1" required><span>I grant a new, versioned consent for my profile to be considered for public publication, subject to fresh human review and current market eligibility.</span></label>
+<button class="button" type="submit">Renew publication consent</button>
+</form>
+<?php else: ?>
+<p class="muted">Your profile is not currently published. Image submission is disabled until an authorized reviewer completes the publication workflow.</p>
+<?php endif; ?>
+<?php if (in_array(($profile['status'] ?? ''),['published','pending_review'],true)): ?>
+<form method="post" action="/portal/companion/publication/withdraw" style="border-top:1px solid var(--line);padding-top:18px;margin-top:20px">
+<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<label class="check"><input type="checkbox" name="confirm_publication_withdrawal" value="1" required><span>I understand this immediately unpublishes my profile, withdraws all public media, deletes submitted image files and disables automatic booking.</span></label>
+<button class="button danger" type="submit">Withdraw all publication consent</button>
+</form>
+<?php endif; ?></section>
 <section class="panel"><h2>Your submitted images</h2>
 <?php if ($items===[]): ?><p class="muted">No images have been submitted.</p><?php endif; ?>
 <?php foreach ($items as $item): ?><div class="item"><div><strong><?= $escape(strtoupper(str_replace('_',' ',(string) ($item['review_status'] ?? 'pending')))) ?></strong><div class="muted"><?= $escape((string) ($item['width'] ?? 0)) ?> × <?= $escape((string) ($item['height'] ?? 0)) ?> px · <?= $escape((string) ($item['created_at'] ?? '')) ?></div><?php if (!empty($item['review_note'])): ?><p class="muted"><?= $escape($item['review_note']) ?></p><?php endif; ?></div>
