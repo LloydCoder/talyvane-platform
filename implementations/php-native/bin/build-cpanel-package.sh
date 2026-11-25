@@ -20,6 +20,7 @@ payload="$work/payload/talyvane-native-app"
 for path in bootstrap.php public src database views bin README.md ARCHITECTURE.md PORTING-TRACKER.md; do
   cp -a "$source_dir/$path" "$payload/"
 done
+rm -f "$payload/bin/integration.php" "$payload/bin/test.php" "$payload/bin/build-cpanel-package.sh"
 # The native bootstrap owns its autoloader. This stub satisfies the shared
 # hardened cPanel wrapper's pre-handoff integrity check; it is never required.
 cat > "$payload/vendor/autoload.php" <<'PHP'
