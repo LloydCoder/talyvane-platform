@@ -11,13 +11,16 @@ use ZipArchive;
 final class SafeZipExtractor
 {
     /** @return array{files:int,bytes:int} */
-    public static function extract(string $archivePath, string $destination, int $maxEntries = 10000, int $maxBytes = 104857600): array
+    public static function extract(string $archivePath, string $destination, string $publicRoot, int $maxEntries = 10000, int $maxBytes = 104857600): array
     {
         if (!class_exists(ZipArchive::class) || !is_file($archivePath) || is_link($archivePath)) {
             throw new \RuntimeException('A readable ZIP archive and PHP ZipArchive extension are required.');
         }
         $parent = realpath(dirname($destination));
-        if ($parent === false || !is_writable($parent) || file_exists($destination) || is_link(dirname($destination))) {
+        $public = realpath($publicRoot);
+        if ($parent === false || $public === false || !is_writable($parent) || file_exists($destination) || is_link(dirname($destination)) ||
+            self::isWithin($parent . DIRECTORY_SEPARATOR . basename($destination), $public) ||
+            $maxEntries < 1 || $maxEntries > 100000 || $maxBytes < 1 || $maxBytes > 1073741824) {
             throw new \RuntimeException('Extraction destination must be new and have a writable, trusted parent directory.');
         }
         $baseName = basename($destination);
