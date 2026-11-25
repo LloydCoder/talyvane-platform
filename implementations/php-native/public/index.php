@@ -9,18 +9,56 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 require $root . '/bootstrap.php';
 
+use Talyvane\Http\NativeInstallerController;
 use Talyvane\Http\Request;
 use Talyvane\Http\Response;
 use Talyvane\Infrastructure\Logging\PrivateErrorLogger;
+use Talyvane\Installer\InstallerLock;
+use Talyvane\Installer\PrivatePathResolver;
 
 try {
-    $kernel = Talyvane\Bootstrap::kernel($root);
-    $kernel->handle(Request::fromGlobals())->send();
+    $request = Request::fromGlobals();
+    if (str_starts_with($request->path,'/install')) {
+        (new NativeInstallerController($root))->handle($request)->send();
+        exit;
+    }
+
+    $documentRoot = (string) ($_SERVER['DOCUMENT_ROOT'] ?? '');
+    $accountHome = (string) (getenv('HOME') ?: ($_SERVER['HOME'] ?? ''));
+    if ($accountHome === '' && $documentRoot !== '' && basename(rtrim($documentRoot,DIRECTORY_SEPARATOR)) === 'public_html') {
+        $accountHome = dirname($documentRoot);
+    }
+    $paths = PrivatePathResolver::resolve($documentRoot,$accountHome);
+    $configPath = getenv('TALYVANE_CONFIG');
+    if (!is_string($configPath) || $configPath === '') {
+        $configPath = $paths['config'] . '/app.php';
+        putenv('TALYVANE_CONFIG=' . $configPath);
+        $_ENV['TALYVANE_CONFIG'] = $configPath;
+    }
+    if (is_link($configPath) || !is_file($configPath) || !is_readable($configPath)) {
+        Response::redirect('/install')->send();
+        exit;
+    }
+    $privateConfig = require $configPath;
+    if (!is_array($privateConfig)) {
+        throw new RuntimeException('Private application configuration is invalid.');
+    }
+    $configDirectory = $privateConfig['paths']['config'] ?? dirname($configPath);
+    if (!is_string($configDirectory) || $configDirectory === '' || is_link($configDirectory)) {
+        throw new RuntimeException('Private installation directory is invalid.');
+    }
+    $installationLock = new InstallerLock(rtrim($configDirectory,DIRECTORY_SEPARATOR) . '/INSTALLATION-LOCK.json');
+    if (!$installationLock->isLocked()) {
+        Response::redirect('/install')->send();
+        exit;
+    }
+
+    Talyvane\Bootstrap::kernel($root)->handle($request)->send();
 } catch (Throwable $error) {
     $reference = bin2hex(random_bytes(8));
     $logDirectory = null;
     $configPath = getenv('TALYVANE_CONFIG');
-    if (is_string($configPath) && $configPath !== '' && is_file($configPath) && is_readable($configPath)) {
+    if (is_string($configPath) && $configPath !== '' && is_file($configPath) && is_readable($configPath) && !is_link($configPath)) {
         try {
             $privateConfig = require $configPath;
             if (is_array($privateConfig)) {
@@ -36,11 +74,11 @@ try {
     if (is_string($logDirectory)) {
         PrivateErrorLogger::record($error,$logDirectory,(string) ($_SERVER['DOCUMENT_ROOT'] ?? $root . '/public'),$reference);
     } else {
-        error_log(sprintf('[talyvane:%s] exception=%s', $reference, $error::class));
+        error_log(sprintf('[talyvane:%s] exception=%s',$reference,$error::class));
     }
     Response::html(
         '<!doctype html><html lang="en"><meta charset="utf-8"><title>Service unavailable</title><h1>We could not complete that request.</h1><p>Reference: ' .
-        htmlspecialchars($reference, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') .
+        htmlspecialchars($reference,ENT_QUOTES | ENT_SUBSTITUTE,'UTF-8') .
         '</p></html>',
         500
     )->send();
