@@ -300,8 +300,15 @@ $discoveryMarkup = $authViews->render('public/discovery', [
     'destination'=>['slug'=>'london','display_name'=>'London'],
     'profiles'=>[['slug'=>'talent-one','display_name'=>'<script>alert(1)</script>','experience_category'=>'Representation']],
 ]);
-$assert(str_contains($discoveryMarkup, 'href="/profiles/talent-one"'), 'public discovery links to published profiles');
+$assert(str_contains($discoveryMarkup, 'href="/companions/talent-one"'), 'public discovery links to published profiles');
 $assert(!str_contains($discoveryMarkup, '<script>alert(1)</script>'), 'public discovery escapes profile data');
+$companionsMarkup = $authViews->render('public/discovery', [
+    'mode'=>'companions','brandName'=>'Maison Example',
+    'profiles'=>[['slug'=>'talent-one','display_name'=>'<script>alert(1)</script>','destination_name'=>'London','experience_category'=>'Representation','primary_media_url'=>null]],
+]);
+$assert(str_contains($companionsMarkup,'Explore companions') && str_contains($companionsMarkup,'href="/companions/talent-one"') &&
+    !str_contains($companionsMarkup,'<script>alert(1)</script>'),
+    'global companion directory uses canonical companion routes and escapes profile content');
 $adminCompanionMarkup = $authViews->render('admin/companions', [
     'brandName'=>'Maison Example',
     'csrf'=>'companion-review-csrf',
