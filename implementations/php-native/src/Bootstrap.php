@@ -101,7 +101,7 @@ final class Bootstrap
 
         $public = new PublicSiteController($pdo, $views);
         $discovery = new DiscoveryService($pdo);
-        $publicDiscovery = new PublicDiscoveryController($discovery, $views);
+        $publicDiscovery = new PublicDiscoveryController($discovery, $views, $authentication);
         $contentManagement = new ContentManagementService($pdo, $audit);
         $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
         $adminAudit = new AdminAuditController($authentication, new AuditQueryService($pdo), $views, (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane'));
