@@ -433,8 +433,8 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(count($adminBookingQueue) === 3 && array_key_exists('client_user_id',$adminBookingQueue[0]),'MFA-authorized administrators can inspect the booking operations queue');
     $assert(!array_key_exists('client_user_id',$companionHistory[0]) && !array_key_exists('client_user_id',$clientHistory[0]),'client and companion booking read models omit internal account identifiers');
     $privacyExports=new \Talyvane\Application\Identity\PortalPrivacyExportService($pdo);
-    $clientPrivacyExport=$privacyExports->export($clientPrincipal);
-    $companionPrivacyExport=$privacyExports->export($companionPrincipal);
+    $clientPrivacyExport=$privacyExports->export($clientPrincipal,bin2hex(random_bytes(16)));
+    $companionPrivacyExport=$privacyExports->export($companionPrincipal,bin2hex(random_bytes(16)));
     $assert(($clientPrivacyExport['schema']??'')==='talyvane-portal-data-export-v1' &&
         count($clientPrivacyExport['bookings']??[])===3 &&
         is_array($clientPrivacyExport['memberships']??null) && is_array($clientPrivacyExport['favorites']??null),
@@ -451,8 +451,11 @@ function runIdentityIntegration(PDO $pdo): int
             'privacy exports never disclose password hashes, MFA secrets or offline recovery material');
     }
     $privilegedExportDenied=false;
-    try { $privacyExports->export($principal); } catch (DomainException) { $privilegedExportDenied=true; }
+    try { $privacyExports->export($principal,bin2hex(random_bytes(16))); } catch (DomainException) { $privilegedExportDenied=true; }
     $assert($privilegedExportDenied,'administrator accounts cannot use the client/companion portal privacy export');
+    $exportAudit=$pdo->prepare('SELECT COUNT(*) FROM audit_events WHERE event_key="portal.privacy.exported" AND actor_user_id IN (:client,:companion)');
+    $exportAudit->execute(['client'=>$clientId,'companion'=>$companionId]);
+    $assert((int)$exportAudit->fetchColumn()===2,'each successful client/companion privacy export emits a correlated audit event');
 
 
     return $assertions;
