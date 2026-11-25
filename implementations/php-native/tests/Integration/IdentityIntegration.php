@@ -211,7 +211,7 @@ function runIdentityIntegration(PDO $pdo): int
     $profileLookup->execute(['id'=>$profileId]);
     $publicSlug = (string) $profileLookup->fetchColumn();
     $publicProfile = $discovery->profile($publicSlug);
-    $favorites = new \\Talyvane\\Application\\Clients\\ClientFavoriteService($pdo,$audit,$discovery);
+    $favorites = new \Talyvane\Application\Clients\ClientFavoriteService($pdo,$audit,$discovery);
     $clientFavoritePrincipal = new Principal($registeredId,['client'],false);
     $favorites->add($clientFavoritePrincipal,$publicSlug,bin2hex(random_bytes(16)));
     $favoriteRows = $favorites->list($clientFavoritePrincipal);
