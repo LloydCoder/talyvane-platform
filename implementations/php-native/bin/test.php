@@ -4,6 +4,9 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
 use Talyvane\Domain\Money;
+use Talyvane\Domain\Money\Currency;
+use Talyvane\Domain\Money\QuoteSnapshot;
+use Talyvane\Domain\Payments\PaymentStateMachine;
 use Talyvane\Domain\Booking\BookingStateMachine;
 use Talyvane\Domain\Consent\ConsentGrant;
 use Talyvane\Domain\Market\MarketPolicy;
@@ -138,6 +141,23 @@ $assert(ApplicationStateMachine::transition('submitted','under_review','admin') 
 $assert(ApplicationStateMachine::transition('accepted','withdrawn','applicant') === 'withdrawn', 'applicant can withdraw their application');
 try { ApplicationStateMachine::transition('submitted','accepted','applicant'); $assert(false, 'applicant cannot self-approve application'); }
 catch (DomainException) { $assert(true, 'applicant cannot self-approve application'); }
+
+$currency = new Currency('KWD','Kuwaiti dinar',3,true,'414','د.ك','ISO-4217-2026');
+$assert($currency->minorUnits === 3 && $currency->enabled, 'currency reference supports three-decimal currency precision');
+$quote = new QuoteSnapshot(10000,'GBP',12500,'USD','1.25','rate-provider',$now->modify('-1 minute'),$now->modify('+5 minutes'),null,[],'GB','market-v1',$now->modify('+10 minutes'));
+$acceptedQuote = $quote->accept($now);
+$assert($acceptedQuote->acceptedAt === $now && $acceptedQuote->originalCurrency === 'GBP', 'accepted quote preserves immutable original terms and timestamp');
+try { $acceptedQuote->accept($now); $assert(false, 'quote cannot be accepted twice'); }
+catch (DomainException) { $assert(true, 'quote cannot be accepted twice'); }
+try { (new QuoteSnapshot(100,'GBP',100,'USD','0','rate-provider',$now,$now->modify('+1 minute'),null,[],'GB','v1',$now->modify('+2 minutes'))); $assert(false, 'zero exchange rate rejected'); }
+catch (InvalidArgumentException) { $assert(true, 'zero exchange rate rejected'); }
+try { $quote->accept($now->modify('+11 minutes')); $assert(false, 'expired quote cannot be accepted'); }
+catch (DomainException) { $assert(true, 'expired quote cannot be accepted'); }
+$assert(PaymentStateMachine::transition('confirming','confirmed','provider','chain-tx-reference') === 'confirmed', 'payment confirmation requires provider evidence');
+try { PaymentStateMachine::transition('pending','confirmed','client',''); $assert(false, 'client cannot self-confirm payment'); }
+catch (DomainException) { $assert(true, 'client cannot self-confirm payment'); }
+try { PaymentStateMachine::transition('confirmed','settled','finance'); $assert(false, 'settlement requires external evidence'); }
+catch (DomainException) { $assert(true, 'settlement requires external evidence'); }
 
 $assert(AgreementStateMachine::transition('offered','executed','admin','external-agreement-ref') === 'executed', 'agreement execution requires external evidence');
 try { AgreementStateMachine::transition('offered','executed','admin'); $assert(false, 'agreement cannot be marked executed without evidence'); }
