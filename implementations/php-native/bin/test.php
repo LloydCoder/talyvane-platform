@@ -210,6 +210,27 @@ $assert(str_contains($brandMarkup, 'action="/admin/brand"'), 'brand settings for
 $assert(str_contains($brandMarkup, 'Maison Example'), 'brand settings form shows the active deployment identity');
 $assert(str_contains($brandMarkup, 'name="color_accent"'), 'brand settings expose the configured accent token');
 $assert(!str_contains($brandMarkup, 'private/brand/logo.webp'), 'brand settings never expose private media storage keys');
+$modelAgencyMarkup = $authViews->render('public/model-agency', [
+    'screen'=>'form',
+    'csrf'=>'model-agency-csrf',
+    'available'=>true,
+    'privacyVersion'=>'privacy-v4',
+    'error'=>'',
+    'values'=>[],
+]);
+$assert(str_contains($modelAgencyMarkup, 'action="/model-agency/apply"'), 'model-agency intake has its own public application route');
+$assert(str_contains($modelAgencyMarkup, 'name="adult_attested"') && str_contains($modelAgencyMarkup, 'name="privacy_acknowledged"'), 'model-agency intake requires adult attestation and explicit privacy acknowledgement');
+$assert(!str_contains($modelAgencyMarkup, 'identity_document') && !str_contains($modelAgencyMarkup, 'date_of_birth'), 'model-agency intake does not collect identity documents or dates of birth');
+$modelAgencyAdminMarkup = $authViews->render('admin/model-agency', [
+    'mode'=>'verifications',
+    'brandName'=>'Maison Example',
+    'csrf'=>'verifier-csrf',
+    'error'=>'',
+    'items'=>[['id'=>'application-1','application_reference'=>'MOD-ABC123','country_code'=>'GB','city'=>'London','status'=>'under_review','latest_verification_outcome'=>null]],
+]);
+$assert(str_contains($modelAgencyAdminMarkup, '/admin/model-agency/application-1/verify'), 'adult verifier queue provides a decision workflow');
+$assert(!str_contains($modelAgencyAdminMarkup, 'applicant@example.test') && !str_contains($modelAgencyAdminMarkup, 'Applicant Name'), 'verifier workspace does not expose applicant contact or name fields');
+
 $discoveryMarkup = $authViews->render('public/discovery', [
     'mode'=>'destination',
     'brandName'=>'Maison Example',
