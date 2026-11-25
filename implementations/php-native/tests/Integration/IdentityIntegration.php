@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Application\Identity\MfaService;
+use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Application\Identity\EmailVerificationService;
 use Talyvane\Infrastructure\Mail\Mailer;
 use Talyvane\Infrastructure\Audit\AuditLogger;
