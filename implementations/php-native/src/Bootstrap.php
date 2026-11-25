@@ -3,12 +3,19 @@ declare(strict_types=1);
 
 namespace Talyvane;
 
+use Talyvane\Application\Identity\AuthenticationService;
+use Talyvane\Application\Identity\MfaService;
+use Talyvane\Application\Identity\PasswordChangeService;
+use Talyvane\Http\AdminAuthController;
+use Talyvane\Http\PublicSiteController;
 use Talyvane\Http\Request;
 use Talyvane\Http\Response;
 use Talyvane\Http\Router;
-use Talyvane\Http\PublicSiteController;
 use Talyvane\Http\ViewRenderer;
+use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Database\ConnectionFactory;
+use Talyvane\Infrastructure\Security\RateLimiter;
+use Talyvane\Security\SecretBox;
 
 final class Bootstrap
 {
@@ -25,12 +32,38 @@ final class Bootstrap
         if (!isset($config['database']) || !is_array($config['database'])) {
             throw new \RuntimeException('Database configuration is missing.');
         }
+
         $pdo = ConnectionFactory::mysql($config['database']);
         $views = new ViewRenderer($root . DIRECTORY_SEPARATOR . 'views');
+
+        $audit = new AuditLogger($pdo);
+        $rateLimiter = new RateLimiter(
+            $pdo,
+            hash_hmac('sha256', 'talyvane-rate-limiter-v1', $config['app_key'])
+        );
+        $mfa = new MfaService($pdo, new SecretBox($config['app_key']), $audit);
+        $authentication = new AuthenticationService($pdo, $rateLimiter, $mfa);
+        $passwords = new PasswordChangeService($pdo, $rateLimiter, $audit);
+
         $public = new PublicSiteController($pdo, $views);
+        $adminAuth = new AdminAuthController($authentication, $passwords, $views);
         $router = new Router();
+
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
         $router->add('GET', '/pages/{slug}', static fn(Request $request, array $params): Response => $public->page($request, $params));
+
+        $router->add('GET', '/admin/login', static fn(Request $request): Response => $adminAuth->loginForm($request));
+        $router->add('POST', '/admin/login', static fn(Request $request): Response => $adminAuth->login($request));
+        $router->add('GET', '/admin/first-login', static fn(Request $request): Response => $adminAuth->firstLoginForm($request));
+        $router->add('POST', '/admin/first-login', static fn(Request $request): Response => $adminAuth->firstLogin($request));
+        $router->add('GET', '/admin/mfa', static fn(Request $request): Response => $adminAuth->mfaForm($request));
+        $router->add('POST', '/admin/mfa', static fn(Request $request): Response => $adminAuth->mfa($request));
+        $router->add('GET', '/admin/mfa/setup', static fn(Request $request): Response => $adminAuth->mfaSetupForm($request));
+        $router->add('POST', '/admin/mfa/setup', static fn(Request $request): Response => $adminAuth->mfaSetup($request));
+        $router->add('GET', '/admin/recovery-codes', static fn(Request $request): Response => $adminAuth->recoveryCodes($request));
+        $router->add('GET', '/admin', static fn(Request $request): Response => $adminAuth->dashboard($request));
+        $router->add('POST', '/admin/logout', static fn(Request $request): Response => $adminAuth->logout($request));
+
         return new class($router) {
             public function __construct(private Router $router) {}
             public function handle(Request $request): Response { return $this->router->dispatch($request); }
