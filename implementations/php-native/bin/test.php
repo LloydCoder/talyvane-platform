@@ -130,6 +130,7 @@ $portalLoginMarkup = $authViews->render('auth/portal', [
     'email'=>'person@example.test',
 ]);
 $assert(str_contains($portalLoginMarkup, 'action="/portal/login"'), 'portal login is distinct from administrator authentication');
+$assert(str_contains($portalLoginMarkup, 'href="/portal/recovery"'), 'portal login exposes account recovery without revealing account existence');
 $portalDashboardMarkup = $authViews->render('auth/portal', [
     'screen'=>'dashboard',
     'csrf'=>'portal-dashboard-csrf',
