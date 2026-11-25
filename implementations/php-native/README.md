@@ -75,7 +75,7 @@ The native front controller routes /install before the application kernel. The H
 
 Pending database/SMTP configuration and bootstrap proof are stored in an encrypted owner-only private state file. The one-time initial password and offline recovery key are persisted encrypted before the Super Admin activation transaction commits, then shown once after the permanent installer lock is written. The setup key is consumed after the lock. The first login requires password replacement and MFA enrollment.
 
-The native installer and one-time credential handoff still require full browser E2E, interruption/recovery, cPanel packaging and actual HostSailor cPanel/LiteSpeed acceptance. The existing Laravel installer E2E does not validate this native installer.
+The browser success page displays only the generated initial password. The offline deployment recovery key is never rendered in HTML: it is stored encrypted outside the public root for 24 hours and retrieved once with `php bin/reveal-super-admin-recovery-key.php` from cPanel Terminal/SSH. The CLI command deletes the encrypted handoff before printing the key; store its output in an approved offline secret vault and never redirect it to a file or transcript. The native installer and one-time credential handoff still require full browser E2E, interruption/recovery, cPanel packaging and actual HostSailor cPanel/LiteSpeed acceptance. The existing Laravel installer E2E does not validate this native installer.
 
 ## Development sequence
 
