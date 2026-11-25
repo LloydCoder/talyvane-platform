@@ -529,24 +529,49 @@ final class ProfileMediaService
 
     public function privateMediaForClient(Principal $actor,string $mediaId): array
     {
-        foreach ($this->privateGalleryForClient($actor) as $item) {
-            if (hash_equals($item['id'],$mediaId)) {
-                $query=$this->pdo->prepare(
-                    'SELECT private_storage_key,sha256 FROM profile_media
-                     WHERE id=:id AND review_status="approved" AND media_scope="members_only"
-                       AND members_only_consent_at IS NOT NULL AND members_only_consent_withdrawn_at IS NULL LIMIT 1'
-                );
-                $query->execute(['id'=>$mediaId]);
-                $row=$query->fetch(PDO::FETCH_ASSOC);
-                if (!is_array($row)) { break; }
-                $bytes=$this->storage->read((string)$row['private_storage_key']);
-                if (!hash_equals((string)$row['sha256'],hash('sha256',$bytes))) {
-                    throw new RuntimeException('Private gallery media integrity verification failed.');
-                }
-                return ['bytes'=>$bytes,'mime'=>'image/webp'];
-            }
+        if (!$actor->hasRole('client') || count($actor->roles)!==1 ||
+            $this->membershipEntitlements===null ||
+            !$this->membershipEntitlements->has($actor->id,'media.private_gallery')) {
+            throw new DomainException('An active client membership with the private-gallery entitlement is required.');
         }
-        throw new DomainException('Private gallery media was not found.');
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare(
+                'SELECT pm.profile_id,pm.private_storage_key,pm.sha256,pm.consent_grant_id,
+                        pm.consent_version,pm.members_only_consent_version,p.slug,p.publication_consent_version
+                 FROM profile_media pm JOIN companion_profiles p ON p.id=pm.profile_id
+                 WHERE pm.id=:id AND pm.review_status="approved" AND pm.media_scope="members_only"
+                   AND pm.members_only_consent_at IS NOT NULL
+                   AND pm.members_only_consent_version="members-only-gallery-v1"
+                   AND pm.members_only_consent_withdrawn_at IS NULL
+                   AND pm.uploaded_by IS NOT NULL AND pm.rights_confirmed_at IS NOT NULL
+                   AND pm.reviewed_by IS NOT NULL AND pm.reviewed_at IS NOT NULL
+                   AND pm.reviewer_adult_safety_confirmed_at IS NOT NULL
+                   AND pm.reviewer_rights_confirmed_at IS NOT NULL AND pm.reviewer_consent_confirmed_at IS NOT NULL
+                   AND pm.consent_version=p.publication_consent_version
+                 LIMIT 1 FOR UPDATE'
+            );
+            $query->execute(['id'=>$mediaId]);
+            $row=$query->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($row)) { throw new DomainException('Private gallery media was not found.'); }
+            $profile=$this->discovery->profile((string)$row['slug']);
+            if (!is_array($profile) || (string)$profile['id']!==(string)$row['profile_id']) {
+                throw new DomainException('Private gallery profile eligibility is no longer current.');
+            }
+            $grant=$this->activePublicationGrant((string)$row['profile_id'],(string)$row['publication_consent_version'],true);
+            if (!is_array($grant) || (string)$grant['id']!==(string)$row['consent_grant_id']) {
+                throw new DomainException('Current publication consent is unavailable.');
+            }
+            $bytes=$this->storage->read((string)$row['private_storage_key']);
+            if (!hash_equals((string)$row['sha256'],hash('sha256',$bytes))) {
+                throw new RuntimeException('Private gallery media integrity verification failed.');
+            }
+            $this->pdo->commit();
+            return ['bytes'=>$bytes,'mime'=>'image/webp'];
+        } catch (\\Throwable $error) {
+            if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
+            throw $error;
+        }
     }
 
     public function publicMedia(string $mediaId): array
