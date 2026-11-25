@@ -16,9 +16,13 @@ final class SettlementCalculator
         if ($approvedExpensesMinor > $expenseCapMinor || $approvedExpensesMinor > $grossMinor) {
             throw new \DomainException('Approved expenses exceed the assignment cap or gross compensation.');
         }
+        // Integer-only basis-point calculation with half-up rounding; no binary floats.
         $commission = intdiv($grossMinor, 10000) * $commissionBasisPoints
             + intdiv((($grossMinor % 10000) * $commissionBasisPoints) + 5000, 10000);
-        if ($approvedExpensesMinor > $grossMinor - $commission) {\n            throw new \\DomainException('Approved expenses and commission exceed gross compensation.');\n        }\n        $net = $grossMinor - $approvedExpensesMinor - $commission;
+        if ($approvedExpensesMinor > $grossMinor - $commission) {
+            throw new \DomainException('Approved expenses and commission exceed gross compensation.');
+        }
+        $net = $grossMinor - $approvedExpensesMinor - $commission;
         return [
             'gross_minor' => $grossMinor,
             'approved_expenses_minor' => $approvedExpensesMinor,
