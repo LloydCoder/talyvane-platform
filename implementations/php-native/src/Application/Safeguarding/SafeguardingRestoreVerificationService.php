@@ -37,6 +37,15 @@ final class SafeguardingRestoreVerificationService
             !hash_equals($policyVersion,(string)$policy['policy_version'])||$policy['approved_by']===$actor->id) {
             throw new DomainException('A distinct Owner or Super Admin must approve the encrypted-backup policy before restore verification.');
         }
+        $approver=$this->pdo->prepare(
+            'SELECT 1 FROM users u JOIN user_roles r ON r.user_id=u.id AND r.role_key IN ("owner","super_admin")
+             JOIN admin_mfa_credentials m ON m.user_id=u.id AND m.enabled_at IS NOT NULL
+             WHERE u.id=:id AND u.status="active" AND u.email_verified_at IS NOT NULL LIMIT 1'
+        );
+        $approver->execute(['id'=>$policy['approved_by']]);
+        if ($approver->fetchColumn()===false) {
+            throw new DomainException('Backup policy approver must remain an active MFA-enrolled Owner or Super Admin.');
+        }
         $keys=$this->pdo->query(
             'SELECT id,encrypted_case_key FROM safeguarding_cases
              WHERE encryption_provider="vault-transit" AND encrypted_case_key IS NOT NULL'
