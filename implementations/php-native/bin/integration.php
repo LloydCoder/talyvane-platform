@@ -59,6 +59,7 @@ unlink($tempCurrencyPath);
 rmdir($tempReferenceDirectory);
 
 require __DIR__ . '/../tests/Integration/InstallerBootstrapIntegration.php';
+require __DIR__ . '/../tests/Integration/SafeguardingIntegration.php';
 require __DIR__ . '/../tests/Integration/MembershipIntegration.php';
 require __DIR__ . '/../tests/Integration/IdentityIntegration.php';
 require __DIR__ . '/../tests/Integration/ProfileMediaIntegration.php';
@@ -69,6 +70,7 @@ require __DIR__ . '/../tests/Integration/AuditQueryIntegration.php';
 $installerAssertions = runInstallerBootstrapIntegration($pdo);
 $membershipAssertions = runMembershipIntegration($pdo);
 $identityAssertions = runIdentityIntegration($pdo);
+$safeguardingAssertions = runSafeguardingIntegration($pdo);
 $mediaAssertions = runProfileMediaIntegration($pdo);
 $modelAgencyAssertions = runModelAgencyIntegration($pdo);
 $contentAssertions = runContentManagementIntegration($pdo);
