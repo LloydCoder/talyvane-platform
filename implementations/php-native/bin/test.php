@@ -9,6 +9,12 @@ use Talyvane\Domain\Consent\ConsentGrant;
 use Talyvane\Domain\Market\MarketPolicy;
 use Talyvane\Domain\Membership\MembershipAccess;
 use Talyvane\Domain\ModelAgency\ApplicationStateMachine;
+use Talyvane\Domain\ModelAgency\AgreementStateMachine;
+use Talyvane\Domain\ModelAgency\AssignmentStateMachine;
+use Talyvane\Domain\ModelAgency\CastingStateMachine;
+use Talyvane\Domain\ModelAgency\ImageLicencePolicy;
+use Talyvane\Domain\ModelAgency\SettlementCalculator;
+use Talyvane\Domain\ModelAgency\SettlementStateMachine;
 use Talyvane\Features\FeatureAvailability;
 use Talyvane\Features\FeatureRegistry;
 use Talyvane\Http\Request;
@@ -68,6 +74,7 @@ $approvedPaymentFeatures = new FeatureAvailability(
 );
 $assert($approvedPaymentFeatures->enabled('payments.crypto'), 'crypto feature enables only after all prerequisites pass');
 $assert(!FeatureRegistry::known('safeguarding.adult_only'), 'hard safeguarding invariant is not an ordinary feature flag');
+$assert(FeatureRegistry::known('bookings.companionship') && FeatureRegistry::known('portals.client') && FeatureRegistry::known('portals.companion'), 'native feature keys align with Laravel route gates');
 
 $passwordHash = PasswordHasher::hash('Correct-Horse-Battery-77!');
 $assert(PasswordHasher::verify('Correct-Horse-Battery-77!', $passwordHash), 'password hash verifies');
