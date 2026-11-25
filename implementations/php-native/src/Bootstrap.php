@@ -3,10 +3,12 @@ declare(strict_types=1);
 
 namespace Talyvane;
 
+use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Application\Identity\MfaService;
 use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Http\AdminAuthController;
+use Talyvane\Http\AdminContentController;
 use Talyvane\Http\PublicSiteController;
 use Talyvane\Http\Request;
 use Talyvane\Http\Response;
@@ -47,6 +49,8 @@ final class Bootstrap
 
         $public = new PublicSiteController($pdo, $views);
         $adminAuth = new AdminAuthController($authentication, $passwords, $views);
+        $contentManagement = new ContentManagementService($pdo, $audit);
+        $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
         $router = new Router();
 
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
@@ -63,6 +67,13 @@ final class Bootstrap
         $router->add('GET', '/admin/recovery-codes', static fn(Request $request): Response => $adminAuth->recoveryCodes($request));
         $router->add('GET', '/admin', static fn(Request $request): Response => $adminAuth->dashboard($request));
         $router->add('POST', '/admin/logout', static fn(Request $request): Response => $adminAuth->logout($request));
+        $router->add('GET', '/admin/content', static fn(Request $request): Response => $adminContent->index($request));
+        $router->add('GET', '/admin/content/new', static fn(Request $request): Response => $adminContent->create($request));
+        $router->add('POST', '/admin/content', static fn(Request $request, array $params): Response => $adminContent->save($request));
+        $router->add('GET', '/admin/content/{id}', static fn(Request $request, array $params): Response => $adminContent->edit($request, $params));
+        $router->add('POST', '/admin/content/{id}', static fn(Request $request, array $params): Response => $adminContent->save($request, $params));
+        $router->add('POST', '/admin/content/{id}/publish', static fn(Request $request, array $params): Response => $adminContent->publish($request, $params));
+
 
         return new class($router) {
             public function __construct(private Router $router) {}
