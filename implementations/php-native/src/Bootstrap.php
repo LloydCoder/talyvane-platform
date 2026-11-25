@@ -6,6 +6,7 @@ namespace Talyvane;
 use Talyvane\Application\Companions\CompanionProfilePublicationService;
 use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\Discovery\DiscoveryService;
+use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
 use Talyvane\Application\CRM\EnquiryService;
 use Talyvane\Application\Identity\AccountRecoveryService;
 use Talyvane\Application\Identity\AuthenticationService;
