@@ -148,6 +148,66 @@ final class ClientMembershipService
         }
     }
 
+    /** Cancel an active membership immediately; immutable grants remain as historical evidence. */
+    public function cancel(Principal $actor,string $membershipId,string $reason,string $requestId): void
+    {
+        Authorization::require($actor,'clients.manage',true);
+        if (!$actor->hasRole('super_admin') && !$actor->hasRole('owner') && !$actor->hasRole('admin')) {
+            throw new DomainException('Only an authorized agency operator can cancel a client membership.');
+        }
+        if (!$this->features->enabled('memberships')) {
+            throw new DomainException('Membership operations are disabled until the deployment Super Admin enables the feature.');
+        }
+        $reason=trim($reason);
+        if (!preg_match('/^[a-f0-9-]{36}$/D',$membershipId) ||
+            strlen($reason)<20 || strlen($reason)>500 ||
+            !preg_match('/^[a-f0-9]{16,64}$/D',$requestId)) {
+            throw new InvalidArgumentException('Membership identity, cancellation reason or request reference is invalid.');
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $operator=$this->pdo->prepare(
+                'SELECT u.id FROM users u JOIN user_roles r ON r.user_id=u.id
+                 WHERE u.id=:id AND u.status="active" AND u.email_verified_at IS NOT NULL
+                   AND r.role_key IN ("super_admin","owner","admin") LIMIT 1 FOR UPDATE'
+            );
+            $operator->execute(['id'=>$actor->id]);
+            if ($operator->fetchColumn()===false) {
+                throw new DomainException('The acting administrator is no longer active or authorized.');
+            }
+            $query=$this->pdo->prepare(
+                'SELECT id,client_user_id,plan_key,tier_name,status,starts_at,ends_at
+                 FROM memberships WHERE id=:id FOR UPDATE'
+            );
+            $query->execute(['id'=>$membershipId]);
+            $membership=$query->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($membership) || $membership['status']!=='active') {
+                throw new DomainException('Only an existing active membership can be cancelled.');
+            }
+            $before=$this->snapshot($membership);
+            $update=$this->pdo->prepare(
+                'UPDATE memberships SET status="cancelled",updated_at=UTC_TIMESTAMP()
+                 WHERE id=:id AND status="active"'
+            );
+            $update->execute(['id'=>$membershipId]);
+            if ($update->rowCount()!==1) {
+                throw new DomainException('Membership state changed concurrently; retry the operation.');
+            }
+            $after=$before;
+            $after['status']='cancelled';
+            $this->event($membershipId,(string)$membership['client_user_id'],$actor,'membership.cancelled',$before,$after,$reason,$requestId);
+            $this->audit->record(
+                $actor->id,'client.membership.cancelled','client_membership',$membershipId,$reason,
+                $before,$after,$requestId,'client-membership-v1'
+            );
+            $this->pdo->commit();
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
+            throw $error;
+        }
+    }
+
     /** @param array<string,mixed> $row @return array<string,mixed> */
     private function snapshot(array $row): array
     {
