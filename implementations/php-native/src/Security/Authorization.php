@@ -12,7 +12,7 @@ final class Authorization
         'finance' => ['model_settlements.view','model_settlements.expense.review','model_settlements.approve','model_settlements.payment.attest','model_settlements.reverse.attest','model_settlements.dispute'],
         'verifier' => ['model_applications.adult_eligibility.verify','companion.adult_eligibility.verify'],
         'safeguarding' => ['safeguarding.cases.assigned.view','safeguarding.cases.assigned.update'],
-        'client' => ['client.self.view','client.self.update','client.booking.create','client.favorites.manage','client.privacy.manage'],
+        'client' => ['client.self.view','client.self.update','client.booking.create','client.booking.manage','client.favorites.manage','client.privacy.manage'],
         'companion' => ['companion.self.view','companion.booking.decide','companion.consent.manage','companion.availability.manage'],
     ];
 
