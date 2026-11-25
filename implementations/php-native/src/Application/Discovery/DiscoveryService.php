@@ -37,6 +37,7 @@ final class DiscoveryService
                     'currency_code'=>$row['currency_code'] === null ? null : (string) $row['currency_code'],
                     'locale'=>$row['locale'] === null ? null : (string) $row['locale'],
                     'time_zone'=>(string) $row['time_zone'],
+            'primary_media_url'=>is_string($row['primary_media_id'] ?? null) ? '/profile-media/' . rawurlencode((string) $row['primary_media_id']) : null,
                 ];
             }
         }
@@ -51,6 +52,10 @@ final class DiscoveryService
         $query = $this->pdo->prepare(
             'SELECT p.id,p.slug,p.display_name,p.biography,p.languages_json,p.experience_category,d.country_code,
                     d.slug AS destination_slug,d.display_name AS destination_name,d.time_zone,
+                    (SELECT pm.id FROM profile_media pm JOIN consent_grants pcg ON pcg.id=pm.consent_grant_id
+                     WHERE pm.profile_id=p.id AND pm.review_status="approved" AND pm.media_scope="public"
+                       AND pm.consent_version=p.publication_consent_version AND pcg.granted=1 AND pcg.withdrawn_at IS NULL
+                       AND pcg.policy_version=p.publication_consent_version ORDER BY pm.created_at ASC LIMIT 1) AS primary_media_id,
                     m.enabled AS market_enabled,m.decision AS market_decision,m.reviewer_id,m.reviewed_at,
                     m.expires_at,m.evidence_reference,m.review_summary
              FROM companion_profiles p
@@ -113,7 +118,29 @@ final class DiscoveryService
         );
         $query->execute(['slug'=>$slug]);
         $row = $query->fetch();
-        return is_array($row) && self::marketIsOperational($row) ? self::publicProfileFields($row) : null;
+        if (!is_array($row) || !self::marketIsOperational($row)) { return null; }
+        $profile = self::publicProfileFields($row);
+        $profile['media'] = $this->publicMediaForProfile((string) $row['id']);
+        return $profile;
+    }
+
+    /** @return list<array{id:string,url:string}> */
+    private function publicMediaForProfile(string $profileId): array
+    {
+        $query=$this->pdo->prepare(
+            'SELECT pm.id FROM profile_media pm
+             JOIN companion_profiles p ON p.id=pm.profile_id
+             JOIN consent_grants cg ON cg.id=pm.consent_grant_id
+             WHERE pm.profile_id=:profile AND pm.review_status="approved" AND pm.media_scope="public"
+               AND pm.consent_version=p.publication_consent_version
+               AND cg.granted=1 AND cg.withdrawn_at IS NULL
+               AND cg.policy_version=p.publication_consent_version
+             ORDER BY pm.created_at ASC LIMIT 12'
+        );
+        $query->execute(['profile'=>$profileId]);
+        return array_map(static fn(array $media): array=>[
+            'id'=>(string) $media['id'],'url'=>'/profile-media/' . rawurlencode((string) $media['id']),
+        ],$query->fetchAll());
     }
 
     /** @param array<string,mixed> $row */
