@@ -28,7 +28,7 @@ final class ContentManagementService
         $seo = $input['seo_defaults'] ?? [];
         if ($name === '' || strlen($name) > 120 || ($tagline !== null && strlen($tagline) > 190) ||
             !is_array($colors) || !is_array($typography) || !is_array($contacts) || !is_array($social) || !is_array($seo) ||
-            strlen($requestId) < 16 || strlen($requestId) > 64 || strlen(trim($reason)) < 8 || strlen($reason) > 500)
+            strlen($requestId) < 16 || strlen($requestId) > 64 || strlen(trim($reason)) < 8 || strlen($reason) > 500) {
             throw new \InvalidArgumentException('Brand settings are invalid.');
         }
         foreach ($colors as $key=>$value) {
