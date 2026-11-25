@@ -52,7 +52,7 @@ final class AuditLogger
         $blocked = ['password', 'passwordhash', 'secret', 'secretkey', 'token', 'apikey', 'privatekey', 'seedphrase', 'identitydocument', 'totpsecret', 'recoverycodes'];
         foreach ($data as $key => $value) {
             $normalized = strtolower((string) preg_replace('/[^a-zA-Z0-9]/', '', (string) $key));
-            if (in_array($normalized, $blocked, true)) {
+            if (in_array($normalized, $blocked, true) || preg_match('/(password|secret|token|apikey|privatekey|seedphrase|credential|authorization|identitydocument|totp|recoverycode)/', $normalized) === 1) {
                 $data[$key] = '[REDACTED]';
             } elseif (is_array($value)) {
                 $data[$key] = self::redact($value);
