@@ -46,7 +46,8 @@ final class ProfileMediaService
         $this->assertCompanion($actor);
         $query = $this->pdo->prepare(
             'SELECT pm.id,pm.width,pm.height,pm.file_size,pm.review_status,pm.media_scope,
-                    pm.review_note,pm.created_at,pm.reviewed_at,pm.withdrawn_at
+                    pm.review_note,pm.created_at,pm.reviewed_at,pm.withdrawn_at,
+                    pm.members_only_consent_at,pm.members_only_consent_version,pm.members_only_consent_withdrawn_at
              FROM profile_media pm JOIN companion_profiles p ON p.id=pm.profile_id
              WHERE p.user_id=:actor
              ORDER BY pm.created_at DESC LIMIT 50'
