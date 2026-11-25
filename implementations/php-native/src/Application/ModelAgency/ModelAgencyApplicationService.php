@@ -165,7 +165,7 @@ final class ModelAgencyApplicationService
                 throw new \DomainException('Model application does not exist.');
             }
             $from = (string) $row['status'];
-            $to = ApplicationStateMachine::transition($from,$to,$role);
+            $to = ApplicationStateMachine::transition($from,$toStatus,$role);
             if ($to === 'accepted') {
                 $verification = $this->pdo->prepare(
                     'SELECT id FROM model_applicant_verifications WHERE application_id = :application AND outcome = "verified"
