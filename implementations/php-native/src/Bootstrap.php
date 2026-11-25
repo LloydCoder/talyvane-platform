@@ -23,7 +23,7 @@ final class Bootstrap
             throw new \RuntimeException('Private application configuration is invalid.');
         }
         if (!isset($config['database']) || !is_array($config['database'])) {
-            throw new \\RuntimeException('Database configuration is missing.');
+            throw new \RuntimeException('Database configuration is missing.');
         }
         $pdo = ConnectionFactory::mysql($config['database']);
         $views = new ViewRenderer($root . DIRECTORY_SEPARATOR . 'views');
