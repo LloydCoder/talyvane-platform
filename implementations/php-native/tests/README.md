@@ -1,6 +1,18 @@
 # Native PHP test strategy
 
-This directory is reserved for executable tests; this file is only the initial scaffold.
+The native PHP implementation uses a dependency-free test runner initially so maintainers can execute checks without Composer on shared hosting or local environments.
+
+Run:
+
+```sh
+php implementations/php-native/bin/test.php
+```
+
+Lint all PHP source:
+
+```sh
+find implementations/php-native -name '*.php' -print0 | xargs -0 -n1 php -l
+```
 
 Required suites:
 
