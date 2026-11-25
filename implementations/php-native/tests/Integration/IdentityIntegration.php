@@ -182,6 +182,17 @@ function runIdentityIntegration(PDO $pdo): int
     $registeredState->execute(['id'=>$registeredId]);
     $registered = $registeredState->fetch();
     $assert(is_array($registered) && $registered['status'] === 'active' && $registered['email_verified_at'] !== null,'client account activates only after email verification');
+    $recovery = new AccountRecoveryService($pdo,$registrationVerification,$limiter,$audit);
+    $recovery->request('native-registered-client@example.test');
+    $recoveryCode = preg_match('/code is: ([0-9]{6})/', $registrationMailer->messages[1]['body'], $recoveryMatch) ? $recoveryMatch[1] : '';
+    $recoveredPassword = str_repeat('R',24) . '!';
+    $assert($recoveryCode !== '' && $recovery->complete('native-registered-client@example.test',$recoveryCode,$recoveredPassword,bin2hex(random_bytes(16))),'verified primary email can complete account password recovery');
+    $recoveredState = $pdo->prepare('SELECT password_hash,admin_session_version FROM users WHERE id = :id');
+    $recoveredState->execute(['id'=>$registeredId]);
+    $recovered = $recoveredState->fetch();
+    $assert(is_array($recovered) && password_verify($recoveredPassword,(string) $recovered['password_hash']),'account recovery stores the new password as a secure hash');
+    $assert(is_array($recovered) && (int) $recovered['admin_session_version'] === 2,'account recovery revokes existing sessions by incrementing the session version');
+    $assert(is_array($recovered) && !password_verify($password,(string) $recovered['password_hash']),'recovered account no longer accepts the previous password');
     try { $registration->register('native-forbidden-admin@example.test',$password,'super_admin','127.0.0.1',bin2hex(random_bytes(16))); $assert(false,'public registration cannot create privileged roles'); }
     catch (InvalidArgumentException) { $assert(true,'public registration cannot create privileged roles'); }
     $pdo->prepare('UPDATE companion_profiles SET status = "published" WHERE id = :id')->execute(['id'=>$profileId]);
