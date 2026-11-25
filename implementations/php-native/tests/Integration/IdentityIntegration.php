@@ -176,5 +176,38 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(is_array($registered) && $registered['status'] === 'active' && $registered['email_verified_at'] !== null,'client account activates only after email verification');
     try { $registration->register('native-forbidden-admin@example.test',$password,'super_admin','127.0.0.1',bin2hex(random_bytes(16))); $assert(false,'public registration cannot create privileged roles'); }
     catch (InvalidArgumentException) { $assert(true,'public registration cannot create privileged roles'); }
+    $pdo->prepare('UPDATE companion_profiles SET status = "published" WHERE id = :id')->execute(['id'=>$profileId]);
+    $localBookingStart = new DateTimeImmutable('tomorrow 10:00:00',new DateTimeZone('Europe/London'));
+    $localDate = $localBookingStart->format('Y-m-d');
+    $availabilityBytes = random_bytes(16);
+    $availabilityBytes[6] = chr((ord($availabilityBytes[6]) & 15) | 64);
+    $availabilityBytes[8] = chr((ord($availabilityBytes[8]) & 63) | 128);
+    $availabilityHex = bin2hex($availabilityBytes);
+    $availabilityId = substr($availabilityHex,0,8).'-'.substr($availabilityHex,8,4).'-'.substr($availabilityHex,12,4).'-'.substr($availabilityHex,16,4).'-'.substr($availabilityHex,20);
+    $availabilityInsert = $pdo->prepare('INSERT INTO companion_availability (id,profile_id,weekday,local_start,local_end,time_zone,effective_from,effective_until,enabled,created_at) VALUES (:id,:profile,:weekday,"00:00:00","23:59:59","Europe/London",:date,NULL,1,UTC_TIMESTAMP())');
+    $availabilityInsert->execute(['id'=>$availabilityId,'profile'=>$profileId,'weekday'=>(int) $localBookingStart->format('w'),'date'=>$localDate]);
+    $clientPrincipal = new Principal($registeredId,['client'],false);
+    $bookingService = new BookingService($pdo,new BookingPolicyRepository($pdo),$audit);
+    $manualBookingId = $bookingService->request($clientPrincipal,$profileId,$localBookingStart->setTimezone(new DateTimeZone('UTC')),$localBookingStart->modify('+60 minutes')->setTimezone(new DateTimeZone('UTC')),null,'Manual booking integration test',bin2hex(random_bytes(16)));
+    $manualState = $pdo->prepare('SELECT status,booking_mode,deposit_status FROM bookings WHERE id = :id');
+    $manualState->execute(['id'=>$manualBookingId]);
+    $manual = $manualState->fetch();
+    $assert(is_array($manual) && $manual['status'] === 'requested' && $manual['booking_mode'] === 'manual','booking requests default to manual review unless all automatic gates pass');
+    try {
+        $bookingService->request($clientPrincipal,$profileId,$localBookingStart->setTimezone(new DateTimeZone('UTC')),$localBookingStart->modify('+60 minutes')->setTimezone(new DateTimeZone('UTC')),null,null,bin2hex(random_bytes(16)));
+        $assert(false,'overlapping booking request is rejected');
+    } catch (DomainException) {
+        $assert(true,'overlapping booking request is rejected');
+    }
+    $pdo->prepare('UPDATE companion_profiles SET auto_booking_opt_in = 1 WHERE id = :id')->execute(['id'=>$profileId]);
+    $bookingRules = json_encode(['automatic_enabled'=>true,'deposit_required'=>false,'minimum_notice_minutes'=>60,'maximum_advance_days'=>90,'minimum_duration_minutes'=>60,'maximum_duration_minutes'=>480],JSON_THROW_ON_ERROR);
+    $settings = $pdo->prepare('INSERT INTO deployment_settings (setting_key,setting_json,version,updated_by,updated_at) VALUES ("booking.rules",:settings,1,:actor,UTC_TIMESTAMP())');
+    $settings->execute(['settings'=>$bookingRules,'actor'=>$id]);
+    $autoStart = $localBookingStart->modify('+2 hours');
+    $autoBookingId = $bookingService->request($clientPrincipal,$profileId,$autoStart->setTimezone(new DateTimeZone('UTC')),$autoStart->modify('+60 minutes')->setTimezone(new DateTimeZone('UTC')),null,null,bin2hex(random_bytes(16)));
+    $autoState = $pdo->prepare('SELECT status,booking_mode,companion_opt_in_snapshot FROM bookings WHERE id = :id');
+    $autoState->execute(['id'=>$autoBookingId]);
+    $automatic = $autoState->fetch();
+    $assert(is_array($automatic) && $automatic['status'] === 'confirmed' && $automatic['booking_mode'] === 'automatic' && (bool) $automatic['companion_opt_in_snapshot'],'automatic confirmation requires enabled rules, companion opt-in and matching local availability');
     return $assertions;
 }
