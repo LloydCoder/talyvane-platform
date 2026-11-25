@@ -66,6 +66,24 @@ function runModelAgencyIntegration(PDO $pdo): int
     $verification->execute(['id'=>$applicationId]);
     $verificationRow = $verification->fetch();
     $assert(is_array($verificationRow) && $verificationRow['outcome'] === 'verified' && $verificationRow['provider_reference_hash'] === hash('sha256','provider-reference-opaque-001'),'only a hash of the external verification reference is retained');
+
+    $agreements = new ModelAgencyAgreementService($pdo,new AuditLogger($pdo));
+    $agreementId = $agreements->createDraft($admin,$applicationId,[
+        'service_scope'=>['portfolio_development','casting_submissions'],
+        'commission_basis_points'=>1500,
+        'term_months'=>12,
+        'exclusivity'=>false,
+        'termination_notice_days'=>30,
+    ],1500,bin2hex(random_bytes(16)));
+    $agreements->transition($admin,$agreementId,'offered','Agreement offered for external review',null,null,null,bin2hex(random_bytes(16)));
+    $agreements->transition($admin,$agreementId,'executed','Both parties executed the external agreement','external-signature-evidence-reference-001',
+        new DateTimeImmutable('now',new DateTimeZone('UTC')),new DateTimeImmutable('+12 months',new DateTimeZone('UTC')),bin2hex(random_bytes(16)));
+    $agreementState = $pdo->prepare('SELECT status,commission_basis_points,external_execution_reference,effective_from,effective_until FROM model_representation_agreements WHERE id = :id');
+    $agreementState->execute(['id'=>$agreementId]);
+    $agreement = $agreementState->fetch();
+    $assert(is_array($agreement) && $agreement['status'] === 'executed' && (int) $agreement['commission_basis_points'] === 1500,'representation agreement execution stores the agreed commission and effective period');
+    $assert(is_array($agreement) && $agreement['external_execution_reference'] === 'external-signature-evidence-reference-001','platform records external execution evidence without pretending to provide e-signatures');
+
     try {
         $service->review($admin,$applicationId,'withdrawn','Invalid admin transition',bin2hex(random_bytes(16)));
         $assert(false,'admin cannot use applicant-only withdrawal transition');
