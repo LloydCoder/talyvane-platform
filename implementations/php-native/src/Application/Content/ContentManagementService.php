@@ -265,41 +265,105 @@ final class ContentManagementService
 
     public function saveNavigationItem(
         Principal $actor,?string $itemId,string $location,string $label,string $targetType,string $targetValue,
-        string $locale,int $sortOrder,bool $enabled,string $requestId
+        string $locale,int $sortOrder,bool $enabled,string $requestId,string $reason = 'Navigation item updated'
     ): string {
         Authorization::require($actor,'site.content.manage',true);
-        if (!preg_match('/^[a-z][a-z0-9_-]{1,47}$/D',$location) || trim($label) === '' || strlen($label) > 120 ||
-            !in_array($targetType,['route','url','page'],true) || strlen($targetValue) > 500 ||
+        $label = trim($label);
+        $targetValue = trim($targetValue);
+        if (!preg_match('/^[a-z][a-z0-9_-]{1,47}$/D',$location) || $label === '' || strlen($label) > 120 ||
+            !in_array($targetType,['route','url','page'],true) || $targetValue === '' || strlen($targetValue) > 500 ||
             !preg_match('/^[a-z]{2,3}(?:-[A-Z]{2})?$/D',$locale) || $sortOrder < -10000 || $sortOrder > 10000 ||
-            strlen($requestId) < 16 || strlen($requestId) > 64) {
+            strlen($requestId) < 16 || strlen($requestId) > 64 || strlen(trim($reason)) < 8 || strlen($reason) > 500 ||
+            ($itemId !== null && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iD',$itemId) !== 1)) {
             throw new \InvalidArgumentException('Navigation item is invalid.');
         }
-        if ($targetType === 'url' && (!str_starts_with($targetValue,'https://') || filter_var($targetValue,FILTER_VALIDATE_URL) === false)) {
-            throw new \InvalidArgumentException('External navigation targets must be HTTPS URLs.');
-        }
-        if ($targetType !== 'url' && (!str_starts_with($targetValue,'/') || str_starts_with($targetValue,'//') || str_contains($targetValue,'..'))) {
+        if ($targetType === 'url') {
+            $parts = parse_url($targetValue);
+            if (filter_var($targetValue,FILTER_VALIDATE_URL) === false || !is_array($parts) ||
+                strtolower((string) ($parts['scheme'] ?? '')) !== 'https' || !isset($parts['host']) ||
+                isset($parts['user']) || isset($parts['pass'])) {
+                throw new \InvalidArgumentException('External navigation targets must be valid HTTPS URLs.');
+            }
+        } elseif ($targetType === 'page') {
+            if (preg_match('/^\/pages\/([a-z0-9]+(?:-[a-z0-9]+)*)$/D',$targetValue,$matches) !== 1) {
+                throw new \InvalidArgumentException('Published page targets must use the /pages/{slug} route.');
+            }
+            $pageQuery = $this->pdo->prepare(
+                'SELECT 1 FROM site_pages
+                 WHERE slug = :slug AND locale = :locale AND status = "published"
+                   AND published_version IS NOT NULL LIMIT 1'
+            );
+            $pageQuery->execute(['slug'=>$matches[1],'locale'=>$locale]);
+            if ($pageQuery->fetchColumn() === false) {
+                throw new \DomainException('Navigation page targets must reference a published page in the selected locale.');
+            }
+        } elseif (!str_starts_with($targetValue,'/') || str_starts_with($targetValue,'//') ||
+            str_contains($targetValue,'..') || str_contains($targetValue,'\\') ||
+            preg_match('/[\r\n\x00-\x1F]/',$targetValue) === 1) {
             throw new \InvalidArgumentException('Internal navigation targets must be safe root-relative paths.');
         }
-        $id = $itemId ?? self::uuid();
-        if ($itemId === null) {
-            $this->pdo->prepare('INSERT INTO navigation_items (id,parent_id,location_key,label,target_type,target_value,locale,sort_order,enabled,created_at,updated_at) VALUES (:id,NULL,:location,:label,:type,:target,:locale,:sort,:enabled,UTC_TIMESTAMP(),UTC_TIMESTAMP())')
-                ->execute(['id'=>$id,'location'=>$location,'label'=>trim($label),'type'=>$targetType,'target'=>$targetValue,'locale'=>$locale,'sort'=>$sortOrder,'enabled'=>$enabled ? 1 : 0]);
-        } else {
-            $this->pdo->prepare('UPDATE navigation_items SET location_key = :location,label = :label,target_type = :type,target_value = :target,locale = :locale,sort_order = :sort,enabled = :enabled,updated_at = UTC_TIMESTAMP() WHERE id = :id')
-                ->execute(['location'=>$location,'label'=>trim($label),'type'=>$targetType,'target'=>$targetValue,'locale'=>$locale,'sort'=>$sortOrder,'enabled'=>$enabled ? 1 : 0,'id'=>$id]);
-            if ($this->pdo->query('SELECT ROW_COUNT()')->fetchColumn() === '0') {
-                throw new \DomainException('Navigation item does not exist.');
+
+        $this->pdo->beginTransaction();
+        try {
+            $before = null;
+            if ($itemId === null) {
+                $id = self::uuid();
+                $this->pdo->prepare(
+                    'INSERT INTO navigation_items
+                     (id,parent_id,location_key,label,target_type,target_value,locale,sort_order,enabled,created_at,updated_at)
+                     VALUES (:id,NULL,:location,:label,:type,:target,:locale,:sort,:enabled,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+                )->execute([
+                    'id'=>$id,'location'=>$location,'label'=>$label,'type'=>$targetType,'target'=>$targetValue,
+                    'locale'=>$locale,'sort'=>$sortOrder,'enabled'=>$enabled ? 1 : 0,
+                ]);
+            } else {
+                $id = $itemId;
+                $beforeQuery = $this->pdo->prepare(
+                    'SELECT location_key,label,target_type,target_value,locale,sort_order,enabled
+                     FROM navigation_items WHERE id = :id FOR UPDATE'
+                );
+                $beforeQuery->execute(['id'=>$id]);
+                $before = $beforeQuery->fetch();
+                if (!is_array($before)) {
+                    throw new \DomainException('Navigation item does not exist.');
+                }
+                $this->pdo->prepare(
+                    'UPDATE navigation_items SET location_key = :location,label = :label,target_type = :type,
+                     target_value = :target,locale = :locale,sort_order = :sort,enabled = :enabled,updated_at = UTC_TIMESTAMP()
+                     WHERE id = :id'
+                )->execute([
+                    'location'=>$location,'label'=>$label,'type'=>$targetType,'target'=>$targetValue,
+                    'locale'=>$locale,'sort'=>$sortOrder,'enabled'=>$enabled ? 1 : 0,'id'=>$id,
+                ]);
             }
+            $this->audit->record($actor->id,'cms.navigation.saved','navigation_item',$id,trim($reason),
+                is_array($before) ? $before : null,
+                ['location'=>$location,'label'=>$label,'target_type'=>$targetType,'target_value'=>$targetValue,
+                    'locale'=>$locale,'sort_order'=>$sortOrder,'enabled'=>$enabled],
+                $requestId,'cms-navigation-v1');
+            $this->pdo->commit();
+            return $id;
+        } catch (\Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
         }
-        $this->audit->record($actor->id,'cms.navigation.saved','navigation_item',$id,'Navigation item updated',null,
-            ['location'=>$location,'target_type'=>$targetType,'enabled'=>$enabled],$requestId,'cms-navigation-v1');
-        return $id;
     }
 
     /** @return list<array<string,mixed>> */
     public function publicNavigation(string $location,string $locale): array
     {
-        $query = $this->pdo->prepare('SELECT id,parent_id,label,target_type,target_value,sort_order FROM navigation_items WHERE location_key = :location AND locale = :locale AND enabled = 1 ORDER BY sort_order,label');
+        $query = $this->pdo->prepare(
+            'SELECT n.id,n.parent_id,n.label,n.target_type,n.target_value,n.sort_order
+             FROM navigation_items n
+             LEFT JOIN site_pages p
+                ON n.target_type = "page" AND n.target_value = CONCAT("/pages/",p.slug)
+               AND p.locale = n.locale AND p.status = "published" AND p.published_version IS NOT NULL
+             WHERE n.location_key = :location AND n.locale = :locale AND n.enabled = 1
+               AND (n.target_type <> "page" OR p.id IS NOT NULL)
+             ORDER BY n.sort_order,n.label'
+        );
         $query->execute(['location'=>$location,'locale'=>$locale]);
         return $query->fetchAll();
     }
