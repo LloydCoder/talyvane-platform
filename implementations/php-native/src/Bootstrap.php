@@ -12,6 +12,8 @@ use Talyvane\Application\Safeguarding\SafeguardingCryptoService;
 use Talyvane\Application\Safeguarding\LocalSafeguardingCaseKeyProvider;
 use Talyvane\Application\Safeguarding\VaultTransitSafeguardingCaseKeyProvider;
 use Talyvane\Application\Safeguarding\SafeguardingNotificationOutbox;
+use Talyvane\Application\Safeguarding\SafeguardingBackupPolicyService;
+use Talyvane\Application\Safeguarding\SafeguardingRestoreVerificationService;
 use Talyvane\Security\SecretBox;
 use Talyvane\Http\AdminSafeguardingController;
 use Talyvane\Application\Clients\ClientMembershipService;
@@ -169,7 +171,9 @@ final class Bootstrap
         $safeguardingCrypto = new SafeguardingCryptoService($caseKeyProvider);
         $notificationOutbox = new SafeguardingNotificationOutbox($pdo,new SecretBox($config['app_key']),hash('sha256',$config['app_key'].'|safeguarding-outbox-fingerprint-v1',true));
         $safeguardingCases = new SafeguardingCaseService($pdo,$safeguardingCrypto,$audit,$notificationOutbox);
-        $safeguardingController = new AdminSafeguardingController($authentication,$safeguardingCases,$views,$brandName);
+        $backupPolicyService = new SafeguardingBackupPolicyService($pdo,$audit);
+        $restoreVerificationService = new SafeguardingRestoreVerificationService($pdo,$safeguardingCrypto,$audit);
+        $safeguardingController = new AdminSafeguardingController($authentication,$safeguardingCases,$backupPolicyService,$restoreVerificationService,$views,$brandName);
         $router = new Router();
 
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
@@ -259,6 +263,8 @@ final class Bootstrap
         $router->add('GET', '/admin/safeguarding/cases/{id}', static fn(Request $request,array $params): Response => $safeguardingController->show($request,$params));
         $router->add('POST', '/admin/safeguarding/cases/{id}/transition', static fn(Request $request,array $params): Response => $safeguardingController->transition($request,$params));
         $router->add('GET', '/admin/safeguarding/governance', static fn(Request $request): Response => $safeguardingController->governance($request));
+        $router->add('POST', '/admin/safeguarding/governance/backup-policy', static fn(Request $request): Response => $safeguardingController->approveBackupPolicy($request));
+        $router->add('POST', '/admin/safeguarding/governance/restore-verification', static fn(Request $request): Response => $safeguardingController->verifyRestore($request));
         $router->add('POST', '/admin/safeguarding/governance/{id}/hold', static fn(Request $request,array $params): Response => $safeguardingController->hold($request,$params,false));
         $router->add('POST', '/admin/safeguarding/governance/{id}/release', static fn(Request $request,array $params): Response => $safeguardingController->hold($request,$params,true));
         $router->add('GET', '/admin/clients', static fn(Request $request): Response => $adminClients->index($request));
