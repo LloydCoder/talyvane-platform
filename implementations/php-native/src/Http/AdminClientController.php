@@ -76,6 +76,27 @@ final class AdminClientController
         }
     }
 
+    /** @param array<string,string> $params */
+    public function cancel(Request $request,array $params): Response
+    {
+        $principal=$this->principal();
+        if ($principal instanceof Response) { return $principal; }
+        if (!Csrf::verify($this->field($request,'_csrf'))) {
+            return $this->index($request,'Your session expired. Refresh this page and try again.',419);
+        }
+        try {
+            $this->memberships->cancel(
+                $principal,
+                (string)($params['id'] ?? ''),
+                $this->field($request,'reason'),
+                $request->requestId
+            );
+            return Response::redirect('/admin/clients?membership_cancelled=1');
+        } catch (InvalidArgumentException|DomainException $error) {
+            return $this->index($request,$error->getMessage(),422);
+        }
+    }
+
     private function principal(): Principal|Response
     {
         SessionManager::start();
