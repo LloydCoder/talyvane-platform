@@ -73,7 +73,7 @@ final class AdminMarketController
     private function superAdmin(): ?Principal
     {
         $principal = $this->authentication->currentPrincipal();
-        if ($principal === null || !$principal->hasRole('super_admin') || count($principal->roles) !== 1) {
+        if ($principal === null || !$principal->hasRole('super_admin')) {
             return null;
         }
         return $principal;
