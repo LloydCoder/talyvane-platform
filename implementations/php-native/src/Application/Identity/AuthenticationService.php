@@ -105,7 +105,7 @@ final class AuthenticationService
     public function beginFirstLoginPasswordChange(array $decision): void
     {
         if (($decision['status'] ?? '') !== 'first_login_required' || !isset($decision['user_id'],$decision['session_version'])) {
-            throw new \\DomainException('First-login password replacement is not available.');
+            throw new \DomainException('First-login password replacement is not available.');
         }
         SessionManager::start();
         SessionManager::rotateAfterAuthentication();
@@ -122,13 +122,13 @@ final class AuthenticationService
         if (!is_array($pending) || !isset($pending['user_id'],$pending['session_version'],$pending['expires_at']) ||
             (int) $pending['expires_at'] < time()) {
             unset($_SESSION['_admin_password_change_pending']);
-            throw new \\DomainException('First-login password replacement session has expired.');
+            throw new \DomainException('First-login password replacement session has expired.');
         }
         $userId = (string) $pending['user_id'];
         $user = $this->activeUser($userId);
         if ($user === null || (bool) $user['first_login_required'] || (int) $user['admin_session_version'] !== (int) $pending['session_version']) {
             unset($_SESSION['_admin_password_change_pending']);
-            throw new \\DomainException('First-login account state changed; authenticate again.');
+            throw new \DomainException('First-login account state changed; authenticate again.');
         }
         $newVersion = $passwords->changeFirstLoginPassword($userId,$currentPassword,$newPassword,$requestId);
         $roles = $this->roles($userId);
@@ -146,7 +146,7 @@ final class AuthenticationService
     public function beginAdminMfaSetup(array $decision): string
     {
         if (($decision['status'] ?? '') !== 'mfa_setup_required' || !isset($decision['user_id'],$decision['session_version'],$decision['roles'])) {
-            throw new \\DomainException('Administrator MFA setup is not available.');
+            throw new \DomainException('Administrator MFA setup is not available.');
         }
         SessionManager::start();
         SessionManager::rotateAfterAuthentication();
@@ -165,17 +165,17 @@ final class AuthenticationService
         if (!is_array($pending) || !isset($pending['user_id'],$pending['session_version'],$pending['expires_at']) ||
             (int) $pending['expires_at'] < time()) {
             unset($_SESSION['_admin_mfa_setup_pending']);
-            throw new \\DomainException('Administrator MFA setup session has expired.');
+            throw new \DomainException('Administrator MFA setup session has expired.');
         }
         $userId = (string) $pending['user_id'];
         $user = $this->activeUser($userId);
         if ($user === null || (bool) $user['first_login_required'] || (int) $user['admin_session_version'] !== (int) $pending['session_version']) {
             unset($_SESSION['_admin_mfa_setup_pending']);
-            throw new \\DomainException('Administrator account state changed during MFA setup.');
+            throw new \DomainException('Administrator account state changed during MFA setup.');
         }
         $roles = $this->roles($userId);
         if ((bool) $user['first_login_required'] || !$this->rateLimiter->consume('auth.mfa_setup',$userId,5,300,900)) {
-            throw new \\DomainException('MFA setup is blocked by account state or rate limiting.');
+            throw new \DomainException('MFA setup is blocked by account state or rate limiting.');
         }
         $codes = $this->mfa->confirmEnrollment(new Principal($userId,$roles,false),$code,$requestId);
         unset($_SESSION['_admin_mfa_setup_pending']);
