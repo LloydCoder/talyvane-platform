@@ -13,9 +13,11 @@ use Talyvane\Security\SecretBox;
 final class OneTimeRecoveryKeyHandoff
 {
     private PrivateInstallerState $state;
+    private string $stateFile;
 
     public function __construct(string $stateFile,string $publicRoot,SecretBox $box)
     {
+        $this->stateFile = $stateFile;
         $this->state = new PrivateInstallerState(
             $stateFile,$publicRoot,$box,'native-installer-recovery-v1'
         );
@@ -30,8 +32,7 @@ final class OneTimeRecoveryKeyHandoff
             $expiresAt <= time() || $expiresAt > time()+86400) {
             throw new RuntimeException('Offline recovery-key handoff is invalid.');
         }
-        $stateFile = $this->stateFilePath();
-        if (file_exists($stateFile) || is_link($stateFile)) {
+        if (file_exists($this->stateFile) || is_link($this->stateFile)) {
             throw new RuntimeException('Offline recovery-key handoff already exists.');
         }
         $this->state->write([
@@ -44,7 +45,7 @@ final class OneTimeRecoveryKeyHandoff
     /** Returns the key once, deleting its encrypted handoff before the caller can print it. */
     public function consume(): string
     {
-        $lockPath = $this->stateFilePath() . '.consume.lock';
+        $lockPath = $this->stateFile . '.consume.lock';
         if (is_link($lockPath)) {
             throw new RuntimeException('Recovery handoff lock must not be a symlink.');
         }
@@ -77,14 +78,4 @@ final class OneTimeRecoveryKeyHandoff
         }
     }
 
-    private function stateFilePath(): string
-    {
-        $reflection = new \ReflectionProperty($this->state,'stateFile');
-        $reflection->setAccessible(true);
-        $path = $reflection->getValue($this->state);
-        if (!is_string($path) || $path === '') {
-            throw new RuntimeException('Recovery handoff path is invalid.');
-        }
-        return $path;
-    }
 }
