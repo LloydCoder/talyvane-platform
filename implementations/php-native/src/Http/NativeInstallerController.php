@@ -592,6 +592,7 @@ final class NativeInstallerController
         $headers = $base->headers;
         $headers['cache-control'] = 'no-store, no-cache, must-revalidate, private';
         $headers['pragma'] = 'no-cache';
+        $headers['referrer-policy'] = 'no-referrer';
         $headers['content-security-policy'] = "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; style-src 'self' 'unsafe-inline'";
         return new Response($html,$status,$headers);
     }
