@@ -432,10 +432,9 @@ final class ProfileMediaService
                     members_only_consent_version=:version,members_only_consent_withdrawn_at=NULL,
                     members_only_consent_withdrawn_by=NULL,updated_at=UTC_TIMESTAMP()
                  WHERE id=:media AND review_status="approved" AND media_scope="members_only"'
-            )->execute(['version'=>$version,'media'=>$mediaId]);
+            )->execute(['version'=>$policyVersion,'media'=>$mediaId]);
             $this->recordConsent($mediaId,$profileId,$actor,
-                'I separately and voluntarily consent to this approved image being displayed only to clients with a current, active membership entitlement. I may withdraw this consent at any time.',
-                'private_gallery.consent.granted',$version,$requestId);
+                $statement,'private_gallery.consent.granted',$policyVersion,$requestId);
             $this->audit->record($actor->id,'profile.media.private_gallery.consent_granted','profile_media',$mediaId,
                 'Companion granted separate members-only image consent',
                 ['members_only_consent'=>'inactive'],['members_only_consent'=>'active','consent_version'=>$policyVersion,'statement_sha256'=>hash('sha256',$statement)],
@@ -577,7 +576,7 @@ final class ProfileMediaService
                    AND pm.consent_version=p.publication_consent_version
                  LIMIT 1 FOR UPDATE'
             );
-            $query->execute(['id'=>$mediaId]);
+            $query->execute(['id'=>$mediaId,'consent_version'=>$policyVersion,'statement_hash'=>$statementHash]);
             $row=$query->fetch(PDO::FETCH_ASSOC);
             if (!is_array($row)) { throw new DomainException('Private gallery media was not found.'); }
             $profile=$this->discovery->profile((string)$row['slug']);
