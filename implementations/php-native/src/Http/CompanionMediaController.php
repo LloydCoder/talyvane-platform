@@ -56,6 +56,7 @@ final class CompanionMediaController
             $this->media->submit(
                 $actor,(string) $profile['id'],$upload,
                 $this->field($request,'rights_confirmed')==='1',
+                $this->field($request,'depicted_adults_confirmed')==='1',
                 $this->field($request,'publication_confirmed')==='1',
                 $request->requestId
             );
