@@ -60,6 +60,10 @@ function runModelAgencyIntegration(PDO $pdo): int
     $assert((int) $roleCount->fetchColumn() === 0,'model applicant intake does not create a client or companion identity');
     $admin = new Principal($adminId,['super_admin'],true);
     $verifier = new Principal($adminId,['super_admin','verifier'],true);
+    $adminQueue = $service->pendingForReview($admin);
+    $verifierQueue = $service->verificationQueue($verifier);
+    $assert(count($adminQueue) === 1 && $adminQueue[0]['application_reference'] !== '','MFA-authorized administrators receive the model-agency review queue');
+    $assert(count($verifierQueue) === 1 && !array_key_exists('email',$verifierQueue[0]) && !array_key_exists('applicant_name',$verifierQueue[0]),'adult verifiers receive a minimal-data queue without applicant contact details');
     $service->review($admin,$applicationId,'under_review','Initial human review commenced',bin2hex(random_bytes(16)));
     $service->verifyAdultEligibility($verifier,$applicationId,'independent_provider_check','provider-reference-opaque-001','verified',365,bin2hex(random_bytes(16)));
     $service->review($admin,$applicationId,'accepted','Application accepted after independent eligibility verification',bin2hex(random_bytes(16)));
