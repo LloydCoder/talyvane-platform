@@ -25,7 +25,7 @@ The native HTTP kernel currently exposes:
 
 Portal registration and email-based recovery require a valid private `mail.smtp` configuration in the private configuration file. Without it, mail-dependent routes fail closed while the public site and already verified portal logins remain available. Public discovery returns only allowlisted fields and requires current approved market status, independent adult-eligibility verification and active purpose-specific publication consent. Public profile media delivery is not yet implemented; private media is never linked directly.
 
-These are implemented slices, not a complete product. Customer/companion profile editing, companion availability self-service, reschedule UI, model-agency agreements/casting/settlement, safeguarding operations, quote/deposit/reconciliation workflows, full CRM operations and the native installer/package remain incomplete.
+These are implemented slices, not a complete product. Remaining parity includes full client/companion account and privacy-rights self-service; complete companion consent and availability controls; reschedule UI, calendar and notifications; model-agency portfolio/casting/assignment/settlement workflows; safeguarding evidence, incident/appeal, retention and operational acceptance; quote/deposit/payment/reconciliation; full CRM/communications; localization/reporting/configuration/integrations; and backup/restore/upgrade/release operations. The native installer and single-ZIP package are implemented and pass automated integration/package checks; dedicated native browser E2E and actual target-host acceptance remain release gates.
 
 
 ## Non-negotiable delivery target
