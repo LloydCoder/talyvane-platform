@@ -130,11 +130,12 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
         $installerResponse = (new NativeInstallerController(dirname(__DIR__,2)))->handle(Request::fromGlobals());
         $installerKeyFiles = glob($httpHome . DIRECTORY_SEPARATOR . '.talyvane' . DIRECTORY_SEPARATOR . 'talyvane' . DIRECTORY_SEPARATOR . '*' . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'INSTALLER-ACCESS-KEY.txt') ?: [];
         $installerKey = count($installerKeyFiles) === 1 ? trim((string) file_get_contents($installerKeyFiles[0])) : '';
-        $assert(str_contains($installerResponse->body,'Set up your platform') && $installerResponse->status === 503 || str_contains($installerResponse->body,'Set up your platform') && $installerResponse->status === 200,
+        $assert(str_contains($installerResponse->body,'Set up your platform') && in_array($installerResponse->status,[200,503],true),
             'HTTPS browser installer renders its preflight wizard before application bootstrap');
-        $assert(strlen($installerKey) === 43 && !str_contains($installerResponse->body,$installerKey) &&
-            (fileperms($installerKeyFiles[0]) & 0777) === 0600,
-            'browser installer creates a private setup key but never reveals it in HTML');
+        $keySafe = count($installerKeyFiles) === 1 && strlen($installerKey) === 43 &&
+            !str_contains($installerResponse->body,$installerKey) &&
+            (fileperms($installerKeyFiles[0]) & 0777) === 0600;
+        $assert($keySafe,'browser installer creates a private setup key but never reveals it in HTML');
         if (session_status() === PHP_SESSION_ACTIVE) { session_destroy(); }
         $_SERVER = $oldServer;
         if ($oldHome === false) { putenv('HOME'); } else { putenv('HOME=' . $oldHome); }
