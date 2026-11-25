@@ -252,7 +252,7 @@ final class AuthenticationService
         $roles = $this->roles($userId);
         $privileged = array_intersect($roles, self::ADMIN_ROLES) !== [];
         $mfaVerified = (bool) ($_SESSION['mfa_verified'] ?? false);
-        if ($privileged && !$mfaVerified) {
+        if ($privileged && ((bool) $user['first_login_required'] || !$mfaVerified)) {
             return null;
         }
         return new Principal($userId, $roles, $mfaVerified);
