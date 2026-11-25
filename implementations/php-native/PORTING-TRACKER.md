@@ -165,14 +165,14 @@ The native branch currently has 18 ordered PHP migrations plus backend and brows
 | ISO 4217 reference dataset | TGLS | IN_PROGRESS | Code/name/symbol/numeric/precision validation |
 | Independent country/currency/locale/time-zone models | TGLS | NOT_STARTED | No conflated market setting |
 | Deployment base currency/locale/time zone | GlobalizationController | NOT_STARTED | Super Admin control and audit |
-| Market review/approval | COMPLIANCE-RELEASE-GATES | IN_PROGRESS | Evidence-backed human review, expiry and fail-closed checks |
+| Market review/approval | COMPLIANCE-RELEASE-GATES | IN_PROGRESS | Super Admin/MFA-only review UI; required evidence reference, substantive summary, approve/reject decision, explicit enablement and expiry within two years; transactional audit events; destination publication rechecks current approval and MFA reviewer. Verified ISO reference-data import and browser E2E remain open |
 | Localized content and formatting | TGLS | NOT_STARTED | BCP 47, fallback and CLDR/ICU or deterministic formatting |
 | Market-specific price overrides | TGLS | NOT_STARTED | Explicit overrides and versioned policy |
 | Exchange-rate provider/snapshots | TGLS | NOT_STARTED | Freshness, source/time/expiry and decimal-safe conversion |
 | Tax configuration | TGLS | BLOCKED | Jurisdiction-specific legal/accounting approval |
 | Feature registry/control plane | Super Admin architecture | IN_PROGRESS | Dependencies, blockers, status and server-side enforcement |
 | Secret catalog/rotation | SecretManagementController | NOT_STARTED | Allowlist, masked values, secret-store adapter |
-| Append-only audit log and investigation workspace | ARCHITECTURE | IN_PROGRESS | AuditLogger records redacted structured events; PR #89 adds a Super Admin/MFA-gated read-only metadata viewer with exact filters and bounded pagination; migration 0018 adds database triggers rejecting UPDATE and DELETE, with MySQL regression assertions. Tamper-evidence/cryptographic integrity verification, retention governance, complete event coverage and final acceptance remain open |
+| Append-only audit log and investigation workspace | ARCHITECTURE | IN_PROGRESS | AuditLogger redacts credentials and personal contact/identity fields at ingestion; Super Admin/MFA-gated read-only metadata viewer with exact filters and bounded pagination; migration 0018 adds database triggers rejecting UPDATE and DELETE; MySQL tests verify immutability and redaction. Tamper-evidence/cryptographic integrity verification, retention governance, complete event coverage and final acceptance remain open |
 | Reports/analytics | PRODUCT-REQUIREMENTS | NOT_STARTED | Role-scoped and privacy-aware |
 | Integrations | ARCHITECTURE | NOT_STARTED | Explicit adapters, retries, idempotency and safe credentials |
 | Localization and export controls | PRODUCT-REQUIREMENTS | NOT_STARTED | Locale-aware, permissioned and audited |
