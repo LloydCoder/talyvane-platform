@@ -467,14 +467,14 @@ final class NativeInstallerController
             'offlineRecoveryKey'=>(string) ($success['offline_recovery_key'] ?? ''),
             'appUrl'=>(string) ($success['app_url'] ?? ''),
         ]);
-        $store->delete();
-        unset($_SESSION['installer_success_token']);
         $setupKeyPath = $paths['config'] . '/INSTALLER-ACCESS-KEY.txt';
         if (is_file($setupKeyPath) && !is_link($setupKeyPath)) {
             $setupKey = new SetupKey($setupKeyPath);
             $this->pendingState($paths,$setupKey)->delete();
             $setupKey->consume();
         }
+        $store->delete();
+        unset($_SESSION['installer_success_token']);
         return $response;
     }
 
