@@ -720,6 +720,27 @@ $destinationMarkup = $authViews->render('admin/destinations',[
 ]);
 $assert(str_contains($destinationMarkup,'&lt;script&gt;alert(1)&lt;/script&gt;') && !str_contains($destinationMarkup,'<script>alert(1)</script>'), 'destination admin escapes database content before rendering');
 $assert(str_contains($destinationMarkup,'/admin/destinations/destination-1') && str_contains($destinationMarkup,'csrf-destination-token'), 'destination admin renders owner-scoped edit forms with CSRF protection');
+$assert(str_contains($destinationMarkup,'/admin/destinations/destination-1/cover') &&
+    str_contains($destinationMarkup,'name="rights_confirmed"') &&
+    str_contains($destinationMarkup,'Submit cover for independent review'),
+    'destination admin exposes a CSRF-protected rights-attested cover upload form');
+$pendingDestinationMarkup=$authViews->render('admin/destinations',[
+    'brandName'=>'Maison Example',
+    'items'=>[],
+    'countries'=>[],
+    'currencies'=>[],
+    'pendingCovers'=>[['id'=>'cover-1','destination_name'=>'London','created_at'=>'2026-11-25 12:00:00']],
+    'error'=>'','notice'=>'','csrf'=>'cover-review-csrf',
+]);
+$assert(str_contains($pendingDestinationMarkup,'/admin/destination-covers/cover-1/review') &&
+    str_contains($pendingDestinationMarkup,'name="decision"') &&
+    str_contains($pendingDestinationMarkup,'name="reason"'),
+    'destination cover review requires a reasoned independent approve/reject decision');
+$assert(DestinationCoverService::RIGHTS_VERSION==='destination-cover-rights-v1' &&
+    hash('sha256',DestinationCoverService::RIGHTS_STATEMENT)===hash('sha256',trim(DestinationCoverService::RIGHTS_STATEMENT)),
+    'destination cover rights declaration is versioned and has a deterministic statement hash');
+$assert(PrivateMediaStorage::validKey('destination-covers/0123456789abcdef0123456789abcdef.webp'),
+    'destination cover storage accepts only opaque sanitized private media keys');
 $marketMarkup = $authViews->render('admin/markets',[
     'brandName'=>'Maison Example',
     'items'=>[[
