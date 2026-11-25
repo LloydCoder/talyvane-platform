@@ -6,6 +6,7 @@ namespace Talyvane\Http;
 use PDO;
 use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
+use Talyvane\Application\ModelAgency\ModelApplicantRightsService;
 use Talyvane\Infrastructure\Security\RateLimiter;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\SessionManager;
@@ -17,6 +18,7 @@ final class PublicModelAgencyController
         private ModelAgencyApplicationService $applications,
         private ContentManagementService $content,
         private RateLimiter $limiter,
+        private ?ModelApplicantRightsService $rights,
         private ViewRenderer $views
     ) {}
 
@@ -81,7 +83,7 @@ final class PublicModelAgencyController
         $publishedVersion=is_array($privacyPage) ? 'privacy-v'.(int)($privacyPage['version'] ?? 0) : '';
         $version=$configuredVersion;
         $available=is_array($policy) && ($policy['enabled'] ?? false) === true && $version !== '' &&
-            $publishedVersion !== 'privacy-v0' && hash_equals($publishedVersion,$configuredVersion);
+            $publishedVersion !== 'privacy-v0' && hash_equals($publishedVersion,$configuredVersion) && $this->rights !== null;
         return ['available'=>$available,'privacyVersion'=>$version,'privacyPage'=>$privacyPage,'error'=>'','values'=>[]];
     }
 
