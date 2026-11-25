@@ -62,6 +62,18 @@ final class SafeguardingRestoreVerificationService
         return $result;
     }
 
+    /** @return list<array<string,mixed>> */
+    public function recent(): array
+    {
+        $query=$this->pdo->query(
+            'SELECT v.backup_reference_hash,v.manifest_sha256,v.policy_version,v.active_keys_verified,
+                    v.orphan_keys_destroyed,v.verified_at,u.email AS verifier_email
+             FROM safeguarding_restore_verifications v JOIN users u ON u.id=v.verified_by
+             ORDER BY v.verified_at DESC LIMIT 10'
+        );
+        return $query->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     private function assertLiveActor(Principal $actor): void
     {
         $query=$this->pdo->prepare(
