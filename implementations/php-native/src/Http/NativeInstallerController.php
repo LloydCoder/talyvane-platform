@@ -295,7 +295,7 @@ final class NativeInstallerController
             $bootstrapQuery = $pdo->prepare(
                 'SELECT user_id,activated_at FROM super_admin_bootstrap_challenges
                  WHERE singleton_id=1 AND primary_email=:primary AND recovery_email=:recovery
-                   AND proof_hash=:proof LIMIT 1'
+                   AND proof_hash=:proof AND (activated_at IS NOT NULL OR expires_at > UTC_TIMESTAMP()) LIMIT 1'
             );
             $bootstrapQuery->execute([
                 'primary'=>$pending['primary_email'],'recovery'=>$pending['recovery_email'],
