@@ -4,6 +4,7 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
 use Talyvane\Domain\Money;
+use Talyvane\Application\Destinations\DestinationCoverService;
 use Talyvane\Domain\Money\Currency;
 use Talyvane\Domain\Money\QuoteSnapshot;
 use Talyvane\Domain\Payments\PaymentStateMachine;
