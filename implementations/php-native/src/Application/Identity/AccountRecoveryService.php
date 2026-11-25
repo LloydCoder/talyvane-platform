@@ -28,7 +28,11 @@ final class AccountRecoveryService
         if (!$this->limiter->consume('account.recovery.request', $email, 3, 3600, 3600)) {
             return;
         }
-        $query = $this->pdo->prepare('SELECT id,email FROM users WHERE email = :email AND status = "active" AND email_verified_at IS NOT NULL LIMIT 1');
+        $query = $this->pdo->prepare('SELECT u.id,u.email FROM users u
+             WHERE u.email = :email AND u.status = "active" AND u.email_verified_at IS NOT NULL
+               AND EXISTS (SELECT 1 FROM user_roles portal_role WHERE portal_role.user_id = u.id AND portal_role.role_key IN ("client","companion"))
+               AND NOT EXISTS (SELECT 1 FROM user_roles privileged_role WHERE privileged_role.user_id = u.id AND privileged_role.role_key IN ("super_admin","owner","admin","finance","verifier","safeguarding"))
+             LIMIT 1');
         $query->execute(['email'=>$email]);
         $user = $query->fetch();
         if (is_array($user)) {
@@ -46,7 +50,11 @@ final class AccountRecoveryService
         if (!$this->limiter->consume('account.recovery.complete', $email, 5, 900, 1800)) {
             return false;
         }
-        $query = $this->pdo->prepare('SELECT id FROM users WHERE email = :email AND status = "active" AND email_verified_at IS NOT NULL LIMIT 1');
+        $query = $this->pdo->prepare('SELECT u.id FROM users u
+             WHERE u.email = :email AND u.status = "active" AND u.email_verified_at IS NOT NULL
+               AND EXISTS (SELECT 1 FROM user_roles portal_role WHERE portal_role.user_id = u.id AND portal_role.role_key IN ("client","companion"))
+               AND NOT EXISTS (SELECT 1 FROM user_roles privileged_role WHERE privileged_role.user_id = u.id AND privileged_role.role_key IN ("super_admin","owner","admin","finance","verifier","safeguarding"))
+             LIMIT 1');
         $query->execute(['email'=>$email]);
         $userId = $query->fetchColumn();
         if (!is_string($userId) || !$this->verification->verify($userId, $email, 'account_recovery', $code)) {
