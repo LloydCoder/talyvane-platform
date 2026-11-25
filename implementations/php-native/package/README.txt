@@ -10,6 +10,7 @@ No SSH, Composer, npm, Git, Docker, terminal access or manual source edits are r
 REQUIREMENTS
 - PHP 8.3+; PDO, PDO MySQL, OpenSSL, mbstring, fileinfo, JSON, ZIP and GD with WebP support.
 - HTTPS and cookie-backed sessions.
+- PHP upload_max_filesize of at least 8M and post_max_size of at least 10M (set through the hosting PHP selector/INI editor if needed).
 - MySQL 8.0+ or a compatible supported MariaDB release.
 - Writable account home outside the public document root.
 - SMTP with TLS or implicit TLS.
