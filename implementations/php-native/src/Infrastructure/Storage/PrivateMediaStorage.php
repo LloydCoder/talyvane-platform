@@ -56,7 +56,7 @@ final class PrivateMediaStorage
         }
         $width = (int) $imageInfo[0];
         $height = (int) $imageInfo[1];
-        if ($width < 1 || $height < 1 || $width > 8000 || $height > 8000 || ($width * $height) > 30000000) {
+        if ($width < 1 || $height < 1 || $width > 8000 || $height > 8000 || ($width * $height) > 12000000) {
             throw new \InvalidArgumentException('Image dimensions exceed the supported limit.');
         }
         if (!function_exists('imagewebp') || !function_exists('imagecreatefromjpeg') ||
