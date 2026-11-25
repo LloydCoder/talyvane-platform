@@ -7,6 +7,8 @@ use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
 use Talyvane\Domain\Booking\BookingStateMachine;
+use Talyvane\Domain\Consent\ConsentGrant;
+use Talyvane\Domain\Market\MarketPolicy;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Database\BookingPolicyRepository;
 use Talyvane\Security\Authorization;
