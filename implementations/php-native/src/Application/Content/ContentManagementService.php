@@ -13,7 +13,7 @@ final class ContentManagementService
     public function __construct(private PDO $pdo,private AuditLogger $audit) {}
 
     /** @param array<string,mixed> $input @return array<string,mixed> */
-    public function updateBrand(Principal $actor,array $input,string $requestId): array
+    public function updateBrand(Principal $actor,array $input,string $requestId,string $reason = 'White-label brand settings updated'): array
     {
         Authorization::require($actor,'site.content.manage',true);
         if (!$actor->hasRole('super_admin')) {
@@ -28,7 +28,7 @@ final class ContentManagementService
         $seo = $input['seo_defaults'] ?? [];
         if ($name === '' || strlen($name) > 120 || ($tagline !== null && strlen($tagline) > 190) ||
             !is_array($colors) || !is_array($typography) || !is_array($contacts) || !is_array($social) || !is_array($seo) ||
-            strlen($requestId) < 16 || strlen($requestId) > 64) {
+            strlen($requestId) < 16 || strlen($requestId) > 64 || strlen(trim($reason)) < 8 || strlen($reason) > 500)
             throw new \InvalidArgumentException('Brand settings are invalid.');
         }
         foreach ($colors as $key=>$value) {
@@ -66,7 +66,7 @@ final class ContentManagementService
                 'seo'=>json_encode($seo,JSON_THROW_ON_ERROR),'actor'=>$actor->id,
             ]);
             $after = $this->publicBrand();
-            $this->audit->record($actor->id,'brand.settings.updated','brand_settings','1','White-label brand settings updated',
+            $this->audit->record($actor->id,'brand.settings.updated','brand_settings','1',trim($reason),
                 is_array($before) ? ['brand_name'=>$before['brand_name'],'version'=>(int) $before['version']] : null,
                 ['brand_name'=>$after['brand_name'],'version'=>$after['version']],$requestId,'brand-settings-v1');
             $this->pdo->commit();
