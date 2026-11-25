@@ -5,7 +5,7 @@ namespace Talyvane\Http;
 
 final readonly class Request
 {
-    /** @param array<string,string> $headers @param array<string,mixed> $query @param array<string,mixed> $body */
+    /** @param array<string,string> $headers @param array<string,mixed> $query @param array<string,mixed> $body @param array<string,mixed> $files */
     public function __construct(
         public string $method,
         public string $path,
@@ -14,6 +14,7 @@ final readonly class Request
         public array $body = [],
         public string $ipAddress = '',
         public string $requestId = '',
+        public array $files = [],
     ) {}
 
     public static function fromGlobals(): self
@@ -39,7 +40,7 @@ final readonly class Request
             throw new \InvalidArgumentException('Request path must be absolute.');
         }
         $contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
-        if ($contentLength > 2_097_152) {
+        if ($contentLength > 10_485_760) {
             throw new \LengthException('Request body exceeds the 2 MiB limit.');
         }
 
@@ -70,7 +71,8 @@ final readonly class Request
             $_GET,
             $body,
             (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
-            bin2hex(random_bytes(16))
+            bin2hex(random_bytes(16)),
+            $_FILES
         );
     }
 
