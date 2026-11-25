@@ -6,6 +6,7 @@ namespace Talyvane\Http;
 use DomainException;
 use InvalidArgumentException;
 use PDO;
+use PDOException;
 use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Security\Authorization;
@@ -102,6 +103,8 @@ final class AdminContentController
             return Response::redirect('/admin/content/' . rawurlencode($savedId));
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->editError($params, $error->getMessage(), 422, $request);
+        } catch (PDOException $error) {
+            return $this->editError($params, 'The page could not be saved. Check for an existing page with the same URL slug and locale.', 409, $request);
         }
     }
 
@@ -123,6 +126,8 @@ final class AdminContentController
             return Response::redirect('/admin/content/' . rawurlencode($id));
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->editError(['id'=>$id], $error->getMessage(), 422, $request);
+        } catch (PDOException $error) {
+            return $this->editError(['id'=>$id], 'The page could not be published. Refresh the page and try again.', 409, $request);
         }
     }
 
