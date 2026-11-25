@@ -321,7 +321,9 @@ final class NativeInstallerController
                 }
                 $pending['phase'] = 'activated';
                 $pendingStore->write($pending);
-            } elseif (($pending['phase'] ?? '') !== 'activated') {
+            } elseif (($pending['phase'] ?? '') === 'activated') {
+                throw new RuntimeException('Private installer state and database activation state do not match.');
+            } else {
                 $primaryCode = $this->field($request,'primary_code');
                 $recoveryCode = $this->field($request,'recovery_code');
                 if (preg_match('/^[0-9]{6}$/D',$primaryCode)) {
