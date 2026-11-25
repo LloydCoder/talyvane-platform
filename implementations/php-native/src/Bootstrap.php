@@ -9,6 +9,7 @@ use Talyvane\Application\Identity\MfaService;
 use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Http\AdminAuthController;
 use Talyvane\Http\AdminBrandController;
+use Talyvane\Http\AdminNavigationController;
 use Talyvane\Http\AdminContentController;
 use Talyvane\Http\PublicSiteController;
 use Talyvane\Http\Request;
@@ -53,6 +54,7 @@ final class Bootstrap
         $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
         $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
         $adminBrand = new AdminBrandController($authentication, $contentManagement, $views);
+        $adminNavigation = new AdminNavigationController($pdo, $authentication, $contentManagement, $views);
         $router = new Router();
 
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
@@ -71,6 +73,10 @@ final class Bootstrap
         $router->add('POST', '/admin/logout', static fn(Request $request): Response => $adminAuth->logout($request));
         $router->add('GET', '/admin/brand', static fn(Request $request): Response => $adminBrand->show($request));
         $router->add('POST', '/admin/brand', static fn(Request $request): Response => $adminBrand->update($request));
+        $router->add('GET', '/admin/navigation', static fn(Request $request): Response => $adminNavigation->index($request));
+        $router->add('POST', '/admin/navigation', static fn(Request $request, array $params): Response => $adminNavigation->save($request));
+        $router->add('POST', '/admin/navigation/{id}', static fn(Request $request, array $params): Response => $adminNavigation->save($request, $params));
+
 
         $router->add('GET', '/admin/content', static fn(Request $request): Response => $adminContent->index($request));
         $router->add('GET', '/admin/content/new', static fn(Request $request): Response => $adminContent->create($request));
