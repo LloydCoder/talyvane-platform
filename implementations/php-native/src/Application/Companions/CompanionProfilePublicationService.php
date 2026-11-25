@@ -21,7 +21,7 @@ final class CompanionProfilePublicationService
     {
         Authorization::require($actor,'profiles.manage',true);
         if (!$actor->hasRole('admin') && !$actor->hasRole('owner') && !$actor->hasRole('super_admin')) {
-            throw new \\DomainException('Only an authorized administrator can review companion profiles.');
+            throw new \DomainException('Only an authorized administrator can review companion profiles.');
         }
         $limit = max(1,min(100,$limit));
         $query = $this->pdo->prepare(
