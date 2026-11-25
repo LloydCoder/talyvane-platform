@@ -179,6 +179,22 @@ $publicPageMarkup = $authViews->render('public/page', [
 ]);
 $assert(str_contains($publicPageMarkup, '<title>Privacy Notice | Official · Maison Example</title>'), 'public CMS page renders the versioned SEO title');
 $assert(str_contains($publicPageMarkup, '<meta name="robots" content="noindex,nofollow">'), 'public CMS page applies the configured robots policy');
+$navigationMarkup = $authViews->render('admin/navigation', [
+    'brandName'=>'Maison Example',
+    'csrf'=>'navigation-csrf',
+    'error'=>'',
+    'saved'=>false,
+    'items'=>[['id'=>'11111111-1111-4111-8111-111111111111','location_key'=>'header','label'=>'<script>bad</script>','target_type'=>'route','target_value'=>'/about','locale'=>'en','sort_order'=>10,'enabled'=>1]],
+]);
+$assert(str_contains($navigationMarkup, 'action="/admin/navigation"'), 'navigation workspace exposes item creation');
+$assert(str_contains($navigationMarkup, 'action="/admin/navigation/11111111-1111-4111-8111-111111111111"'), 'navigation workspace exposes item update');
+$assert(!str_contains($navigationMarkup, '<script>bad</script>'), 'navigation labels are escaped before rendering');
+$publicNavMarkup = $authViews->render('public/home', [
+    'brand'=>['brand_name'=>'Maison Example','tagline'=>'A considered experience','seo_defaults'=>['title_suffix'=>'','robots'=>'index,follow']],
+    'sections'=>[],
+    'navigation'=>[['label'=>'About','target_type'=>'page','target_value'=>'/pages/about']],
+]);
+$assert(str_contains($publicNavMarkup, 'href="/pages/about"'), 'public homepage renders enabled navigation targets');
 
 
 $assert(str_contains($contentEditMarkup, 'Public readers still see version 1'), 'CMS editor distinguishes a live snapshot from newer draft content');
