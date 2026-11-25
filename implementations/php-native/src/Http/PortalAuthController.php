@@ -103,7 +103,7 @@ final class PortalAuthController
             $lookup->execute(['email'=>$email]);
             $userId = $lookup->fetchColumn();
             if (is_string($userId)) {
-                try { $this->registration->resendPrimaryVerification($userId); } catch (\\Throwable) {}
+                try { $this->registration->resendPrimaryVerification($userId); } catch (\Throwable) {}
             }
         }
         return $this->page('verify', ['email'=>$email,'notice'=>'If this account is awaiting verification, a new code has been sent.']);
@@ -122,7 +122,7 @@ final class PortalAuthController
             return $this->page('recovery_request', ['error'=>'Your session expired. Refresh this page and try again.'], 419);
         }
         if ($this->recovery !== null) {
-            try { $this->recovery->request($this->field($request, 'email')); } catch (\\Throwable) {}
+            try { $this->recovery->request($this->field($request, 'email')); } catch (\Throwable) {}
         }
         return $this->page('recovery_complete', ['email'=>strtolower(trim($this->field($request, 'email'))),'notice'=>'If an active account matches that address, a recovery code has been sent.']);
     }
@@ -146,7 +146,7 @@ final class PortalAuthController
                 return $this->page('recovery_complete', ['email'=>$email,'error'=>'The recovery details could not be accepted.'], 422);
             }
             return $this->page('login', ['email'=>$email,'notice'=>'Your password has been reset. Sign in with your new password.']);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return $this->page('recovery_complete', ['email'=>$email,'error'=>'The recovery details could not be accepted.'], 422);
         }
     }
