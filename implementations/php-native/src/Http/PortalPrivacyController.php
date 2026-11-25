@@ -22,7 +22,7 @@ final class PortalPrivacyController
         $actor=$this->authentication->currentPrincipal();
         if ($actor===null) return Response::redirect('/portal/login');
         try {
-            $payload=$this->exports->export($actor);
+            $payload=$this->exports->export($actor,$request->requestId);
             $json=json_encode($payload,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
             return new Response($json,200,[
                 'content-type'=>'application/json; charset=utf-8',
