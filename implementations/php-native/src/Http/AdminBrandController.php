@@ -95,29 +95,42 @@ final class AdminBrandController
             throw new InvalidArgumentException('The default robots policy is invalid.');
         }
 
-        $contacts = [];
-        if ($email !== '') { $contacts['email'] = $email; }
-        if ($phone !== '') { $contacts['phone'] = $phone; }
-        if ($website !== '') { $contacts['website'] = $website; }
+        $contacts = is_array($brand['contact_details'] ?? null) ? $brand['contact_details'] : [];
+        foreach (['email'=>$email,'phone'=>$phone,'website'=>$website] as $key=>$value) {
+            if ($value === '') {
+                unset($contacts[$key]);
+            } else {
+                $contacts[$key] = $value;
+            }
+        }
+        $social = is_array($brand['social_links'] ?? null) ? $brand['social_links'] : [];
+        foreach (['instagram','linkedin','facebook','x'] as $network) {
+            $url = trim($this->field($request, 'social_' . $network));
+            if ($url === '') {
+                unset($social[$network]);
+            } else {
+                $social[$network] = $url;
+            }
+        }
+        $colors = is_array($brand['color_tokens'] ?? null) ? $brand['color_tokens'] : [];
+        $colors['primary'] = $this->field($request, 'color_primary');
+        $colors['accent'] = $this->field($request, 'color_accent');
+        $colors['surface'] = $this->field($request, 'color_surface');
+        $typography = is_array($brand['typography'] ?? null) ? $brand['typography'] : [];
+        $typography['heading'] = trim($this->field($request, 'font_heading'));
+        $typography['body'] = trim($this->field($request, 'font_body'));
+        $seo = is_array($brand['seo_defaults'] ?? null) ? $brand['seo_defaults'] : [];
+        $seo['title_suffix'] = trim($this->field($request, 'seo_title_suffix'));
+        $seo['robots'] = $robots;
 
         return [
             'brand_name'=>trim($this->field($request, 'brand_name')),
             'tagline'=>trim($this->field($request, 'tagline')) ?: null,
-            'color_tokens'=>[
-                'primary'=>$this->field($request, 'color_primary'),
-                'accent'=>$this->field($request, 'color_accent'),
-                'surface'=>$this->field($request, 'color_surface'),
-            ],
-            'typography'=>[
-                'heading'=>trim($this->field($request, 'font_heading')),
-                'body'=>trim($this->field($request, 'font_body')),
-            ],
+            'color_tokens'=>$colors,
+            'typography'=>$typography,
             'contact_details'=>$contacts,
             'social_links'=>$social,
-            'seo_defaults'=>[
-                'title_suffix'=>trim($this->field($request, 'seo_title_suffix')),
-                'robots'=>$robots,
-            ],
+            'seo_defaults'=>$seo,
             // The browser never receives storage keys. Existing private assets are preserved.
             'logo_storage_key'=>$brand['logo_storage_key'] ?? null,
             'favicon_storage_key'=>$brand['favicon_storage_key'] ?? null,
