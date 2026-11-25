@@ -5,6 +5,7 @@ use Talyvane\Http\NativeInstallerController;
 use Talyvane\Http\Request;
 use Talyvane\Infrastructure\Database\ConnectionFactory;
 use Talyvane\Infrastructure\Mail\Mailer;
+use Talyvane\Installer\OneTimeRecoveryKeyHandoff;
 use Talyvane\Installer\PrivateInstallerState;
 use Talyvane\Installer\SetupKey;
 use Talyvane\Security\Csrf;
@@ -150,11 +151,10 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
         $assert($successResponse->status === 200 && str_contains($successResponse->body,'One-time administrator credentials'),
             'installer shows the one-time administrator credential handoff after lock creation');
         preg_match('/<label>Initial Super Admin password<\/label><code>([^<]+)<\/code>/',$successResponse->body,$passwordMatch);
-        preg_match('/<label>Offline Super Admin recovery key<\/label><code>([^<]+)<\/code>/',$successResponse->body,$recoveryMatch);
         $initialPassword = html_entity_decode($passwordMatch[1] ?? '',ENT_QUOTES | ENT_HTML5,'UTF-8');
-        $offlineRecoveryKey = html_entity_decode($recoveryMatch[1] ?? '',ENT_QUOTES | ENT_HTML5,'UTF-8');
-        $assert($initialPassword !== '' && $offlineRecoveryKey !== '' && strlen($offlineRecoveryKey) === 43,
-            'one-time handoff displays the generated password and offline recovery key');
+        $assert($initialPassword !== '' && !str_contains($successResponse->body,'Offline Super Admin recovery key') &&
+            str_contains($successResponse->body,'cPanel Terminal'),
+            'browser handoff displays only the initial password and directs recovery-key retrieval to the CLI');
 
         $configFiles = glob($httpHome . DIRECTORY_SEPARATOR . '.talyvane' . DIRECTORY_SEPARATOR . 'talyvane' . DIRECTORY_SEPARATOR . '*' . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'app.php') ?: [];
         $lockFiles = glob($httpHome . DIRECTORY_SEPARATOR . '.talyvane' . DIRECTORY_SEPARATOR . 'talyvane' . DIRECTORY_SEPARATOR . '*' . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'INSTALLATION-LOCK.json') ?: [];
@@ -167,6 +167,20 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
             $installedConfig['mail']['password'] === '  smtp-secret  ' &&
             !str_starts_with(realpath($configFiles[0]) ?: '',realpath($httpDocumentRoot) ?: '/invalid-public-root'),
             'installer preserves exact connection secrets and stores configuration outside the public root');
+        $recoveryHandoffFiles = glob(dirname($configFiles[0]) . DIRECTORY_SEPARATOR . 'INSTALLER-RECOVERY-HANDOFF.json') ?: [];
+        $recoveryHandoff = count($recoveryHandoffFiles) === 1
+            ? new OneTimeRecoveryKeyHandoff($recoveryHandoffFiles[0],$httpDocumentRoot,new SecretBox((string) $installedConfig['app_key']))
+            : null;
+        $offlineRecoveryKey = $recoveryHandoff?->consume() ?? '';
+        $assert(strlen($offlineRecoveryKey) === 43 && !str_contains($successResponse->body,$offlineRecoveryKey) &&
+            !file_exists($recoveryHandoffFiles[0] ?? ''),
+            'offline recovery key is encrypted outside the browser and consumed once through a private CLI handoff');
+        try {
+            $recoveryHandoff?->consume();
+            $assert(false,'offline recovery key cannot be retrieved twice');
+        } catch (RuntimeException) {
+            $assert(true,'offline recovery key cannot be retrieved twice');
+        }
 
         $installedUser = $pdo->prepare('SELECT status,first_login_required,password_hash FROM users WHERE email = "first-admin@example.test" LIMIT 1');
         $installedUser->execute();
