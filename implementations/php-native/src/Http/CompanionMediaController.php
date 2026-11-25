@@ -100,6 +100,9 @@ final class CompanionMediaController
         $actor=$this->companion();
         if ($actor===null) { return Response::redirect('/portal/login'); }
         try {
+            if ($this->field($request,'confirm_publication_withdrawal')!=='1') {
+                throw new InvalidArgumentException('Confirm that you understand the profile-wide publication withdrawal before continuing.');
+            }
             $profile=$this->media->profileForCompanion($actor);
             if (!is_array($profile)) { return $this->index($request,'No companion profile is linked to this account.',403); }
             $this->media->withdrawPublicationConsent($actor,(string) $profile['id'],$request->requestId);
