@@ -59,6 +59,11 @@ function runIdentityIntegration(PDO $pdo): int
     $auth = new AuthenticationService($pdo,$limiter,$mfa);
     $decision = $auth->verifyPassword('native-admin@example.test',$password,'admin','127.0.0.1');
     $assert(($decision['status'] ?? '') === 'mfa_required','admin password step requires MFA');
+    for ($attempt = 0; $attempt < 11; $attempt++) {
+        $limiter->consume('auth.admin','limited-admin@example.test|127.0.0.2',10,60,900);
+    }
+    $limited = $auth->verifyPassword('limited-admin@example.test',$password,'admin','127.0.0.2');
+    $assert(($limited['status'] ?? '') === 'rate_limited','rate-limited authentication returns a controlled decision without fatal errors');
     $_SERVER['HTTPS'] = 'on';
     SessionManager::start();
     $auth->beginAdminMfaChallenge($decision);
