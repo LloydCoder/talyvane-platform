@@ -80,7 +80,7 @@ final class AdminDestinationController
             return Response::redirect('/admin/destinations?saved=1');
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->index($request,$error->getMessage(),422);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return $this->index($request,'Destination cover could not be submitted. Please try again.',503);
         }
     }
@@ -98,7 +98,7 @@ final class AdminDestinationController
             return Response::redirect('/admin/destinations?saved=1');
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->index($request,$error->getMessage(),422);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return $this->index($request,'Destination cover review could not be completed.',503);
         }
     }
