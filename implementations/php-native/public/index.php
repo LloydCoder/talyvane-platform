@@ -30,17 +30,23 @@ try {
         $accountHome = dirname($documentRoot);
     }
     $paths = PrivatePathResolver::resolve($documentRoot,$accountHome);
-    $configPath = $paths['config'] . '/app.php';
-    putenv('TALYVANE_CONFIG=' . $configPath);
-    $_ENV['TALYVANE_CONFIG'] = $configPath;
-    if (is_link($configPath) || !is_file($configPath) || !is_readable($configPath)) {
+    $configCandidate = $paths['config'] . DIRECTORY_SEPARATOR . 'app.php';
+    if (is_link($configCandidate)) {
+        throw new RuntimeException('Private application configuration must not be a symlink.');
+    }
+    $configReal = realpath($configCandidate);
+    if ($configReal === false || !is_file($configReal) || !is_readable($configReal)) {
         Response::redirect('/install')->send();
         exit;
     }
-    $configReal = realpath($configPath);
+    $putenvResult = putenv('TALYVANE_CONFIG=' . $configReal);
+    if (!$putenvResult) {
+        throw new RuntimeException('Private application configuration path could not be initialized.');
+    }
+    $_ENV['TALYVANE_CONFIG'] = $configReal;
     $publicReal = realpath($documentRoot);
     $applicationReal = realpath($root);
-    if ($configReal === false || $publicReal === false || $applicationReal === false ||
+    if ($publicReal === false || $applicationReal === false ||
         $configReal === $publicReal || str_starts_with($configReal,$publicReal . DIRECTORY_SEPARATOR) ||
         $applicationReal === $publicReal || str_starts_with($applicationReal,$publicReal . DIRECTORY_SEPARATOR) ||
         (fileperms($configReal) & 0077) !== 0) {
