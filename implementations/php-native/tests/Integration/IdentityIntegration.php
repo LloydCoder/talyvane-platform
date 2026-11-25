@@ -96,5 +96,20 @@ function runIdentityIntegration(PDO $pdo): int
     $assert((int) $pdo->query('SELECT COUNT(*) FROM super_admin_recovery WHERE singleton_id = 1')->fetchColumn() === 1,'Super Admin offline recovery record is stored once');
     $setupKey->consume();
     rmdir($installerDirectory);
+
+    $bootstrapAuth = new AuthenticationService($pdo,$limiter,$mfa);
+    $firstLogin = $bootstrapAuth->verifyPassword('native-bootstrap@example.test',$bootstrapSecrets['initial_password'],'admin','127.0.0.1');
+    $assert(($firstLogin['status'] ?? '') === 'first_login_required','new Super Admin must replace the one-time password');
+    $bootstrapAuth->beginFirstLoginPasswordChange($firstLogin);
+    $replacementPassword = str_repeat('P',24) . '!';
+    $passwords = new PasswordChangeService($pdo,$limiter,$audit);
+    $setupSecret = $bootstrapAuth->completeFirstLoginPasswordChange($passwords,$bootstrapSecrets['initial_password'],$replacementPassword,bin2hex(random_bytes(16)));
+    $setupDecision = $bootstrapAuth->verifyPassword('native-bootstrap@example.test',$replacementPassword,'admin','127.0.0.1');
+    $assert(($setupDecision['status'] ?? '') === 'mfa_setup_required','administrator cannot enter the control plane before MFA enrollment');
+    $setupCodes = $bootstrapAuth->completeAdminMfaSetup(Totp::codeAt($setupSecret,time()),bin2hex(random_bytes(16)));
+    $assert(count($setupCodes) === 10,'mandatory MFA setup returns one-time recovery codes');
+    $setupPrincipal = $bootstrapAuth->currentPrincipal();
+    $assert($setupPrincipal instanceof Principal && $setupPrincipal->mfaVerified && $setupPrincipal->hasRole('super_admin'),'new Super Admin session is established only after password replacement and MFA');
+    $bootstrapAuth->logout();
     return $assertions;
 }
