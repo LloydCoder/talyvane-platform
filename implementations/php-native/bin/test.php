@@ -204,6 +204,12 @@ mkdir($documentRoot, 0700, true);
 $privatePaths = PrivatePathResolver::resolve($documentRoot, $accountHome);
 $assert(is_dir($privatePaths['application']) && is_dir($privatePaths['logs']), 'cPanel private path resolver creates private application and log directories');
 $assert(!str_starts_with($privatePaths['application'], $privatePaths['document_root'] . DIRECTORY_SEPARATOR), 'private application directory is outside public document root');
+$configStore = new PrivateConfigStore($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',$privatePaths['document_root']);
+$configStore->create(['app_key'=>str_repeat('A',32),'database'=>['host'=>'127.0.0.1','database'=>'test']]);
+$loadedConfig = $configStore->load();
+$assert(($loadedConfig['database']['database'] ?? '') === 'test', 'private config is written and loaded outside the public root');
+try { $configStore->create(['app_key'=>str_repeat('B',32),'database'=>[]]); $assert(false, 'private config cannot be overwritten'); }
+catch (RuntimeException) { $assert(true, 'private config cannot be overwritten'); }
 $setupKey = new SetupKey($privatePaths['config'] . DIRECTORY_SEPARATOR . 'installer.key');
 $plainKey = $setupKey->create();
 $assert($setupKey->verify($plainKey), 'one-time installer key verifies from private file');
