@@ -81,12 +81,23 @@ final class EnquiryService
              VALUES (:id,:reference,:name,:email,:phone,:country,:destination,:city,:subject,:message,UTC_TIMESTAMP(),
               "new",NULL,:attribution,NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
         );
-        $insert->execute([
-            'id'=>$id,'reference'=>$reference,'name'=>$name,'email'=>$email,'phone'=>$phone === '' ? null : $phone,
-            'country'=>$country === '' ? null : $country,'destination'=>$destinationId === '' ? null : $destinationId,
-            'city'=>$city === '' ? null : $city,'subject'=>$subject,'message'=>$message,
-            'attribution'=>$attributionValue === null ? null : json_encode(['source'=>$attributionValue],JSON_THROW_ON_ERROR),
-        ]);
+        $this->pdo->beginTransaction();
+        try {
+            $insert->execute([
+                'id'=>$id,'reference'=>$reference,'name'=>$name,'email'=>$email,'phone'=>$phone === '' ? null : $phone,
+                'country'=>$country === '' ? null : $country,'destination'=>$destinationId === '' ? null : $destinationId,
+                'city'=>$city === '' ? null : $city,'subject'=>$subject,'message'=>$message,
+                'attribution'=>$attributionValue === null ? null : json_encode(['source'=>$attributionValue],JSON_THROW_ON_ERROR),
+            ]);
+            $this->audit->record(null,'crm.enquiry.created','enquiry',$id,'Public enquiry submission',null,
+                ['reference'=>$reference,'status'=>'new'],'enquiry-'.$requestId,'crm-enquiry-v1');
+            $this->pdo->commit();
+        } catch (\\Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
         return $reference;
     }
 
