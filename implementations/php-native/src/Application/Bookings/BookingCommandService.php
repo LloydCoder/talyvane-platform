@@ -99,8 +99,16 @@ final class BookingCommandService
         $this->pdo->beginTransaction();
         try {
             $query = $this->pdo->prepare(
-                'SELECT b.id,b.client_user_id,b.profile_id,b.status,b.starts_at_utc,b.ends_at_utc,p.user_id AS companion_user_id
+                'SELECT b.id,b.client_user_id,b.profile_id,b.status,b.booking_mode,b.quote_snapshot_id,b.deposit_status,b.starts_at_utc,b.ends_at_utc,
+                        p.user_id AS companion_user_id,p.status AS profile_status,p.adult_eligibility_status,p.adult_verified_at,
+                        p.publication_consent_version,p.publication_consent_withdrawn_at,
+                        d.country_code,d.time_zone,d.status AS destination_status,c.enabled AS country_enabled,
+                        m.enabled AS market_enabled,m.decision AS market_decision,m.reviewer_id AS market_reviewer_id,
+                        m.reviewed_at AS market_reviewed_at,m.expires_at AS market_expires_at,
+                        m.evidence_reference AS market_evidence,m.review_summary AS market_summary
                  FROM bookings b JOIN companion_profiles p ON p.id = b.profile_id
+                 JOIN destinations d ON d.id = p.destination_id JOIN countries c ON c.alpha2 = d.country_code
+                 LEFT JOIN market_policies m ON m.country_code = d.country_code
                  WHERE b.id = :id FOR UPDATE'
             );
             $query->execute(['id'=>$bookingId]);
@@ -109,6 +117,60 @@ final class BookingCommandService
                 throw new \DomainException('Only accepted or confirmed bookings can be rescheduled.');
             }
             $this->assertBookingOwnership($actor,$actorRole,$booking);
+            if ($booking['profile_status'] !== 'published' || $booking['adult_eligibility_status'] !== 'verified' ||
+                $booking['adult_verified_at'] === null || $booking['publication_consent_version'] === null ||
+                $booking['publication_consent_withdrawn_at'] !== null || $booking['destination_status'] !== 'published' ||
+                !(bool) $booking['country_enabled'] || $booking['market_decision'] === null) {
+                throw new \\DomainException('Profile safeguarding, consent or market eligibility no longer permits rescheduling.');
+            }
+            if ($actorRole === 'client' && $booking['booking_mode'] === 'automatic') {
+                throw new \\DomainException('Automatic bookings require administrator review before rescheduling.');
+            }
+            $market = new MarketPolicy(
+                (string) $booking['country_code'],
+                (bool) $booking['market_enabled'],
+                (string) $booking['market_decision'],
+                $booking['market_reviewer_id'] === null ? null : (string) $booking['market_reviewer_id'],
+                $booking['market_reviewed_at'] === null ? null : new DateTimeImmutable((string) $booking['market_reviewed_at'],$utc),
+                $booking['market_expires_at'] === null ? null : new DateTimeImmutable((string) $booking['market_expires_at'],$utc),
+                $booking['market_evidence'] === null ? null : (string) $booking['market_evidence'],
+                $booking['market_summary'] === null ? null : (string) $booking['market_summary']
+            );
+            if (!$market->operationalAt($now)) {
+                throw new \\DomainException('Market approval is no longer current; rescheduling is blocked.');
+            }
+            $marketReviewer = $this->pdo->prepare('SELECT 1 FROM user_roles ur JOIN admin_mfa_credentials mfa ON mfa.user_id = ur.user_id WHERE ur.user_id = :reviewer AND ur.role_key IN ("owner","admin","super_admin") AND mfa.enabled_at IS NOT NULL LIMIT 1');
+            $marketReviewer->execute(['reviewer'=>$market->reviewerId]);
+            if ($marketReviewer->fetchColumn() === false) {
+                throw new \\DomainException('Market approval is not backed by an MFA-protected compliance administrator.');
+            }
+            $consentQuery = $this->pdo->prepare('SELECT subject_id,purpose,audience,policy_version,granted,granted_at,withdrawn_at FROM consent_grants WHERE subject_type = "companion_profile" AND subject_id = :profile AND purpose = "profile.publication" AND audience = "public" ORDER BY granted_at DESC LIMIT 1 FOR UPDATE');
+            $consentQuery->execute(['profile'=>$booking['profile_id']]);
+            $consentRow = $consentQuery->fetch();
+            $consent = is_array($consentRow) ? new ConsentGrant(
+                (string) $consentRow['subject_id'],
+                (string) $consentRow['purpose'],
+                (string) $consentRow['audience'],
+                (string) $consentRow['policy_version'],
+                (bool) $consentRow['granted'],
+                new DateTimeImmutable((string) $consentRow['granted_at'],$utc),
+                $consentRow['withdrawn_at'] === null ? null : new DateTimeImmutable((string) $consentRow['withdrawn_at'],$utc)
+            ) : null;
+            if ($consent === null || !$consent->validFor((string) $booking['profile_id'],'profile.publication','public',(string) $booking['publication_consent_version'],$now)) {
+                throw new \\DomainException('Current publication consent is not valid for rescheduling.');
+            }
+            $oldDuration = (int) floor((strtotime((string) $booking['ends_at_utc'] . ' UTC') - strtotime((string) $booking['starts_at_utc'] . ' UTC')) / 60);
+            if ($duration !== $oldDuration) {
+                throw new \\DomainException('Changing booking duration requires a new quote and a separate booking request.');
+            }
+            if ($booking['quote_snapshot_id'] !== null) {
+                $quote = $this->pdo->prepare('SELECT expires_at,accepted_at FROM quote_snapshots WHERE id = :id FOR UPDATE');
+                $quote->execute(['id'=>$booking['quote_snapshot_id']]);
+                $quoteRow = $quote->fetch();
+                if (!is_array($quoteRow) || $quoteRow['accepted_at'] === null || new DateTimeImmutable((string) $quoteRow['expires_at'],$utc) <= $now) {
+                    throw new \\DomainException('Booking quote is no longer valid for rescheduling.');
+                }
+            }
             $overlap = $this->pdo->prepare(
                 'SELECT id FROM bookings WHERE profile_id = :profile AND id <> :booking
                  AND status IN ("requested","pending_review","awaiting_automatic_rule","accepted","confirmed")
