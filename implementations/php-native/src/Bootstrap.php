@@ -97,7 +97,7 @@ final class Bootstrap
         $discovery = new DiscoveryService($pdo);
         $publicDiscovery = new PublicDiscoveryController($discovery, $views);
         $contentManagement = new ContentManagementService($pdo, $audit);
-        $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
+        $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);\n        $adminAudit = new AdminAuditController($authentication, new AuditQueryService($pdo), $views, (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane'));
         $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
         $adminBrand = new AdminBrandController($authentication, $contentManagement, $views);
         $adminNavigation = new AdminNavigationController($pdo, $authentication, $contentManagement, $views);
@@ -166,7 +166,7 @@ final class Bootstrap
         $router->add('GET', '/admin/mfa/setup', static fn(Request $request): Response => $adminAuth->mfaSetupForm($request));
         $router->add('POST', '/admin/mfa/setup', static fn(Request $request): Response => $adminAuth->mfaSetup($request));
         $router->add('GET', '/admin/recovery-codes', static fn(Request $request): Response => $adminAuth->recoveryCodes($request));
-        $router->add('GET', '/admin', static fn(Request $request): Response => $adminAuth->dashboard($request));
+        $router->add('GET', '/admin', static fn(Request $request): Response => $adminAuth->dashboard($request));\n        $router->add('GET', '/admin/audit', static fn(Request $request): Response => $adminAudit->index($request));
         $router->add('POST', '/admin/logout', static fn(Request $request): Response => $adminAuth->logout($request));
         $router->add('GET', '/admin/brand', static fn(Request $request): Response => $adminBrand->show($request));
         $router->add('POST', '/admin/brand', static fn(Request $request): Response => $adminBrand->update($request));
