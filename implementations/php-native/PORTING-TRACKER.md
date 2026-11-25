@@ -14,6 +14,8 @@ A screen, route, database table, stub, or passing unit test alone does not estab
 
 ## 1. Runtime, installation and operations
 
+The native branch currently has an ordered PHP migration runner and initial core/globalization/discovery/booking/model-agency/safeguarding/payment/identity/CRM/branding schemas. These are schema foundations only; application workflows and integration acceptance remain open.
+
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
 | Single ZIP cPanel installation | CPANEL-INSTALLATION, SECURE-BROWSER-INSTALLER | NOT_STARTED | Fresh account install on cPanel/LiteSpeed, no SSH/Composer/npm/manual edits |
@@ -24,7 +26,7 @@ A screen, route, database table, stub, or passing unit test alone does not estab
 | Super Admin bootstrap | SUPER-ADMIN-RECOVERY | NOT_STARTED | Singleton, verified addresses, one-time credentials, offline recovery key |
 | Installer permanent lock | SECURE-BROWSER-INSTALLER | NOT_STARTED | Durable lock; malformed/missing state fails closed; cleanup not required for lock |
 | Private diagnostic logging | cPanel installer diagnostics | NOT_STARTED | Correlation ID, redaction, restrictive permissions, no public log endpoint |
-| Upgrade/migration process | DEPLOYMENT-OPERATIONS | NOT_STARTED | Forward-only migration, backup, compatibility and rollback evidence |
+| Upgrade/migration process | DEPLOYMENT-OPERATIONS | IN_PROGRESS | Forward-only migration, backup, compatibility and rollback evidence |
 | Backup/restore | DEPLOYMENT-OPERATIONS | NOT_STARTED | DB + private files restore drill on isolated environment |
 | Health checks and operations | ARCHITECTURE, DEPLOYMENT-OPERATIONS | NOT_STARTED | Safe diagnostics, SMTP, storage, scheduler and disk monitoring |
 | Scheduler without workers | ARCHITECTURE, HOSTING-COMPATIBILITY | NOT_STARTED | Cron optional; missing scheduler explicitly disables scheduled features |
@@ -39,12 +41,12 @@ A screen, route, database table, stub, or passing unit test alone does not estab
 | Client email verification | portal auth | NOT_STARTED | Expiring, single-use, rate-limited verification |
 | Companion provisioning/login | SECURITY-PRIVACY | NOT_STARTED | Trusted provisioning; no public companion self-registration unless approved |
 | Admin login/logout | admin routes | NOT_STARTED | Throttling, secure sessions and audit events |
-| Roles: Super Admin, Owner, Admin | SECURITY-PRIVACY | NOT_STARTED | Server-side least privilege and negative authorization tests |
-| Finance specialist isolation | SECURITY-PRIVACY | NOT_STARTED | Finance sees settlement workspace only |
-| Verifier specialist isolation | SECURITY-PRIVACY | NOT_STARTED | Minimal adult-eligibility queue only |
-| Safeguarding specialist isolation | SECURITY-PRIVACY | NOT_STARTED | Assigned-case access only |
-| MFA/TOTP and replay prevention | SECURITY-PRIVACY | NOT_STARTED | RFC-compatible TOTP, replay state, recovery codes single-use |
-| Session versioning/revocation | SUPER-ADMIN-RECOVERY | NOT_STARTED | Password/recovery/role changes invalidate prior sessions and pending MFA |
+| Roles: Super Admin, Owner, Admin | SECURITY-PRIVACY | IN_PROGRESS | Server-side least privilege and negative authorization tests |
+| Finance specialist isolation | SECURITY-PRIVACY | IN_PROGRESS | Finance sees settlement workspace only |
+| Verifier specialist isolation | SECURITY-PRIVACY | IN_PROGRESS | Minimal adult-eligibility queue only |
+| Safeguarding specialist isolation | SECURITY-PRIVACY | IN_PROGRESS | Assigned-case access only |
+| MFA/TOTP and replay prevention | SECURITY-PRIVACY | IN_PROGRESS | RFC-compatible TOTP, replay state, recovery codes single-use |
+| Session versioning/revocation | SUPER-ADMIN-RECOVERY | IN_PROGRESS | Password/recovery/role changes invalidate prior sessions and pending MFA |
 | First-login password replacement | Installer E2E | NOT_STARTED | One-time password expires and must be replaced |
 | Initial password recovery | Admin recovery routes | NOT_STARTED | Short-lived verified recovery and session invalidation |
 | Super Admin offline recovery | SUPER-ADMIN-RECOVERY | NOT_STARTED | Password + offline key, key rotation, notices, append-only audit |
@@ -80,14 +82,14 @@ A screen, route, database table, stub, or passing unit test alone does not estab
 | Weekly availability windows | Companion portal | NOT_STARTED | IANA/local schedule converted to UTC safely |
 | Overlap prevention | Booking domain | NOT_STARTED | Concurrent request integration tests |
 | Deposit verification gate | Booking admin | NOT_STARTED | Human attestation only; never misrepresented as chain verification |
-| Booking state machine | ARCHITECTURE | NOT_STARTED | Draft/requested/review/accepted/confirmed/completed and terminal states |
+| Booking state machine | ARCHITECTURE | IN_PROGRESS | Draft/requested/review/accepted/confirmed/completed and terminal states |
 | Quote snapshot/acceptance | TGLS, BOOKING | NOT_STARTED | Currency, market, policy and rate immutable on acceptance |
 | Cancellation/rescheduling | ROADMAP | NOT_STARTED | Planned Laravel scope; explicit lifecycle and notifications |
 | Calendar synchronization | ROADMAP | NOT_STARTED | Provider adapter, retries, idempotency and privacy |
 | Client portal | PRODUCT-REQUIREMENTS | NOT_STARTED | Account, history, favourites, receipts, payment status, support, privacy |
 | Client favourites | ClientFavoriteController | NOT_STARTED | Owner-scoped create/remove/list |
 | Membership records | ClientManagementController | NOT_STARTED | Agency assignment and client visibility |
-| Entitlement authorization | CLIENT-MEMBERSHIP | NOT_STARTED | Active/in-date membership + immutable grant checked on projection and delivery |
+| Entitlement authorization | CLIENT-MEMBERSHIP | IN_PROGRESS | Active/in-date membership + immutable grant checked on projection and delivery |
 | Members-only private gallery | CLIENT-MEMBERSHIP | NOT_STARTED | Consent, grant and membership all enforced server-side |
 | Companion portal | CompanionPortalController | NOT_STARTED | Own profile, booking decisions, consent and account controls |
 | Companion media/availability self-service | ROADMAP | NOT_STARTED | Planned workflows with review and safety preferences |
@@ -105,11 +107,11 @@ A screen, route, database table, stub, or passing unit test alone does not estab
 | Representation agreement register | Agreement controller | NOT_STARTED | External execution evidence; not a signature service |
 | Private portfolio media intake | PortfolioAsset controller | NOT_STARTED | Private storage, sanitization, consent and eligibility gates |
 | Portfolio review/consent withdrawal | PortfolioAsset controller | NOT_STARTED | Human review, withdrawal removes private image |
-| Purpose-bound image licence ledger | ImageLicence controller | NOT_STARTED | Asset/agreement/territory/channel/window and revocation |
+| Purpose-bound image licence ledger | ImageLicence controller | IN_PROGRESS | Asset/agreement/territory/channel/window and revocation |
 | Internal casting register | Casting controller | NOT_STARTED | Private briefs, active licence, human shortlist/selection |
-| Model assignment lifecycle | Assignment controller | NOT_STARTED | Selected submission only; offer/accept/confirm/start/complete/decline/cancel/dispute |
+| Model assignment lifecycle | Assignment controller | IN_PROGRESS | Selected submission only; offer/accept/confirm/start/complete/decline/cancel/dispute |
 | Compensation/expense snapshots | Assignment domain | NOT_STARTED | Immutable commission and cap snapshot |
-| Expense review and settlement ledger | Settlement controller | NOT_STARTED | Integer minor units, cap enforcement, maker-checker approval |
+| Expense review and settlement ledger | Settlement controller | IN_PROGRESS | Integer minor units, cap enforcement, maker-checker approval |
 | External payment/reversal/dispute evidence | Settlement controller | NOT_STARTED | Records attestations only; no transfer initiation/verification |
 | Client casting/assignment distribution | PRODUCT-REQUIREMENTS | NOT_STARTED | Planned, separate authorization and consent-aware delivery |
 | Model self-service | PRODUCT-REQUIREMENTS | NOT_STARTED | Planned application/portfolio/casting/assignment controls |
@@ -121,7 +123,7 @@ A screen, route, database table, stub, or passing unit test alone does not estab
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
 | Independent age/identity assurance boundary | SECURITY-PRIVACY | NOT_STARTED | No automated age inference; provider integration remains gated |
-| Versioned consent capture | PRODUCT-REQUIREMENTS | NOT_STARTED | Purpose/audience/item/version/time/actor evidence |
+| Versioned consent capture | PRODUCT-REQUIREMENTS | IN_PROGRESS | Purpose/audience/item/version/time/actor evidence |
 | Publication consent withdrawal | Companion portal | NOT_STARTED | Immediate unpublish and future-use block |
 | Private evidence vault | SAFEGUARDING-OPERATIONS | NOT_STARTED | Restricted paths, least privilege, encryption/key isolation |
 | Safeguarding case submission | SafeguardingCaseController | NOT_STARTED | Reporter cannot read after submission |
@@ -143,7 +145,7 @@ A screen, route, database table, stub, or passing unit test alone does not estab
 | Attribution/notes/reminders | PRODUCT-REQUIREMENTS | NOT_STARTED | Permissioned, auditable CRM data |
 | SMTP/provider adapters | ARCHITECTURE | NOT_STARTED | Authenticated TLS, retries and delivery logs |
 | Message templates/channels | PRODUCT-REQUIREMENTS | NOT_STARTED | Versioned templates and safe rendering |
-| Payment control centre | PaymentSettingsController | NOT_STARTED | Global/rail/purpose switches and eligibility |
+| Payment control centre | PaymentSettingsController | IN_PROGRESS | Global/rail/purpose switches and eligibility |
 | Manual payment methods | PRODUCT-REQUIREMENTS | NOT_STARTED | Immutable instructions and human reconciliation |
 | BTC/USDT/USDC network config | PAYMENTS | NOT_STARTED | Asset/network/token contract/destination validation |
 | Invoice/quote snapshots | TGLS, PAYMENTS | NOT_STARTED | Immutable terms, expiry, currency and payment instructions |
@@ -159,16 +161,16 @@ A screen, route, database table, stub, or passing unit test alone does not estab
 
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
-| ISO 3166-1 reference dataset | TGLS | NOT_STARTED | Versioned import; no finite hardcoded allowlist |
-| ISO 4217 reference dataset | TGLS | NOT_STARTED | Code/name/symbol/numeric/precision validation |
+| ISO 3166-1 reference dataset | TGLS | IN_PROGRESS | Versioned import; no finite hardcoded allowlist |
+| ISO 4217 reference dataset | TGLS | IN_PROGRESS | Code/name/symbol/numeric/precision validation |
 | Independent country/currency/locale/time-zone models | TGLS | NOT_STARTED | No conflated market setting |
 | Deployment base currency/locale/time zone | GlobalizationController | NOT_STARTED | Super Admin control and audit |
-| Market review/approval | COMPLIANCE-RELEASE-GATES | NOT_STARTED | Evidence-backed human review, expiry and fail-closed checks |
+| Market review/approval | COMPLIANCE-RELEASE-GATES | IN_PROGRESS | Evidence-backed human review, expiry and fail-closed checks |
 | Localized content and formatting | TGLS | NOT_STARTED | BCP 47, fallback and CLDR/ICU or deterministic formatting |
 | Market-specific price overrides | TGLS | NOT_STARTED | Explicit overrides and versioned policy |
 | Exchange-rate provider/snapshots | TGLS | NOT_STARTED | Freshness, source/time/expiry and decimal-safe conversion |
 | Tax configuration | TGLS | BLOCKED | Jurisdiction-specific legal/accounting approval |
-| Feature registry/control plane | Super Admin architecture | NOT_STARTED | Dependencies, blockers, status and server-side enforcement |
+| Feature registry/control plane | Super Admin architecture | IN_PROGRESS | Dependencies, blockers, status and server-side enforcement |
 | Secret catalog/rotation | SecretManagementController | NOT_STARTED | Allowlist, masked values, secret-store adapter |
 | Append-only audit log | ARCHITECTURE | NOT_STARTED | Actor/target/before-after/reason/request ID/policy version |
 | Reports/analytics | PRODUCT-REQUIREMENTS | NOT_STARTED | Role-scoped and privacy-aware |
@@ -176,6 +178,8 @@ A screen, route, database table, stub, or passing unit test alone does not estab
 | Localization and export controls | PRODUCT-REQUIREMENTS | NOT_STARTED | Locale-aware, permissioned and audited |
 
 ## 9. Non-functional and security verification
+
+Current verified scope: GitHub Actions syntax lint and dependency-free foundation tests have passed on PHP 8.3, 8.4 and 8.5 for commit `ea0af1aaadba4c2074b5e4a239b7fe24696a196e`. Subsequent changes require their own completed CI run before being treated as verified.
 
 - [ ] Applicable OWASP ASVS 5.0 requirements mapped to controls, automated tests and manual review.
 - [ ] OWASP Top 10:2025 threat model covering public site, identity, admin, bookings, media, safeguarding, payments, integrations, exports, installer, backups and upgrades.
