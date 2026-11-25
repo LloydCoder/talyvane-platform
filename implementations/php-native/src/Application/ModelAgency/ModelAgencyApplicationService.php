@@ -168,12 +168,15 @@ final class ModelAgencyApplicationService
             $to = ApplicationStateMachine::transition($from,$toStatus,$role);
             if ($to === 'accepted') {
                 $verification = $this->pdo->prepare(
-                    'SELECT id FROM model_applicant_verifications WHERE application_id = :application AND outcome = "verified"
-                     AND expires_at > UTC_TIMESTAMP() ORDER BY verified_at DESC LIMIT 1 FOR UPDATE'
+                    'SELECT outcome,expires_at FROM model_applicant_verifications
+                     WHERE application_id = :application ORDER BY verified_at DESC LIMIT 1 FOR UPDATE'
                 );
                 $verification->execute(['application'=>$applicationId]);
-                if ($verification->fetchColumn() === false) {
-                    throw new \DomainException('Application cannot be accepted without current independent adult-eligibility verification.');
+                $latestVerification = $verification->fetch();
+                if (!is_array($latestVerification) || $latestVerification['outcome'] !== 'verified' ||
+                    $latestVerification['expires_at'] === null ||
+                    new DateTimeImmutable((string) $latestVerification['expires_at'],new DateTimeZone('UTC')) <= new DateTimeImmutable('now',new DateTimeZone('UTC'))) {
+                    throw new \DomainException('Application cannot be accepted without a current, latest independent adult-eligibility verification decision.');
                 }
             }
             $update = $this->pdo->prepare('UPDATE model_talent_applications SET status = :status,updated_at = UTC_TIMESTAMP() WHERE id = :id AND status = :from_status');
