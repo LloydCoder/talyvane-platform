@@ -42,6 +42,7 @@ use Talyvane\Http\AdminCompanionController;
 use Talyvane\Http\AdminDestinationController;
 use Talyvane\Http\AdminMarketController;
 use Talyvane\Http\ClientFavoriteController;
+use Talyvane\Http\ClientPrivateGalleryController;
 use Talyvane\Http\CompanionMediaController;
 use Talyvane\Http\CompanionAvailabilityController;
 use Talyvane\Http\AdminAuthController;
@@ -169,6 +170,7 @@ final class Bootstrap
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery, $clientMemberships);
         $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName);
         $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
+        $clientPrivateGallery = new ClientPrivateGalleryController($authentication,$profileMedia,$views,$brandName);
         $adminClients = new AdminClientController($pdo,$authentication,$clientMemberships,$views,$brandName);
         $vaultConfig = $config['safeguarding']['vault'] ?? null;
         $caseKeyProvider = is_array($vaultConfig) && ($vaultConfig['enabled'] ?? false) === true
@@ -221,6 +223,8 @@ final class Bootstrap
         $router->add('POST', '/portal/logout', static fn(Request $request): Response => $portalAuth->logout($request));
         $router->add('GET', '/portal/bookings', static fn(Request $request): Response => $portalBookings->clientIndex($request));
         $router->add('GET', '/portal/favorites', static fn(Request $request): Response => $clientFavorites->index($request));
+        $router->add('GET', '/portal/gallery', static fn(Request $request): Response => $clientPrivateGallery->index($request));
+        $router->add('GET', '/portal/gallery/{id}', static fn(Request $request,array $params): Response => $clientPrivateGallery->show($request,$params));
         $router->add('POST', '/portal/favorites/{slug}', static fn(Request $request, array $params): Response => $clientFavorites->add($request, $params));
         $router->add('POST', '/portal/favorites/{slug}/remove', static fn(Request $request, array $params): Response => $clientFavorites->remove($request, $params));
         $router->add('GET', '/portal/bookings/new', static fn(Request $request): Response => $portalBookings->newForm($request));
