@@ -211,5 +211,27 @@ function runIdentityIntegration(PDO $pdo): int
     $autoState->execute(['id'=>$autoBookingId]);
     $automatic = $autoState->fetch();
     $assert(is_array($automatic) && $automatic['status'] === 'confirmed' && $automatic['booking_mode'] === 'automatic' && (bool) $automatic['companion_opt_in_snapshot'],'automatic confirmation requires enabled rules, companion opt-in and matching local availability');
+
+    $bookingCommands = new BookingCommandService($pdo,new BookingPolicyRepository($pdo),$audit);
+    $companionPrincipal = new Principal($companionId,['companion'],false);
+    $bookingCommands->transition($companionPrincipal,$manualBookingId,'accepted','Companion accepted the requested booking',bin2hex(random_bytes(16)));
+    $bookingCommands->transition($superAdmin,$manualBookingId,'confirmed','Administrator confirmed after deposit gate review',bin2hex(random_bytes(16)));
+    $bookingCommands->transition($clientPrincipal,$manualBookingId,'cancelled','Client requested cancellation after confirmation',bin2hex(random_bytes(16)));
+    $cancelledState = $pdo->prepare('SELECT status FROM bookings WHERE id = :id');
+    $cancelledState->execute(['id'=>$manualBookingId]);
+    $assert($cancelledState->fetchColumn() === 'cancelled','companion acceptance, administrator confirmation and client cancellation follow authorized transitions');
+
+    $pdo->prepare('UPDATE companion_profiles SET auto_booking_opt_in = 0 WHERE id = :id')->execute(['id'=>$profileId]);
+    $thirdStart = $localBookingStart->modify('+4 hours');
+    $thirdBookingId = $bookingService->request($clientPrincipal,$profileId,$thirdStart->setTimezone(new DateTimeZone('UTC')),$thirdStart->modify('+60 minutes')->setTimezone(new DateTimeZone('UTC')),null,null,bin2hex(random_bytes(16)));
+    $bookingCommands->transition($companionPrincipal,$thirdBookingId,'accepted','Companion accepted the reschedule test booking',bin2hex(random_bytes(16)));
+    $bookingCommands->transition($superAdmin,$thirdBookingId,'confirmed','Administrator confirmed the reschedule test booking',bin2hex(random_bytes(16)));
+    $newStart = $localBookingStart->modify('+6 hours');
+    $bookingCommands->reschedule($clientPrincipal,$thirdBookingId,$newStart->setTimezone(new DateTimeZone('UTC')),$newStart->modify('+60 minutes')->setTimezone(new DateTimeZone('UTC')),'Client requested a new available time',bin2hex(random_bytes(16)));
+    $rescheduled = $pdo->prepare('SELECT starts_at_utc,status FROM bookings WHERE id = :id');
+    $rescheduled->execute(['id'=>$thirdBookingId]);
+    $rescheduledRow = $rescheduled->fetch();
+    $assert(is_array($rescheduledRow) && $rescheduledRow['status'] === 'confirmed' && $rescheduledRow['starts_at_utc'] === $newStart->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),'client rescheduling preserves confirmed state and uses UTC storage');
+
     return $assertions;
 }
