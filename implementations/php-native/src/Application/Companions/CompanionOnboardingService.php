@@ -61,13 +61,13 @@ final class CompanionOnboardingService
         $this->pdo->beginTransaction();
         try {
             $destinationQuery = $this->pdo->prepare(
-                'SELECT d.country_code,d.status,mp.enabled,mp.decision,mp.reviewer_id,mp.reviewed_at,mp.expires_at,mp.evidence_reference,mp.review_summary
-                 FROM destinations d LEFT JOIN market_policies mp ON mp.country_code = d.country_code
+                'SELECT d.country_code,d.status,c.enabled AS country_enabled,mp.enabled,mp.decision,mp.reviewer_id,mp.reviewed_at,mp.expires_at,mp.evidence_reference,mp.review_summary
+                 FROM destinations d JOIN countries c ON c.alpha2 = d.country_code LEFT JOIN market_policies mp ON mp.country_code = d.country_code
                  WHERE d.id = :id FOR UPDATE'
             );
             $destinationQuery->execute(['id'=>$destinationId]);
             $destination = $destinationQuery->fetch();
-            if (!is_array($destination) || $destination['status'] !== 'published' || $destination['decision'] === null) {
+            if (!is_array($destination) || $destination['status'] !== 'published' || !(bool) $destination['country_enabled'] || $destination['decision'] === null) {
                 throw new \DomainException('Destination market has no recorded compliance approval.');
             }
             $market = new MarketPolicy(
