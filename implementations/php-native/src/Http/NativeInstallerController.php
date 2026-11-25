@@ -171,6 +171,7 @@ final class NativeInstallerController
             return $this->setupPage($request,$paths,$setupKey,'Confirm the dedicated database and authorized SMTP sender before continuing.',422);
         }
 
+        $failureStage = 'database';
         try {
             $appName = $this->requiredText($request,'app_name',2,120);
             $appUrl = $this->canonicalHttpsUrl($this->requiredText($request,'app_url',12,255),$request);
@@ -230,6 +231,7 @@ final class NativeInstallerController
             $pendingStore = $this->pendingState($paths,$setupKey);
             $pendingStore->write($pending);
 
+            $failureStage = 'smtp';
             try {
                 $mailer = $this->createMailer($mail);
                 $emailVerification = new EmailVerificationService(
@@ -253,7 +255,10 @@ final class NativeInstallerController
             return $this->setupPage($request,$paths,$setupKey,$error->getMessage(),422);
         } catch (Throwable $error) {
             $this->logFailure($error);
-            return $this->setupPage($request,$paths,$setupKey,'Database or SMTP setup failed. Verify the supplied connection details and retry.',503);
+            $message = $failureStage === 'smtp'
+                ? 'SMTP connection or verification-email delivery failed. Check the TLS mode, hostname, port and authentication settings.'
+                : 'Database connection, migration or private bootstrap-state preparation failed. Check database credentials, privileges and private-directory permissions.';
+            return $this->setupPage($request,$paths,$setupKey,$message,503);
         }
     }
 
