@@ -5,6 +5,7 @@ require dirname(__DIR__) . '/bootstrap.php';
 
 use Talyvane\Infrastructure\Database\ConnectionFactory;
 use Talyvane\Infrastructure\Database\MigrationRunner;
+use Talyvane\Infrastructure\Database\ReferenceDataImporter;
 
 $host = getenv('DB_HOST') ?: '127.0.0.1';
 $port = (int) (getenv('DB_PORT') ?: 3306);
@@ -22,6 +23,41 @@ $applied = $runner->migrate();
 if (count($applied) !== 18 || $runner->migrate() !== []) {
     throw new RuntimeException('Native PHP migrations failed or are not idempotent.');
 }
+$referenceImporter = new ReferenceDataImporter($pdo);
+$countryReferencePath = dirname(__DIR__) . '/database/reference-data/countries.json';
+$currencyReferencePath = dirname(__DIR__) . '/database/reference-data/currencies.json';
+$referenceImport = $referenceImporter->importIfNeeded($countryReferencePath,$currencyReferencePath);
+if ($referenceImport['countries'] !== 249 || $referenceImport['currencies'] !== 178) {
+    throw new RuntimeException('Native PHP ISO reference dataset counts do not match the pinned snapshot.');
+}
+$referenceRepeat = $referenceImporter->importIfNeeded($countryReferencePath,$currencyReferencePath);
+if ($referenceRepeat['imported'] !== false) {
+    throw new RuntimeException('Native PHP ISO reference import is not idempotent.');
+}
+$pdo->exec('UPDATE countries SET enabled=0 WHERE alpha2="NG"');
+$pdo->exec('UPDATE currencies SET enabled=0 WHERE code="NGN"');
+$tempReferenceDirectory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'talyvane-reference-' . bin2hex(random_bytes(6));
+mkdir($tempReferenceDirectory,0700,true);
+$countryDocument = json_decode((string) file_get_contents($countryReferencePath),true,64,JSON_THROW_ON_ERROR);
+$currencyDocument = json_decode((string) file_get_contents($currencyReferencePath),true,64,JSON_THROW_ON_ERROR);
+$countryDocument['metadata']['version'] = '2026-11-25.2';
+$currencyDocument['metadata']['version'] = '2026-11-25.2';
+$tempCountryPath = $tempReferenceDirectory . DIRECTORY_SEPARATOR . 'countries.json';
+$tempCurrencyPath = $tempReferenceDirectory . DIRECTORY_SEPARATOR . 'currencies.json';
+file_put_contents($tempCountryPath,json_encode($countryDocument,JSON_THROW_ON_ERROR));
+file_put_contents($tempCurrencyPath,json_encode($currencyDocument,JSON_THROW_ON_ERROR));
+$referenceRefresh = $referenceImporter->importIfNeeded($tempCountryPath,$tempCurrencyPath);
+$ngEnabled = $pdo->query('SELECT enabled FROM countries WHERE alpha2="NG"')->fetchColumn();
+$ngnEnabled = $pdo->query('SELECT enabled FROM currencies WHERE code="NGN"')->fetchColumn();
+if ($referenceRefresh['imported'] !== true || (int) $ngEnabled !== 0 || (int) $ngnEnabled !== 0) {
+    throw new RuntimeException('Reference dataset refresh did not preserve administrator enablement decisions.');
+}
+$pdo->exec('UPDATE countries SET enabled=1 WHERE alpha2="NG"');
+$pdo->exec('UPDATE currencies SET enabled=1 WHERE code="NGN"');
+unlink($tempCountryPath);
+unlink($tempCurrencyPath);
+rmdir($tempReferenceDirectory);
+
 require __DIR__ . '/../tests/Integration/IdentityIntegration.php';
 require __DIR__ . '/../tests/Integration/ModelAgencyIntegration.php';
 require __DIR__ . '/../tests/Integration/ContentManagementIntegration.php';
