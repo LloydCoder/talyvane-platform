@@ -59,24 +59,45 @@ final class PublicSiteController
 
         $metadata = json_decode((string) ($page['metadata_json'] ?? ''), true);
         $metadata = is_array($metadata) ? $metadata : [];
+        $brand = $this->publicBrand();
+        $seo = $brand['seo_defaults'];
         $publishedTitle = (string) $page['published_title'];
+        $metaTitle = is_string($metadata['meta_title'] ?? null) && $metadata['meta_title'] !== ''
+            ? $metadata['meta_title']
+            : $publishedTitle;
+        $titleSuffix = is_string($seo['title_suffix'] ?? null) ? $seo['title_suffix'] : '';
+        if ($titleSuffix !== '' && !str_ends_with($metaTitle, $titleSuffix)) {
+            $metaTitle .= $titleSuffix;
+        }
+        $metaDescription = is_string($metadata['meta_description'] ?? null) && $metadata['meta_description'] !== ''
+            ? $metadata['meta_description']
+            : (is_string($seo['description'] ?? null) ? $seo['description'] : $brand['tagline']);
+        $robots = in_array($seo['robots'] ?? 'index,follow', ['index,follow','noindex,nofollow'], true)
+            ? $seo['robots']
+            : 'index,follow';
         return Response::html($this->views->render('public/page', [
-            'brand' => $this->publicBrand(),
+            'brand' => $brand,
             'title' => $publishedTitle,
             'content' => (string) $page['published_content'],
-            'metaTitle' => is_string($metadata['meta_title'] ?? null) && $metadata['meta_title'] !== '' ? $metadata['meta_title'] : $publishedTitle,
-            'metaDescription' => is_string($metadata['meta_description'] ?? null) ? $metadata['meta_description'] : '',
+            'metaTitle' => $metaTitle,
+            'metaDescription' => $metaDescription,
+            'robots' => $robots,
         ]));
     }
 
-    /** @return array{brand_name:string,tagline:string} */
+    /** @return array{brand_name:string,tagline:string,seo_defaults:array<string,mixed>} */
     private function publicBrand(): array
     {
-        $row = $this->pdo->query('SELECT brand_name,tagline FROM brand_settings WHERE singleton_id = 1')->fetch();
+        $row = $this->pdo->query('SELECT brand_name,tagline,seo_defaults_json FROM brand_settings WHERE singleton_id = 1')->fetch();
         if (!is_array($row)) {
-            return ['brand_name'=>'Talyvane','tagline'=>''];
+            return ['brand_name'=>'Talyvane','tagline'=>'','seo_defaults'=>['robots'=>'index,follow']];
         }
-        return ['brand_name'=>(string) $row['brand_name'],'tagline'=>(string) ($row['tagline'] ?? '')];
+        $seo = json_decode((string) ($row['seo_defaults_json'] ?? ''), true);
+        return [
+            'brand_name'=>(string) $row['brand_name'],
+            'tagline'=>(string) ($row['tagline'] ?? ''),
+            'seo_defaults'=>is_array($seo) ? $seo : ['robots'=>'index,follow'],
+        ];
     }
 
     /** @param array<mixed> $value */
