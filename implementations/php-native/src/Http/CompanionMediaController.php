@@ -28,6 +28,8 @@ final class CompanionMediaController
         if ($notice==='') {
             if (($request->query['submitted'] ?? '')==='1') { $notice='Your image was submitted privately for human review.'; }
             elseif (($request->query['removed'] ?? '')==='1') { $notice='Your image was withdrawn and removed from private storage.'; }
+            elseif (($request->query['publication_withdrawn'] ?? '')==='1') { $notice='Publication consent was withdrawn. Your profile is unpublished and its public images have been removed.'; }
+            elseif (($request->query['publication_renewed'] ?? '')==='1') { $notice='New publication consent was recorded. Your profile is pending a fresh human publication review.'; }
         }
         try {
             return $this->page($actor,$error,$status,$notice);
@@ -86,6 +88,48 @@ final class CompanionMediaController
             return $this->index($request,$error->getMessage(),422);
         } catch (\Throwable) {
             return $this->index($request,'The image could not be removed securely. Please try again.',503);
+        }
+    }
+
+    public function withdrawPublicationConsent(Request $request): Response
+    {
+        SessionManager::start();
+        if (!Csrf::verify($this->field($request,'_csrf'))) {
+            return $this->index($request,'Your session expired. Refresh this page and try again.',419);
+        }
+        $actor=$this->companion();
+        if ($actor===null) { return Response::redirect('/portal/login'); }
+        try {
+            $profile=$this->media->profileForCompanion($actor);
+            if (!is_array($profile)) { return $this->index($request,'No companion profile is linked to this account.',403); }
+            $this->media->withdrawPublicationConsent($actor,(string) $profile['id'],$request->requestId);
+            return Response::redirect('/portal/companion/media?publication_withdrawn=1');
+        } catch (InvalidArgumentException|DomainException $error) {
+            return $this->index($request,$error->getMessage(),422);
+        } catch (\\Throwable) {
+            return $this->index($request,'Publication consent could not be withdrawn securely. Please retry.',503);
+        }
+    }
+
+    public function renewPublicationConsent(Request $request): Response
+    {
+        SessionManager::start();
+        if (!Csrf::verify($this->field($request,'_csrf'))) {
+            return $this->index($request,'Your session expired. Refresh this page and try again.',419);
+        }
+        $actor=$this->companion();
+        if ($actor===null) { return Response::redirect('/portal/login'); }
+        try {
+            $profile=$this->media->profileForCompanion($actor);
+            if (!is_array($profile)) { return $this->index($request,'No companion profile is linked to this account.',403); }
+            $this->media->renewPublicationConsent(
+                $actor,(string) $profile['id'],$this->field($request,'publication_consent_confirmed')==='1',$request->requestId
+            );
+            return Response::redirect('/portal/companion/media?publication_renewed=1');
+        } catch (InvalidArgumentException|DomainException $error) {
+            return $this->index($request,$error->getMessage(),422);
+        } catch (\\Throwable) {
+            return $this->index($request,'Publication consent could not be renewed securely. Please retry.',503);
         }
     }
 
