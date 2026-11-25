@@ -229,6 +229,19 @@ function runIdentityIntegration(PDO $pdo): int
     $availabilityId = substr($availabilityHex,0,8).'-'.substr($availabilityHex,8,4).'-'.substr($availabilityHex,12,4).'-'.substr($availabilityHex,16,4).'-'.substr($availabilityHex,20);
     $availabilityInsert = $pdo->prepare('INSERT INTO companion_availability (id,profile_id,weekday,local_start,local_end,time_zone,effective_from,effective_until,enabled,created_at) VALUES (:id,:profile,:weekday,"00:00:00","23:59:59","Europe/London",:date,NULL,1,UTC_TIMESTAMP())');
     $availabilityInsert->execute(['id'=>$availabilityId,'profile'=>$profileId,'weekday'=>(int) $localBookingStart->format('w'),'date'=>$localDate]);
+    $availabilityService = new \\Talyvane\\Application\\Companions\\CompanionAvailabilityService($pdo,$audit);
+    $companionPrincipal = new Principal($companionId,['companion'],false);
+    $weekday = ((int) $localBookingStart->format('w') + 1) % 7;
+    $availabilityRuleId = $availabilityService->save($companionPrincipal,$profileId,$weekday,'09:00','11:30',$localDate,null,bin2hex(random_bytes(16)));
+    $availabilityRows = $availabilityService->listForCompanion($companionPrincipal);
+    $savedAvailability = array_values(array_filter($availabilityRows,static fn(array $row): bool => $row['id'] === $availabilityRuleId));
+    $assert(count($savedAvailability) === 1 && $savedAvailability[0]['local_start'] === '09:00:00' && $savedAvailability[0]['time_zone'] === 'Europe/London',
+        'companion can create a weekly availability window using the profile destination time zone');
+    $availabilityService->delete($companionPrincipal,$profileId,$availabilityRuleId,bin2hex(random_bytes(16)));
+    $afterAvailabilityDelete = array_values(array_filter($availabilityService->listForCompanion($companionPrincipal),static fn(array $row): bool => $row['id'] === $availabilityRuleId));
+    $assert($afterAvailabilityDelete === [],'companion can remove only their own availability window');
+    try { $availabilityService->save(new Principal($registeredId,['client'],false),$profileId,$weekday,'12:00','13:00',$localDate,null,bin2hex(random_bytes(16))); $assert(false,'client cannot mutate companion availability'); }
+    catch (DomainException) { $assert(true,'client cannot mutate companion availability'); }
     $clientPrincipal = new Principal($registeredId,['client'],false);
     $bookingService = new BookingService($pdo,new BookingPolicyRepository($pdo),$audit);
     $manualBookingId = $bookingService->request($clientPrincipal,$profileId,$localBookingStart->setTimezone(new DateTimeZone('UTC')),$localBookingStart->modify('+60 minutes')->setTimezone(new DateTimeZone('UTC')),null,'Manual booking integration test',bin2hex(random_bytes(16)));
