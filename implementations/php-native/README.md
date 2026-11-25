@@ -13,6 +13,7 @@ Do not treat a green foundation test as proof of product parity, security certif
 The native HTTP kernel currently exposes:
 - Public homepage, CMS pages, privacy/terms aliases, contact/enquiry intake and public destination/profile discovery.
 - Separate client and companion registration, email verification/resend, portal login/logout, and email-code password recovery.
+- Client/companion self-service account-data export with role-scoped allowlists, JSON download, no-store response handling and explicit exclusion of password hashes, MFA/recovery secrets, safeguarding narratives, payment credentials and third-party contact details. This is an export slice, not the full verified erasure/correction/retention workflow.
 - Administrator sign-in, first-login password replacement, mandatory MFA setup/challenge, CMS, branding, navigation, enquiry inbox and companion profile publication review.
 - Separate client booking request/history/cancellation, companion booking decision workspace and MFA-admin booking operations. Booking requests use destination-local input times and store UTC; manual review is the safe default, while automatic confirmation remains opt-in and policy-gated.
 - Companion-owned weekly availability management with destination-derived IANA time zones, effective-date windows, overlap prevention, ownership checks and audit events.
