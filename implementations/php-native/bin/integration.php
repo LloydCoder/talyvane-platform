@@ -58,14 +58,16 @@ unlink($tempCountryPath);
 unlink($tempCurrencyPath);
 rmdir($tempReferenceDirectory);
 
+require __DIR__ . '/../tests/Integration/InstallerBootstrapIntegration.php';
 require __DIR__ . '/../tests/Integration/IdentityIntegration.php';
 require __DIR__ . '/../tests/Integration/ModelAgencyIntegration.php';
 require __DIR__ . '/../tests/Integration/ContentManagementIntegration.php';
 require __DIR__ . '/../tests/Integration/EnquiryIntegration.php';
 require __DIR__ . '/../tests/Integration/AuditQueryIntegration.php';
+$installerAssertions = runInstallerBootstrapIntegration($pdo);
 $identityAssertions = runIdentityIntegration($pdo);
 $modelAgencyAssertions = runModelAgencyIntegration($pdo);
 $contentAssertions = runContentManagementIntegration($pdo);
 $enquiryAssertions = runEnquiryIntegration($pdo);
 $auditAssertions = runAuditQueryIntegration($pdo);
-fwrite(STDOUT, sprintf("Native PHP MySQL integration: %d migrations, %d identity assertions, %d model-agency/privacy assertions and %d content-management assertions, %d enquiry/CRM assertions and %d audit-query assertions passed.\n", count($applied), $identityAssertions, $modelAgencyAssertions, $contentAssertions, $enquiryAssertions, $auditAssertions));
+fwrite(STDOUT, sprintf("Native PHP MySQL integration: %d migrations, %d installer-bootstrap assertions, %d identity assertions, %d model-agency/privacy assertions, %d content-management assertions, %d enquiry/CRM assertions and %d audit-query assertions passed.\n", count($applied), $installerAssertions, $identityAssertions, $modelAgencyAssertions, $contentAssertions, $enquiryAssertions, $auditAssertions));
