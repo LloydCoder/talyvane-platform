@@ -9,6 +9,7 @@ use PDO;
 use RuntimeException;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Clients\MembershipEntitlementService;
+use Talyvane\Application\Clients\MembershipEntitlementCatalog;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
 use Talyvane\Security\Authorization;
@@ -202,7 +203,7 @@ final class ProfileMediaService
                  FROM profile_media pm JOIN companion_profiles p ON p.id=pm.profile_id
                  WHERE pm.id=:id FOR UPDATE'
             );
-            $query->execute(['id'=>$mediaId]);
+            $query->execute(['id'=>$mediaId,'consent_version'=>$policyVersion,'statement_hash'=>$statementHash]);
             $media=$query->fetch();
             if (!is_array($media) || $media['review_status']!=='pending') {
                 throw new DomainException('This media item is not awaiting review.');
@@ -388,12 +389,14 @@ final class ProfileMediaService
     }
 
     /** Companion grants separate, versioned consent for one approved members-only image. */
-    public function grantMembersOnlyConsent(Principal $actor,string $profileId,string $mediaId,bool $confirmed,string $requestId): void
+    public function grantMembersOnlyConsent(Principal $actor,string $profileId,string $mediaId,bool $confirmed,string $agencyName,string $requestId): void
     {
         $this->assertCompanion($actor);
         if (!$confirmed) {
             throw new InvalidArgumentException('Explicit members-only gallery consent is required.');
         }
+        $statement=MembershipEntitlementCatalog::privateGalleryConsentStatement($agencyName);
+        $policyVersion=MembershipEntitlementCatalog::PRIVATE_GALLERY_POLICY_VERSION;
         if (!preg_match('/^[a-f0-9]{16,64}$/D',$requestId)) {
             throw new InvalidArgumentException('Request reference is invalid.');
         }
@@ -424,7 +427,6 @@ final class ProfileMediaService
             if ($row['members_only_consent_at']!==null && $row['members_only_consent_withdrawn_at']===null) {
                 throw new DomainException('Members-only consent is already active for this image.');
             }
-            $version='members-only-gallery-v1';
             $this->pdo->prepare(
                 'UPDATE profile_media SET members_only_consent_at=UTC_TIMESTAMP(),
                     members_only_consent_version=:version,members_only_consent_withdrawn_at=NULL,
@@ -436,7 +438,7 @@ final class ProfileMediaService
                 'private_gallery.consent.granted',$version,$requestId);
             $this->audit->record($actor->id,'profile.media.private_gallery.consent_granted','profile_media',$mediaId,
                 'Companion granted separate members-only image consent',
-                ['members_only_consent'=>'inactive'],['members_only_consent'=>'active','consent_version'=>$version],
+                ['members_only_consent'=>'inactive'],['members_only_consent'=>'active','consent_version'=>$policyVersion,'statement_sha256'=>hash('sha256',$statement)],
                 $requestId,'profile-media-governance-v1');
             $this->pdo->commit();
         } catch (\Throwable $error) {
@@ -446,7 +448,7 @@ final class ProfileMediaService
     }
 
     /** Withdrawal immediately revokes access and deletes the private image bytes. */
-    public function withdrawMembersOnlyConsent(Principal $actor,string $profileId,string $mediaId,string $requestId): void
+    public function withdrawMembersOnlyConsent(Principal $actor,string $profileId,string $mediaId,string $agencyName,string $requestId): void
     {
         $this->assertCompanion($actor);
         $this->pdo->beginTransaction();
@@ -454,7 +456,7 @@ final class ProfileMediaService
         try {
             $query=$this->pdo->prepare(
                 'SELECT pm.private_storage_key,pm.media_scope,pm.review_status,pm.members_only_consent_at,
-                        pm.members_only_consent_withdrawn_at,p.user_id
+                        pm.members_only_consent_version,pm.members_only_consent_withdrawn_at,p.user_id
                  FROM profile_media pm JOIN companion_profiles p ON p.id=pm.profile_id
                  WHERE pm.id=:media AND pm.profile_id=:profile FOR UPDATE'
             );
@@ -472,9 +474,9 @@ final class ProfileMediaService
                     withdrawn_at=UTC_TIMESTAMP(),withdrawn_by=:media_actor,updated_at=UTC_TIMESTAMP()
                  WHERE id=:media'
             )->execute(['consent_actor'=>$actor->id,'media_actor'=>$actor->id,'media'=>$mediaId]);
+            $withdrawalStatement='I withdraw my separate permission for '.$agencyName.' to display this image in its members-only gallery. Access must stop immediately and the stored image must be deleted.';
             $this->recordConsent($mediaId,$profileId,$actor,
-                'I withdraw my separate consent for this image to appear in the members-only gallery. Access must stop immediately and the stored image must be deleted.',
-                'private_gallery.consent.withdrawn','members-only-gallery-v1',$requestId);
+                $withdrawalStatement,'private_gallery.consent.withdrawn',(string)$row['members_only_consent_version'],$requestId);
             $this->audit->record($actor->id,'profile.media.private_gallery.consent_withdrawn','profile_media',$mediaId,
                 'Companion withdrew members-only image consent',
                 ['members_only_consent'=>'active','review_status'=>'approved'],
@@ -489,21 +491,27 @@ final class ProfileMediaService
     }
 
     /** @return list<array{id:string,profile_name:string,url:string,width:int,height:int}> */
-    public function privateGalleryForClient(Principal $actor): array
+    public function privateGalleryForClient(Principal $actor,string $agencyName): array
     {
         if (!$actor->hasRole('client') || count($actor->roles)!==1 ||
             $this->membershipEntitlements===null ||
             !$this->membershipEntitlements->has($actor->id,'media.private_gallery')) {
             throw new DomainException('An active client membership with the private-gallery entitlement is required.');
         }
+        $policyVersion=MembershipEntitlementCatalog::PRIVATE_GALLERY_POLICY_VERSION;
+        $statementHash=hash('sha256',MembershipEntitlementCatalog::privateGalleryConsentStatement($agencyName));
         $query=$this->pdo->prepare(
             'SELECT pm.id,pm.profile_id,pm.width,pm.height,pm.private_storage_key,pm.sha256,
                     pm.consent_grant_id,pm.consent_version,p.slug,p.display_name,p.publication_consent_version
              FROM profile_media pm JOIN companion_profiles p ON p.id=pm.profile_id
              WHERE pm.review_status="approved" AND pm.media_scope="members_only"
                AND pm.members_only_consent_at IS NOT NULL
-               AND pm.members_only_consent_version="members-only-gallery-v1"
+               AND pm.members_only_consent_version=:consent_version
                AND pm.members_only_consent_withdrawn_at IS NULL
+               AND EXISTS (SELECT 1 FROM profile_media_consent_events pce
+                   WHERE pce.profile_media_id=pm.id AND pce.action="private_gallery.consent.granted"
+                     AND pce.consent_policy_version=pm.members_only_consent_version
+                     AND pce.statement_sha256=:statement_hash)
                AND pm.uploaded_by IS NOT NULL AND pm.rights_confirmed_at IS NOT NULL
                AND pm.reviewed_by IS NOT NULL AND pm.reviewed_at IS NOT NULL
                AND pm.reviewer_adult_safety_confirmed_at IS NOT NULL
@@ -511,7 +519,7 @@ final class ProfileMediaService
                AND pm.consent_version=p.publication_consent_version
              ORDER BY pm.created_at DESC LIMIT 100'
         );
-        $query->execute();
+        $query->execute(['consent_version'=>$policyVersion,'statement_hash'=>$statementHash]);
         $items=[];
         foreach ($query->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $profile=$this->discovery->profile((string)$row['slug']);
@@ -527,11 +535,13 @@ final class ProfileMediaService
         return $items;
     }
 
-    public function privateMediaForClient(Principal $actor,string $mediaId): array
+    public function privateMediaForClient(Principal $actor,string $mediaId,string $agencyName): array
     {
         if (!$actor->hasRole('client') || count($actor->roles)!==1 || $this->membershipEntitlements===null) {
             throw new DomainException('An active client membership with the private-gallery entitlement is required.');
         }
+        $policyVersion=MembershipEntitlementCatalog::PRIVATE_GALLERY_POLICY_VERSION;
+        $statementHash=hash('sha256',MembershipEntitlementCatalog::privateGalleryConsentStatement($agencyName));
         $this->pdo->beginTransaction();
         try {
             $entitlementLock=$this->pdo->prepare(
@@ -554,8 +564,12 @@ final class ProfileMediaService
                  FROM profile_media pm JOIN companion_profiles p ON p.id=pm.profile_id
                  WHERE pm.id=:id AND pm.review_status="approved" AND pm.media_scope="members_only"
                    AND pm.members_only_consent_at IS NOT NULL
-                   AND pm.members_only_consent_version="members-only-gallery-v1"
+                   AND pm.members_only_consent_version=:consent_version
                    AND pm.members_only_consent_withdrawn_at IS NULL
+                   AND EXISTS (SELECT 1 FROM profile_media_consent_events pce
+                       WHERE pce.profile_media_id=pm.id AND pce.action="private_gallery.consent.granted"
+                         AND pce.consent_policy_version=pm.members_only_consent_version
+                         AND pce.statement_sha256=:statement_hash)
                    AND pm.uploaded_by IS NOT NULL AND pm.rights_confirmed_at IS NOT NULL
                    AND pm.reviewed_by IS NOT NULL AND pm.reviewed_at IS NOT NULL
                    AND pm.reviewer_adult_safety_confirmed_at IS NOT NULL
