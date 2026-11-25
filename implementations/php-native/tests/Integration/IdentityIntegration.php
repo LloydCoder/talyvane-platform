@@ -213,6 +213,8 @@ function runIdentityIntegration(PDO $pdo): int
     $publicProfile = $discovery->profile($publicSlug);
     $assert(count($publicDestinations) === 1 && $publicDestinations[0]['slug'] === 'london','public discovery lists only destinations in currently approved markets');
     $assert(count($publicProfiles) === 1 && is_array($publicProfile),'public discovery exposes independently verified and consented profiles');
+    $assert(is_array($publicProfile) && $publicProfile['time_zone'] === 'Europe/London',
+        'public profile projection includes the destination IANA time zone without undefined-field warnings');
     $assert(is_array($publicProfile) && !array_key_exists('user_id',$publicProfile) && !array_key_exists('verification_reference_hash',$publicProfile),'public profile projection excludes account identifiers and verification evidence');
     $pdo->prepare('UPDATE consent_grants SET withdrawn_at = UTC_TIMESTAMP() WHERE subject_type = "companion_profile" AND subject_id = :profile AND purpose = "profile.publication" AND audience = "public"')->execute(['profile'=>$profileId]);
     $assert($discovery->profile($publicSlug) === null,'public profile immediately disappears when publication consent is withdrawn');
