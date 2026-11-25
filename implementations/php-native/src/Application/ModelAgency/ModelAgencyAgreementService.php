@@ -97,7 +97,7 @@ final class ModelAgencyAgreementService
                 $verification = $this->pdo->prepare('SELECT id FROM model_applicant_verifications WHERE application_id = :application AND outcome = "verified" AND expires_at > UTC_TIMESTAMP() ORDER BY verified_at DESC LIMIT 1 FOR UPDATE');
                 $verification->execute(['application'=>$agreement['application_id']]);
                 if ($verification->fetchColumn() === false) {
-                    throw new \\DomainException('A current independent adult-eligibility verification is required at agreement execution time.');
+                    throw new \DomainException('A current independent adult-eligibility verification is required at agreement execution time.');
                 }
             }
             $updates = [
