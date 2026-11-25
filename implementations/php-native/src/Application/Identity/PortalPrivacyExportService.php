@@ -61,9 +61,16 @@ final class PortalPrivacyExportService
                  FROM memberships m WHERE m.client_user_id=:actor ORDER BY m.created_at ASC'
             );
             $memberships->execute(['actor'=>$actor->id]);
+            $entitlements=$this->pdo->prepare(
+                'SELECT m.plan_key,g.entitlement_key,g.active,g.starts_at,g.ends_at,g.created_at
+                 FROM memberships m JOIN membership_grants g ON g.membership_id=m.id
+                 WHERE m.client_user_id=:actor ORDER BY g.created_at ASC'
+            );
+            $entitlements->execute(['actor'=>$actor->id]);
             $export['bookings']=$bookings->fetchAll(PDO::FETCH_ASSOC);
             $export['favorites']=$favorites->fetchAll(PDO::FETCH_ASSOC);
             $export['memberships']=$memberships->fetchAll(PDO::FETCH_ASSOC);
+            $export['membership_entitlements']=$entitlements->fetchAll(PDO::FETCH_ASSOC);
         } else {
             $profile=$this->pdo->prepare(
                 'SELECT p.slug,p.display_name,p.biography,p.languages_json,p.experience_category,p.status,
