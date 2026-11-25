@@ -26,6 +26,7 @@ final class DestinationManagementService
             'SELECT d.id,d.slug,d.country_code,c.name AS country_name,c.enabled AS country_enabled,
                     d.city_name,d.display_name,d.currency_code,cur.name AS currency_name,
                     cur.enabled AS currency_enabled,d.locale,d.time_zone,d.status,
+                    CASE WHEN d.cover_media_key IS NULL THEN 0 ELSE 1 END AS has_cover,
                     m.enabled AS market_enabled,m.decision AS market_decision,m.expires_at AS market_expires_at
              FROM destinations d
              JOIN countries c ON c.alpha2 = d.country_code
