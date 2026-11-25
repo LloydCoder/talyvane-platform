@@ -4,17 +4,19 @@ declare(strict_types=1);
 namespace Talyvane\Application\Identity;
 
 use PDO;
+use Talyvane\\Infrastructure\\Audit\\AuditLogger;
 use Talyvane\Security\Authorization;
 use Talyvane\Security\Principal;
 
 /** Allowlisted, principal-scoped privacy export; excludes credentials and third-party contact data. */
 final class PortalPrivacyExportService
 {
-    public function __construct(private PDO $pdo) {}
+    public function __construct(private PDO $pdo,private AuditLogger $audit) {}
 
     /** @return array<string,mixed> */
-    public function export(Principal $actor): array
+    public function export(Principal $actor,string $requestId): array
     {
+        if (strlen($requestId)<16 || strlen($requestId)>190) throw new \\InvalidArgumentException('Privacy export request reference is invalid.');
         $isClient=$actor->hasRole('client') && count($actor->roles)===1;
         $isCompanion=$actor->hasRole('companion') && count($actor->roles)===1;
         if (!$isClient && !$isCompanion) throw new \DomainException('A client or companion portal account is required.');
@@ -107,6 +109,10 @@ final class PortalPrivacyExportService
             $consents->execute(['actor'=>$actor->id]);
             $export['consents']=$consents->fetchAll(PDO::FETCH_ASSOC);
         }
+        $this->audit->record($actor->id,'portal.privacy.exported','user',$actor->id,
+            'Account holder downloaded their own allowlisted privacy export.',null,
+            ['account_type'=>$isClient?'client':'companion','schema'=>$export['schema']],
+            $requestId,'portal-privacy-export-v1');
         return $export;
     }
 }
