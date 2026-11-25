@@ -291,8 +291,8 @@ function runIdentityIntegration(PDO $pdo): int
     $coverPublic=$coverRoot.DIRECTORY_SEPARATOR.'public';
     $coverPrivate=$coverRoot.DIRECTORY_SEPARATOR.'private';
     mkdir($coverPublic,0755,true);
-    $coverStorage=new \\Talyvane\\Infrastructure\\Storage\\PrivateMediaStorage($coverPrivate,$coverPublic);
-    $coverService=new \\Talyvane\\Application\\Destinations\\DestinationCoverService($pdo,$coverStorage,$audit);
+    $coverStorage=new \Talyvane\Infrastructure\Storage\PrivateMediaStorage($coverPrivate,$coverPublic);
+    $coverService=new \Talyvane\Application\Destinations\DestinationCoverService($pdo,$coverStorage,$audit);
     $assert($coverService->pending($principal)===[],'destination cover review queue starts empty');
     $coverDenied=false;
     try { $coverService->pending($clientPrincipal); } catch (DomainException) { $coverDenied=true; }
@@ -317,8 +317,8 @@ function runIdentityIntegration(PDO $pdo): int
     )->execute([
         'id'=>$coverAssetId,'destination'=>$newDestinationId,'uploader'=>$clientId,'key'=>$coverKey,
         'size'=>filesize($coverPath),'hash'=>$coverHash,
-        'version'=>\\Talyvane\\Application\\Destinations\\DestinationCoverService::RIGHTS_VERSION,
-        'statement_hash'=>hash('sha256',\\Talyvane\\Application\\Destinations\\DestinationCoverService::RIGHTS_STATEMENT),
+        'version'=>\Talyvane\Application\Destinations\DestinationCoverService::RIGHTS_VERSION,
+        'statement_hash'=>hash('sha256',\Talyvane\Application\Destinations\DestinationCoverService::RIGHTS_STATEMENT),
     ]);
     $coverSelfApprovalDenied=false;
     try { $coverService->review(new Principal($clientId,['owner'],true),$coverAssetId,'approved','Review attempt from uploader account',bin2hex(random_bytes(16))); }
@@ -330,7 +330,7 @@ function runIdentityIntegration(PDO $pdo): int
     $coverState->execute(['id'=>$newDestinationId]);
     $coverMetadata=$coverState->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($coverMetadata) && $coverMetadata['cover_media_key']===$coverKey &&
-        $coverMetadata['rights_declaration_version']===\\Talyvane\\Application\\Destinations\\DestinationCoverService::RIGHTS_VERSION,
+        $coverMetadata['rights_declaration_version']===\Talyvane\Application\Destinations\DestinationCoverService::RIGHTS_VERSION,
         'independent approval binds the exact rights-attested private asset to the destination');
     $assert(is_array($approvedCover) && $approvedCover['mime']==='image/webp' &&
         hash_equals($coverHash,hash('sha256',$approvedCover['bytes'])),
