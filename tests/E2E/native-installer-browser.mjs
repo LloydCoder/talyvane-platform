@@ -169,7 +169,7 @@ try {
   );
   const initialPassword = credentialBlocks.find((item) => item.label.includes('Initial Super Admin password'))?.value ?? '';
   const offlineRecoveryKey = credentialBlocks.find((item) => item.label.includes('Offline Super Admin recovery key'))?.value ?? '';
-  assert.ok(initialPassword.length >= 32 && offlineRecoveryKey.length === 43, 'Both generated credentials must be shown exactly once in the browser.');
+  assert.ok(initialPassword.length >= 32 && offlineRecoveryKey.length === 43, `Credential handoff shape mismatch (password length ${initialPassword.length}, recovery-key length ${offlineRecoveryKey.length}, labels ${JSON.stringify(credentialBlocks.map((item) => item.label))}).`);
   assert.equal(await page.locator('body').innerText().then((text) => text.includes('cPanel Terminal')), false, 'Installation must not require terminal access.');
   assert.equal((await page.evaluate(() => document.querySelector('meta[name="robots"]')?.content)), 'noindex,nofollow');
   assert.match(await page.evaluate(() => document.querySelector('meta[charset]')?.outerHTML ?? ''), /charset/i);
