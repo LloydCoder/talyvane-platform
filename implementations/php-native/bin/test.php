@@ -31,6 +31,8 @@ use Talyvane\Security\SecretBox;
 use Talyvane\Security\Principal;
 use Talyvane\Security\Totp;
 use Talyvane\Infrastructure\Logging\StructuredLogger;
+use Talyvane\Infrastructure\Logging\PrivateErrorLogger;
+use Talyvane\Infrastructure\Database\MigrationRunner;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
 use Talyvane\Infrastructure\Mail\SmtpMailer;
 use Talyvane\Installer\PrivatePathResolver;
@@ -64,6 +66,19 @@ $router->add('GET', '/health/{component}', static fn(Request $r, array $p): Resp
 $response = $router->dispatch(new Request('GET', '/health/database'));
 $assert($response->status === 200 && $response->body === '{"component":"database"}', 'router extracts named path parameters');
 $assert($router->dispatch(new Request('GET', '/missing'))->status === 404, 'router returns 404 for unknown routes');
+$router->add('GET','/portal/membership',static fn(Request $r,array $p): Response => Response::html('private membership'));
+$router->add('GET','/public-page',static fn(Request $r,array $p): Response => Response::html('public page'));
+$privateResponse=$router->dispatch(new Request('GET','/portal/membership'));
+$assert(str_contains($privateResponse->headers['cache-control']??'','no-store') &&
+    ($privateResponse->headers['pragma']??'')==='no-cache',
+    'client and companion portal responses are explicitly non-cacheable');
+$publicResponse=$router->dispatch(new Request('GET','/public-page'));
+$assert(!isset($publicResponse->headers['cache-control']),
+    'public HTML responses retain their independently configurable cache policy');
+$uploadRequest = new Request('POST','/upload',[],[],[],'127.0.0.1','upload-request',[
+    'media'=>['name'=>'portrait.webp','tmp_name'=>'/tmp/php-upload','error'=>UPLOAD_ERR_OK,'size'=>128,'type'=>'image/webp'],
+]);
+$assert(($uploadRequest->files['media']['name'] ?? '') === 'portrait.webp', 'native request abstraction preserves uploaded file metadata separately from form fields');
 
 $viewRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'talyvane-views-' . bin2hex(random_bytes(6));
 mkdir($viewRoot . DIRECTORY_SEPARATOR . 'pages', 0700, true);
@@ -138,6 +153,34 @@ $portalDashboardMarkup = $authViews->render('auth/portal', [
 ]);
 $assert(str_contains($portalDashboardMarkup, 'Companion workspace'), 'companion portal is visibly separated from the client portal');
 $assert(str_contains($portalDashboardMarkup, 'action="/portal/logout"'), 'portal dashboard exposes CSRF-protected sign-out');
+$assert(str_contains($portalDashboardMarkup,'href="/portal/security"'),'client and companion dashboards expose account security');
+$clientMembershipMarkup = $authViews->render('auth/portal', [
+    'screen'=>'dashboard',
+    'csrf'=>'portal-client-membership-csrf',
+    'accountType'=>'client',
+    'membership'=>[
+        'tier_name'=>'<script>alert(1)</script>',
+        'plan_key'=>'gold',
+        'benefits_summary'=>'Verified member benefit summary',
+        'starts_at'=>'2026-11-25 00:00:00',
+        'ends_at'=>'2026-12-25 00:00:00',
+        'entitlements'=>['media.private_gallery'],
+    ],
+]);
+$assert(str_contains($clientMembershipMarkup,'Your membership') &&
+    str_contains($clientMembershipMarkup,'media.private_gallery') &&
+    str_contains($clientMembershipMarkup,'&lt;script&gt;alert(1)&lt;/script&gt;'),
+    'client dashboard renders a safe membership summary and only the effective entitlement keys');
+$assert(!str_contains($clientMembershipMarkup,'<script>alert(1)</script>'),
+    'membership summary fields are HTML-escaped');
+$portalSecurityMarkup = $authViews->render('auth/portal-security',[
+    'brandName'=>'Maison Example','csrf'=>'portal-security-csrf','error'=>'','notice'=>'',
+]);
+$assert(str_contains($portalSecurityMarkup,'action="/portal/security"') &&
+    str_contains($portalSecurityMarkup,'name="current_password"') &&
+    str_contains($portalSecurityMarkup,'name="new_password"') &&
+    str_contains($portalSecurityMarkup,'name="confirm_password"'),
+    'portal security screen requires current password and confirmed new password');
 
 $setupMarkup = $authViews->render('auth/screen', [
     'screen'=>'mfa_setup',
@@ -294,8 +337,15 @@ $discoveryMarkup = $authViews->render('public/discovery', [
     'destination'=>['slug'=>'london','display_name'=>'London'],
     'profiles'=>[['slug'=>'talent-one','display_name'=>'<script>alert(1)</script>','experience_category'=>'Representation']],
 ]);
-$assert(str_contains($discoveryMarkup, 'href="/profiles/talent-one"'), 'public discovery links to published profiles');
+$assert(str_contains($discoveryMarkup, 'href="/companions/talent-one"'), 'public discovery links to published profiles');
 $assert(!str_contains($discoveryMarkup, '<script>alert(1)</script>'), 'public discovery escapes profile data');
+$companionsMarkup = $authViews->render('public/discovery', [
+    'mode'=>'companions','brandName'=>'Maison Example',
+    'profiles'=>[['slug'=>'talent-one','display_name'=>'<script>alert(1)</script>','destination_name'=>'London','experience_category'=>'Representation','primary_media_url'=>null]],
+]);
+$assert(str_contains($companionsMarkup,'Explore companions') && str_contains($companionsMarkup,'href="/companions/talent-one"') &&
+    !str_contains($companionsMarkup,'<script>alert(1)</script>'),
+    'global companion directory uses canonical companion routes and escapes profile content');
 $adminCompanionMarkup = $authViews->render('admin/companions', [
     'brandName'=>'Maison Example',
     'csrf'=>'companion-review-csrf',
@@ -435,6 +485,12 @@ catch (InvalidArgumentException) { $assert(true,'SMTP encryption downgrade is re
 $redacted = StructuredLogger::redact(['smtpPassword'=>'do-not-log','nested'=>['api_key'=>'do-not-log-either','status'=>'failed']]);
 $assert($redacted['smtpPassword'] === '[REDACTED]' && $redacted['nested']['api_key'] === '[REDACTED]', 'structured logger redacts nested secrets');
 $assert($redacted['nested']['status'] === 'failed', 'structured logger preserves non-sensitive diagnostics');
+$triggerRestriction = new PDOException('Sensitive database error message');
+$triggerRestriction->errorInfo = ['HY000',1419,'Do not expose this server diagnostic'];
+$assert(MigrationRunner::isSharedHostingTriggerRestriction($triggerRestriction,'CREATE TRIGGER audit_guard BEFORE UPDATE ON audit_events FOR EACH ROW SIGNAL SQLSTATE \'45000\''),
+    'migration runner recognizes only MySQL 1419 restrictions on trigger creation as a shared-hosting capability gap');
+$assert(!MigrationRunner::isSharedHostingTriggerRestriction($triggerRestriction,'UPDATE audit_events SET event_key = \'changed\''),
+    'migration runner never suppresses ordinary database failures as optional trigger capability');
 
 $box = new SecretBox(str_repeat('k', 32));
 $encrypted = $box->encrypt('sensitive-provider-secret', 'provider:payments');
@@ -562,6 +618,9 @@ $setupKey->consume();
 $assert(!$setupKey->verify($plainKey), 'installer key is consumed after lock');
 $preflight = EnvironmentPreflight::inspect($accountHome);
 $assert($preflight['checks']['private_writable']['ok'], 'installer preflight checks the supplied account home');
+$assert(isset($preflight['checks']['uploads_enabled'],$preflight['checks']['upload_size'],$preflight['checks']['post_size']) &&
+    isset($preflight['checks']['memory_limit']),
+    'installer preflight reports file upload, request-body and image-memory requirements');
 if (class_exists(ZipArchive::class)) {
     $safeArchivePath = $tempRoot . DIRECTORY_SEPARATOR . 'safe.zip';
     $safeArchive = new ZipArchive();
@@ -635,6 +694,14 @@ $assert(str_contains($anonymousProfileMarkup, 'Client sign-in to save'), 'anonym
 $errorLogPath = $privatePaths['logs'] . DIRECTORY_SEPARATOR . 'application-error.log';
 $errorLogContents = is_file($errorLogPath) ? (string) file_get_contents($errorLogPath) : '';
 $assert($errorLogContents !== '' && str_contains($errorLogContents,'RuntimeException') && str_contains($errorLogContents,'a1b2c3d4e5f60718'), 'private runtime error log records exception class and correlation reference');
+$pdoDiagnostic = new PDOException('Sensitive SQL message must not be logged');
+$pdoDiagnostic->errorInfo = ['HY000',1142,'Access denied for this operation'];
+\Talyvane\Infrastructure\Logging\PrivateErrorLogger::record($pdoDiagnostic,$privatePaths['logs'],$privatePaths['document_root'],'a1b2c3d4e5f60719');
+$errorLogContents = (string) file_get_contents($errorLogPath);
+$assert(str_contains($errorLogContents,'"sql_state":"HY000"') && str_contains($errorLogContents,'"driver_code":1142'),
+    'private runtime error log records safe PDO SQLSTATE and native driver code');
+$assert(!str_contains($errorLogContents,'Sensitive SQL message') && !str_contains($errorLogContents,'Access denied'),
+    'private runtime error log excludes PDO exception messages');
 $assert(!str_contains($errorLogContents,'DB_PASSWORD') && !str_contains($errorLogContents,'do-not-log-secret'), 'private runtime error log never records exception messages or secrets');
 $errorLogMode = is_file($errorLogPath) ? (fileperms($errorLogPath) & 0777) : 0;
 $assert($errorLogMode === 0600, 'private runtime error log is restricted to owner read/write permissions');
@@ -663,6 +730,85 @@ $marketMarkup = $authViews->render('admin/markets',[
 ]);
 $assert(str_contains($marketMarkup,'&lt;script&gt;alert(1)&lt;/script&gt;') && !str_contains($marketMarkup,'<script>alert(1)</script>'), 'market compliance workspace escapes country reference data');
 $assert(str_contains($marketMarkup,'/admin/markets/GB/review') && str_contains($marketMarkup,'csrf-market-token'), 'market review form is country-scoped and CSRF protected');
+
+$companionMediaMarkup = $authViews->render('portal/media',[
+    'brandName'=>'Talyvane','csrf'=>'media-csrf','error'=>'','notice'=>'',
+    'profile'=>['id'=>'profile-1','slug'=>'talent','display_name'=>'<script>profile</script>','status'=>'published','destination_name'=>'London'],
+    'items'=>[['id'=>'media-1','width'=>320,'height'=>320,'created_at'=>'2026-11-25','review_status'=>'pending','media_scope'=>'private']],
+]);
+$assert(str_contains($companionMediaMarkup,'enctype="multipart/form-data"') &&
+    str_contains($companionMediaMarkup,'name="rights_confirmed"') &&
+    str_contains($companionMediaMarkup,'name="depicted_adults_confirmed"') &&
+    str_contains($companionMediaMarkup,'name="publication_confirmed"') &&
+    str_contains($companionMediaMarkup,'/portal/companion/publication/withdraw') &&
+    str_contains($companionMediaMarkup,'&lt;script&gt;profile&lt;/script&gt;'),
+    'companion media workspace requires separate rights/publication attestations and escapes profile data');
+$unpublishedMediaMarkup = $authViews->render('portal/media',[
+    'brandName'=>'Talyvane','csrf'=>'media-csrf','error'=>'','notice'=>'',
+    'profile'=>['id'=>'profile-1','slug'=>'talent','display_name'=>'Talent Example','status'=>'unpublished','destination_name'=>'London'],
+    'items'=>[],
+]);
+$assert(str_contains($unpublishedMediaMarkup,'/portal/companion/publication/renew') &&
+    str_contains($unpublishedMediaMarkup,'name="publication_consent_confirmed"'),
+    'unpublished companion can grant a new versioned publication consent only through explicit confirmation');
+$adminClientsMarkup = $authViews->render('admin/clients',[
+    'brandName'=>'Maison Example','csrf'=>'admin-clients-csrf','error'=>'',
+    'notice'=>'Membership suspension saved.',
+    'clients'=>[[
+        'id'=>'client-1','email'=>'client@example.test','email_verified_at'=>'2026-11-25 10:00:00',
+        'membership_id'=>'membership-1','plan_key'=>'gold','tier_name'=>'Gold','membership_status'=>'active',
+    ]],
+    'entitlements'=>['media.private_gallery'=>'Private members-only gallery'],
+]);
+$assert(str_contains($adminClientsMarkup,'/admin/memberships/membership-1/suspend') &&
+    str_contains($adminClientsMarkup,'/admin/memberships/membership-1/cancel') &&
+    str_contains($adminClientsMarkup,'Membership suspension saved.'),
+    'MFA-admin membership workspace exposes suspend/cancel actions and outcome feedback');
+$adminSuspendedMembershipMarkup = $authViews->render('admin/clients',[
+    'brandName'=>'Maison Example','csrf'=>'admin-clients-csrf','error'=>'','notice'=>'',
+    'clients'=>[[
+        'id'=>'client-1','email'=>'client@example.test','email_verified_at'=>'2026-11-25 10:00:00',
+        'membership_id'=>'membership-1','plan_key'=>'gold','tier_name'=>'Gold','membership_status'=>'suspended',
+    ]],
+    'entitlements'=>['media.private_gallery'=>'Private members-only gallery'],
+]);
+$assert(str_contains($adminSuspendedMembershipMarkup,'suspended') &&
+    !str_contains($adminSuspendedMembershipMarkup,'/admin/memberships/membership-1/suspend') &&
+    !str_contains($adminSuspendedMembershipMarkup,'/admin/memberships/membership-1/cancel'),
+    'admin client directory retains suspended membership status without offering active-only transitions');
+$adminMediaMarkup = $authViews->render('admin/profile-media',[
+    'brandName'=>'Talyvane','csrf'=>'review-csrf','error'=>'','notice'=>'',
+    'items'=>[['id'=>'media-1','profile_name'=>'Talent Example','profile_slug'=>'talent','destination_name'=>'London','width'=>320,'height'=>320,'created_at'=>'2026-11-25']],
+]);
+$assert(str_contains($adminMediaMarkup,'/admin/profile-media/media-1/preview') &&
+    str_contains($adminMediaMarkup,'name="decision"') && str_contains($adminMediaMarkup,'name="adult_safety_confirmed"') &&
+    str_contains($adminMediaMarkup,'name="rights_confirmed"') && str_contains($adminMediaMarkup,'name="consent_confirmed"') && str_contains($adminMediaMarkup,'name="reason"'),
+    'administrator media review workspace uses private preview and reasoned approve/reject controls');
+$publicMediaMarkup = $authViews->render('public/discovery',[
+    'mode'=>'profile','brandName'=>'Talyvane','canSaveFavorite'=>false,'csrf'=>'',
+    'profile'=>['slug'=>'talent','display_name'=>'Talent Example','destination_slug'=>'london','destination_name'=>'London',
+        'experience_category'=>'Profile','biography'=>'','languages'=>[],'media'=>[['id'=>'media-1','url'=>'/profile-media/media-1']]],
+]);
+$assert(str_contains($publicMediaMarkup,'src="/profile-media/media-1"') &&
+    str_contains($publicMediaMarkup,'Approved profile photograph'),
+    'public profile template renders approved media only through opaque controller routes');
+
+$logRoot = $tempRoot . DIRECTORY_SEPARATOR . 'private-logs';
+$logPublic = $tempRoot . DIRECTORY_SEPARATOR . 'public-root';
+mkdir($logRoot,0700,true);
+mkdir($logPublic,0755,true);
+$logFile = $logRoot . DIRECTORY_SEPARATOR . 'application-error.log';
+file_put_contents($logFile,str_repeat('x',5_242_880));
+chmod($logFile,0600);
+PrivateErrorLogger::record(new RuntimeException('sensitive exception message must never be logged'),$logRoot,$logPublic,'0123456789abcdef');
+$rotatedLog = $logFile . '.1';
+$currentLog = (string) file_get_contents($logFile);
+$assert(is_file($rotatedLog) && strlen($currentLog) < 1024 && !str_contains($currentLog,'sensitive exception message') &&
+    (fileperms($logFile) & 0777) === 0600,
+    'private error logging rotates at five MiB, keeps owner-only permissions and excludes exception messages');
+$assert(is_file($logRoot . DIRECTORY_SEPARATOR . '.application-error.lock') &&
+    (fileperms($logRoot . DIRECTORY_SEPARATOR . '.application-error.lock') & 0777) === 0600,
+    'private error logging serializes concurrent writers with a private stable lock');
 
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($iterator as $entry) {

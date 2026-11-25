@@ -18,6 +18,20 @@ final class PublicDiscoveryController
         return $this->render(['mode'=>'destinations','destinations'=>$this->discovery->destinations()]);
     }
 
+    public function companions(Request $request): Response
+    {
+        return $this->render([
+            'mode'=>'companions',
+            'profiles'=>$this->discovery->profiles(null),
+        ]);
+    }
+
+    /** @param array<string,string> $params */
+    public function companion(Request $request,array $params): Response
+    {
+        return $this->profile($request,$params);
+    }
+
     /** @param array<string,string> $params */
     public function destination(Request $request, array $params): Response
     {

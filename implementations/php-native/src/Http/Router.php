@@ -23,9 +23,24 @@ final class Router
             }
             if (preg_match($route['pattern'], $request->path, $matches) === 1) {
                 $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
-                return ($route['handler'])($request, $params);
+                $response = ($route['handler'])($request, $params);
+                return $this->protectPrivateResponse($request->path,$response);
             }
         }
-        return Response::html('Not Found', 404);
+        return $this->protectPrivateResponse($request->path,Response::html('Not Found', 404));
+    }
+
+    private function protectPrivateResponse(string $path,Response $response): Response
+    {
+        $private = $path==='/admin' || str_starts_with($path,'/admin/') ||
+            $path==='/portal' || str_starts_with($path,'/portal/');
+        if (!$private) {
+            return $response;
+        }
+        return $response->withHeaders([
+            'cache-control'=>'no-store, no-cache, must-revalidate, private',
+            'pragma'=>'no-cache',
+            'expires'=>'0',
+        ]);
     }
 }

@@ -1,0 +1,131 @@
+name: Native PHP installer browser end-to-end
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'implementations/php-native/**'
+      - 'tests/E2E/native-installer-browser.mjs'
+      - 'tests/E2E/https-router.php'
+      - '.github/workflows/native-installer-e2e.yml'
+      - '.github/e2e/Caddyfile'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-installer-e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-install:
+    name: Native one-ZIP + MySQL + SMTP + HTTPS + first-login MFA
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: talyvane_native_e2e
+          MYSQL_USER: talyvane
+          MYSQL_PASSWORD: native-e2e-db-password
+          MYSQL_ROOT_PASSWORD: root-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    steps:
+      - name: Check out source without persisted credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP runtime and native extensions
+        uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql,mbstring,fileinfo,zip,gd
+          coverage: none
+
+      - name: Set up Node and pinned Playwright
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Create isolated SMTP certificate and start Mailpit
+        run: |
+          set -euo pipefail
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout "$RUNNER_TEMP/mailpit.key" -out "$RUNNER_TEMP/mailpit.crt" -sha256 -days 1 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1'
+          docker run --detach --name talyvane-native-mailpit             --publish 127.0.0.1:1025:1025 --publish 127.0.0.1:8025:8025             --volume "$RUNNER_TEMP/mailpit.crt:/cert.pem:ro"             --volume "$RUNNER_TEMP/mailpit.key:/key.pem:ro"             --env MP_SMTP_TLS_CERT=/cert.pem --env MP_SMTP_TLS_KEY=/key.pem             --env MP_SMTP_AUTH_ACCEPT_ANY=true --env MP_SMTP_AUTH_ALLOW_INSECURE=true             axllent/mailpit:v1.27.8
+          ready=0
+          for _ in $(seq 1 40); do
+            if curl --silent --fail http://127.0.0.1:8025/api/v1/messages >/dev/null; then ready=1; break; fi
+            sleep 0.5
+          done
+          test "$ready" = "1"
+
+      - name: Build and extract the exact native customer ZIP
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/dist/Talyvane-Native-cPanel-$GITHUB_SHA.zip"
+          bash implementations/php-native/bin/build-cpanel-package.sh "$RUNNER_TEMP/dist" "$GITHUB_SHA"
+          bash implementations/php-native/tests/Packaging/native-php-cpanel-contract.sh "$archive" "$GITHUB_SHA"
+          mkdir -p "$RUNNER_TEMP/talyvane-native-docroot"
+          unzip -q "$archive" -d "$RUNNER_TEMP/talyvane-native-docroot"
+          printf 'TALYVANE_NATIVE_E2E_HOME=%s\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'TALYVANE_NATIVE_E2E_DOCROOT=%s\n' "$RUNNER_TEMP/talyvane-native-docroot" >> "$GITHUB_ENV"
+          printf 'TALYVANE_NATIVE_E2E_DB_NAME=%s\n' 'talyvane_native_e2e' >> "$GITHUB_ENV"
+          printf 'TALYVANE_NATIVE_E2E_DB_USER=%s\n' 'talyvane' >> "$GITHUB_ENV"
+          printf 'TALYVANE_NATIVE_E2E_DB_PASSWORD=%s\n' 'native-e2e-db-password' >> "$GITHUB_ENV"
+
+      - name: Start native PHP over an HTTPS test origin
+        run: |
+          set -euo pipefail
+          HOME="$RUNNER_TEMP" php -d "openssl.cafile=$RUNNER_TEMP/mailpit.crt" -d upload_max_filesize=8M -d post_max_size=10M -S 0.0.0.0:8000 -t "$TALYVANE_NATIVE_E2E_DOCROOT" tests/E2E/https-router.php > /tmp/talyvane-native-php.log 2>&1 &
+          echo $! > /tmp/talyvane-native-php.pid
+          docker run --detach --name talyvane-native-caddy             --add-host=host.docker.internal:host-gateway             --publish 127.0.0.1:8443:443             --volume "$PWD/.github/e2e/Caddyfile:/etc/caddy/Caddyfile:ro"             caddy:2.9.1-alpine
+          ready=0
+          for _ in $(seq 1 60); do
+            if curl --noproxy '*' --connect-timeout 2 --max-time 5 --insecure --fail --silent --show-error --output /dev/null https://localhost:8443/; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then
+            docker logs talyvane-native-caddy 2>&1 | tail -n 100 || true
+            tail -n 150 /tmp/talyvane-native-php.log || true
+            exit 1
+          fi
+
+      - name: Run native browser installation and first-login security journey
+        env:
+          TALYVANE_NATIVE_E2E_BASE_URL: https://localhost:8443
+          TALYVANE_NATIVE_E2E_MAILPIT_API: http://127.0.0.1:8025
+        run: node tests/E2E/native-installer-browser.mjs
+
+      - name: Collect native PHP and Mailpit diagnostics
+        if: always()
+        run: |
+          if [ -f /tmp/talyvane-native-php.log ]; then tail -n 200 /tmp/talyvane-native-php.log; fi
+          fingerprint="$(php -r 'echo substr(hash("sha256", realpath($argv[1])), 0, 24);' "$TALYVANE_NATIVE_E2E_DOCROOT")"
+          private_logs="$TALYVANE_NATIVE_E2E_HOME/.talyvane/talyvane/$fingerprint/logs"
+          if [ -f "$private_logs/application-error.log" ]; then
+            echo "Private application diagnostics (correlation ID, exception class/code only):"
+            tail -n 50 "$private_logs/application-error.log"
+          fi
+          docker logs talyvane-native-caddy 2>&1 | tail -n 100 || true
+          docker logs talyvane-native-mailpit 2>&1 | tail -n 100 || true
+
+      - name: Upload native browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08
+        with:
+          name: native-installer-e2e-diagnostics-${{ github.sha }}
+          path: /tmp/talyvane-native-php.log
+          if-no-files-found: ignore
+          retention-days: 7

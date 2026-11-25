@@ -21,11 +21,14 @@ The native HTTP kernel currently exposes:
 - Super Admin-only market compliance review with evidence reference, review findings, explicit approval/rejection, dated expiry and transactional audit; market enablement is not inferred from country configuration.
 - Pinned 249-country ISO 3166-1 and 155-current non-fund currency ISO 4217 reference snapshots import idempotently on first application boot; refreshes preserve administrator enablement decisions and keep market approval separate.
 - A Super Admin/MFA-gated, read-only security audit workspace with bounded filtering/pagination; MySQL triggers reject audit-event updates and deletes.
+- Companion profile-media intake re-encodes JPEG/PNG/WebP into metadata-stripped WebP in private owner-only storage; reviewers must separately attest adult safety, image rights and consent. Publication withdrawal unpublishes the profile, and consent renewal does not reactivate prior media grants. The public opaque media route rechecks current profile eligibility, exact consent grant/version and file integrity.
+- Agency-managed client membership assignment/replacement, immediate suspension and cancellation are restricted to MFA-protected agency owners/admins and append lifecycle events. The admin directory preserves active/suspended state; the client portal shows a safe current-membership summary and only effective allowlisted entitlement keys. The router applies `Cache-Control: no-store` to all `/admin` and `/portal` responses. Entitlement grants are immutable and checked server-side; the actual members-only gallery and protected media delivery are not implemented.
+- Safeguarding case intake, assigned-specialist access, encrypted case content, encrypted notification outbox, owner/Super Admin legal-hold governance, retention policy gates and restore-verification records are present as partial workflows. External Vault key custody, live notification delivery, backup/restore drills and full safeguarding browser acceptance remain open.
 - Private runtime error logging writes correlation ID, exception class and code to `application-error.log` outside the public root; exception messages, stack traces and request data are deliberately omitted.
 
-Portal registration and email-based recovery require a valid private `mail.smtp` configuration in the private configuration file. Without it, mail-dependent routes fail closed while the public site and already verified portal logins remain available. Public discovery returns only allowlisted fields and requires current approved market status, independent adult-eligibility verification and active purpose-specific publication consent. Public profile media delivery is not yet implemented; private media is never linked directly.
+Portal registration and email-based recovery require a valid private `mail.smtp` configuration in the private configuration file. Without it, mail-dependent routes fail closed while the public site and already verified portal logins remain available. Public discovery returns only allowlisted fields and requires current approved market status, independent adult-eligibility verification and active purpose-specific publication consent. Public profile media delivery is consent-gated and uses opaque routes with no direct storage URLs; private members-only gallery delivery is not yet implemented.
 
-These are implemented slices, not a complete product. Customer/companion profile editing, companion availability self-service, reschedule UI, model-agency agreements/casting/settlement, safeguarding operations, quote/deposit/reconciliation workflows, full CRM operations and the native installer/package remain incomplete.
+These are implemented slices, not a complete product. Remaining parity includes full client/companion account and privacy-rights self-service; complete companion account/consent and scheduling controls; reschedule UI, calendar and notifications; model-agency portfolio/casting/assignment/settlement workflows; safeguarding browser acceptance, incident/appeal, externally managed key custody and operational retention/restore acceptance; quote/deposit/payment/reconciliation; full CRM/communications; localization/reporting/configuration/integrations; and backup/restore/upgrade/release operations. The native installer browser E2E and single-ZIP package workflows passed on PR #90 head 4d7726bb922fba1d62443deff0daa0feef4e15c9 (native installer E2E run 80); actual target-host acceptance remains a release gate.
 
 
 ## Non-negotiable delivery target
@@ -38,6 +41,7 @@ The installer must discover the hosting layout safely, keep application code/con
 
 - Keep native PHP isolated from Laravel runtime files, dependencies, configuration, sessions, migrations and release artifacts.
 - Target PHP 8.3+ provisionally to match the current documented Laravel host baseline; verify the actual HostSailor web-SAPI runtime before locking the release minimum.
+- Require `upload_max_filesize >= 8M` and `post_max_size >= 10M`; set these through cPanel's PHP Selector/MultiPHP INI Editor when the hosting defaults are lower.
 - Use PDO with parameterized queries and explicit transaction boundaries.
 - Keep domain logic independent of HTTP, database, filesystem, and mail adapters.
 - Use secure password hashing, CSRF protection, session hardening, rate limiting, authorization checks, MFA, audit logging, and safe error handling.
@@ -68,6 +72,14 @@ implementations/php-native/
 ```
 
 The final release ZIP may use a different flattened layout if required for cPanel compatibility. Build output must be reproducible and must not include development secrets, test data, or local environment files.
+
+## Native browser installer
+
+The native front controller routes /install before the application kernel. The HTTPS-only wizard creates a 256-bit setup key outside the public document root, checks the private code root and PHP environment, applies the ordered native migrations, imports pinned country/currency reference data, tests SMTP delivery by sending separate primary and recovery codes, and activates the first Super Admin only after both addresses are verified.
+
+Pending database/SMTP configuration and bootstrap proof are stored in an encrypted owner-only private state file. The one-time initial password and offline recovery key are persisted encrypted before the Super Admin activation transaction commits, then shown once after the permanent installer lock is written. The setup key is consumed after the lock. The first login requires password replacement and MFA enrollment.
+
+The browser success page displays the generated initial password and offline recovery key exactly once through a session-bound HTTPS response with `no-store`, `no-cache` and `no-referrer` protections. Both are encrypted in private one-time state before the activation transaction commits; the state is consumed after rendering, and a subsequent request returns HTTP 410. Store both credentials in a password manager and approved offline recovery location before leaving the page. No terminal, SSH or command-line access is required to complete installation. The native installer has automated integration/browser coverage and a reproducible cPanel package contract; actual HostSailor cPanel/LiteSpeed acceptance remains an external deployment gate. The existing Laravel installer E2E does not validate this native installer.
 
 ## Development sequence
 

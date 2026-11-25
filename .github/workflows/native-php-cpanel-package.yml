@@ -1,0 +1,44 @@
+name: Native PHP single-ZIP cPanel package
+
+on:
+  pull_request:
+    paths:
+      - 'implementations/php-native/**'
+      - '.github/workflows/native-php-cpanel-package.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql,mbstring,fileinfo,zip,gd
+          coverage: none
+      - name: Lint native runtime and packaging scripts
+        run: |
+          find implementations/php-native -name '*.php' -print0 | xargs -0 -n1 php -l
+          bash -n implementations/php-native/bin/build-cpanel-package.sh
+          bash -n implementations/php-native/tests/Packaging/native-php-cpanel-contract.sh
+          bash -n implementations/php-native/tests/Http/native-php-cpanel-bootstrap.sh
+      - name: Build reproducible native customer ZIP
+        run: bash implementations/php-native/bin/build-cpanel-package.sh dist "$GITHUB_SHA"
+      - name: Verify native package contract
+        run: bash implementations/php-native/tests/Packaging/native-php-cpanel-contract.sh "dist/Talyvane-Native-cPanel-$GITHUB_SHA.zip" "$GITHUB_SHA"
+      - name: Exercise native private extraction and archive rejection
+        run: bash implementations/php-native/tests/Http/native-php-cpanel-bootstrap.sh "dist/Talyvane-Native-cPanel-$GITHUB_SHA.zip"
+      - name: Upload verified native package and checksum
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08
+        with:
+          name: Talyvane-Native-cPanel-${{ github.sha }}
+          path: |
+            dist/Talyvane-Native-cPanel-${{ github.sha }}.zip
+            dist/Talyvane-Native-cPanel-${{ github.sha }}.sha256
+          if-no-files-found: error
+          retention-days: 14

@@ -82,6 +82,29 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(!$mfa->consumeRecoveryCode($id,$codes[0],bin2hex(random_bytes(16))),'recovery code cannot be reused');
     $auth->logout();
 
+    $clientId = (string) $pdo->query('SELECT UUID()')->fetchColumn();
+    $clientPassword = str_repeat('C',24) . '!';
+    $clientCreate = $pdo->prepare('INSERT INTO users (id,email,password_hash,status,email_verified_at,first_login_required,admin_session_version,created_at,updated_at) VALUES (:id,:email,:hash,"active",UTC_TIMESTAMP(),0,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())');
+    $clientCreate->execute(['id'=>$clientId,'email'=>'native-password-client@example.test','hash'=>PasswordHasher::hash($clientPassword)]);
+    $clientRole = $pdo->prepare('INSERT INTO user_roles (user_id,role_key,granted_by,granted_at) VALUES (:id,"client",NULL,UTC_TIMESTAMP())');
+    $clientRole->execute(['id'=>$clientId]);
+    $passwordChanges = new PasswordChangeService($pdo,$limiter,$audit);
+    $newClientPassword = str_repeat('N',24) . '!';
+    $newSessionVersion = $passwordChanges->changePortalPassword($clientId,$clientPassword,$newClientPassword,bin2hex(random_bytes(16)));
+    $clientState = $pdo->prepare('SELECT password_hash,admin_session_version FROM users WHERE id=:id');
+    $clientState->execute(['id'=>$clientId]);
+    $clientStateRow = $clientState->fetch();
+    $assert($newSessionVersion === 2 && is_array($clientStateRow) && (int) $clientStateRow['admin_session_version'] === 2 &&
+        password_verify($newClientPassword,$clientStateRow['password_hash']) && !password_verify($clientPassword,$clientStateRow['password_hash']),
+        'client password change updates the hash and revokes other sessions');
+    $clientAudit = $pdo->prepare('SELECT event_key FROM audit_events WHERE actor_user_id=:id AND event_key="portal.password.changed"');
+    $clientAudit->execute(['id'=>$clientId]);
+    $assert($clientAudit->fetchColumn() === 'portal.password.changed','client password change emits an audit event');
+    $adminPasswordChangeDenied = false;
+    try { $passwordChanges->changePortalPassword($id,$password,$newClientPassword,bin2hex(random_bytes(16))); }
+    catch (DomainException) { $adminPasswordChangeDenied = true; }
+    $assert($adminPasswordChangeDenied,'portal password self-service cannot change privileged administrator credentials');
+
     $installerDirectory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'talyvane-installer-' . bin2hex(random_bytes(6));
     mkdir($installerDirectory,0700,true);
     $setupKey = new SetupKey($installerDirectory . DIRECTORY_SEPARATOR . 'installer.key');
@@ -209,6 +232,7 @@ function runIdentityIntegration(PDO $pdo): int
     $discovery = new DiscoveryService($pdo);
     $publicDestinations = $discovery->destinations();
     $publicProfiles = $discovery->profiles('london');
+    $allPublicProfiles = $discovery->profiles(null);
     $profileLookup = $pdo->prepare('SELECT slug FROM companion_profiles WHERE id = :id');
     $profileLookup->execute(['id'=>$profileId]);
     $publicSlug = (string) $profileLookup->fetchColumn();
@@ -226,6 +250,7 @@ function runIdentityIntegration(PDO $pdo): int
     catch (DomainException) { $assert(true,'companion cannot use client favorites'); }
     $assert(count($publicDestinations) === 1 && $publicDestinations[0]['slug'] === 'london','public discovery lists only destinations in currently approved markets');
     $assert(count($publicProfiles) === 1 && is_array($publicProfile),'public discovery exposes independently verified and consented profiles');
+    $assert(count($allPublicProfiles) === 1 && $allPublicProfiles[0]['slug'] === $publicSlug,'global companion discovery exposes only currently verified and consented public profiles');
     $assert(is_array($publicProfile) && $publicProfile['time_zone'] === 'Europe/London',
         'public profile projection includes the destination IANA time zone without undefined-field warnings');
     $assert(is_array($publicProfile) && !array_key_exists('user_id',$publicProfile) && !array_key_exists('verification_reference_hash',$publicProfile),'public profile projection excludes account identifiers and verification evidence');

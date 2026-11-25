@@ -7,12 +7,27 @@ use Talyvane\Application\Companions\CompanionProfilePublicationService;
 use Talyvane\Application\Destinations\DestinationManagementService;
 use Talyvane\Application\Globalization\MarketPolicyManagementService;
 use Talyvane\Application\Clients\ClientFavoriteService;
+use Talyvane\Application\Safeguarding\SafeguardingCaseService;
+use Talyvane\Application\Safeguarding\SafeguardingCryptoService;
+use Talyvane\Application\Safeguarding\LocalSafeguardingCaseKeyProvider;
+use Talyvane\Application\Safeguarding\VaultTransitSafeguardingCaseKeyProvider;
+use Talyvane\Application\Safeguarding\SafeguardingNotificationOutbox;
+use Talyvane\Application\Safeguarding\SafeguardingBackupPolicyService;
+use Talyvane\Application\Safeguarding\SafeguardingRetentionPolicyService;
+use Talyvane\Application\Safeguarding\SafeguardingRestoreVerificationService;
+use Talyvane\Security\SecretBox;
+use Talyvane\Http\AdminSafeguardingController;
+use Talyvane\Application\Clients\ClientMembershipService;
+use Talyvane\Features\FeatureAvailability;
+use Talyvane\Infrastructure\Database\FeatureStateRepository;
+use Talyvane\Http\AdminClientController;
 use Talyvane\Application\Companions\CompanionAvailabilityService;
 use Talyvane\Application\Bookings\BookingCommandService;
 use Talyvane\Application\Bookings\BookingQueryService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\Discovery\DiscoveryService;
+use Talyvane\Application\Media\ProfileMediaService;
 use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
 use Talyvane\Application\ModelAgency\ModelApplicantRightsService;
 use Talyvane\Application\CRM\EnquiryService;
@@ -26,15 +41,19 @@ use Talyvane\Http\AdminCompanionController;
 use Talyvane\Http\AdminDestinationController;
 use Talyvane\Http\AdminMarketController;
 use Talyvane\Http\ClientFavoriteController;
+use Talyvane\Http\CompanionMediaController;
 use Talyvane\Http\CompanionAvailabilityController;
 use Talyvane\Http\AdminAuthController;
 use Talyvane\Http\AdminBrandController;
 use Talyvane\Http\AdminAuditController;
 use Talyvane\Http\AdminModelAgencyController;
+use Talyvane\Http\AdminProfileMediaController;
 use Talyvane\Http\AdminNavigationController;
 use Talyvane\Http\AdminEnquiryController;
 use Talyvane\Http\PortalAuthController;
+use Talyvane\Http\PortalSecurityController;
 use Talyvane\Http\PublicModelAgencyController;
+use Talyvane\Http\PublicProfileMediaController;
 use Talyvane\Http\PublicModelAgencyRightsController;
 use Talyvane\Http\PublicDiscoveryController;
 use Talyvane\Http\PublicEnquiryController;
@@ -52,7 +71,8 @@ use Talyvane\Infrastructure\Database\ConnectionFactory;
 use Talyvane\Infrastructure\Database\ReferenceDataImporter;
 use Talyvane\Infrastructure\Mail\SmtpMailer;
 use Talyvane\Infrastructure\Security\RateLimiter;
-use Talyvane\Security\SecretBox;
+use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
+
 
 final class Bootstrap
 {
@@ -111,6 +131,9 @@ final class Bootstrap
 
         $public = new PublicSiteController($pdo, $views);
         $discovery = new DiscoveryService($pdo);
+        $publicRoot = (string) ($config['paths']['document_root'] ?? ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+        $mediaStorage = new PrivateMediaStorage((string) ($config['paths']['storage'] ?? ''),$publicRoot);
+        $profileMedia = new ProfileMediaService($pdo,$mediaStorage,$discovery,$audit);
         $publicDiscovery = new PublicDiscoveryController($discovery, $views, $authentication);
         $contentManagement = new ContentManagementService($pdo, $audit);
         $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
@@ -120,6 +143,9 @@ final class Bootstrap
         $adminNavigation = new AdminNavigationController($pdo, $authentication, $contentManagement, $views);
         $enquiries = new EnquiryService($pdo, $rateLimiter, $audit);
         $brandName = (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane');
+        $companionMedia = new CompanionMediaController($authentication,$profileMedia,$views,$brandName);
+        $adminProfileMedia = new AdminProfileMediaController($authentication,$profileMedia,$views,$brandName);
+        $publicProfileMedia = new PublicProfileMediaController($profileMedia);
         $publicEnquiries = new PublicEnquiryController($enquiries, $contentManagement, $views, $brandName);
         $adminEnquiries = new AdminEnquiryController($enquiries, $authentication, $views, $brandName);
         $companionPublication = new CompanionProfilePublicationService($pdo, $audit);
@@ -136,8 +162,23 @@ final class Bootstrap
         $bookingQueries = new BookingQueryService($pdo);
         $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $discovery, $views, $brandName);
         $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit), $views, $brandName);
-        $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery);
+        $membershipAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(), static fn(string $dependency): bool => false);
+        $clientMemberships = new ClientMembershipService($pdo,$audit,$membershipAvailability);
+        $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery, $clientMemberships);
+        $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName);
         $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
+        $adminClients = new AdminClientController($pdo,$authentication,$clientMemberships,$views,$brandName);
+        $vaultConfig = $config['safeguarding']['vault'] ?? null;
+        $caseKeyProvider = is_array($vaultConfig) && ($vaultConfig['enabled'] ?? false) === true
+            ? new VaultTransitSafeguardingCaseKeyProvider($vaultConfig)
+            : new LocalSafeguardingCaseKeyProvider($config['app_key']);
+        $safeguardingCrypto = new SafeguardingCryptoService($caseKeyProvider);
+        $notificationOutbox = new SafeguardingNotificationOutbox($pdo,new SecretBox($config['app_key']),hash('sha256',$config['app_key'].'|safeguarding-outbox-fingerprint-v1',true));
+        $safeguardingCases = new SafeguardingCaseService($pdo,$safeguardingCrypto,$audit,$notificationOutbox);
+        $backupPolicyService = new SafeguardingBackupPolicyService($pdo,$audit);
+        $retentionPolicyService = new SafeguardingRetentionPolicyService($pdo,$audit);
+        $restoreVerificationService = new SafeguardingRestoreVerificationService($pdo,$safeguardingCrypto,$audit);
+        $safeguardingController = new AdminSafeguardingController($authentication,$safeguardingCases,$backupPolicyService,$retentionPolicyService,$restoreVerificationService,$views,$brandName);
         $router = new Router();
 
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
@@ -153,12 +194,17 @@ final class Bootstrap
         $router->add('POST', '/model-agency/privacy/withdraw', static fn(Request $request): Response => $publicModelAgencyRights->withdraw($request));
         $router->add('POST', '/model-agency/privacy/erase', static fn(Request $request): Response => $publicModelAgencyRights->erase($request));
         $router->add('GET', '/destinations', static fn(Request $request): Response => $publicDiscovery->destinations($request));
+        $router->add('GET', '/companions', static fn(Request $request): Response => $publicDiscovery->companions($request));
+        $router->add('GET', '/companions/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->companion($request,$params));
         $router->add('GET', '/destinations/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->destination($request, $params));
         $router->add('GET', '/profiles/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->profile($request, $params));
+        $router->add('GET', '/profile-media/{id}', static fn(Request $request, array $params): Response => $publicProfileMedia->show($request,$params));
         $router->add('GET', '/pages/{slug}', static fn(Request $request, array $params): Response => $public->page($request, $params));
         $router->add('GET', '/privacy', static fn(Request $request): Response => $public->page($request, ['slug'=>'privacy']));
         $router->add('GET', '/terms', static fn(Request $request): Response => $public->page($request, ['slug'=>'terms']));
 
+        $router->add('GET', '/portal/security', static fn(Request $request): Response => $portalSecurity->index($request));
+        $router->add('POST', '/portal/security', static fn(Request $request): Response => $portalSecurity->changePassword($request));
         $router->add('GET', '/portal/register', static fn(Request $request): Response => $portalAuth->registerForm($request));
         $router->add('POST', '/portal/register', static fn(Request $request): Response => $portalAuth->register($request));
         $router->add('GET', '/portal/verify', static fn(Request $request): Response => $portalAuth->verifyForm($request));
@@ -179,6 +225,11 @@ final class Bootstrap
         $router->add('POST', '/portal/bookings', static fn(Request $request): Response => $portalBookings->store($request));
         $router->add('POST', '/portal/bookings/{id}/cancel', static fn(Request $request, array $params): Response => $portalBookings->cancel($request, $params));
         $router->add('GET', '/portal/companion/bookings', static fn(Request $request): Response => $portalBookings->companionIndex($request));
+        $router->add('GET', '/portal/companion/media', static fn(Request $request): Response => $companionMedia->index($request));
+        $router->add('POST', '/portal/companion/media', static fn(Request $request): Response => $companionMedia->submit($request));
+        $router->add('POST', '/portal/companion/media/{id}/withdraw', static fn(Request $request,array $params): Response => $companionMedia->withdraw($request,$params));
+        $router->add('POST', '/portal/companion/publication/withdraw', static fn(Request $request): Response => $companionMedia->withdrawPublicationConsent($request));
+        $router->add('POST', '/portal/companion/publication/renew', static fn(Request $request): Response => $companionMedia->renewPublicationConsent($request));
         $router->add('GET', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->index($request));
         $router->add('POST', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->save($request));
         $router->add('POST', '/portal/companion/availability/{id}/delete', static fn(Request $request, array $params): Response => $companionAvailability->delete($request, $params));
@@ -195,6 +246,9 @@ final class Bootstrap
         $router->add('GET', '/admin/recovery-codes', static fn(Request $request): Response => $adminAuth->recoveryCodes($request));
         $router->add('GET', '/admin', static fn(Request $request): Response => $adminAuth->dashboard($request));
         $router->add('GET', '/admin/audit', static fn(Request $request): Response => $adminAudit->index($request));
+        $router->add('GET', '/admin/profile-media', static fn(Request $request): Response => $adminProfileMedia->index($request));
+        $router->add('GET', '/admin/profile-media/{id}/preview', static fn(Request $request,array $params): Response => $adminProfileMedia->preview($request,$params));
+        $router->add('POST', '/admin/profile-media/{id}/review', static fn(Request $request,array $params): Response => $adminProfileMedia->review($request,$params));
         $router->add('POST', '/admin/logout', static fn(Request $request): Response => $adminAuth->logout($request));
         $router->add('GET', '/admin/brand', static fn(Request $request): Response => $adminBrand->show($request));
         $router->add('POST', '/admin/brand', static fn(Request $request): Response => $adminBrand->update($request));
@@ -212,6 +266,21 @@ final class Bootstrap
         $router->add('POST', '/admin/destinations/{id}', static fn(Request $request, array $params): Response => $adminDestinations->save($request, $params));
         $router->add('GET', '/admin/companions', static fn(Request $request): Response => $adminCompanions->index($request));
         $router->add('POST', '/admin/companions/{id}/publish', static fn(Request $request, array $params): Response => $adminCompanions->publish($request, $params));
+        $router->add('GET', '/admin/safeguarding/reports', static fn(Request $request): Response => $safeguardingController->reportForm($request));
+        $router->add('POST', '/admin/safeguarding/reports', static fn(Request $request): Response => $safeguardingController->report($request));
+        $router->add('GET', '/admin/safeguarding/cases', static fn(Request $request): Response => $safeguardingController->assigned($request));
+        $router->add('GET', '/admin/safeguarding/cases/{id}', static fn(Request $request,array $params): Response => $safeguardingController->show($request,$params));
+        $router->add('POST', '/admin/safeguarding/cases/{id}/transition', static fn(Request $request,array $params): Response => $safeguardingController->transition($request,$params));
+        $router->add('GET', '/admin/safeguarding/governance', static fn(Request $request): Response => $safeguardingController->governance($request));
+        $router->add('POST', '/admin/safeguarding/governance/backup-policy', static fn(Request $request): Response => $safeguardingController->approveBackupPolicy($request));
+        $router->add('POST', '/admin/safeguarding/governance/retention-policy', static fn(Request $request): Response => $safeguardingController->saveRetentionPolicy($request));
+        $router->add('POST', '/admin/safeguarding/governance/restore-verification', static fn(Request $request): Response => $safeguardingController->verifyRestore($request));
+        $router->add('POST', '/admin/safeguarding/governance/{id}/hold', static fn(Request $request,array $params): Response => $safeguardingController->hold($request,$params,false));
+        $router->add('POST', '/admin/safeguarding/governance/{id}/release', static fn(Request $request,array $params): Response => $safeguardingController->hold($request,$params,true));
+        $router->add('GET', '/admin/clients', static fn(Request $request): Response => $adminClients->index($request));
+        $router->add('POST', '/admin/clients/{id}/membership', static fn(Request $request,array $params): Response => $adminClients->assign($request,$params));
+        $router->add('POST', '/admin/memberships/{id}/cancel', static fn(Request $request,array $params): Response => $adminClients->cancel($request,$params));
+        $router->add('POST', '/admin/memberships/{id}/suspend', static fn(Request $request,array $params): Response => $adminClients->suspend($request,$params));
         $router->add('GET', '/admin/enquiries', static fn(Request $request): Response => $adminEnquiries->index($request));
         $router->add('POST', '/admin/enquiries/{reference}', static fn(Request $request, array $params): Response => $adminEnquiries->update($request, $params));
         $router->add('GET', '/admin/navigation', static fn(Request $request): Response => $adminNavigation->index($request));

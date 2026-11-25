@@ -1,0 +1,24 @@
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+
+# Never serve the private native application payload or hidden installer state.
+<FilesMatch "(?i)(^\\.|\\.(zip|tar|gz|sql|log|bak|old)$|^composer\\.(json|lock)$)">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule (^|/)\\.(?!well-known(?:/|$)) - [F,L]
+    RewriteRule \\.(?:zip|tar|gz|sql|log|bak|old)$ - [F,L,NC]
+    RewriteRule ^(?:src|database|views|bin|tests|vendor|config|resources)(?:/|$) - [F,L,NC]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
