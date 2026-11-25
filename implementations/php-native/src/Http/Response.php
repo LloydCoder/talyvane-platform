@@ -10,7 +10,13 @@ final readonly class Response
         public string $body = '',
         public int $status = 200,
         public array $headers = ['content-type' => 'text/html; charset=utf-8'],
-    ) {}
+    ) {
+        foreach ($headers as $name => $value) {
+            if (!preg_match('/^[a-zA-Z0-9-]+$/D', (string) $name) || preg_match('/[\r\n]/', $value)) {
+                throw new \InvalidArgumentException('Invalid response header.');
+            }
+        }
+    }
 
     public static function html(string $body, int $status = 200): self
     {
@@ -29,8 +35,8 @@ final readonly class Response
 
     public static function redirect(string $location, int $status = 303): self
     {
-        if (!str_starts_with($location, '/') || str_starts_with($location, '//')) {
-            throw new \InvalidArgumentException('Redirect target must be a local path.');
+        if (!str_starts_with($location, '/') || str_starts_with($location, '//') || preg_match('/[\r\n]/', $location)) {
+            throw new \InvalidArgumentException('Redirect target must be a safe local path.');
         }
         return new self('', $status, ['location' => $location, 'cache-control' => 'no-store']);
     }
