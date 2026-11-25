@@ -43,7 +43,11 @@ for required in \
   talyvane-native-app/bin/verify-safeguarding-restore.php \
   talyvane-native-app/src/Application/Safeguarding/VaultTransitSafeguardingCaseKeyProvider.php \
   talyvane-native-app/src/Application/Safeguarding/SafeguardingRetentionService.php \
-  talyvane-native-app/src/Application/Safeguarding/SafeguardingRestoreVerificationService.php; do
+  talyvane-native-app/src/Application/Safeguarding/SafeguardingRestoreVerificationService.php \
+  talyvane-native-app/src/Application/Safeguarding/SafeguardingBackupPolicyService.php \
+  talyvane-native-app/src/Application/Safeguarding/SafeguardingRetentionPolicyService.php \
+  talyvane-native-app/src/Application/Safeguarding/SafeguardingNotificationOutbox.php \
+  talyvane-native-app/src/Application/Safeguarding/SafeguardingNotificationDispatcher.php; do
   grep -Fxq "$required" "$tmp/private.txt" || { echo "Native private payload is incomplete: $required" >&2; exit 1; }
 done
 if grep -Eq '(^|/)tests/|(^|/)\.env($|\.)|(^|/)(integration|test)\.php$|\.log$|\.sqlite$' "$tmp/private.txt"; then
