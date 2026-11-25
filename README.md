@@ -52,6 +52,14 @@ Globalization foundations include deployment-local country-market, currency, exc
 
 Implemented foundations include public destination/profile discovery, role-separated client and companion authentication, email verification, mandatory administrator TOTP MFA with one-time recovery codes, enquiry intake/CRM, consent-gated profile publication, companion consent controls, manual booking requests and configurable automatic booking eligibility with deposit, weekly availability and overlap gates; disabled-by-default payment configuration for BTC, USDT and USDC receiving addresses. Current application stack: Laravel 13, PHP 8.3–8.5, MySQL, Blade and custom responsive CSS. The committed `composer.lock` fixes the complete dependency graph. CI and production use deterministic `composer install`, with Composer resolution pinned to PHP 8.3.0 and actual runtime platform checks across PHP 8.3, 8.4 and 8.5. The lockfile is mandatory: missing or inconsistent dependency state fails CI and must be repaired through a reviewed dependency change. The client's PHP 8.4 host is version-compatible, subject to extension and hosting verification. Profile media processing requires PHP GD with WebP support (`imagewebp`).
 
+## Native PHP compatibility port
+
+`implementations/php-native/` is a separate, framework-independent PHP application for constrained cPanel deployments. It has its own runtime, configuration, migrations, installer, private storage and deployment boundary; it does not replace or share runtime dependencies with the Laravel application. Laravel and the canonical product/security documents remain the behavioral reference until parity is formally accepted.
+
+The native port includes the hardened browser installer, role-separated portals, discovery, booking/membership foundations, safeguarding and audit workflows, and a consent-checked members-only gallery behind an explicit deployment policy/feature gate. It remains a work in progress: the canonical [native PHP parity tracker](implementations/php-native/PORTING-TRACKER.md) records implementation status and acceptance evidence. CI passing for an individual slice is not a claim of complete feature parity, legal approval, provider certification or production readiness. The native application must not be released until all required tracker rows have complete tests, security review, documentation and target-host acceptance.
+
+See [native PHP architecture](implementations/php-native/ARCHITECTURE.md) and [native PHP operator/developer guide](implementations/php-native/README.md).
+
 ## Safeguarding
 Talyvane must not be used to facilitate trafficking, coercion, exploitation, non-consensual content or any activity involving minors. No production deployment should proceed without verified adult-only access controls, documented informed consent, lawful operating arrangements, privacy safeguards, appropriate payment/provider approval and independent legal review for each relevant jurisdiction.
 
