@@ -4,7 +4,7 @@ This is an isolated, parallel implementation of Talyvane inside the existing mon
 
 ## Status
 
-**Foundation in progress — not a complete application and not deployable.** The initial HTTP kernel, routing primitive, money value object, password hashing helper, CSRF token helper, feature registry and dependency-free smoke test have been started. The feature-by-feature implementation ledger is [PORTING-TRACKER.md](PORTING-TRACKER.md).
+**Foundation in progress — not a complete application and not deployable.** The initial HTTP kernel, routing primitive, request/response hardening, money and quote value objects, password hashing, CSRF/session/TOTP/recovery-code/secret-encryption primitives, role authorization, feature registry and management service, PDO migration/audit foundations, and domain policies for bookings, consent, markets, memberships, payments and model-agency workflows have been started. Initial MySQL migrations now cover core identity, globalization, discovery/bookings/portals, model agency, safeguarding, payments, identity recovery, CRM/communications and branding/CMS. These are foundations, not completed end-to-end workflows. The feature-by-feature implementation ledger is [PORTING-TRACKER.md](PORTING-TRACKER.md).
 
 Do not treat a green foundation test as proof of product parity, security certification, production readiness or cPanel compatibility.
 
