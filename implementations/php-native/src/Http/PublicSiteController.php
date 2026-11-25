@@ -30,6 +30,7 @@ final class PublicSiteController
         return Response::html($this->views->render('public/home', [
             'brand' => $brand,
             'sections' => $items,
+            'navigation' => $this->publicNavigation('header','en'),
             'requestId' => $request->requestId,
         ]));
     }
@@ -82,6 +83,7 @@ final class PublicSiteController
             'metaTitle' => $metaTitle,
             'metaDescription' => $metaDescription,
             'robots' => $robots,
+            'navigation' => $this->publicNavigation('header','en'),
         ]));
     }
 
@@ -98,6 +100,45 @@ final class PublicSiteController
             'tagline'=>(string) ($row['tagline'] ?? ''),
             'seo_defaults'=>is_array($seo) ? $seo : ['robots'=>'index,follow'],
         ];
+    }
+
+    /** @return list<array{id:string,label:string,target_type:string,target_value:string,sort_order:int}> */
+    private function publicNavigation(string $location,string $locale): array
+    {
+        $query = $this->pdo->prepare(
+            'SELECT id,label,target_type,target_value,sort_order FROM navigation_items
+             WHERE location_key = :location AND locale = :locale AND enabled = 1
+             ORDER BY sort_order,label LIMIT 100'
+        );
+        $query->execute(['location'=>$location,'locale'=>$locale]);
+        $safe = [];
+        foreach ($query->fetchAll() as $item) {
+            $type = (string) ($item['target_type'] ?? '');
+            $target = (string) ($item['target_value'] ?? '');
+            $valid = false;
+            if ($type === 'url') {
+                $parts = parse_url($target);
+                $valid = filter_var($target,FILTER_VALIDATE_URL) !== false && is_array($parts) &&
+                    strtolower((string) ($parts['scheme'] ?? '')) === 'https' && isset($parts['host']) &&
+                    !isset($parts['user']) && !isset($parts['pass']);
+            } elseif ($type === 'page') {
+                $valid = preg_match('/^\/pages\/[a-z0-9]+(?:-[a-z0-9]+)*$/D',$target) === 1;
+            } elseif ($type === 'route') {
+                $valid = str_starts_with($target,'/') && !str_starts_with($target,'//') &&
+                    !str_contains($target,'..') && !str_contains($target,'\\') &&
+                    preg_match('/[\r\n\x00-\x1F]/',$target) !== 1;
+            }
+            if ($valid) {
+                $safe[] = [
+                    'id'=>(string) $item['id'],
+                    'label'=>(string) $item['label'],
+                    'target_type'=>$type,
+                    'target_value'=>$target,
+                    'sort_order'=>(int) $item['sort_order'],
+                ];
+            }
+        }
+        return $safe;
     }
 
     /** @param array<mixed> $value */
