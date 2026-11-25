@@ -144,6 +144,15 @@ $portalDashboardMarkup = $authViews->render('auth/portal', [
 ]);
 $assert(str_contains($portalDashboardMarkup, 'Companion workspace'), 'companion portal is visibly separated from the client portal');
 $assert(str_contains($portalDashboardMarkup, 'action="/portal/logout"'), 'portal dashboard exposes CSRF-protected sign-out');
+$assert(str_contains($portalDashboardMarkup,'href="/portal/security"'),'client and companion dashboards expose account security');
+$portalSecurityMarkup = $authViews->render('auth/portal-security',[
+    'brandName'=>'Maison Example','csrf'=>'portal-security-csrf','error'=>'','notice'=>'',
+]);
+$assert(str_contains($portalSecurityMarkup,'action="/portal/security"') &&
+    str_contains($portalSecurityMarkup,'name="current_password"') &&
+    str_contains($portalSecurityMarkup,'name="new_password"') &&
+    str_contains($portalSecurityMarkup,'name="confirm_password"'),
+    'portal security screen requires current password and confirmed new password');
 
 $setupMarkup = $authViews->render('auth/screen', [
     'screen'=>'mfa_setup',
