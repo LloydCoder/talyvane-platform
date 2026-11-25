@@ -21,6 +21,7 @@ $notice=is_string($notice ?? null)?$notice:'';
 <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
 <div class="field"><label for="media">Choose an image (JPEG, PNG or WebP; maximum 8 MiB)</label><input id="media" type="file" name="media" accept="image/jpeg,image/png,image/webp" required></div>
 <label class="check"><input type="checkbox" name="rights_confirmed" value="1" required><span>I confirm that I own or have the necessary rights and permissions to submit this image, including likeness rights for every identifiable person shown.</span></label>
+<label class="check"><input type="checkbox" name="depicted_adults_confirmed" value="1" required><span>I confirm every identifiable person depicted is an adult aged 18 or older and no minor is depicted.</span></label>
 <label class="check"><input type="checkbox" name="publication_confirmed" value="1" required><span>I separately consent to this image being submitted for human review and, only if approved, displayed publicly on my profile.</span></label>
 <p class="muted">Images are decoded and re-encoded to WebP to remove embedded metadata. Original filenames and metadata are not retained.</p>
 <button class="button" type="submit">Submit image for review</button>
