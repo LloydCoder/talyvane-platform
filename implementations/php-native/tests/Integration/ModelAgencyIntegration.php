@@ -84,6 +84,56 @@ function runModelAgencyIntegration(PDO $pdo): int
     $assert(is_array($agreement) && $agreement['status'] === 'executed' && (int) $agreement['commission_basis_points'] === 1500,'representation agreement execution stores the agreed commission and effective period');
     $assert(is_array($agreement) && $agreement['external_execution_reference'] === 'external-signature-evidence-reference-001','platform records external execution evidence without pretending to provide e-signatures');
 
+    $rightsMailer = new NativeTestMailer();
+    $rights = new ModelApplicantRightsService($pdo,$rightsMailer,new RateLimiter($pdo,str_repeat('Q',32)),new AuditLogger($pdo),str_repeat('S',32));
+    $applicationReference = (string) $pdo->query('SELECT application_reference FROM model_talent_applications WHERE id = ' . $pdo->quote($applicationId))->fetchColumn();
+    $rights->request($applicationReference,'model-applicant@example.test','access','203.0.113.10',bin2hex(random_bytes(16)));
+    preg_match('/one-time verification code is: ([0-9]{8})/',$rightsMailer->messages[0]['body'],$accessMatch);
+    $accessId = $rights->verify($applicationReference,'model-applicant@example.test',$accessMatch[1] ?? '','203.0.113.11',bin2hex(random_bytes(16)));
+    $accessData = $rights->read((string) $accessId);
+    $assert(is_string($accessId) && $accessData['applicant_name'] === 'Applicant Example','applicant access request requires a single-use emailed OTP');
+    $rights->finish($accessId);
+
+    $rights->request($applicationReference,'model-applicant@example.test','correction','203.0.113.12',bin2hex(random_bytes(16)));
+    preg_match('/one-time verification code is: ([0-9]{8})/',$rightsMailer->messages[1]['body'],$correctionMatch);
+    $correctionId = $rights->verify($applicationReference,'model-applicant@example.test',$correctionMatch[1] ?? '','203.0.113.13',bin2hex(random_bytes(16)));
+    $rights->correct((string) $correctionId,[
+        'applicant_name'=>'Corrected Applicant','phone'=>'+441234567891','city'=>'Manchester',
+        'portfolio_url'=>'https://portfolio.example.test/updated','experience_summary'=>'Updated professional portfolio and experience summary.',
+    ],bin2hex(random_bytes(16)));
+    $correctedName = $pdo->prepare('SELECT applicant_name,city FROM model_talent_applications WHERE id = :id');
+    $correctedName->execute(['id'=>$applicationId]);
+    $corrected = $correctedName->fetch();
+    $assert(is_array($corrected) && $corrected['applicant_name'] === 'Corrected Applicant' && $corrected['city'] === 'Manchester',
+        'verified correction request updates only applicant-editable fields and records the event');
+
+    $rights->request($applicationReference,'model-applicant@example.test','withdrawal','203.0.113.14',bin2hex(random_bytes(16)));
+    preg_match('/one-time verification code is: ([0-9]{8})/',$rightsMailer->messages[2]['body'],$withdrawMatch);
+    $withdrawId = $rights->verify($applicationReference,'model-applicant@example.test',$withdrawMatch[1] ?? '','203.0.113.15',bin2hex(random_bytes(16)));
+    $rights->withdraw((string) $withdrawId,bin2hex(random_bytes(16)));
+    $withdrawn = $pdo->prepare('SELECT status FROM model_talent_applications WHERE id = :id');
+    $withdrawn->execute(['id'=>$applicationId]);
+    $assert($withdrawn->fetchColumn() === 'withdrawn','verified applicant withdrawal uses the guarded application state machine');
+
+    $pdo->prepare('UPDATE model_talent_applications SET legal_hold = 1,legal_hold_reason = "Documented test retention hold" WHERE id = :id')->execute(['id'=>$applicationId]);
+    $rights->request($applicationReference,'model-applicant@example.test','erasure','203.0.113.16',bin2hex(random_bytes(16)));
+    preg_match('/one-time verification code is: ([0-9]{8})/',$rightsMailer->messages[3]['body'],$holdMatch);
+    $holdId = $rights->verify($applicationReference,'model-applicant@example.test',$holdMatch[1] ?? '','203.0.113.17',bin2hex(random_bytes(16)));
+    $assert(!$rights->erase((string) $holdId,bin2hex(random_bytes(16))),'documented legal hold defers applicant erasure');
+    $pdo->prepare('UPDATE model_talent_applications SET legal_hold = 0,legal_hold_reason = NULL WHERE id = :id')->execute(['id'=>$applicationId]);
+    $rights->request($applicationReference,'model-applicant@example.test','erasure','203.0.113.18',bin2hex(random_bytes(16)));
+    preg_match('/one-time verification code is: ([0-9]{8})/',$rightsMailer->messages[4]['body'],$eraseMatch);
+    $eraseId = $rights->verify($applicationReference,'model-applicant@example.test',$eraseMatch[1] ?? '','203.0.113.19',bin2hex(random_bytes(16)));
+    $assert($rights->erase((string) $eraseId,bin2hex(random_bytes(16))),'verified erasure proceeds after legal hold is released');
+    $erased = $pdo->prepare('SELECT applicant_name,email,phone,country_code,city,portfolio_url,experience_summary,anonymized_at,status FROM model_talent_applications WHERE id = :id');
+    $erased->execute(['id'=>$applicationId]);
+    $erasedRow = $erased->fetch();
+    $assert(is_array($erasedRow) && $erasedRow['status'] === 'anonymized' && $erasedRow['anonymized_at'] !== null &&
+        $erasedRow['applicant_name'] === 'Erased applicant' && $erasedRow['country_code'] === null &&
+        $erasedRow['phone'] === null && $erasedRow['portfolio_url'] === null && $erasedRow['experience_summary'] === null,
+        'applicant erasure removes direct personal and location fields while preserving a minimal non-identifying record');
+
+
     try {
         $service->review($admin,$applicationId,'withdrawn','Invalid admin transition',bin2hex(random_bytes(16)));
         $assert(false,'admin cannot use applicant-only withdrawal transition');
