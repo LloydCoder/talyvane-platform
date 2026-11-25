@@ -60,5 +60,9 @@ function runSafeguardingIntegration(PDO $pdo): int {
  $assert(count(array_filter($retentionPolicies->all(),static fn(array $r):bool=>$r['category']==='coercion'&&(int)$r['enabled']===1))===1,'category retention policy is versioned and maker-checker approved');
  try{(new SafeguardingRetentionService($pdo,new SafeguardingCryptoService(new LocalSafeguardingCaseKeyProvider($appKey))))->apply();$assert(false,'local key retention must fail closed');}catch(RuntimeException){$assert(true,'local application-key custody cannot claim backup-safe cryptographic erasure');}
  try{(new SafeguardingRestoreVerificationService($pdo,new SafeguardingCryptoService(new LocalSafeguardingCaseKeyProvider($appKey)),new AuditLogger($pdo)))->verify($admin,'verified-backup-reference','a'.str_repeat('b',63),'safeguard-v1',bin2hex(random_bytes(16)));$assert(false,'Vault restore verification must fail with local provider');}catch(RuntimeException){$assert(true,'restore reconciliation requires external Vault Transit');}
+ $pdo->prepare('UPDATE admin_mfa_credentials SET enabled_at=NULL WHERE user_id=:id')->execute(['id'=>$sid]);
+ try{$service->assignedCases($specialist);$assert(false,'specialist with revoked MFA must be denied');}catch(DomainException){$assert(true,'specialist with revoked MFA is denied even with a stale principal');}
+ $pdo->prepare('UPDATE users SET status="disabled" WHERE id=:id')->execute(['id'=>$oid]);
+ try{$service->governanceCases($owner);$assert(false,'disabled governance actor must be denied');}catch(DomainException){$assert(true,'disabled governance actor is denied at the service boundary');}
  return $n;
 }
