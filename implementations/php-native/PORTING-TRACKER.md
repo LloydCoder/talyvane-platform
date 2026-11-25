@@ -18,7 +18,7 @@ The native branch currently has 15 ordered PHP migrations plus backend slices fo
 
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
-| Single ZIP cPanel installation | CPANEL-INSTALLATION, SECURE-BROWSER-INSTALLER | IN_PROGRESS | Customer ZIP, HTTPS browser install/first-login E2E, production package smoke and Apache cPanel-layout checks pass; actual HostSailor cPanel/LiteSpeed acceptance remains outstanding |
+| Single ZIP cPanel installation | CPANEL-INSTALLATION, SECURE-BROWSER-INSTALLER | IN_PROGRESS | Existing Laravel distribution ZIP and Laravel installer E2E pass; native-PHP source is not yet included in a customer ZIP, and native installer/browser acceptance plus actual HostSailor cPanel/LiteSpeed acceptance remain outstanding |
 | Private app placement | HOSTING-COMPATIBILITY, ADR-0014 | IN_PROGRESS | Source/config/vendor/logs/uploads/backups inaccessible over HTTP |
 | PHP/runtime preflight | HOSTING-COMPATIBILITY | IN_PROGRESS | Web-SAPI extension/version check, DB and filesystem capability check |
 | One-time installer access key | SECURE-BROWSER-INSTALLER | IN_PROGRESS | High entropy, hashed/one-time, HTTPS, throttled, CSRF protected |
