@@ -47,7 +47,17 @@ final class PublicDiscoveryController
         }
         $principal = $this->authentication->currentPrincipal();
         $canSaveFavorite = $principal instanceof Principal && $principal->hasRole('client') && count($principal->roles) === 1;
-        return $this->render(['mode'=>'profile','profile'=>$profile,'canSaveFavorite'=>$canSaveFavorite,'csrf'=>$canSaveFavorite ? Csrf::issue() : '']);
+        $html = $this->views->render('public/discovery',[
+            'mode'=>'profile','profile'=>$profile,'canSaveFavorite'=>$canSaveFavorite,
+            'csrf'=>$canSaveFavorite ? Csrf::issue() : '','brandName'=>'Talyvane',
+        ]);
+        if ($canSaveFavorite) {
+            $headers = Response::html($html)->headers;
+            $headers['cache-control'] = 'no-store, no-cache, must-revalidate, private';
+            $headers['pragma'] = 'no-cache';
+            return new Response($html,200,$headers);
+        }
+        return Response::html($html);
     }
 
     /** @param array<string,mixed> $data */
