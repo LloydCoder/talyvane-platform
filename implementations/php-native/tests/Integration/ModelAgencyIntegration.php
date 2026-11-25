@@ -75,6 +75,24 @@ function runModelAgencyIntegration(PDO $pdo): int
     $verificationRow = $verification->fetch();
     $assert(is_array($verificationRow) && $verificationRow['outcome'] === 'verified' && $verificationRow['provider_reference_hash'] === hash('sha256','provider-reference-opaque-001'),'only a hash of the external verification reference is retained');
 
+    $secondApplicationId = $service->submit(
+        'Second Applicant','second-model-applicant@example.test',null,'GB','Manchester',null,null,
+        true,true,'model-privacy-v1',bin2hex(random_bytes(16))
+    );
+    $service->review($admin,$secondApplicationId,'under_review','Second application entered human review',bin2hex(random_bytes(16)));
+    $service->verifyAdultEligibility($verifier,$secondApplicationId,'independent_provider_check','provider-reference-second-verified','verified',365,bin2hex(random_bytes(16)));
+    $service->verifyAdultEligibility($verifier,$secondApplicationId,'independent_provider_check','provider-reference-second-failed','failed',365,bin2hex(random_bytes(16)));
+    try {
+        $service->review($admin,$secondApplicationId,'accepted','Attempt acceptance after latest failed verification',bin2hex(random_bytes(16)));
+        $assert(false,'a later failed adult-verification decision overrides an earlier verified decision');
+    } catch (DomainException) {
+        $assert(true,'a later failed adult-verification decision overrides an earlier verified decision');
+    }
+    $secondState=$pdo->prepare('SELECT status FROM model_talent_applications WHERE id = :id');
+    $secondState->execute(['id'=>$secondApplicationId]);
+    $assert($secondState->fetchColumn()==='under_review','failed latest adult verification keeps the application in human review');
+
+
     $agreements = new ModelAgencyAgreementService($pdo,new AuditLogger($pdo));
     $agreementId = $agreements->createDraft($admin,$applicationId,[
         'service_scope'=>['portfolio_development','casting_submissions'],
