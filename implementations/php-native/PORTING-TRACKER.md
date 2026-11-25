@@ -60,7 +60,7 @@ The native branch currently has 14 ordered PHP migrations plus backend slices fo
 |---|---|---:|---|
 | Responsive public homepage/brand shell | README, public views | IN_PROGRESS | Editorial responsive design implemented; browser accessibility and visual parity acceptance remain open |
 | Dynamic branding | BrandingController | IN_PROGRESS | Super Admin brand workspace; name/tagline, palette and typography tokens, contacts, HTTPS social links; existing private logo/favicon references preserved; upload and full token application remain open |
-| CMS pages and navigation | SitePageController | IN_PROGRESS | Admin listing/edit/versioned save/reasoned publish; immutable public snapshot and rollback-as-draft; preview, rollback/history UI and browser acceptance remain open |
+| CMS pages and navigation | SitePageController | IN_PROGRESS | Admin page listing/edit/versioned save/reasoned publish; immutable public snapshot and rollback-as-draft; header/footer navigation manager with safe targets and public rendering; preview, rollback/history UI and browser acceptance remain open |
 | Legal pages and policy versions | PRODUCT-REQUIREMENTS | NOT_STARTED | Versioned, publishable and auditable content |
 | SEO metadata/defaults | PRODUCT-REQUIREMENTS | IN_PROGRESS | Public title suffix, page metadata and robots defaults applied; canonical URLs, sitemap, structured data and richer SEO controls remain open |
 | Destination/city directory | DiscoveryController | NOT_STARTED | Structured taxonomy and active-market filtering |
