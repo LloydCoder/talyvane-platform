@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 $screen = is_string($screen ?? null) ? $screen : 'login';
+$brandName = is_string($brandName ?? null) && $brandName !== '' ? $brandName : 'Talyvane';
 $csrf = is_string($csrf ?? null) ? $csrf : '';
 $error = is_string($error ?? null) ? $error : '';
 $email = is_string($email ?? null) ? $email : '';
@@ -24,7 +25,7 @@ $titles = [
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title><?= $escape($heading) ?> · Talyvane</title>
+<title><?= $escape($heading) ?> · <?= $escape($brandName) ?></title>
 <style>
 :root{color-scheme:light;--ink:#182638;--muted:#667487;--paper:#f4f2ed;--panel:#fffefa;--line:#e6e2d9;--gold:#bd9560;--gold-dark:#88643a;--night:#142235;--danger:#8b3535}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--paper);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;display:grid;grid-template-columns:minmax(260px,.85fr) 1.15fr}
@@ -38,7 +39,7 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
 </head>
 <body>
 <aside>
-  <div class="brand">TALYVANE<span>.</span></div>
+  <div class="brand"><?= $escape($brandName) ?><span>.</span></div>
   <div class="aside-copy">
     <div class="eyebrow">Private agency operations</div>
     <h2>Clarity in every detail. Confidence in every decision.</h2>
