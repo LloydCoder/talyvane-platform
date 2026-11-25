@@ -16,6 +16,26 @@ final class CompanionProfilePublicationService
 {
     public function __construct(private PDO $pdo, private AuditLogger $audit) {}
 
+    /** @return list<array<string,mixed>> */
+    public function pending(Principal $actor, int $limit = 50): array
+    {
+        Authorization::require($actor,'profiles.manage',true);
+        if (!$actor->hasRole('admin') && !$actor->hasRole('owner') && !$actor->hasRole('super_admin')) {
+            throw new \\DomainException('Only an authorized administrator can review companion profiles.');
+        }
+        $limit = max(1,min(100,$limit));
+        $query = $this->pdo->prepare(
+            'SELECT p.id,p.slug,p.display_name,p.status,p.adult_eligibility_status,p.adult_verified_at,
+                    p.publication_consent_version,p.created_at,d.display_name AS destination_name
+             FROM companion_profiles p JOIN destinations d ON d.id = p.destination_id
+             WHERE p.status = "pending_review"
+             ORDER BY p.created_at ASC LIMIT :limit'
+        );
+        $query->bindValue(':limit',$limit,PDO::PARAM_INT);
+        $query->execute();
+        return $query->fetchAll();
+    }
+
     public function publish(Principal $actor, string $profileId, string $reason, string $requestId): void
     {
         Authorization::require($actor,'profiles.manage',true);
