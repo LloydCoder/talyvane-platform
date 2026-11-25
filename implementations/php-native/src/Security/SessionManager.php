@@ -14,6 +14,9 @@ final class SessionManager
         if ($requireHttps && !$https) {
             throw new \RuntimeException('HTTPS is required before an authenticated session can start.');
         }
+        ini_set('session.use_strict_mode', '1');
+        ini_set('session.use_only_cookies', '1');
+        ini_set('session.use_trans_sid', '0');
         session_name('talyvane_session');
         session_set_cookie_params([
             'lifetime' => 0,
