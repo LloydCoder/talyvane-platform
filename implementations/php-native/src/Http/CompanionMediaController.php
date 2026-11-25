@@ -112,7 +112,7 @@ final class CompanionMediaController
             return Response::redirect('/portal/companion/media?private_consent_granted=1');
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->index($request,$error->getMessage(),422);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return $this->index($request,'Members-only consent could not be recorded securely. Please retry.',503);
         }
     }
@@ -133,7 +133,7 @@ final class CompanionMediaController
             return Response::redirect('/portal/companion/media?private_consent_withdrawn=1');
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->index($request,$error->getMessage(),422);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return $this->index($request,'Members-only consent could not be withdrawn securely. Please retry.',503);
         }
     }
