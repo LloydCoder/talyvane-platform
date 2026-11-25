@@ -276,6 +276,12 @@ function runProfileMediaIntegration(PDO $pdo): int
         try { $galleryService->privateMediaForClient(new Principal($reviewerId,['super_admin'],true),$membersOnlyId,'Talyvane'); }
         catch (DomainException) { $noEntitlementDenied=true; }
         $assert($noEntitlementDenied,'non-client principals cannot access the members-only gallery even when they have administrative MFA');
+        $pdo->prepare('UPDATE memberships SET status="suspended",updated_at=UTC_TIMESTAMP() WHERE id=:id')
+            ->execute(['id'=>$membershipId]);
+        $suspendedMembershipDenied=false;
+        try { $galleryService->privateMediaForClient($companionClient,$membersOnlyId,'Talyvane'); }
+        catch (DomainException) { $suspendedMembershipDenied=true; }
+        $assert($suspendedMembershipDenied,'suspending a membership immediately blocks final private media delivery');
         $service->withdrawMembersOnlyConsent($companion,$profileId,$membersOnlyId,'Talyvane',$requestId);
         $withdrawnGallery=$galleryService->privateGalleryForClient($companionClient,'Talyvane');
         $assert(count(array_filter($withdrawnGallery,static fn(array $item): bool => $item['id']===$membersOnlyId))===0 &&
