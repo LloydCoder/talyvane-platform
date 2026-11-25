@@ -73,7 +73,11 @@ final class AdminProfileMediaController
         try {
             $this->media->review(
                 $actor,(string) ($params['id'] ?? ''),$this->field($request,'decision'),
-                $this->field($request,'reason'),$request->requestId
+                $this->field($request,'reason'),
+                $this->field($request,'adult_safety_confirmed')==='1',
+                $this->field($request,'rights_confirmed')==='1',
+                $this->field($request,'consent_confirmed')==='1',
+                $request->requestId
             );
             return Response::redirect('/admin/profile-media?reviewed=1');
         } catch (InvalidArgumentException|DomainException $error) {
