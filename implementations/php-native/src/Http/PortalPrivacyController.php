@@ -6,6 +6,7 @@ namespace Talyvane\Http;
 use DomainException;
 use JsonException;
 use Talyvane\Application\Identity\PortalPrivacyExportService;
+use Talyvane\Application\Identity\PortalPrivacyExportRateLimitException;
 use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Security\SessionManager;
 
