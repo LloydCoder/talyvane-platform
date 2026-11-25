@@ -25,6 +25,10 @@ final class CompanionMediaController
         SessionManager::start();
         $actor=$this->companion();
         if ($actor===null) { return Response::redirect('/portal/login'); }
+        if ($notice==='') {
+            if (($request->query['submitted'] ?? '')==='1') { $notice='Your image was submitted privately for human review.'; }
+            elseif (($request->query['removed'] ?? '')==='1') { $notice='Your image was withdrawn and removed from private storage.'; }
+        }
         try {
             return $this->page($actor,$error,$status,$notice);
         } catch (DomainException) {
@@ -101,9 +105,6 @@ final class CompanionMediaController
     {
         $profile=$this->media->profileForCompanion($actor);
         $items=$this->media->listForCompanion($actor);
-        if (($notice==='') && (($GLOBALS['__talyvane_media_notice'] ?? '')==='')) {
-            $notice='';
-        }
         $html=$this->views->render('portal/media',[
             'brandName'=>$this->brandName,'profile'=>$profile,'items'=>$items,
             'csrf'=>Csrf::issue(),'error'=>$error,'notice'=>$notice,
