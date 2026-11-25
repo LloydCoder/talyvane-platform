@@ -47,7 +47,7 @@ final class RateLimiter
                 return false;
             }
             $windowStarted = new DateTimeImmutable((string) $row['window_started_at'], new DateTimeZone('UTC'));
-            if ($windowStarted->modify('+' . $windowSeconds . ' seconds') <= $now) {
+            if (($blockedUntil !== null && $blockedUntil <= $now) || $windowStarted->modify('+' . $windowSeconds . ' seconds') <= $now) {
                 $attempts = 0;
                 $windowStarted = $now;
             } else {
