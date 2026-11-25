@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Talyvane\Http;
 
 use PDO;
+use Talyvane\Application\Clients\ClientMembershipService;
 use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\Identity\AccountRecoveryService;
 use Talyvane\Application\Identity\AuthenticationService;
@@ -24,7 +25,8 @@ final class PortalAuthController
         private ViewRenderer $views,
         private ?UserRegistrationService $registration,
         private ?EmailVerificationService $verification,
-        private ?AccountRecoveryService $recovery
+        private ?AccountRecoveryService $recovery,
+        private ?ClientMembershipService $memberships = null
     ) {}
 
     public function registerForm(Request $request): Response
@@ -190,7 +192,15 @@ final class PortalAuthController
         if (count($portalRoles) !== 1 || !Authorization::allows($principal, $portalRoles[0] . '.self.view', false)) {
             return $this->page('login', ['error'=>'This account does not have access to the public portal.'], 403);
         }
-        return $this->page('dashboard', ['accountType'=>$portalRoles[0]]);
+        $data=['accountType'=>$portalRoles[0]];
+        if ($portalRoles[0]==='client' && $this->memberships!==null) {
+            try {
+                $data['membership']=$this->memberships->currentForClient($principal);
+            } catch (\DomainException) {
+                return $this->page('login', ['error'=>'This account does not have access to the public portal.'], 403);
+            }
+        }
+        return $this->page('dashboard',$data);
     }
 
     public function logout(Request $request): Response
