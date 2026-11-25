@@ -223,6 +223,10 @@ function runProfileMediaIntegration(PDO $pdo): int
         $assert(hash_equals($membersOnlyImage['sha256'],hash('sha256',$privateDelivery['bytes'])) &&
             $privateDelivery['mime']==='image/webp',
             'private gallery delivery verifies media integrity after rechecking client entitlement and companion consent');
+        $renamedBrandDeliveryDenied=false;
+        try { $galleryService->privateMediaForClient($companionClient,$membersOnlyId,'Different Agency'); }
+        catch (DomainException) { $renamedBrandDeliveryDenied=true; }
+        $assert($renamedBrandDeliveryDenied,'changing the deployment brand invalidates final media delivery, not only the gallery listing');
         $noEntitlementDenied=false;
         try { $galleryService->privateMediaForClient(new Principal($reviewerId,['super_admin'],true),$membersOnlyId,'Talyvane'); }
         catch (DomainException) { $noEntitlementDenied=true; }
