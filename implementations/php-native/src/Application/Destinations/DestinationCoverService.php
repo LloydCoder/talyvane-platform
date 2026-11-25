@@ -135,6 +135,47 @@ final class DestinationCoverService
         if ($oldKey!==null && $oldKey!==$asset['private_storage_key']) $this->storage->delete($oldKey);
     }
 
+    public function withdraw(Principal $actor,string $assetId,string $reason,string $requestId): void
+    {
+        $this->assertAgencyAdministrator($actor);
+        $reason=trim($reason);
+        if (strlen($reason)<10 || strlen($reason)>500 || strlen($requestId)<16 || strlen($requestId)>190) {
+            throw new InvalidArgumentException('A meaningful cover withdrawal reason is required.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare(
+                'SELECT a.id,a.destination_id,a.private_storage_key,a.review_status,a.withdrawn_at,d.cover_media_key
+                 FROM destination_cover_assets a JOIN destinations d ON d.id=a.destination_id
+                 WHERE a.id=:id FOR UPDATE'
+            );
+            $query->execute(['id'=>$assetId]);
+            $asset=$query->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($asset) || $asset['withdrawn_at']!==null ||
+                !in_array($asset['review_status'],['approved','pending'],true)) {
+                throw new DomainException('Destination cover is not available for withdrawal.');
+            }
+            $this->pdo->prepare(
+                'UPDATE destination_cover_assets SET review_status="withdrawn",withdrawn_at=UTC_TIMESTAMP(),
+                 review_reason=:reason WHERE id=:id'
+            )->execute(['reason'=>$reason,'id'=>$assetId]);
+            if ($asset['cover_media_key']!==null && hash_equals((string)$asset['private_storage_key'],(string)$asset['cover_media_key'])) {
+                $this->pdo->prepare(
+                    'UPDATE destinations SET cover_media_key=NULL,rights_declaration_version=NULL,updated_at=UTC_TIMESTAMP()
+                     WHERE id=:destination AND cover_media_key=:key'
+                )->execute(['destination'=>$asset['destination_id'],'key'=>$asset['private_storage_key']]);
+            }
+            $this->audit->record($actor->id,'destination.cover.withdrawn','destination_cover',$assetId,$reason,
+                ['review_status'=>$asset['review_status']],['review_status'=>'withdrawn','destination_id'=>$asset['destination_id']],
+                $requestId,'destination-cover-governance-v1');
+            $this->pdo->commit();
+        } catch (\\Throwable $error) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+        $this->storage->delete((string)$asset['private_storage_key']);
+    }
+
     /** @return array{bytes:string,mime:string}|null */
     public function publicCover(string $slug): ?array
     {
