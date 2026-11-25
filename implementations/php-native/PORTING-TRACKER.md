@@ -92,7 +92,7 @@ The native branch currently has 17 ordered PHP migrations plus backend and brows
 | Entitlement authorization | CLIENT-MEMBERSHIP | IN_PROGRESS | Active/in-date membership + immutable grant checked on projection and delivery |
 | Members-only private gallery | CLIENT-MEMBERSHIP | NOT_STARTED | Consent, grant and membership all enforced server-side |
 | Companion portal | CompanionPortalController | IN_PROGRESS | Separate companion sign-in and booking decision workspace; profile, consent, safeguarding, availability and account self-service remain open |
-| Companion media/availability self-service | ROADMAP | NOT_STARTED | Planned workflows with review and safety preferences |
+| Companion availability self-service | CompanionPortalController | IN_PROGRESS | Native companion-only schedule workspace at `/portal/companion/availability`; destination IANA time zone is server-derived; date-bounded weekly windows, overlap prevention, owner-scoped writes/deletes and transactional audit events have integration coverage. Browser E2E, DST boundary cases, schedule notifications and automatic-booking opt-in/out remain open |
 
 ## 5. Model agency and representation vertical
 
