@@ -64,9 +64,9 @@ final class ModelApplicantRightsService
             $this->pdo->prepare(
                 'INSERT INTO model_talent_application_events
                  (id,application_id,actor_user_id,actor_type,from_status,to_status,reason,policy_version,created_at)
-                 VALUES (:id,:application,NULL,"applicant",:status,:status,:reason,"applicant-rights-v1",UTC_TIMESTAMP())'
+                 VALUES (:id,:application,NULL,"applicant",:from_status,:to_status,:reason,"applicant-rights-v1",UTC_TIMESTAMP())'
             )->execute([
-                'id'=>self::uuid(),'application'=>$application['id'],'status'=>$application['status'],
+                'id'=>self::uuid(),'application'=>$application['id'],'from_status'=>$application['status'],'to_status'=>$application['status'],
                 'reason'=>'Applicant initiated a verified privacy-rights request: ' . $requestType,
             ]);
             $this->pdo->commit();
