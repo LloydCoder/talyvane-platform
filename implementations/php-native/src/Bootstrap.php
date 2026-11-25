@@ -119,9 +119,6 @@ final class Bootstrap
         $publicRoot = (string) ($config['paths']['document_root'] ?? ($_SERVER['DOCUMENT_ROOT'] ?? ''));
         $mediaStorage = new PrivateMediaStorage((string) ($config['paths']['storage'] ?? ''),$publicRoot);
         $profileMedia = new ProfileMediaService($pdo,$mediaStorage,$discovery,$audit);
-        $companionMedia = new CompanionMediaController($authentication,$profileMedia,$views,$brandName);
-        $adminProfileMedia = new AdminProfileMediaController($authentication,$profileMedia,$views,$brandName);
-        $publicProfileMedia = new PublicProfileMediaController($profileMedia);
         $publicDiscovery = new PublicDiscoveryController($discovery, $views, $authentication);
         $contentManagement = new ContentManagementService($pdo, $audit);
         $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
@@ -131,6 +128,9 @@ final class Bootstrap
         $adminNavigation = new AdminNavigationController($pdo, $authentication, $contentManagement, $views);
         $enquiries = new EnquiryService($pdo, $rateLimiter, $audit);
         $brandName = (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane');
+        $companionMedia = new CompanionMediaController($authentication,$profileMedia,$views,$brandName);
+        $adminProfileMedia = new AdminProfileMediaController($authentication,$profileMedia,$views,$brandName);
+        $publicProfileMedia = new PublicProfileMediaController($profileMedia);
         $publicEnquiries = new PublicEnquiryController($enquiries, $contentManagement, $views, $brandName);
         $adminEnquiries = new AdminEnquiryController($enquiries, $authentication, $views, $brandName);
         $companionPublication = new CompanionProfilePublicationService($pdo, $audit);
