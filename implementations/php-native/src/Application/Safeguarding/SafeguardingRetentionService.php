@@ -107,7 +107,7 @@ final class SafeguardingRetentionService
             if (!is_array($case)||$case['status']!=='closed'||(int)$case['legal_hold']===1||
                 $case['retention_applied_at']!==null||!is_string($case['encrypted_case_key'])||
                 $case['encryption_provider']!==$this->crypto->providerName()||
-                !is_string($case['retention_due_at'])||strtotime($case['retention_due_at'].' UTC')>time()||
+                !is_string($case['retention_due_at'])||!is_string($case['closed_at'])||$case['closed_at']===''||strtotime($case['retention_due_at'].' UTC')>time()||
                 !hash_equals($policyVersion,(string)$case['retention_policy_version'])) {
                 $this->pdo->commit();return false;
             }
