@@ -30,7 +30,8 @@ final class CompanionAvailabilityController
         try {
             $profile = $this->availability->profileForCompanion($actor);
             $items = $this->availability->listForCompanion($actor);
-            return $this->page($profile,$items,$error,$status);
+            $notice = ($request->query['saved'] ?? '') === '1' ? 'Your availability window has been saved.' : ((($request->query['removed'] ?? '') === '1') ? 'Your availability window has been removed.' : '');
+            return $this->page($profile,$items,$error,$status,$notice);
         } catch (DomainException) {
             return $this->page(null,[],'You do not have permission to manage this availability.',403);
         }
@@ -108,12 +109,8 @@ final class CompanionAvailabilityController
     }
 
     /** @param array<string,mixed>|null $profile @param list<array<string,mixed>> $items */
-    private function page(?array $profile,array $items,string $error,int $status): Response
+    private function page(?array $profile,array $items,string $error,int $status,string $notice=''): Response
     {
-        $notice = '';
-        if (($GLOBALS['__talyvane_request_query'] ?? null) === null) {
-            // Query-string notices are deliberately not trusted as markup.
-        }
         $html = $this->views->render('portal/availability',[
             'brandName'=>$this->brandName,'profile'=>$profile,'items'=>$items,
             'error'=>$error,'notice'=>$notice,'csrf'=>Csrf::issue(),
