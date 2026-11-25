@@ -22,4 +22,6 @@ $applied = $runner->migrate();
 if (count($applied) !== 10 || $runner->migrate() !== []) {
     throw new RuntimeException('Native PHP migrations failed or are not idempotent.');
 }
-fwrite(STDOUT, sprintf("Native PHP MySQL integration: %d migrations applied.\n", count($applied)));
+require __DIR__ . '/../tests/Integration/IdentityIntegration.php';
+$identityAssertions = runIdentityIntegration($pdo);
+fwrite(STDOUT, sprintf("Native PHP MySQL integration: %d migrations and %d identity assertions passed.\n", count($applied), $identityAssertions));
