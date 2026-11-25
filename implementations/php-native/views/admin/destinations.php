@@ -70,6 +70,11 @@ $csrf = is_string($csrf ?? null) ? $csrf : '';
 <label class="help"><input type="checkbox" name="rights_confirmed" value="1" required> I confirm I own or hold the necessary copyright, licence, property and likeness permissions for this image and authorize its use as this destination cover.</label>
 <div class="actions"><button class="button" type="submit">Submit cover for independent review</button></div>
 </form>
+<?php if ((bool)($item['has_cover'] ?? false)): ?><form method="post" action="/admin/destination-covers/<?= $escape($item['active_cover_asset_id'] ?? '') ?>/withdraw">
+<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<div class="field"><label>Cover withdrawal reason</label><input name="reason" minlength="10" maxlength="500" required placeholder="Rights withdrawn or cover replaced"></div>
+<div class="actions"><button class="button" type="submit">Withdraw current cover</button></div>
+</form><?php endif; ?>
 </article>
 <?php endforeach; ?>
 </div>
