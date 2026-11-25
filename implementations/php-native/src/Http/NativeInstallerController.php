@@ -21,6 +21,7 @@ use Talyvane\Installer\PrivateConfigStore;
 use Talyvane\Installer\PrivateInstallerState;
 use Talyvane\Installer\PrivatePathResolver;
 use Talyvane\Installer\SetupKey;
+use Talyvane\Infrastructure\Logging\PrivateErrorLogger;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\SecretBox;
 use Talyvane\Security\SessionManager;
@@ -71,12 +72,8 @@ final class NativeInstallerController
         }
     }
 
-    private function setupPage(Request $request,array $paths,SetupKey $setupKey,string $error=''): Response
+    private function setupPage(Request $request,array $paths,SetupKey $setupKey,string $error='',int $status=200): Response
     {
-        $pending = $this->pendingState($paths,$setupKey)->read();
-        if (is_array($pending)) {
-            return Response::redirect('/install/verify');
-        }
         $configFile = $paths['config'] . '/app.php';
         if (file_exists($configFile)) {
             return $this->render('install/wizard',[
@@ -88,12 +85,16 @@ final class NativeInstallerController
         if (!is_file($keyFile)) {
             $setupKey->create();
         }
+        $pending = $this->pendingState($paths,$setupKey)->read();
+        if (is_array($pending)) {
+            return Response::redirect('/install/verify');
+        }
         $preflight = $this->preflight($paths);
         return $this->render('install/wizard',[
             'step'=>'setup','error'=>$error,'notice'=>'',
             'checks'=>$preflight['checks'],
             'keyFileHint'=>$this->relativePrivatePath($paths,$keyFile),
-        ],$preflight['ok'] ? 200 : 503);
+        ],$status === 200 ? ($preflight['ok'] ? 200 : 503) : $status);
     }
 
     private function submit(Request $request,array $paths,SetupKey $setupKey,InstallerLock $lock): Response
@@ -206,7 +207,7 @@ final class NativeInstallerController
         }
     }
 
-    private function verifyPage(Request $request,array $paths,SetupKey $setupKey,string $error='',string $notice=''): Response
+    private function verifyPage(Request $request,array $paths,SetupKey $setupKey,string $error='',string $notice='',int $status=200): Response
     {
         $pending = $this->pendingState($paths,$setupKey)->read();
         if (!is_array($pending)) {
@@ -228,7 +229,7 @@ final class NativeInstallerController
             'primaryEmail'=>$this->maskEmail((string) ($pending['primary_email'] ?? '')),
             'recoveryEmail'=>$this->maskEmail((string) ($pending['recovery_email'] ?? '')),
             'expiresAt'=>gmdate('Y-m-d H:i:s',(int) ($pending['expires_at'] ?? time())),
-        ]);
+        ],$status);
     }
 
     private function verify(Request $request,array $paths,SetupKey $setupKey,InstallerLock $lock): Response
