@@ -407,15 +407,10 @@ final class NativeInstallerController
             'token_hash'=>hash('sha256',$successToken),
             'expires_at'=>time()+900,
             'initial_password'=>(string) $pending['initial_password'],
+            'offline_recovery_key'=>(string) $pending['offline_recovery_key'],
             'app_name'=>(string) $pending['app_name'],
             'app_url'=>(string) $pending['app_url'],
         ]);
-        $recoveryHandoff = new OneTimeRecoveryKeyHandoff(
-            $paths['config'] . '/INSTALLER-RECOVERY-HANDOFF.json',
-            $paths['document_root'],
-            new SecretBox((string) $pending['app_key'])
-        );
-        $recoveryHandoff->store((string) $pending['offline_recovery_key'],time()+86400);
         if (!$lock->isLocked()) {
             $installationId = self::uuid();
             $lock->lock($installationId);
@@ -479,6 +474,7 @@ final class NativeInstallerController
         $response = $this->render('install/success',[
             'brandName'=>(string) ($success['app_name'] ?? 'Talyvane'),
             'initialPassword'=>(string) ($success['initial_password'] ?? ''),
+            'offlineRecoveryKey'=>(string) ($success['offline_recovery_key'] ?? ''),
             'appUrl'=>(string) ($success['app_url'] ?? ''),
         ]);
         $setupKeyPath = $paths['config'] . '/INSTALLER-ACCESS-KEY.txt';
