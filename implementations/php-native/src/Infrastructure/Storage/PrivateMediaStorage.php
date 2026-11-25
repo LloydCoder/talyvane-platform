@@ -22,7 +22,9 @@ final class PrivateMediaStorage
         if ($root === false || self::isWithin($root,$public) || is_link($privateRoot) || !is_writable($root)) {
             throw new RuntimeException('Private media storage must be writable, outside the public root and not a symlink.');
         }
-        @chmod($root,0700);
+        if (!@chmod($root,0700) || (fileperms($root) & 0077)!==0) {
+            throw new RuntimeException('Private media storage permissions must be owner-only.');
+        }
         $this->root = $root;
     }
 
@@ -87,7 +89,10 @@ final class PrivateMediaStorage
             imagedestroy($image);
             throw new RuntimeException('Private media category resolved outside the private storage root.');
         }
-        @chmod($resolvedDirectory,0700);
+        if (!@chmod($resolvedDirectory,0700) || (fileperms($resolvedDirectory) & 0077)!==0) {
+            imagedestroy($image);
+            throw new RuntimeException('Private media category permissions must be owner-only.');
+        }
 
         $filename = bin2hex(random_bytes(16)) . '.webp';
         $temporaryTarget = $resolvedDirectory . DIRECTORY_SEPARATOR . '.' . bin2hex(random_bytes(16)) . '.tmp';
@@ -97,10 +102,16 @@ final class PrivateMediaStorage
                 !imagewebp($image,$temporaryTarget,84) || !is_file($temporaryTarget) || is_link($temporaryTarget)) {
                 throw new RuntimeException('Image re-encoding failed.');
             }
+        } catch (\\Throwable $error) {
+            if (is_file($temporaryTarget) && !is_link($temporaryTarget)) { @unlink($temporaryTarget); }
+            throw $error;
         } finally {
             imagedestroy($image);
         }
-        @chmod($temporaryTarget,0600);
+        if (!@chmod($temporaryTarget,0600) || (fileperms($temporaryTarget) & 0077)!==0) {
+            @unlink($temporaryTarget);
+            throw new RuntimeException('Sanitized image permissions could not be restricted.');
+        }
         $storedMime = $finfo->file($temporaryTarget);
         $storedSize = filesize($temporaryTarget);
         $hash = hash_file('sha256',$temporaryTarget);
@@ -109,7 +120,10 @@ final class PrivateMediaStorage
             @unlink($temporaryTarget);
             throw new RuntimeException('Sanitized image could not be verified and committed.');
         }
-        @chmod($target,0600);
+        if (!@chmod($target,0600) || (fileperms($target) & 0077)!==0) {
+            @unlink($target);
+            throw new RuntimeException('Stored image permissions could not be restricted.');
+        }
         return ['key'=>$category . '/' . $filename,'mime'=>'image/webp','size'=>$storedSize,'sha256'=>$hash,'width'=>$width,'height'=>$height];
     }
 
