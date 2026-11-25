@@ -11,7 +11,9 @@ $accountType = is_string($accountType ?? null) ? $accountType : '';
 $titles = [
  'login'=>['Your private account','Sign in to your verified Talyvane account.'],
  'register'=>['Create an account','Choose the account type that matches how you use the platform.'],
- 'verify'=>['Verify your email','Enter the six-digit code sent to your email address.'],\n 'recovery_request'=>['Recover your account','We will send a recovery code if an active, verified account matches your email.'],\n 'recovery_complete'=>['Set a new password','Enter the recovery code and choose a new password.'],
+ 'verify'=>['Verify your email','Enter the six-digit code sent to your email address.'],
+ 'recovery_request'=>['Recover your account','We will send a recovery code if an active, verified account matches your email.'],
+ 'recovery_complete'=>['Set a new password','Enter the recovery code and choose a new password.'],
  'dashboard'=>[$accountType === 'companion' ? 'Companion workspace' : 'Client workspace','Your account is verified. Additional features appear as their workflows are enabled.'],
 ];
 [$heading,$description] = $titles[$screen] ?? $titles['login'];
