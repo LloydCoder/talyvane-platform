@@ -4,6 +4,9 @@ declare(strict_types=1);
 namespace Talyvane;
 
 use Talyvane\Application\Companions\CompanionProfilePublicationService;
+use Talyvane\Application\Bookings\BookingCommandService;
+use Talyvane\Application\Bookings\BookingQueryService;
+use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
@@ -27,12 +30,14 @@ use Talyvane\Http\PublicModelAgencyRightsController;
 use Talyvane\Http\PublicDiscoveryController;
 use Talyvane\Http\PublicEnquiryController;
 use Talyvane\Http\AdminContentController;
+use Talyvane\Http\PortalBookingController;
 use Talyvane\Http\PublicSiteController;
 use Talyvane\Http\Request;
 use Talyvane\Http\Response;
 use Talyvane\Http\Router;
 use Talyvane\Http\ViewRenderer;
 use Talyvane\Infrastructure\Audit\AuditLogger;
+use Talyvane\Infrastructure\Database\BookingPolicyRepository;
 use Talyvane\Infrastructure\Database\ConnectionFactory;
 use Talyvane\Infrastructure\Mail\SmtpMailer;
 use Talyvane\Infrastructure\Security\RateLimiter;
@@ -106,6 +111,11 @@ final class Bootstrap
         $publicModelAgency = new PublicModelAgencyController($pdo, $modelApplications, $contentManagement, $rateLimiter, $modelApplicantRights, $views);
         $adminModelAgency = new AdminModelAgencyController($authentication, $modelApplications, $views, $brandName);
         $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views, $brandName);
+        $bookingPolicies = new BookingPolicyRepository($pdo);
+        $bookingService = new BookingService($pdo, $bookingPolicies, $audit);
+        $bookingCommands = new BookingCommandService($pdo, $bookingPolicies, $audit);
+        $bookingQueries = new BookingQueryService($pdo);
+        $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $discovery, $views, $brandName);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery);
         $router = new Router();
 
@@ -140,6 +150,12 @@ final class Bootstrap
         $router->add('POST', '/portal/login', static fn(Request $request): Response => $portalAuth->login($request));
         $router->add('GET', '/portal', static fn(Request $request): Response => $portalAuth->dashboard($request));
         $router->add('POST', '/portal/logout', static fn(Request $request): Response => $portalAuth->logout($request));
+        $router->add('GET', '/portal/bookings', static fn(Request $request): Response => $portalBookings->clientIndex($request));
+        $router->add('GET', '/portal/bookings/new', static fn(Request $request): Response => $portalBookings->newForm($request));
+        $router->add('POST', '/portal/bookings', static fn(Request $request): Response => $portalBookings->store($request));
+        $router->add('POST', '/portal/bookings/{id}/cancel', static fn(Request $request, array $params): Response => $portalBookings->cancel($request, $params));
+        $router->add('GET', '/portal/companion/bookings', static fn(Request $request): Response => $portalBookings->companionIndex($request));
+        $router->add('POST', '/portal/companion/bookings/{id}/decision', static fn(Request $request, array $params): Response => $portalBookings->companionDecision($request, $params));
 
         $router->add('GET', '/admin/login', static fn(Request $request): Response => $adminAuth->loginForm($request));
         $router->add('POST', '/admin/login', static fn(Request $request): Response => $adminAuth->login($request));
@@ -154,6 +170,8 @@ final class Bootstrap
         $router->add('POST', '/admin/logout', static fn(Request $request): Response => $adminAuth->logout($request));
         $router->add('GET', '/admin/brand', static fn(Request $request): Response => $adminBrand->show($request));
         $router->add('POST', '/admin/brand', static fn(Request $request): Response => $adminBrand->update($request));
+        $router->add('GET', '/admin/bookings', static fn(Request $request): Response => $portalBookings->adminIndex($request));
+        $router->add('POST', '/admin/bookings/{id}/status', static fn(Request $request, array $params): Response => $portalBookings->adminTransition($request, $params));
         $router->add('GET', '/admin/model-agency', static fn(Request $request): Response => $adminModelAgency->index($request));
         $router->add('GET', '/admin/model-agency/verifications', static fn(Request $request): Response => $adminModelAgency->verificationQueue($request));
         $router->add('POST', '/admin/model-agency/{id}/review', static fn(Request $request, array $params): Response => $adminModelAgency->review($request, $params));
