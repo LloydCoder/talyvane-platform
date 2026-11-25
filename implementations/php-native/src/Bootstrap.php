@@ -133,7 +133,29 @@ final class Bootstrap
 
         $public = new PublicSiteController($pdo, $views);
         $discovery = new DiscoveryService($pdo);
-        $membershipAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(), static fn(string $dependency): bool => false);
+        $membershipEligibility = static function(string $dependency) use ($pdo): bool {
+            try {
+                if ($dependency==='market.policy') {
+                    return $pdo->query(
+                        'SELECT 1 FROM market_policies m JOIN countries c ON c.alpha2=m.country_code
+                         WHERE m.enabled=1 AND m.decision="approved" AND m.expires_at>UTC_TIMESTAMP()
+                           AND c.enabled=1 LIMIT 1'
+                    )->fetchColumn()!==false;
+                }
+                if ($dependency==='consent.current') {
+                    return $pdo->query(
+                        'SELECT 1 FROM consent_grants
+                         WHERE subject_type="companion_profile" AND purpose="profile.publication"
+                           AND audience="public" AND granted=1 AND withdrawn_at IS NULL LIMIT 1'
+                    )->fetchColumn()!==false;
+                }
+            } catch (\\PDOException) {
+                return false;
+            }
+            // Provider, legal and safeguarding readiness require independent external evidence.
+            return false;
+        };
+        $membershipAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(),$membershipEligibility);
         $membershipEntitlements = new MembershipEntitlementService($pdo,$membershipAvailability);
         $publicRoot = (string) ($config['paths']['document_root'] ?? ($_SERVER['DOCUMENT_ROOT'] ?? ''));
         $mediaStorage = new PrivateMediaStorage((string) ($config['paths']['storage'] ?? ''),$publicRoot);
