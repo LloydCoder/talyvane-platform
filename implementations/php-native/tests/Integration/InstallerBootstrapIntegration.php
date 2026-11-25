@@ -1,14 +1,12 @@
 <?php
 declare(strict_types=1);
 
-use Talyvane\Application\Identity\EmailVerificationService;
-use Talyvane\Infrastructure\Audit\AuditLogger;
-use Talyvane\Infrastructure\Mail\Mailer;
-use Talyvane\Infrastructure\Security\RateLimiter;
-use Talyvane\Installer\PrivateInstallerState;
-use Talyvane\Installer\SetupKey;
 use Talyvane\Http\NativeInstallerController;
 use Talyvane\Http\Request;
+use Talyvane\Infrastructure\Mail\Mailer;
+use Talyvane\Installer\PrivateInstallerState;
+use Talyvane\Installer\SetupKey;
+use Talyvane\Security\Csrf;
 use Talyvane\Security\SecretBox;
 
 function runInstallerBootstrapIntegration(PDO $pdo): int
@@ -30,7 +28,8 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
     try {
         $setupKey = new SetupKey($privateConfig . DIRECTORY_SEPARATOR . 'INSTALLER-ACCESS-KEY.txt');
         $setupSecret = $setupKey->create();
-        $assert(strlen($setupSecret) === 43 && $setupKey->verify($setupSecret),'installer creates a 256-bit cPanel-only setup key');
+        $assert(strlen($setupSecret) === 43 && $setupKey->verify($setupSecret) && $setupKey->read() === $setupSecret,
+            'installer creates a 256-bit cPanel-only setup key');
 
         $pendingStore = new PrivateInstallerState(
             $privateConfig . DIRECTORY_SEPARATOR . 'pending.json',$publicRoot,
@@ -45,6 +44,29 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
         $assert(is_array($pendingRead) && $pendingRead['database_password'] === 'do-not-store-in-plaintext',
             'encrypted installer state round-trips without exposing plaintext');
         $pendingStore->delete();
+        $setupKey->consume();
+
+        $httpHome = $temporaryRoot . DIRECTORY_SEPARATOR . 'http-home';
+        $httpDocumentRoot = $httpHome . DIRECTORY_SEPARATOR . 'public_html';
+        mkdir($httpDocumentRoot,0755,true);
+        $oldServer = $_SERVER;
+        $oldGet = $_GET;
+        $oldPost = $_POST;
+        $oldCookie = $_COOKIE;
+        $oldRequest = $_REQUEST;
+        $oldSession = $_SESSION ?? [];
+        $oldHome = getenv('HOME');
+        $_SERVER['DOCUMENT_ROOT'] = $httpDocumentRoot;
+        $_SERVER['HTTPS'] = 'on';
+        $_SERVER['SERVER_PORT'] = '443';
+        $_SERVER['HTTP_HOST'] = 'installer.example.test';
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['REQUEST_URI'] = '/install';
+        $_GET = [];
+        $_POST = [];
+        $_COOKIE = [];
+        $_REQUEST = [];
+        putenv('HOME=' . $httpHome);
 
         $mailer = new class implements Mailer {
             /** @var list<array{recipient:string,subject:string,body:string}> */
@@ -54,23 +76,48 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
                 $this->messages[] = ['recipient'=>$recipient,'subject'=>$subject,'body'=>$textBody];
             }
         };
-        $pepper = rtrim(strtr(base64_encode(random_bytes(32)),'+/','-_'),'=');
-        $service = new EmailVerificationService($pdo,$mailer,new RateLimiter($pdo,$pepper),new AuditLogger($pdo),$pepper);
-
-        try {
-            $service->prepareSuperAdminBootstrap($setupKey,'incorrect-setup-key','first-admin@example.test','recovery-admin@example.test');
-            $assert(false,'invalid installer setup key is rejected');
-        } catch (DomainException) {
-            $assert(true,'invalid installer setup key is rejected');
-        }
-
-        $proof = rtrim(strtr(base64_encode(random_bytes(32)),'+/','-_'),'=');
-        $bootstrap = $service->prepareSuperAdminBootstrap(
-            $setupKey,$setupSecret,'first-admin@example.test','recovery-admin@example.test',$proof
+        $applicationRoot = dirname(__DIR__,2);
+        $controller = new NativeInstallerController(
+            $applicationRoot,
+            static fn(array $config): PDO => $pdo,
+            static fn(array $config): Mailer => $mailer
         );
-        $assert($bootstrap['bootstrap_proof'] === $proof && count($mailer->messages) === 2,
-            'bootstrap creates one pending Super Admin and sends two separate verification messages');
+        $getResponse = $controller->handle(new Request('GET','/install',['host'=>'installer.example.test']));
+        $keyFiles = glob($httpHome . DIRECTORY_SEPARATOR . '.talyvane' . DIRECTORY_SEPARATOR . 'talyvane' . DIRECTORY_SEPARATOR . '*' . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'INSTALLER-ACCESS-KEY.txt') ?: [];
+        $installerKey = count($keyFiles) === 1 ? trim((string) file_get_contents($keyFiles[0])) : '';
+        $assert(str_contains($getResponse->body,'Set up your platform') && in_array($getResponse->status,[200,503],true),
+            'HTTPS browser installer renders its environment preflight before application bootstrap');
+        $assert(count($keyFiles) === 1 && strlen($installerKey) === 43 && !str_contains($getResponse->body,$installerKey) &&
+            (fileperms($keyFiles[0]) & 0777) === 0600,
+            'browser installer creates a private setup key but never reveals it in HTML');
 
+        $invalidCsrf = Csrf::issue();
+        $invalidRequest = new Request('POST','/install',['host'=>'installer.example.test'],[],[
+            '_csrf'=>$invalidCsrf,'setup_key'=>'invalid','installation_confirmed'=>'1',
+        ]);
+        $invalidResponse = $controller->handle($invalidRequest);
+        $assert($invalidResponse->status === 403 && $mailer->messages === [],
+            'invalid setup key cannot start database or email bootstrap');
+
+        $csrf = Csrf::issue();
+        $setupRequest = new Request('POST','/install',['host'=>'installer.example.test'],[],[
+            '_csrf'=>$csrf,'setup_key'=>$installerKey,'installation_confirmed'=>'1',
+            'app_name'=>'Talyvane Test','app_url'=>'https://installer.example.test',
+            'db_host'=>'localhost','db_port'=>'3306','db_name'=>'talyvane_native_test',
+            'db_user'=>'native_test','db_password'=>'  database-secret  ',
+            'mail_host'=>'smtp.example.test','mail_port'=>'587','mail_username'=>'mailer@example.test',
+            'mail_password'=>'  smtp-secret  ','mail_encryption'=>'tls',
+            'mail_from_email'=>'no-reply@example.test','mail_from_name'=>'Talyvane Test',
+            'admin_email'=>'first-admin@example.test','recovery_email'=>'recovery-admin@example.test',
+        ],'127.0.0.1',bin2hex(random_bytes(16)));
+        $setupResponse = $controller->handle($setupRequest);
+        $assert($setupResponse->status === 303 && ($setupResponse->headers['location'] ?? '') === '/install/verify' &&
+            count($mailer->messages) === 2,
+            'native installer migrates the database and sends separate primary/recovery verification codes');
+
+        $verifyPage = $controller->handle(new Request('GET','/install/verify',['host'=>'installer.example.test']));
+        $assert($verifyPage->status === 200 && str_contains($verifyPage->body,'Verify both administrator addresses'),
+            'installer exposes a separate dual-email verification step');
         $codes = [];
         foreach ($mailer->messages as $message) {
             if (!preg_match('/verification code is: ([0-9]{6})/',$message['body'],$match)) {
@@ -78,67 +125,58 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
             }
             $codes[$message['recipient']] = $match[1];
         }
-        $userId = $bootstrap['user_id'];
-        $primary = $service->verify($userId,'first-admin@example.test','admin_primary',$codes['first-admin@example.test']);
-        $recovery = $service->verify($userId,'recovery-admin@example.test','admin_recovery',$codes['recovery-admin@example.test']);
-        $assert($primary && $recovery && $service->bothAdminAddressesVerified($userId,'first-admin@example.test','recovery-admin@example.test'),
-            'both independent email challenges must be verified before activation');
+        $verifyCsrf = Csrf::issue();
+        $verifyRequest = new Request('POST','/install/verify',['host'=>'installer.example.test'],[],[
+            '_csrf'=>$verifyCsrf,
+            'primary_code'=>$codes['first-admin@example.test'],
+            'recovery_code'=>$codes['recovery-admin@example.test'],
+        ],'127.0.0.1',bin2hex(random_bytes(16)));
+        $verifyResponse = $controller->handle($verifyRequest);
+        $assert($verifyResponse->status === 303 && ($verifyResponse->headers['location'] ?? '') === '/install/success',
+            'both independent email codes activate the first Super Admin and create the permanent lock');
 
-        $persistedCredentials = null;
-        $credentials = $service->activateSuperAdmin(
-            $userId,'first-admin@example.test','recovery-admin@example.test',$proof,bin2hex(random_bytes(16)),
-            function(array $secrets) use (&$persistedCredentials,$pdo): void {
-                if (!$pdo->inTransaction()) {
-                    throw new RuntimeException('Installer credentials must be persisted before the activation transaction commits.');
-                }
-                $persistedCredentials = $secrets;
-            }
-        );
-        $assert(is_array($persistedCredentials) && $persistedCredentials === $credentials,
-            'one-time administrator credentials are durably handed to private state before database commit');
+        $successResponse = $controller->handle(new Request('GET','/install/success',['host'=>'installer.example.test']));
+        $assert($successResponse->status === 200 && str_contains($successResponse->body,'One-time administrator credentials'),
+            'installer shows the one-time administrator credential handoff after lock creation');
+        preg_match('/<label>Initial Super Admin password<\/label><code>([^<]+)<\/code>/',$successResponse->body,$passwordMatch);
+        preg_match('/<label>Offline Super Admin recovery key<\/label><code>([^<]+)<\/code>/',$successResponse->body,$recoveryMatch);
+        $initialPassword = html_entity_decode($passwordMatch[1] ?? '',ENT_QUOTES | ENT_HTML5,'UTF-8');
+        $offlineRecoveryKey = html_entity_decode($recoveryMatch[1] ?? '',ENT_QUOTES | ENT_HTML5,'UTF-8');
+        $assert($initialPassword !== '' && $offlineRecoveryKey !== '' && strlen($offlineRecoveryKey) === 43,
+            'one-time handoff displays the generated password and offline recovery key');
 
-        $user = $pdo->prepare('SELECT status,first_login_required,password_hash FROM users WHERE id = :id');
-        $user->execute(['id'=>$userId]);
-        $userRow = $user->fetch();
-        $role = $pdo->prepare('SELECT 1 FROM user_roles WHERE user_id = :id AND role_key = "super_admin"');
-        $role->execute(['id'=>$userId]);
-        $recoveryRow = $pdo->query('SELECT recovery_email,offline_recovery_key_hash FROM super_admin_recovery WHERE singleton_id=1')->fetch();
-        $assert(is_array($userRow) && $userRow['status'] === 'active' && (bool) $userRow['first_login_required'] &&
-            password_verify($credentials['initial_password'],$userRow['password_hash']) && $role->fetchColumn() !== false,
-            'activation creates an active Super Admin who must change the generated password on first login');
-        $assert(is_array($recoveryRow) && $recoveryRow['recovery_email'] === 'recovery-admin@example.test' &&
-            password_verify($credentials['offline_recovery_key'],$recoveryRow['offline_recovery_key_hash']),
-            'independent recovery email and offline recovery key are stored only as a password hash');
-        $activated = $pdo->query('SELECT activated_at FROM super_admin_bootstrap_challenges WHERE singleton_id=1')->fetchColumn();
-        $assert($activated !== false && $activated !== null,'successful bootstrap permanently consumes the one-time bootstrap challenge');
+        $configFiles = glob($httpHome . DIRECTORY_SEPARATOR . '.talyvane' . DIRECTORY_SEPARATOR . 'talyvane' . DIRECTORY_SEPARATOR . '*' . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'app.php') ?: [];
+        $lockFiles = glob($httpHome . DIRECTORY_SEPARATOR . '.talyvane' . DIRECTORY_SEPARATOR . 'talyvane' . DIRECTORY_SEPARATOR . '*' . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'INSTALLATION-LOCK.json') ?: [];
+        $keyStillExists = glob($httpHome . DIRECTORY_SEPARATOR . '.talyvane' . DIRECTORY_SEPARATOR . 'talyvane' . DIRECTORY_SEPARATOR . '*' . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'INSTALLER-ACCESS-KEY.txt') ?: [];
+        $assert(count($configFiles) === 1 && count($lockFiles) === 1 && $keyStillExists === [] &&
+            (fileperms($configFiles[0]) & 0777) === 0600,
+            'installer writes private configuration and permanent lock, then consumes the setup key');
 
-        $setupKey->consume();
-        $assert(!$setupKey->verify($setupSecret),'private setup key is consumed after successful Super Admin activation');
+        $installedUser = $pdo->prepare('SELECT status,first_login_required,password_hash FROM users WHERE email = "first-admin@example.test" LIMIT 1');
+        $installedUser->execute();
+        $user = $installedUser->fetch();
+        $role = $pdo->prepare('SELECT 1 FROM user_roles WHERE user_id = (SELECT id FROM users WHERE email = "first-admin@example.test") AND role_key = "super_admin"');
+        $role->execute();
+        $recovery = $pdo->query('SELECT recovery_email,offline_recovery_key_hash FROM super_admin_recovery WHERE singleton_id=1')->fetch();
+        $assert(is_array($user) && $user['status'] === 'active' && (bool) $user['first_login_required'] &&
+            password_verify($initialPassword,$user['password_hash']) && $role->fetchColumn() !== false,
+            'installed Super Admin must change the generated password and receives the Super Admin role');
+        $assert(is_array($recovery) && $recovery['recovery_email'] === 'recovery-admin@example.test' &&
+            password_verify($offlineRecoveryKey,$recovery['offline_recovery_key_hash']),
+            'recovery email and offline recovery key are stored as a password hash');
 
-        $httpHome = $temporaryRoot . DIRECTORY_SEPARATOR . 'http-home';
-        $httpDocumentRoot = $httpHome . DIRECTORY_SEPARATOR . 'public_html';
-        mkdir($httpDocumentRoot,0755,true);
-        $oldServer = $_SERVER;
-        $oldHome = getenv('HOME');
-        $_SERVER['DOCUMENT_ROOT'] = $httpDocumentRoot;
-        $_SERVER['HTTPS'] = 'on';
-        $_SERVER['SERVER_PORT'] = '443';
-        $_SERVER['HTTP_HOST'] = 'installer.example.test';
-        $_SERVER['REQUEST_METHOD'] = 'GET';
-        $_SERVER['REQUEST_URI'] = '/install';
-        putenv('HOME=' . $httpHome);
-        $installerResponse = (new NativeInstallerController(dirname(__DIR__,2)))->handle(Request::fromGlobals());
-        $installerKeyFiles = glob($httpHome . DIRECTORY_SEPARATOR . '.talyvane' . DIRECTORY_SEPARATOR . 'talyvane' . DIRECTORY_SEPARATOR . '*' . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'INSTALLER-ACCESS-KEY.txt') ?: [];
-        $installerKey = count($installerKeyFiles) === 1 ? trim((string) file_get_contents($installerKeyFiles[0])) : '';
-        $assert(str_contains($installerResponse->body,'Set up your platform') && in_array($installerResponse->status,[200,503],true),
-            'HTTPS browser installer renders its preflight wizard before application bootstrap');
-        $keySafe = count($installerKeyFiles) === 1 && strlen($installerKey) === 43 &&
-            !str_contains($installerResponse->body,$installerKey) &&
-            (fileperms($installerKeyFiles[0]) & 0777) === 0600;
-        $assert($keySafe,'browser installer creates a private setup key but never reveals it in HTML');
+        $secondSuccess = $controller->handle(new Request('GET','/install/success',['host'=>'installer.example.test']));
+        $assert($secondSuccess->status === 410,'one-time installer credentials cannot be retrieved a second time');
+
         if (session_status() === PHP_SESSION_ACTIVE) { session_destroy(); }
         $_SERVER = $oldServer;
+        $_GET = $oldGet;
+        $_POST = $oldPost;
+        $_COOKIE = $oldCookie;
+        $_REQUEST = $oldRequest;
+        $_SESSION = $oldSession;
         if ($oldHome === false) { putenv('HOME'); } else { putenv('HOME=' . $oldHome); }
+
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($httpHome,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::CHILD_FIRST);
         foreach ($iterator as $file) {
             if ($file->isDir() && !$file->isLink()) { rmdir($file->getPathname()); }
