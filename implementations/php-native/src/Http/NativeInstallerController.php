@@ -115,19 +115,21 @@ final class NativeInstallerController
     private function setupPage(Request $request,array $paths,SetupKey $setupKey,string $error='',int $status=200): Response
     {
         $configFile = $paths['config'] . '/app.php';
+        $keyFile = $paths['config'] . '/INSTALLER-ACCESS-KEY.txt';
+        if (!is_file($keyFile) && !file_exists($configFile)) {
+            $setupKey->create();
+        }
+        if (is_file($keyFile)) {
+            $pending = $this->pendingState($paths,$setupKey)->read();
+            if (is_array($pending)) {
+                return Response::redirect('/install/verify');
+            }
+        }
         if (file_exists($configFile)) {
             return $this->render('install/wizard',[
                 'step'=>'setup','error'=>'A private application configuration already exists without a verified installation lock. Do not overwrite it; inspect the private installation state before proceeding.',
                 'notice'=>'','checks'=>[],'keyFileHint'=>'INSTALLER-ACCESS-KEY.txt',
             ],503);
-        }
-        $keyFile = $paths['config'] . '/INSTALLER-ACCESS-KEY.txt';
-        if (!is_file($keyFile)) {
-            $setupKey->create();
-        }
-        $pending = $this->pendingState($paths,$setupKey)->read();
-        if (is_array($pending)) {
-            return Response::redirect('/install/verify');
         }
         $preflight = $this->preflight($paths);
         return $this->render('install/wizard',[
