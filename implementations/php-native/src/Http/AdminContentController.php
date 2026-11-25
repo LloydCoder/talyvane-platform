@@ -31,7 +31,7 @@ final class AdminContentController
             return $principal;
         }
         $query = $this->pdo->query(
-            'SELECT id,slug,title,locale,status,version,updated_at
+            'SELECT id,slug,title,locale,status,version,published_version,updated_at
              FROM site_pages ORDER BY updated_at DESC,id DESC LIMIT 100'
         );
         return $this->page('list', ['pages'=>$query->fetchAll()]);
@@ -45,7 +45,7 @@ final class AdminContentController
         }
         return $this->page('edit', ['page'=>[
             'id'=>'','slug'=>'','title'=>'','locale'=>'en','content'=>'',
-            'meta_title'=>'','meta_description'=>'','status'=>'draft','version'=>1,
+            'meta_title'=>'','meta_description'=>'','status'=>'draft','version'=>1,'published_version'=>null,
         ]]);
     }
 
@@ -60,7 +60,7 @@ final class AdminContentController
             return Response::html('Not Found', 404);
         }
         $query = $this->pdo->prepare(
-            'SELECT id,slug,title,locale,content,meta_title,meta_description,status,version,updated_at
+            'SELECT id,slug,title,locale,content,meta_title,meta_description,status,version,published_version,updated_at
              FROM site_pages WHERE id = :id LIMIT 1'
         );
         $query->execute(['id'=>$id]);
