@@ -38,6 +38,7 @@ The installer must discover the hosting layout safely, keep application code/con
 
 - Keep native PHP isolated from Laravel runtime files, dependencies, configuration, sessions, migrations and release artifacts.
 - Target PHP 8.3+ provisionally to match the current documented Laravel host baseline; verify the actual HostSailor web-SAPI runtime before locking the release minimum.
+- Require `upload_max_filesize >= 8M` and `post_max_size >= 10M`; set these through cPanel's PHP Selector/MultiPHP INI Editor when the hosting defaults are lower.
 - Use PDO with parameterized queries and explicit transaction boundaries.
 - Keep domain logic independent of HTTP, database, filesystem, and mail adapters.
 - Use secure password hashing, CSRF protection, session hardening, rate limiting, authorization checks, MFA, audit logging, and safe error handling.
