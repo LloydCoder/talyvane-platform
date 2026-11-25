@@ -267,7 +267,7 @@ final class EmailVerificationService
     }
 
     /** @return array{initial_password:string,offline_recovery_key:string} */
-    public function activateSuperAdmin(string $userId, string $primaryEmail, string $recoveryEmail, string $bootstrapProof, string $requestId): array
+    public function activateSuperAdmin(string $userId, string $primaryEmail, string $recoveryEmail, string $bootstrapProof, string $requestId, ?callable $persistCredentials = null): array
     {
         if (!$this->bothAdminAddressesVerified($userId,$primaryEmail,$recoveryEmail) || strlen($bootstrapProof) !== 43) {
             throw new \DomainException('Both distinct Super Admin email addresses and the installer bootstrap proof are required.');
@@ -309,6 +309,9 @@ final class EmailVerificationService
             $consume = $this->pdo->prepare('UPDATE super_admin_bootstrap_challenges SET activated_at = UTC_TIMESTAMP() WHERE singleton_id = 1 AND activated_at IS NULL');
             $consume->execute();
             $this->audit->record($userId,'super_admin.bootstrap.activated','user',$userId,'Both Super Admin email addresses verified',null,['status'=>'active','primary_verified'=>true,'recovery_verified'=>true],$requestId,'super-admin-bootstrap-v1');
+            if ($persistCredentials !== null) {
+                $persistCredentials(['initial_password'=>$initialPassword,'offline_recovery_key'=>$offlineRecoveryKey]);
+            }
             $this->pdo->commit();
             return ['initial_password'=>$initialPassword,'offline_recovery_key'=>$offlineRecoveryKey];
         } catch (\Throwable $error) {
