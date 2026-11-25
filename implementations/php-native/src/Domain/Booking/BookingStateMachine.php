@@ -7,7 +7,7 @@ final class BookingStateMachine
 {
     private const TRANSITIONS = [
         'draft' => ['requested','cancelled'],
-        'requested' => ['pending_review','awaiting_automatic_rule','accepted','declined','cancelled','expired'],
+        'requested' => ['pending_review','awaiting_automatic_rule','accepted','confirmed','declined','cancelled','expired'],
         'pending_review' => ['accepted','declined','cancelled','expired'],
         'awaiting_automatic_rule' => ['accepted','pending_review','declined','cancelled','expired'],
         'accepted' => ['confirmed','cancelled','disputed'],
@@ -25,6 +25,7 @@ final class BookingStateMachine
         'companion' => ['requested>accepted','requested>declined','pending_review>accepted','pending_review>declined','confirmed>disputed'],
         'admin' => ['requested>pending_review','requested>awaiting_automatic_rule','requested>accepted','requested>declined','pending_review>accepted','pending_review>declined','awaiting_automatic_rule>accepted','awaiting_automatic_rule>pending_review','accepted>confirmed','confirmed>completed','confirmed>cancelled','confirmed>no_show','completed>disputed'],
         'owner' => ['requested>pending_review','requested>awaiting_automatic_rule','requested>accepted','requested>declined','pending_review>accepted','pending_review>declined','awaiting_automatic_rule>accepted','awaiting_automatic_rule>pending_review','accepted>confirmed','confirmed>completed','confirmed>cancelled','confirmed>no_show','completed>disputed'],
+        'system' => ['requested>confirmed'],
         'super_admin' => ['*'],
     ];
 
