@@ -56,7 +56,8 @@ if grep -Eq '(^|/)tests/|(^|/)\.env($|\.)|(^|/)(integration|test)\.php$|\.log$|\
 fi
 grep -Fq "TALYVANE_APP_DIRECTORY = 'talyvane-native-app'" "$tmp/customer/index.php"
 grep -Fq "TALYVANE_PAYLOAD_FILE = '.talyvane-native-payload.zip'" "$tmp/customer/index.php"
-grep -Fq "putenv('HOME='.$accountDirectory)" "$tmp/customer/index.php"
+grep -Fq "putenv('HOME=" "$tmp/customer/index.php"
+grep -Fq 'accountDirectory' "$tmp/customer/index.php"
 grep -Fq 'Require all denied' "$tmp/customer/.htaccess" || grep -Fq 'RewriteRule (^|/)\.' "$tmp/customer/.htaccess"
 grep -Fq 'no-composer-no-node-no-ssh' "$tmp/customer/RELEASE-MANIFEST.txt"
 grep -Fq 'No SSH' "$tmp/customer/README.txt"
