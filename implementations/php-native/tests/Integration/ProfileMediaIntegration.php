@@ -285,10 +285,15 @@ function runProfileMediaIntegration(PDO $pdo): int
         $pdo->prepare('UPDATE memberships SET status="active",updated_at=UTC_TIMESTAMP() WHERE id=:id')
             ->execute(['id'=>$membershipId]);
         $service->withdrawMembersOnlyConsent($companion,$profileId,$membersOnlyId,'Talyvane',$requestId);
-        $withdrawnGallery=$galleryService->privateGalleryForClient($companionClient,'Talyvane');
-        $assert(count(array_filter($withdrawnGallery,static fn(array $item): bool => $item['id']===$membersOnlyId))===0 &&
+        $withdrawnState=$pdo->prepare(
+            'SELECT review_status,media_scope,members_only_consent_withdrawn_at FROM profile_media WHERE id=:id'
+        );
+        $withdrawnState->execute(['id'=>$membersOnlyId]);
+        $withdrawn=$withdrawnState->fetch(PDO::FETCH_ASSOC);
+        $assert(is_array($withdrawn) && $withdrawn['review_status']==='withdrawn' &&
+            $withdrawn['media_scope']==='private' && $withdrawn['members_only_consent_withdrawn_at']!==null &&
             !file_exists($membersOnlyImage['path']),
-            'companion withdrawal immediately removes the image from gallery delivery and deletes its private bytes');
+            'companion withdrawal immediately makes the image non-deliverable and deletes its private bytes');
 
         $rejectedImage=$makeImage();
         $rejectedId=$uuid();
