@@ -185,8 +185,9 @@ function runProfileMediaIntegration(PDO $pdo): int
         $withdrawnProfileRow=$withdrawnProfile->fetch();
         $assert(is_array($withdrawnProfileRow) && $withdrawnProfileRow['status']==='unpublished' &&
             $withdrawnProfileRow['publication_consent_withdrawn_at']!==null && !(bool) $withdrawnProfileRow['auto_booking_opt_in'] &&
-            $discovery->profile((string) $fixture['slug'])===null,
-            'profile-wide publication withdrawal immediately unpublishes the profile and disables automatic booking');
+            $discovery->profile((string) $fixture['slug'])===null &&
+            !file_exists($approvedImage['path']) && !file_exists($pendingImage['path']),
+            'profile-wide publication withdrawal immediately unpublishes the profile, disables automatic booking and deletes public/pending images');
         try {
             $service->renewPublicationConsent($companion,$profileId,false,$requestId);
             $assert(false,'publication consent renewal requires an explicit confirmation');
@@ -206,6 +207,12 @@ function runProfileMediaIntegration(PDO $pdo): int
         $republished=$discovery->profile((string) $fixture['slug']);
         $assert(is_array($republished) && ($republished['media'] ?? [])===[] && ($republished['primary_media_url'] ?? null)===null,
             'republishing after consent renewal never resurrects withdrawn or deleted images');
+        try {
+            $service->publicMedia($approvedId);
+            $assert(false,'withdrawn media remains unavailable after profile re-publication');
+        } catch (DomainException) {
+            $assert(true,'withdrawn media remains unavailable after profile re-publication');
+        }
 
         try {
             $storage->read('../outside.webp');
