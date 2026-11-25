@@ -45,6 +45,9 @@ final class NativeInstallerController
             $setupKey = new SetupKey($paths['config'] . '/INSTALLER-ACCESS-KEY.txt');
             $lock = new InstallerLock($paths['config'] . '/INSTALLATION-LOCK.json');
             $locked = $lock->isLocked();
+            if ($locked && !is_file($paths['config'] . '/app.php')) {
+                return $this->plainError('A permanent installer lock exists but the private application configuration is missing. Restore the configuration from a verified backup before continuing.',503);
+            }
 
             if ($request->path === '/install/success' && $request->method === 'GET') {
                 return $this->successPage($paths,$lock);
