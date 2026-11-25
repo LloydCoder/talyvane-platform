@@ -579,6 +579,9 @@ if (class_exists(ZipArchive::class)) {
     catch (RuntimeException) { $assert(true,'ZIP path traversal is rejected'); }
     $assert(!is_file($privatePaths['storage'] . '/escape.txt'),'ZIP traversal did not create an escaped file');
 }
+$assert(Authorization::allows(new Principal('audit-superadmin',['super_admin'],true),'audit.events.view'), 'MFA-verified Super Admin can view audit events');
+$assert(!Authorization::allows(new Principal('audit-owner',['owner'],true),'audit.events.view'), 'agency owner cannot view the platform security audit trail');
+$assert(!Authorization::allows(new Principal('audit-superadmin-no-mfa',['super_admin'],false),'audit.events.view'), 'Super Admin without verified MFA cannot view audit events');
 $auditMarkup = $authViews->render('admin/audit', [
     'brandName'=>'Maison Example',
     'items'=>[[
