@@ -35,6 +35,7 @@ use Talyvane\Installer\PrivatePathResolver;
 use Talyvane\Installer\EnvironmentPreflight;
 use Talyvane\Installer\SetupKey;
 use Talyvane\Installer\InstallerLock;
+use Talyvane\Installer\PrivateConfigStore;
 
 $tests = 0;
 $assert = static function (bool $condition, string $message) use (&$tests): void {
