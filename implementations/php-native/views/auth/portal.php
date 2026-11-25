@@ -11,7 +11,7 @@ $accountType = is_string($accountType ?? null) ? $accountType : '';
 $titles = [
  'login'=>['Your private account','Sign in to your verified Talyvane account.'],
  'register'=>['Create an account','Choose the account type that matches how you use the platform.'],
- 'verify'=>['Verify your email','Enter the six-digit code sent to your email address.'],
+ 'verify'=>['Verify your email','Enter the six-digit code sent to your email address.'],\n 'recovery_request'=>['Recover your account','We will send a recovery code if an active, verified account matches your email.'],\n 'recovery_complete'=>['Set a new password','Enter the recovery code and choose a new password.'],
  'dashboard'=>[$accountType === 'companion' ? 'Companion workspace' : 'Client workspace','Your account is verified. Additional features appear as their workflows are enabled.'],
 ];
 [$heading,$description] = $titles[$screen] ?? $titles['login'];
@@ -47,7 +47,15 @@ $titles = [
 <div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="email" maxlength="254" required value="<?= $escape($email) ?>"></div>
 <div class="field"><label for="code">Six-digit verification code</label><input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></div>
 <button class="button" type="submit">Verify email</button>
-</form><div class="links"><a href="/portal/register">Create an account</a><a href="/portal/login">Sign in</a></div>
+</form>
+<form method="post" action="/portal/verify/resend"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><input type="hidden" name="email" value="<?= $escape($email) ?>"><button class="button" type="submit">Resend verification code</button></form>
+<div class="links"><a href="/portal/register">Create an account</a><a href="/portal/login">Sign in</a></div>
+<?php elseif ($screen === 'recovery_request'): ?>
+<form method="post" action="/portal/recovery"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="email" maxlength="254" required value="<?= $escape($email) ?>"></div><button class="button" type="submit">Send recovery code</button></form>
+<div class="links"><a href="/portal/login">Return to sign in</a></div>
+<?php elseif ($screen === 'recovery_complete'): ?>
+<form method="post" action="/portal/recovery/complete"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="email" maxlength="254" required value="<?= $escape($email) ?>"></div><div class="field"><label for="code">Six-digit recovery code</label><input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></div><div class="field"><label for="new_password">New password</label><input id="new_password" name="new_password" type="password" autocomplete="new-password" minlength="14" maxlength="1024" required></div><div class="field"><label for="confirm_password">Confirm new password</label><input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" minlength="14" maxlength="1024" required></div><button class="button" type="submit">Reset password</button></form>
+<div class="links"><a href="/portal/login">Return to sign in</a></div>
 <?php elseif ($screen === 'dashboard'): ?>
 <p class="notice">Signed in as a <?= $escape($accountType) ?> account.</p>
 <p class="hint">This portal is intentionally separate from administration and from the other account type. Identity and session checks are active; profile, booking and account-management features are being connected as separate workflows.</p>
@@ -58,7 +66,7 @@ $titles = [
 <div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="username" maxlength="254" required value="<?= $escape($email) ?>"></div>
 <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" maxlength="1024" required></div>
 <button class="button" type="submit">Sign in securely</button>
-</form><div class="links"><a href="/portal/register">Create an account</a><a href="/portal/verify">Verify your email</a></div>
+</form><div class="links"><a href="/portal/register">Create an account</a><a href="/portal/verify">Verify your email</a><a href="/portal/recovery">Forgot password?</a></div>
 <?php endif; ?>
 <div class="footer">Access is rate-limited. Never send identity documents, payment details or passwords by email.</div>
 </main></body></html>
