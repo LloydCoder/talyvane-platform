@@ -265,7 +265,7 @@ final class ProfileMediaService
                     'reviewer.consent_safety.confirmed','profile-media-review-v1',$requestId,'mfa_admin_review_attestation');
             }
             $this->audit->record($actor->id,'profile.media.reviewed','profile_media',$mediaId,$reason,
-                $before,['review_status'=>$decision,'media_scope'=>$decision==='approved'?'public':'private'],
+                $before,['review_status'=>$decision,'media_scope'=>$decision==='approved'?$mediaScope:'private'],
                 $requestId,'profile-media-governance-v1');
             $this->pdo->commit();
         } catch (\Throwable $error) {
