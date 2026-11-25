@@ -26,11 +26,12 @@ final class PublicEnquiryController
         if (!Csrf::verify($this->field($request,'_csrf'))) {
             return $this->render('Your form session expired. Please try again.',false,419);
         }
-        if (!$this->privacyAvailable()) {
+        $privacyPage = $this->privacyPage();
+        if ($privacyPage === null) {
             return $this->render('The enquiry form is unavailable until a Privacy Notice has been reviewed and published.',false,503);
         }
         try {
-            $this->enquiries->submit($request->body,$request->ipAddress,$request->requestId,$request->header('referer'));
+            $this->enquiries->submit($request->body,$request->ipAddress,$request->requestId,$request->header('referer'),'privacy-v' . (int) $privacyPage['version']);
             return Response::redirect('/contact?sent=1');
         } catch (InvalidArgumentException $error) {
             return $this->render($error->getMessage(),false,422,$request->body);
@@ -49,7 +50,7 @@ final class PublicEnquiryController
             'error'=>$error,
             'sent'=>$sent,
             'values'=>$values,
-            'privacyAvailable'=>$this->privacyAvailable(),
+            'privacyAvailable'=>$this->privacyPage() !== null,
         ]);
         return new Response($body,$status,[
             'content-type'=>'text/html; charset=utf-8',
@@ -62,9 +63,10 @@ final class PublicEnquiryController
         ]);
     }
 
-    private function privacyAvailable(): bool
+    /** @return array<string,mixed>|null */
+    private function privacyPage(): ?array
     {
-        return $this->content->publicPage('privacy','en') !== null;
+        return $this->content->publicPage('privacy','en');
     }
 
     private function field(Request $request,string $name): string
