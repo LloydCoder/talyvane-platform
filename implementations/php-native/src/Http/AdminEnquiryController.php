@@ -32,7 +32,7 @@ final class AdminEnquiryController
             return $principal;
         }
         if (!Csrf::verify($this->field($request,'_csrf'))) {
-            return $this->page('Your session expired. Refresh and try again.',419);
+            return $this->page('Your session expired. Refresh and try again.',419,false,$principal);
         }
         try {
             $this->enquiries->updateStatus(
