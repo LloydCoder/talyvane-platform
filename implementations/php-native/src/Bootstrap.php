@@ -60,7 +60,7 @@ final class Bootstrap
         $adminNavigation = new AdminNavigationController($pdo, $authentication, $contentManagement, $views);
         $enquiries = new EnquiryService($pdo, $rateLimiter, $audit);
         $brandName = (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane');
-        $publicEnquiries = new PublicEnquiryController($enquiries, $views, $brandName);
+        $publicEnquiries = new PublicEnquiryController($enquiries, $contentManagement, $views, $brandName);
         $adminEnquiries = new AdminEnquiryController($enquiries, $authentication, $views, $brandName);
         $router = new Router();
 
