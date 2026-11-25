@@ -202,7 +202,7 @@ final class CompanionMediaController
         $items=$this->media->listForCompanion($actor);
         $html=$this->views->render('portal/media',[
             'brandName'=>$this->brandName,'profile'=>$profile,'items'=>$items,
-            'privateGalleryConsentStatement'=>\\Talyvane\\Application\\Clients\\MembershipEntitlementCatalog::privateGalleryConsentStatement($this->brandName),
+            'privateGalleryConsentStatement'=>\Talyvane\Application\Clients\MembershipEntitlementCatalog::privateGalleryConsentStatement($this->brandName),
             'csrf'=>Csrf::issue(),'error'=>$error,'notice'=>$notice,
         ]);
         return new Response($html,$status,[
