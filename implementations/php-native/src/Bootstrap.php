@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Talyvane;
 
 use Talyvane\Application\Companions\CompanionProfilePublicationService;
+use Talyvane\Application\Destinations\DestinationManagementService;
 use Talyvane\Application\Clients\ClientFavoriteService;
 use Talyvane\Application\Companions\CompanionAvailabilityService;
 use Talyvane\Application\Bookings\BookingCommandService;
@@ -21,6 +22,7 @@ use Talyvane\Application\Identity\MfaService;
 use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Application\Identity\UserRegistrationService;
 use Talyvane\Http\AdminCompanionController;
+use Talyvane\Http\AdminDestinationController;
 use Talyvane\Http\ClientFavoriteController;
 use Talyvane\Http\CompanionAvailabilityController;
 use Talyvane\Http\AdminAuthController;
@@ -114,6 +116,7 @@ final class Bootstrap
         $adminEnquiries = new AdminEnquiryController($enquiries, $authentication, $views, $brandName);
         $companionPublication = new CompanionProfilePublicationService($pdo, $audit);
         $adminCompanions = new AdminCompanionController($authentication, $companionPublication, $views, $brandName);
+        $adminDestinations = new AdminDestinationController($authentication, new DestinationManagementService($pdo, $audit), $views, $brandName);
         $modelApplications = new ModelAgencyApplicationService($pdo, $audit);
         $publicModelAgency = new PublicModelAgencyController($pdo, $modelApplications, $contentManagement, $rateLimiter, $modelApplicantRights, $views);
         $adminModelAgency = new AdminModelAgencyController($authentication, $modelApplications, $views, $brandName);
@@ -193,6 +196,9 @@ final class Bootstrap
         $router->add('POST', '/admin/model-agency/{id}/review', static fn(Request $request, array $params): Response => $adminModelAgency->review($request, $params));
         $router->add('POST', '/admin/model-agency/{id}/verify', static fn(Request $request, array $params): Response => $adminModelAgency->verify($request, $params));
         $router->add('POST', '/admin/model-agency/{id}/legal-hold', static fn(Request $request, array $params): Response => $adminModelAgency->legalHold($request, $params));
+        $router->add('GET', '/admin/destinations', static fn(Request $request): Response => $adminDestinations->index($request));
+        $router->add('POST', '/admin/destinations', static fn(Request $request): Response => $adminDestinations->save($request));
+        $router->add('POST', '/admin/destinations/{id}', static fn(Request $request, array $params): Response => $adminDestinations->save($request, $params));
         $router->add('GET', '/admin/companions', static fn(Request $request): Response => $adminCompanions->index($request));
         $router->add('POST', '/admin/companions/{id}/publish', static fn(Request $request, array $params): Response => $adminCompanions->publish($request, $params));
         $router->add('GET', '/admin/enquiries', static fn(Request $request): Response => $adminEnquiries->index($request));
