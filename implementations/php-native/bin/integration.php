@@ -20,7 +20,7 @@ $server->exec('CREATE DATABASE IF NOT EXISTS talyvane_native_test CHARACTER SET 
 $pdo = ConnectionFactory::mysql(['host'=>$host,'port'=>$port,'database'=>$name,'username'=>$user,'password'=>$password]);
 $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
 $applied = $runner->migrate();
-if (count($applied) !== 18 || $runner->migrate() !== []) {
+if (count($applied) !== 19 || $runner->migrate() !== []) {
     throw new RuntimeException('Native PHP migrations failed or are not idempotent.');
 }
 $referenceImporter = new ReferenceDataImporter($pdo);
@@ -60,14 +60,16 @@ rmdir($tempReferenceDirectory);
 
 require __DIR__ . '/../tests/Integration/InstallerBootstrapIntegration.php';
 require __DIR__ . '/../tests/Integration/IdentityIntegration.php';
+require __DIR__ . '/../tests/Integration/ProfileMediaIntegration.php';
 require __DIR__ . '/../tests/Integration/ModelAgencyIntegration.php';
 require __DIR__ . '/../tests/Integration/ContentManagementIntegration.php';
 require __DIR__ . '/../tests/Integration/EnquiryIntegration.php';
 require __DIR__ . '/../tests/Integration/AuditQueryIntegration.php';
 $installerAssertions = runInstallerBootstrapIntegration($pdo);
 $identityAssertions = runIdentityIntegration($pdo);
+$mediaAssertions = runProfileMediaIntegration($pdo);
 $modelAgencyAssertions = runModelAgencyIntegration($pdo);
 $contentAssertions = runContentManagementIntegration($pdo);
 $enquiryAssertions = runEnquiryIntegration($pdo);
 $auditAssertions = runAuditQueryIntegration($pdo);
-fwrite(STDOUT, sprintf("Native PHP MySQL integration: %d migrations, %d installer-bootstrap assertions, %d identity assertions, %d model-agency/privacy assertions, %d content-management assertions, %d enquiry/CRM assertions and %d audit-query assertions passed.\n", count($applied), $installerAssertions, $identityAssertions, $modelAgencyAssertions, $contentAssertions, $enquiryAssertions, $auditAssertions));
+fwrite(STDOUT, sprintf("Native PHP MySQL integration: %d migrations, %d installer-bootstrap assertions, %d identity assertions, %d profile-media assertions, %d model-agency/privacy assertions, %d content-management assertions, %d enquiry/CRM assertions and %d audit-query assertions passed.\n", count($applied), $installerAssertions, $identityAssertions, $mediaAssertions, $modelAgencyAssertions, $contentAssertions, $enquiryAssertions, $auditAssertions));
