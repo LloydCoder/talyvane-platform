@@ -31,10 +31,10 @@ try {
     }
     $paths = PrivatePathResolver::resolve($documentRoot,$accountHome);
     $configCandidate = $paths['config'] . DIRECTORY_SEPARATOR . 'app.php';
-    if (is_link($configCandidate)) {
-        throw new RuntimeException('Private application configuration must not be a symlink.');
-    }
     $configReal = realpath($configCandidate);
+    if ($configReal !== $configCandidate) {
+        throw new RuntimeException('Private application configuration must be a regular file at its canonical private path.');
+    }
     if ($configReal === false || !is_file($configReal) || !is_readable($configReal)) {
         Response::redirect('/install')->send();
         exit;
