@@ -112,6 +112,12 @@ jobs:
         if: always()
         run: |
           if [ -f /tmp/talyvane-native-php.log ]; then tail -n 200 /tmp/talyvane-native-php.log; fi
+          fingerprint="$(php -r 'echo substr(hash("sha256", realpath($argv[1])), 0, 24);' "$TALYVANE_NATIVE_E2E_DOCROOT")"
+          private_logs="$TALYVANE_NATIVE_E2E_HOME/.talyvane/talyvane/$fingerprint/logs"
+          if [ -f "$private_logs/application-error.log" ]; then
+            echo "Private application diagnostics (correlation ID, exception class/code only):"
+            tail -n 50 "$private_logs/application-error.log"
+          fi
           docker logs talyvane-native-caddy 2>&1 | tail -n 100 || true
           docker logs talyvane-native-mailpit 2>&1 | tail -n 100 || true
 
