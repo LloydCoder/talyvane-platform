@@ -257,6 +257,113 @@ final class ProfileMediaService
         }
     }
 
+    public function withdrawPublicationConsent(Principal $actor,string $profileId,string $requestId): void
+    {
+        $this->assertCompanion($actor);
+        $this->pdo->beginTransaction();
+        $keys=[];
+        try {
+            $profileQuery=$this->pdo->prepare(
+                'SELECT id,user_id,status,publication_consent_version,publication_consent_withdrawn_at
+                 FROM companion_profiles WHERE id=:profile FOR UPDATE'
+            );
+            $profileQuery->execute(['profile'=>$profileId]);
+            $profile=$profileQuery->fetch();
+            if (!is_array($profile) || (string) $profile['user_id']!==$actor->id) {
+                throw new DomainException('This profile is not linked to the signed-in companion account.');
+            }
+            if ($profile['publication_consent_withdrawn_at']!==null) {
+                throw new DomainException('Public profile publication consent has already been withdrawn.');
+            }
+            $mediaQuery=$this->pdo->prepare(
+                'SELECT id,private_storage_key FROM profile_media
+                 WHERE profile_id=:profile AND review_status NOT IN ("withdrawn","rejected") FOR UPDATE'
+            );
+            $mediaQuery->execute(['profile'=>$profileId]);
+            $mediaRows=$mediaQuery->fetchAll();
+            foreach ($mediaRows as $media) {
+                $keys[]=(string) $media['private_storage_key'];
+                $this->recordConsent(
+                    (string) $media['id'],$profileId,$actor,
+                    'I withdraw publication consent for this profile and all submitted images. The profile must be unpublished and all public images removed.',
+                    'profile.publication.withdrawn','profile-publication-withdrawal-v1',$requestId,
+                    'authenticated_companion_portal_publication_withdrawal'
+                );
+            }
+            $this->pdo->prepare(
+                'UPDATE profile_media SET review_status="withdrawn",media_scope="private",
+                    withdrawn_at=UTC_TIMESTAMP(),withdrawn_by=:actor,updated_at=UTC_TIMESTAMP()
+                 WHERE profile_id=:profile AND review_status NOT IN ("withdrawn","rejected")'
+            )->execute(['actor'=>$actor->id,'profile'=>$profileId]);
+            $this->pdo->prepare(
+                'UPDATE consent_grants SET withdrawn_at=UTC_TIMESTAMP()
+                 WHERE subject_type="companion_profile" AND subject_id=:profile
+                   AND purpose="profile.publication" AND audience="public" AND granted=1 AND withdrawn_at IS NULL'
+            )->execute(['profile'=>$profileId]);
+            $this->pdo->prepare(
+                'UPDATE companion_profiles SET status="unpublished",publication_consent_withdrawn_at=UTC_TIMESTAMP(),
+                    auto_booking_opt_in=0,updated_at=UTC_TIMESTAMP() WHERE id=:profile'
+            )->execute(['profile'=>$profileId]);
+            $this->audit->record($actor->id,'profile.publication.withdrawn','companion_profile',$profileId,
+                'Companion withdrew profile publication consent',
+                ['status'=>$profile['status'],'publication_consent_withdrawn_at'=>null],
+                ['status'=>'unpublished','publication_consent_withdrawn_at'=>'set','auto_booking_opt_in'=>false],
+                $requestId,'profile-media-governance-v1');
+            $this->pdo->commit();
+        } catch (\Throwable $error) {
+            if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
+            throw $error;
+        }
+        foreach ($keys as $key) {
+            $this->storage->delete($key);
+        }
+    }
+
+    public function renewPublicationConsent(Principal $actor,string $profileId,bool $confirmed,string $requestId): void
+    {
+        $this->assertCompanion($actor);
+        if (!$confirmed) {
+            throw new InvalidArgumentException('Explicit public profile publication consent is required.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare(
+                'SELECT id,user_id,status,publication_consent_withdrawn_at
+                 FROM companion_profiles WHERE id=:profile FOR UPDATE'
+            );
+            $query->execute(['profile'=>$profileId]);
+            $profile=$query->fetch();
+            if (!is_array($profile) || (string) $profile['user_id']!==$actor->id ||
+                $profile['status']!=='unpublished' || $profile['publication_consent_withdrawn_at']===null) {
+                throw new DomainException('This profile is not eligible for publication-consent renewal.');
+            }
+            $version='profile-publication-v2';
+            $grantId=self::uuid();
+            $this->pdo->prepare(
+                'INSERT INTO consent_grants
+                 (id,subject_type,subject_id,purpose,audience,policy_version,granted,granted_at,withdrawn_at,evidence_reference,created_at)
+                 VALUES (:id,"companion_profile",:profile,"profile.publication","public",:version,1,UTC_TIMESTAMP(),NULL,:evidence,UTC_TIMESTAMP())'
+            )->execute([
+                'id'=>$grantId,'profile'=>$profileId,'version'=>$version,
+                'evidence'=>'companion-portal-renewal:'.self::uuid(),
+            ]);
+            $this->pdo->prepare(
+                'UPDATE companion_profiles SET status="pending_review",publication_consent_version=:version,
+                    publication_consent_withdrawn_at=NULL,auto_booking_opt_in=0,updated_at=UTC_TIMESTAMP()
+                 WHERE id=:profile'
+            )->execute(['version'=>$version,'profile'=>$profileId]);
+            $this->audit->record($actor->id,'profile.publication.renewed','companion_profile',$profileId,
+                'Companion granted a new versioned public publication consent',
+                ['status'=>'unpublished','publication_consent_withdrawn_at'=>'set'],
+                ['status'=>'pending_review','publication_consent_version'=>$version,'publication_consent_withdrawn_at'=>null],
+                $requestId,'profile-media-governance-v1');
+            $this->pdo->commit();
+        } catch (\Throwable $error) {
+            if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
+            throw $error;
+        }
+    }
+
     public function publicMedia(string $mediaId): array
     {
         $query=$this->pdo->prepare(
