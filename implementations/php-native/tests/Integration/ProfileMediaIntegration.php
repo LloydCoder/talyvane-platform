@@ -216,6 +216,9 @@ function runProfileMediaIntegration(PDO $pdo): int
         $gallery=$galleryService->privateGalleryForClient($companionClient,'Talyvane');
         $assert(count(array_filter($gallery,static fn(array $item): bool => $item['id']===$membersOnlyId))===1,
             'a client with a current membership entitlement can see separately consented members-only media');
+        $renamedBrandGallery=$galleryService->privateGalleryForClient($companionClient,'Different Agency');
+        $assert(count(array_filter($renamedBrandGallery,static fn(array $item): bool => $item['id']===$membersOnlyId))===0,
+            'changing the deployment brand invalidates the old exact members-only consent statement');
         $privateDelivery=$galleryService->privateMediaForClient($companionClient,$membersOnlyId,'Talyvane');
         $assert(hash_equals($membersOnlyImage['sha256'],hash('sha256',$privateDelivery['bytes'])) &&
             $privateDelivery['mime']==='image/webp',
