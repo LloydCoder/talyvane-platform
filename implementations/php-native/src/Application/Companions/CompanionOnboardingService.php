@@ -86,7 +86,7 @@ final class CompanionOnboardingService
             $marketReviewer = $this->pdo->prepare('SELECT 1 FROM user_roles ur JOIN admin_mfa_credentials mfa ON mfa.user_id = ur.user_id WHERE ur.user_id = :reviewer AND ur.role_key IN ("owner","admin","super_admin") AND mfa.enabled_at IS NOT NULL LIMIT 1');
             $marketReviewer->execute(['reviewer'=>$market->reviewerId]);
             if ($marketReviewer->fetchColumn() === false) {
-                throw new \\DomainException('Market approval must be recorded by an MFA-protected compliance administrator.');
+                throw new \DomainException('Market approval must be recorded by an MFA-protected compliance administrator.');
             }
 
             $userQuery = $this->pdo->prepare('SELECT status,email_verified_at FROM users WHERE id = :user FOR UPDATE');
