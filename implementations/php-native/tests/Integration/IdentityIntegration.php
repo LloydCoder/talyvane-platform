@@ -12,6 +12,7 @@ use Talyvane\Security\Principal;
 use Talyvane\Security\SecretBox;
 use Talyvane\Security\SessionManager;
 use Talyvane\Security\Totp;
+use Talyvane\Installer\SetupKey;
 
 final class NativeTestMailer implements Mailer
 {
