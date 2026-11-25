@@ -67,8 +67,8 @@ final class PortalBookingController
         if ($profile===null) return $this->newForm($request,'This profile is not currently available for booking.',422);
         try {
             $zone=new DateTimeZone((string)$profile['time_zone']);
-            $start=new DateTimeImmutable($this->field($request,'starts_at'),$zone);
-            $end=new DateTimeImmutable($this->field($request,'ends_at'),$zone);
+            $start=$this->parseLocalTime($this->field($request,'starts_at'),$zone);
+            $end=$this->parseLocalTime($this->field($request,'ends_at'),$zone);
             $this->bookings->request(
                 $client,(string)$profile['id'],$start,$end,null,
                 $this->nullable($this->field($request,'request_note')),$request->requestId
@@ -165,6 +165,16 @@ final class PortalBookingController
         return is_string($value)?$value:'';
     }
 
+    private function parseLocalTime(string $value,DateTimeZone $zone): DateTimeImmutable
+    {
+        $parsed=DateTimeImmutable::createFromFormat('!Y-m-d\\TH:i',$value,$zone);
+        $errors=DateTimeImmutable::getLastErrors();
+        if (!$parsed instanceof DateTimeImmutable || (is_array($errors) && ($errors['warning_count']>0 || $errors['error_count']>0))) {
+            throw new InvalidArgumentException('Enter a valid local start and end time.');
+        }
+        return $parsed;
+    }
+
     private function nullable(string $value): ?string
     {
         $value=trim($value);
@@ -174,9 +184,10 @@ final class PortalBookingController
     /** @param list<array<string,mixed>> $items @param array<string,mixed> $extra */
     private function page(string $mode,array $items,string $error,int $status,array $extra=[]): Response
     {
-        return Response::html($this->views->render('portal/bookings',[
+        $data=array_replace([
             'mode'=>$mode,'items'=>$items,'error'=>$error,'csrf'=>Csrf::issue(),'brandName'=>$this->brandName,
             'notice'=>'','profile'=>null,'profiles'=>[],
-        ]+$extra),$status);
+        ],$extra);
+        return Response::html($this->views->render('portal/bookings',$data),$status);
     }
 }
