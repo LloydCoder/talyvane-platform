@@ -78,6 +78,20 @@ unlink($viewRoot . DIRECTORY_SEPARATOR . 'pages' . DIRECTORY_SEPARATOR . 'sample
 rmdir($viewRoot . DIRECTORY_SEPARATOR . 'pages');
 rmdir($viewRoot);
 
+$authViews = new ViewRenderer(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views');
+$authMarkup = $authViews->render('auth/screen', [
+    'screen'=>'login',
+    'csrf'=>'test-csrf-token',
+    'error'=>'<script>alert(1)</script>',
+    'email'=>'person@example.test',
+    'secret'=>'',
+    'recoveryCodes'=>[],
+    'roles'=>[],
+]);
+$assert(str_contains($authMarkup, 'name="_csrf" value="test-csrf-token"'), 'admin sign-in view includes its CSRF token');
+$assert(str_contains($authMarkup, '&lt;script&gt;alert(1)&lt;/script&gt;'), 'admin sign-in view escapes authentication errors');
+$assert(!str_contains($authMarkup, '<script>alert(1)</script>'), 'admin sign-in view never renders error text as markup');
+
 try { Response::redirect('//evil.example'); $assert(false, 'external protocol-relative redirects rejected'); }
 catch (InvalidArgumentException) { $assert(true, 'external protocol-relative redirects rejected'); }
 try { Response::redirect("/safe\r\nLocation: https://evil.example"); $assert(false, 'CRLF redirect injection rejected'); }
