@@ -94,6 +94,27 @@ function runMembershipIntegration(PDO $pdo): int
     $assert($projectionDenied,'agency administrators cannot use the client-owned membership projection');
     $eventCount->execute(['client'=>$clientId]);
     $assert((int) $eventCount->fetchColumn()===6,'supersession, assignment and cancellation are recorded as append-only lifecycle events');
+    $fourthId=$memberships->assign(
+            $actor,$clientId,'gold','Gold','Membership with private gallery entitlement for suspension test',
+            new DateTimeImmutable('now -1 minute',new DateTimeZone('UTC')),
+            new DateTimeImmutable('now +4 days',new DateTimeZone('UTC')),
+            ['media.private_gallery'],'Client approved a new membership with a private-gallery entitlement.',
+            bin2hex(random_bytes(16))
+        );
+    $assert($entitlements->has($clientId,'media.private_gallery'),'active membership grants entitlement before suspension');
+    $memberships->suspend($actor,$fourthId,'Membership suspended after an operator-reviewed safety concern.',bin2hex(random_bytes(16)));
+    $suspended=$pdo->prepare('SELECT status FROM memberships WHERE id=:id');
+    $suspended->execute(['id'=>$fourthId]);
+    $assert($suspended->fetchColumn()==='suspended','membership suspension persists a non-active status');
+    $assert(!$entitlements->has($clientId,'media.private_gallery'),'suspended membership immediately revokes effective entitlement access');
+    $assert($memberships->currentForClient(new Principal($clientId,['client'],false))===null,
+        'client portal hides a suspended membership from its current-membership projection');
+    $eventCount->execute(['client'=>$clientId]);
+    $assert((int) $eventCount->fetchColumn()===8,'membership suspension is recorded as an append-only lifecycle event');
+    $suspendDenied=false;
+    try { $memberships->suspend(new Principal($clientId,['client'],false),$fourthId,'Client principals cannot suspend memberships.',bin2hex(random_bytes(16))); }
+    catch (DomainException) { $suspendDenied=true; }
+    $assert($suspendDenied,'client principals cannot suspend membership records');
     $repeatCancelRejected=false;
     try { $memberships->cancel($actor,$thirdId,'Repeated cancellation must not create a second lifecycle transition.',bin2hex(random_bytes(16))); }
     catch (DomainException) { $repeatCancelRejected=true; }
