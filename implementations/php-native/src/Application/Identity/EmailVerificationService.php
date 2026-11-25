@@ -47,6 +47,24 @@ final class EmailVerificationService
         if ($purpose === 'admin_recovery' && hash_equals($primary, $email)) {
             throw new \DomainException('Super Admin recovery email must be distinct from the primary address.');
         }
+        if ($purpose === 'admin_primary' || $purpose === 'admin_recovery') {
+            $bootstrap = $this->pdo->prepare('SELECT 1 FROM super_admin_bootstrap_challenges WHERE singleton_id = 1 AND user_id = :user AND ((primary_email = :primary_email) OR (recovery_email = :recovery_email)) AND activated_at IS NULL AND expires_at > UTC_TIMESTAMP()');
+            $bootstrap->execute([
+                'user'=>$userId,
+                'primary_email'=>$purpose === 'admin_primary' ? $email : null,
+                'recovery_email'=>$purpose === 'admin_recovery' ? $email : null,
+            ]);
+            $bootstrapPending = $bootstrap->fetchColumn() !== false;
+            $existingRecovery = false;
+            if ($purpose === 'admin_recovery') {
+                $existing = $this->pdo->prepare('SELECT 1 FROM super_admin_recovery WHERE super_admin_user_id = :user AND recovery_email = :email');
+                $existing->execute(['user'=>$userId,'email'=>$email]);
+                $existingRecovery = $existing->fetchColumn() !== false;
+            }
+            if (!$bootstrapPending && !$existingRecovery) {
+                throw new \\DomainException('Administrative email verification requires an active Super Admin bootstrap or recovery record.');
+            }
+        }
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $challengeId = self::uuid();
         $hash = hash_hmac('sha256', $code, $this->pepper);
