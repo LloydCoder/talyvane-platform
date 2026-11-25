@@ -48,6 +48,7 @@ final class SafeguardingRetentionService
         if ($restore->fetchColumn()===false) {
             throw new RuntimeException('Safeguarding retention requires a recent successful Vault restore and key-reconciliation verification by a second MFA-enrolled Owner or Super Admin.');
         }
+        $this->scheduleEligibleClosedCases((int)$backup['expiry_days'],(string)$backup['policy_version']);
         $query=$this->pdo->prepare(
             'SELECT id FROM safeguarding_cases
              WHERE status="closed" AND legal_hold=0 AND retention_due_at IS NOT NULL
@@ -63,6 +64,33 @@ final class SafeguardingRetentionService
             if ($this->eraseIfDue((string)$id,(int)$backup['expiry_days'],(string)$backup['policy_version'])) { $erased++; }
         }
         return $erased;
+    }
+
+    private function scheduleEligibleClosedCases(int $backupDays,string $policyVersion): void
+    {
+        $query=$this->pdo->prepare(
+            'SELECT c.id,c.closed_at,c.retention_due_at,p.retention_days
+             FROM safeguarding_cases c
+             JOIN safeguarding_retention_policies p ON p.category=c.category AND p.enabled=1 AND p.policy_version=:version
+             WHERE c.status="closed" AND c.legal_hold=0 AND c.retention_applied_at IS NULL
+               AND c.encrypted_case_key IS NOT NULL AND c.encryption_provider=:provider
+               AND c.closed_at IS NOT NULL'
+        );
+        $query->execute(['version'=>$policyVersion,'provider'=>$this->crypto->providerName()]);
+        foreach ($query->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $minimum=(new DateTimeImmutable((string)$row['closed_at'],new DateTimeZone('UTC')))
+                ->modify('+'.((int)$row['retention_days']+$backupDays).' days');
+            $existing=is_string($row['retention_due_at'])&&$row['retention_due_at']!==''
+                ? new DateTimeImmutable($row['retention_due_at'],new DateTimeZone('UTC'))
+                : $minimum;
+            $due=$existing>$minimum?$existing:$minimum;
+            $update=$this->pdo->prepare(
+                'UPDATE safeguarding_cases
+                 SET retention_due_at=:due,retention_policy_version=:version,updated_at=UTC_TIMESTAMP()
+                 WHERE id=:id AND status="closed" AND legal_hold=0 AND retention_applied_at IS NULL'
+            );
+            $update->execute(['due'=>$due->format('Y-m-d H:i:s'),'version'=>$policyVersion,'id'=>$row['id']]);
+        }
     }
 
     private function eraseIfDue(string $caseId,int $backupDays,string $policyVersion): bool
