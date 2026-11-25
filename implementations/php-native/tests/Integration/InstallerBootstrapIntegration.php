@@ -63,7 +63,7 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
         $applicationRoot = $httpHome . DIRECTORY_SEPARATOR . '.talyvane' . DIRECTORY_SEPARATOR . 'apps' . DIRECTORY_SEPARATOR . 'installer' . DIRECTORY_SEPARATOR . 'talyvane-native-app';
         mkdir($applicationRoot,0700,true);
         $sourceRoot = dirname(__DIR__,2);
-        foreach (['src','database','views','public'] as $directory) {
+        foreach (['src','database','views','public','bin'] as $directory) {
             $sourceDirectory = $sourceRoot . DIRECTORY_SEPARATOR . $directory;
             $targetDirectory = $applicationRoot . DIRECTORY_SEPARATOR . $directory;
             $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($sourceDirectory,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::SELF_FIRST);
