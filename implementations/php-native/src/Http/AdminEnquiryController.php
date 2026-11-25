@@ -22,7 +22,7 @@ final class AdminEnquiryController
         if ($principal instanceof Response) {
             return $principal;
         }
-        return $this->page();
+        return $this->page('',200,false,$principal);
     }
 
     public function update(Request $request,?array $params = null): Response
@@ -42,9 +42,9 @@ final class AdminEnquiryController
                 $this->field($request,'reason'),
                 $request->requestId
             );
-            return $this->page('',200,true);
+            return $this->page('',200,true,$principal);
         } catch (InvalidArgumentException|DomainException $error) {
-            return $this->page($error->getMessage(),422);
+            return $this->page($error->getMessage(),422,false,$principal);
         }
     }
 
@@ -61,9 +61,12 @@ final class AdminEnquiryController
         return $principal;
     }
 
-    private function page(string $error = '',int $status = 200,bool $saved = false): Response
+    private function page(string $error = '',int $status = 200,bool $saved = false,?Principal $principal = null): Response
     {
-        $items = $this->enquiries->list(100,0);
+        if ($principal === null) {
+            return Response::html('Forbidden',403);
+        }
+        $items = $this->enquiries->list($principal,100,0);
         $body = $this->views->render('admin/enquiries',[
             'brandName'=>$this->brandName,
             'csrf'=>Csrf::issue(),
