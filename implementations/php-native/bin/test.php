@@ -567,6 +567,9 @@ $setupKey->consume();
 $assert(!$setupKey->verify($plainKey), 'installer key is consumed after lock');
 $preflight = EnvironmentPreflight::inspect($accountHome);
 $assert($preflight['checks']['private_writable']['ok'], 'installer preflight checks the supplied account home');
+$assert(isset($preflight['checks']['uploads_enabled'],$preflight['checks']['upload_size'],$preflight['checks']['post_size']) &&
+    isset($preflight['checks']['memory_limit']),
+    'installer preflight reports file upload, request-body and image-memory requirements');
 if (class_exists(ZipArchive::class)) {
     $safeArchivePath = $tempRoot . DIRECTORY_SEPARATOR . 'safe.zip';
     $safeArchive = new ZipArchive();
