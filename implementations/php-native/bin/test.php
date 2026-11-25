@@ -36,6 +36,7 @@ use Talyvane\Installer\EnvironmentPreflight;
 use Talyvane\Installer\SetupKey;
 use Talyvane\Installer\InstallerLock;
 use Talyvane\Installer\PrivateConfigStore;
+use Talyvane\Installer\SafeZipExtractor;
 
 $tests = 0;
 $assert = static function (bool $condition, string $message) use (&$tests): void {
@@ -225,6 +226,23 @@ $setupKey->consume();
 $assert(!$setupKey->verify($plainKey), 'installer key is consumed after lock');
 $preflight = EnvironmentPreflight::inspect($accountHome);
 $assert($preflight['checks']['private_writable']['ok'], 'installer preflight checks the supplied account home');
+if (class_exists(ZipArchive::class)) {
+    $safeArchivePath = $tempRoot . DIRECTORY_SEPARATOR . 'safe.zip';
+    $safeArchive = new ZipArchive();
+    $safeArchive->open($safeArchivePath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+    $safeArchive->addFromString('assets/check.txt','safe payload');
+    $safeArchive->close();
+    $extracted = SafeZipExtractor::extract($safeArchivePath,$privatePaths['storage'] . DIRECTORY_SEPARATOR . 'payload',$privatePaths['document_root']);
+    $assert($extracted['files'] === 1 && file_get_contents($privatePaths['storage'] . '/payload/assets/check.txt') === 'safe payload','safe ZIP payload extracts outside public root');
+    $badArchivePath = $tempRoot . DIRECTORY_SEPARATOR . 'bad.zip';
+    $badArchive = new ZipArchive();
+    $badArchive->open($badArchivePath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+    $badArchive->addFromString('../escape.txt','blocked');
+    $badArchive->close();
+    try { SafeZipExtractor::extract($badArchivePath,$privatePaths['storage'] . DIRECTORY_SEPARATOR . 'bad-payload',$privatePaths['document_root']); $assert(false,'ZIP path traversal is rejected'); }
+    catch (RuntimeException) { $assert(true,'ZIP path traversal is rejected'); }
+    $assert(!is_file($privatePaths['storage'] . '/escape.txt'),'ZIP traversal did not create an escaped file');
+}
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($iterator as $entry) {
     $entry->isDir() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
