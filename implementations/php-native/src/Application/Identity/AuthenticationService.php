@@ -126,7 +126,7 @@ final class AuthenticationService
         }
         $userId = (string) $pending['user_id'];
         $user = $this->activeUser($userId);
-        if ($user === null || (bool) $user['first_login_required'] || (int) $user['admin_session_version'] !== (int) $pending['session_version']) {
+        if ($user === null || !(bool) $user['first_login_required'] || (int) $user['admin_session_version'] !== (int) $pending['session_version']) {
             unset($_SESSION['_admin_password_change_pending']);
             throw new \DomainException('First-login account state changed; authenticate again.');
         }
