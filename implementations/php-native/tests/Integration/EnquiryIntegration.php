@@ -40,13 +40,15 @@ function runEnquiryIntegration(PDO $pdo): int
     ],'127.0.0.3','enquiry-submit-'.bin2hex(random_bytes(8)),null);
     $assert(is_string($reference) && preg_match('/^TV-[A-Z0-9]{10}$/D',$reference) === 1,
         'valid enquiry receives a non-sequential public reference');
-    $row = $pdo->prepare('SELECT name,email,status,privacy_acknowledged_at FROM enquiries WHERE reference = :reference');
+    $row = $pdo->prepare('SELECT name,email,status,privacy_acknowledged_at,privacy_policy_version FROM enquiries WHERE reference = :reference');
     $row->execute(['reference'=>$reference]);
     $saved = $row->fetch();
     $assert(is_array($saved) && $saved['name'] === 'A Visitor' && $saved['email'] === 'visitor@example.test' && $saved['status'] === 'new',
         'enquiry fields are normalized and saved in the new pipeline state');
     $assert(is_array($saved) && $saved['privacy_acknowledged_at'] !== null,
         'privacy acknowledgement timestamp is retained without storing unnecessary acknowledgement text');
+$assert(is_array($saved) && $saved['privacy_policy_version'] === 'privacy-v1',
+        'the exact privacy notice version acknowledged by the visitor is retained');
 
     $adminId = (string) $pdo->query('SELECT id FROM users WHERE email = "native-admin@example.test"')->fetchColumn();
     $admin = new Principal($adminId,['admin'],true);
