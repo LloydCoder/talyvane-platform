@@ -37,10 +37,10 @@ function runEnquiryIntegration(PDO $pdo): int
     $reference = $service->submit([
         'name'=>'  A Visitor  ','email'=>'VISITOR@example.test','phone'=>'+1 555 0100','subject'=>'A question',
         'message'=>'Please tell me more about your service.','privacy_acknowledged'=>true,'country_code'=>null,'city'=>'Toronto',
-    ],'127.0.0.3','enquiry-submit-'.bin2hex(random_bytes(8)),null,'privacy-v2');
+    ],'127.0.0.3','enquiry-submit-'.bin2hex(random_bytes(8)),'https://example.test/contact?token=secret','privacy-v2');
     $assert(is_string($reference) && preg_match('/^TV-[A-Z0-9]{10}$/D',$reference) === 1,
         'valid enquiry receives a non-sequential public reference');
-    $row = $pdo->prepare('SELECT name,email,status,privacy_acknowledged_at,privacy_policy_version FROM enquiries WHERE reference = :reference');
+    $row = $pdo->prepare('SELECT name,email,status,privacy_acknowledged_at,privacy_policy_version,attribution_json FROM enquiries WHERE reference = :reference');
     $row->execute(['reference'=>$reference]);
     $saved = $row->fetch();
     $assert(is_array($saved) && $saved['name'] === 'A Visitor' && $saved['email'] === 'visitor@example.test' && $saved['status'] === 'new',
@@ -49,6 +49,9 @@ function runEnquiryIntegration(PDO $pdo): int
         'privacy acknowledgement timestamp is retained without storing unnecessary acknowledgement text');
 $assert(is_array($saved) && $saved['privacy_policy_version'] === 'privacy-v2',
         'the exact privacy notice version acknowledged by the visitor is retained');
+$attribution = is_array($saved) ? json_decode((string) $saved['attribution_json'],true) : null;
+    $assert(is_array($attribution) && ($attribution['source'] ?? '') === 'https://example.test/contact' && !str_contains((string) $saved['attribution_json'],'token=secret'),
+        'attribution retains only the referring origin and path, never query-string tokens');
 
     $adminId = (string) $pdo->query('SELECT id FROM users WHERE email = "native-admin@example.test"')->fetchColumn();
     $admin = new Principal($adminId,['admin'],true);
