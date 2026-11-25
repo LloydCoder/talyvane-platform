@@ -61,6 +61,7 @@ $titles = [
 <?php elseif ($screen === 'dashboard'): ?>
 <p class="notice">Signed in as a <?= $escape($accountType) ?> account.</p>
 <p class="hint">This portal is intentionally separate from administration and from the other account type. Identity and session checks are active.</p>
+<p><a href="/portal/security">Change your password</a></p>
 <?php if ($accountType === 'client'): ?><p><a href="/portal/bookings">Open your private booking history</a></p><p><a href="/portal/favorites">View your saved companions</a></p><?php elseif ($accountType === 'companion'): ?><p><a href="/portal/companion/bookings">Review your booking requests</a></p><p><a href="/portal/companion/availability">Manage your weekly availability</a></p><p><a href="/portal/companion/media">Manage your profile images</a></p><?php endif; ?>
 <form method="post" action="/portal/logout"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><button class="button" type="submit">Sign out securely</button></form>
 <?php else: ?>
