@@ -18,7 +18,7 @@ final class SettlementCalculator
         }
         $commission = intdiv($grossMinor, 10000) * $commissionBasisPoints
             + intdiv((($grossMinor % 10000) * $commissionBasisPoints) + 5000, 10000);
-        $net = $grossMinor - $approvedExpensesMinor - $commission;
+        if ($approvedExpensesMinor > $grossMinor - $commission) {\n            throw new \\DomainException('Approved expenses and commission exceed gross compensation.');\n        }\n        $net = $grossMinor - $approvedExpensesMinor - $commission;
         return [
             'gross_minor' => $grossMinor,
             'approved_expenses_minor' => $approvedExpensesMinor,
