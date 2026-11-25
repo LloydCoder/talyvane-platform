@@ -367,6 +367,28 @@ final class SafeguardingCaseService
         if (!is_int($days) || $days<1 || !is_int($backupDays) || $backupDays<1 || $version==='' || strlen($version)>64) {
             return null;
         }
+        $backupPolicy=$this->pdo->query(
+            'SELECT policy_version,expiry_days,encrypted_backups,enabled,approved_by
+             FROM safeguarding_backup_retention_policies WHERE singleton_id=1 LIMIT 1'
+        )->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($backupPolicy) || (int)$backupPolicy['enabled']!==1 ||
+            (int)$backupPolicy['encrypted_backups']!==1 || (int)$backupPolicy['expiry_days']!==$backupDays ||
+            !hash_equals($version,(string)$backupPolicy['policy_version'])) {
+            return null;
+        }
+        $restore=$this->pdo->prepare(
+            'SELECT 1 FROM safeguarding_restore_verifications v
+             JOIN users u ON u.id=v.verified_by AND u.status="active"
+             JOIN user_roles r ON r.user_id=u.id AND r.role_key IN ("owner","super_admin")
+             JOIN admin_mfa_credentials m ON m.user_id=u.id AND m.enabled_at IS NOT NULL
+             WHERE v.policy_version=:version AND v.verification_status="passed"
+               AND v.verified_at>=UTC_TIMESTAMP()-INTERVAL 90 DAY
+               AND v.verified_by<>:approver LIMIT 1'
+        );
+        $restore->execute(['version'=>$version,'approver'=>$backupPolicy['approved_by']]);
+        if ($restore->fetchColumn()===false) {
+            return null;
+        }
         $query=$this->pdo->prepare(
             'SELECT retention_days,policy_version,legal_basis_reference
              FROM safeguarding_retention_policies WHERE category=:category AND enabled=1 LIMIT 1'
