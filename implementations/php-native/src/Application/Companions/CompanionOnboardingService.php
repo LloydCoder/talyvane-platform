@@ -89,7 +89,7 @@ final class CompanionOnboardingService
             $user = $userQuery->fetch();
             $roleQuery = $this->pdo->prepare('SELECT 1 FROM user_roles WHERE user_id = :user AND role_key = "companion" LIMIT 1');
             $roleQuery->execute(['user'=>$companionUserId]);
-            if (!is_array($user) || $user['status'] !== 'active' || $user['email_verified_at'] === null || $roleQuery->fetchColumn() === false) {
+            if ($verifier->id === $companionUserId || !is_array($user) || $user['status'] !== 'active' || $user['email_verified_at'] === null || $roleQuery->fetchColumn() === false) {
                 throw new \DomainException('An active, email-verified companion account is required.');
             }
             $verifierRole = $this->pdo->prepare('SELECT 1 FROM user_roles WHERE user_id = :user AND role_key = "verifier" LIMIT 1');
