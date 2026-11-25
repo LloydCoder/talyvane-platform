@@ -636,6 +636,10 @@ $errorLogPath = $privatePaths['logs'] . DIRECTORY_SEPARATOR . 'application-error
 $errorLogContents = is_file($errorLogPath) ? (string) file_get_contents($errorLogPath) : '';
 $assert($errorLogContents !== '' && str_contains($errorLogContents,'RuntimeException') && str_contains($errorLogContents,'a1b2c3d4e5f60718'), 'private runtime error log records exception class and correlation reference');
 $assert(!str_contains($errorLogContents,'DB_PASSWORD') && !str_contains($errorLogContents,'do-not-log-secret'), 'private runtime error log never records exception messages or secrets');
+$errorLogMode = is_file($errorLogPath) ? (fileperms($errorLogPath) & 0777) : 0;
+$assert($errorLogMode === 0600, 'private runtime error log is restricted to owner read/write permissions');
+\Talyvane\Infrastructure\Logging\PrivateErrorLogger::record(new RuntimeException('must not create a public log'),$privatePaths['document_root'],$privatePaths['document_root'],'1122334455667788');
+$assert(!is_file($privatePaths['document_root'] . DIRECTORY_SEPARATOR . 'application-error.log'), 'private error logger refuses to write inside the public document root');
 
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($iterator as $entry) {
