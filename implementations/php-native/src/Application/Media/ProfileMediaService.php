@@ -439,7 +439,7 @@ final class ProfileMediaService
                 ['members_only_consent'=>'inactive'],['members_only_consent'=>'active','consent_version'=>$version],
                 $requestId,'profile-media-governance-v1');
             $this->pdo->commit();
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
             throw $error;
         }
@@ -481,7 +481,7 @@ final class ProfileMediaService
                 ['members_only_consent'=>'withdrawn','review_status'=>'withdrawn','media_scope'=>'private'],
                 $requestId,'profile-media-governance-v1');
             $this->pdo->commit();
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
             throw $error;
         }
@@ -580,7 +580,7 @@ final class ProfileMediaService
             }
             $this->pdo->commit();
             return ['bytes'=>$bytes,'mime'=>'image/webp'];
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
             throw $error;
         }
