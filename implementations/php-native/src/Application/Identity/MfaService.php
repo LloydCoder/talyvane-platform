@@ -117,6 +117,9 @@ final class MfaService
 
     public function consumeRecoveryCode(string $userId, string $submitted, string $requestId): bool
     {
+        if (!preg_match('/^[A-Fa-f0-9]{20}$/D', $submitted)) {
+            return false;
+        }
         $this->pdo->beginTransaction();
         try {
             $query = $this->pdo->prepare('SELECT id, code_hash FROM admin_mfa_recovery_codes WHERE user_id = :user AND used_at IS NULL FOR UPDATE');
