@@ -16,6 +16,7 @@ final class VaultTransitSafeguardingCaseKeyProvider implements SafeguardingCaseK
         $this->keyNamespace();
         $this->runtimeToken();
         $this->retentionToken();
+        $this->assertDistinctCredentials();
     }
 
     public function name(): string { return 'vault-transit'; }
