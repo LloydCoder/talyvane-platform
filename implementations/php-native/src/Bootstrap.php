@@ -68,6 +68,8 @@ final class Bootstrap
         $router->add('GET', '/contact', static fn(Request $request): Response => $publicEnquiries->create($request));
         $router->add('POST', '/enquiries', static fn(Request $request): Response => $publicEnquiries->store($request));
         $router->add('GET', '/pages/{slug}', static fn(Request $request, array $params): Response => $public->page($request, $params));
+        $router->add('GET', '/privacy', static fn(Request $request): Response => $public->page($request, ['slug'=>'privacy']));
+        $router->add('GET', '/terms', static fn(Request $request): Response => $public->page($request, ['slug'=>'terms']));
 
         $router->add('GET', '/admin/login', static fn(Request $request): Response => $adminAuth->loginForm($request));
         $router->add('POST', '/admin/login', static fn(Request $request): Response => $adminAuth->login($request));
