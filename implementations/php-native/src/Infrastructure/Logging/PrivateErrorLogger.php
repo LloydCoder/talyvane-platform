@@ -27,12 +27,24 @@ final class PrivateErrorLogger
                 is_link($lockPath) || (file_exists($lockPath) && !is_file($lockPath))) {
                 throw new \RuntimeException('Private error log path is invalid.');
             }
-            $entry = json_encode([
-                'timestamp'=>gmdate('Y-m-d\TH:i:s\Z'),
+            $diagnostic = [
+                'timestamp'=>gmdate('Y-m-d\\TH:i:s\\Z'),
                 'reference'=>$reference,
                 'exception_class'=>$error::class,
                 'exception_code'=>(string) $error->getCode(),
-            ],JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+            ];
+            if ($error instanceof \\PDOException && is_array($error->errorInfo ?? null)) {
+                $sqlState = $error->errorInfo[0] ?? null;
+                $driverCode = $error->errorInfo[1] ?? null;
+                if (is_string($sqlState) && preg_match('/^[A-Z0-9]{5}$/D',$sqlState)) {
+                    $diagnostic['sql_state'] = $sqlState;
+                }
+                if ((is_int($driverCode) || (is_string($driverCode) && ctype_digit($driverCode))) &&
+                    (int) $driverCode >= 0 && (int) $driverCode <= 999999) {
+                    $diagnostic['driver_code'] = (int) $driverCode;
+                }
+            }
+            $entry = json_encode($diagnostic,JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . PHP_EOL;
 
             $previousUmask = umask(0077);
             $lock = @fopen($lockPath,'c+b');
