@@ -75,7 +75,7 @@ The native branch now has 24 ordered PHP migrations and connected slices for ide
 
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
-| Manual booking request | BookingController | IN_PROGRESS | Client portal request form uses destination-local time and revalidates market, adult eligibility, consent, client verification, policy and overlap transactionally; booking browser E2E remains open |
+| Manual booking request | BookingController | IN_PROGRESS | Client portal request form uses destination-local time and revalidates market, adult eligibility, consent, client verification, policy and overlap transactionally; nonexistent DST spring-forward wall times are rejected rather than silently normalized. Ambiguous fall-back times still need an explicit disambiguation UX; booking browser E2E remains open |
 | Automatic booking mode | Booking domain | IN_PROGRESS | Disabled by default; native booking now enforces the deployment feature dependency graph in addition to transactional availability/consent/market checks. Provider approval, jurisdictional legal approval and safeguarding readiness deliberately fail closed until implemented and evidenced; companion opt-in/out and admin policy UI remain open |
 | Admin approval rules | Booking settings | IN_PROGRESS | Typed policy and fail-safe manual defaults exist; customer-facing policy configuration UI and approval notifications remain open |
 | Companion explicit auto-book opt-in/out | Companion portal | NOT_STARTED | Immediate opt-out enforcement |
