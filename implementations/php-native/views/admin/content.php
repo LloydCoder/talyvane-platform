@@ -44,11 +44,19 @@ $action = $id === '' ? '/admin/content' : '/admin/content/' . rawurlencode($id);
     <div class="table-wrap"><table>
       <thead><tr><th>Page</th><th>Locale</th><th>Status</th><th>Version</th><th>Last updated</th><th></th></tr></thead>
       <tbody><?php foreach ($pages as $item): ?>
+      <?php
+        $itemVersion = (int) ($item['version'] ?? 1);
+        $itemPublishedVersion = $item['published_version'] === null ? null : (int) $item['published_version'];
+        $itemStatus = (string) ($item['status'] ?? 'draft');
+        $itemStatusLabel = $itemStatus === 'published' && $itemPublishedVersion !== null && $itemPublishedVersion < $itemVersion
+            ? 'Published · draft changes'
+            : ($itemStatus === 'published' ? 'Published' : 'Draft');
+      ?>
       <tr>
         <td><strong><?= $escape($item['title'] ?? '') ?></strong><small>/pages/<?= $escape($item['slug'] ?? '') ?></small></td>
         <td><?= $escape($item['locale'] ?? '') ?></td>
-        <td><span class="status"><?= $escape($item['status'] ?? '') ?></span></td>
-        <td><?= $escape($item['version'] ?? '') ?></td>
+        <td><span class="status"><?= $escape($itemStatusLabel) ?></span></td>
+        <td><?= $escape($itemVersion) ?><?php if ($itemPublishedVersion !== null): ?><small>Public v<?= $escape($itemPublishedVersion) ?></small><?php endif; ?></td>
         <td><?= $escape($item['updated_at'] ?? '') ?></td>
         <td><a href="/admin/content/<?= $escape($item['id'] ?? '') ?>" class="button secondary">Edit</a></td>
       </tr>
@@ -73,12 +81,25 @@ $action = $id === '' ? '/admin/content' : '/admin/content/' . rawurlencode($id);
       <div class="actions"><button class="button" type="submit">Save draft</button><a class="button secondary" href="/admin/content">Cancel</a></div>
     </form>
     <?php if ($id !== ''): ?>
-    <div class="notice">Current state: <strong><?= $escape($page['status'] ?? 'draft') ?></strong> · Version <?= $escape($page['version'] ?? 1) ?>. Publishing is a separate, reasoned action.</div>
-    <?php if (($page['status'] ?? '') !== 'published'): ?>
+    <?php
+      $currentVersion = (int) ($page['version'] ?? 1);
+      $publishedVersion = ($page['published_version'] ?? null) === null ? null : (int) $page['published_version'];
+      $needsPublish = $publishedVersion === null || $publishedVersion < $currentVersion;
+    ?>
+    <div class="notice">
+      <?php if ($publishedVersion === null): ?>
+        This page has not been published. Current draft version <?= $escape($currentVersion) ?>.
+      <?php elseif ($needsPublish): ?>
+        Public readers still see version <?= $escape($publishedVersion) ?>. Your current draft is version <?= $escape($currentVersion) ?> and will not be public until explicitly published.
+      <?php else: ?>
+        Public readers are viewing version <?= $escape($publishedVersion) ?>.
+      <?php endif; ?>
+    </div>
+    <?php if ($needsPublish): ?>
     <form method="post" action="<?= $escape('/admin/content/' . rawurlencode($id) . '/publish') ?>" class="actions">
       <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
       <label class="muted" for="publication_reason">Publication reason</label><input id="publication_reason" name="reason" minlength="8" maxlength="500" required placeholder="Explain why this page is approved for publication">
-      <button class="button" type="submit">Publish page</button>
+      <button class="button" type="submit">Publish version <?= $escape($currentVersion) ?></button>
     </form>
     <?php endif; ?>
     <?php endif; ?>
