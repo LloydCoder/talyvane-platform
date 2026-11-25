@@ -102,7 +102,7 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
   <a class="button" href="/admin/profile-media" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review profile media</a>
   <a class="button" href="/admin/model-agency" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage model-agency applications</a>
   <a class="button" href="/admin/bookings" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage bookings</a>
-  <a class="button" href="/admin/safeguarding/report" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Submit confidential safeguarding report</a>
+  <a class="button" href="/admin/safeguarding/reports" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Submit confidential safeguarding report</a>
   <a class="button" href="/admin/clients" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage client memberships</a>
   <?php if (in_array('verifier', $roles, true)): ?><a class="button" href="/admin/model-agency/verifications" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open verifier queue</a><?php endif; ?>
   <?php endif; ?>
