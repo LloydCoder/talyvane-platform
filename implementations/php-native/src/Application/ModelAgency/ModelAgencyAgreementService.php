@@ -20,7 +20,15 @@ final class ModelAgencyAgreementService
     {
         Authorization::require($actor,'model_agreements.manage',true);
         $this->assertAgencyAdministrator($actor);
-        if ($commissionBasisPoints < 0 || $commissionBasisPoints > 10000 || $terms === [] ||
+        $scope = $terms['service_scope'] ?? null;
+        $allowedScope = ['portfolio_development','casting_submissions','booking_coordination','commercial_representation'];
+        if ($commissionBasisPoints < 0 || $commissionBasisPoints > 10000 || !is_array($scope) || $scope === [] ||
+            array_diff($scope,$allowedScope) !== [] || count($scope) !== count(array_unique($scope)) ||
+            (int) ($terms['commission_basis_points'] ?? -1) !== $commissionBasisPoints ||
+            !is_int($terms['term_months'] ?? null) || $terms['term_months'] < 1 || $terms['term_months'] > 60 ||
+            !is_bool($terms['exclusivity'] ?? null) ||
+            !is_int($terms['termination_notice_days'] ?? null) || $terms['termination_notice_days'] < 0 || $terms['termination_notice_days'] > 180 ||
+            array_diff(array_keys($terms),['service_scope','commission_basis_points','term_months','exclusivity','termination_notice_days']) !== [] ||
             strlen(json_encode($terms,JSON_THROW_ON_ERROR)) > 20000 ||
             strlen($requestId) < 16 || strlen($requestId) > 64) {
             throw new \InvalidArgumentException('Representation agreement terms are invalid.');
@@ -84,6 +92,13 @@ final class ModelAgencyAgreementService
             }
             $from = (string) $agreement['status'];
             $to = AgreementStateMachine::transition($from,$toStatus,$this->actorRole($actor),$externalExecutionReference);
+            if ($to === 'executed') {
+                $verification = $this->pdo->prepare('SELECT id FROM model_applicant_verifications WHERE application_id = :application AND outcome = "verified" AND expires_at > UTC_TIMESTAMP() ORDER BY verified_at DESC LIMIT 1 FOR UPDATE');
+                $verification->execute(['application'=>$agreement['application_id']]);
+                if ($verification->fetchColumn() === false) {
+                    throw new \\DomainException('A current independent adult-eligibility verification is required at agreement execution time.');
+                }
+            }
             $updates = [
                 'status'=>$to,
                 'external_execution_reference'=>$agreement['external_execution_reference'],
