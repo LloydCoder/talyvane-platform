@@ -19,7 +19,7 @@ use Talyvane\Security\SecretBox;
 use Talyvane\Http\AdminSafeguardingController;
 use Talyvane\Application\Clients\ClientMembershipService;
 use Talyvane\Application\Clients\MembershipEntitlementService;
-use Talyvane\Application\Clients\MembershipEntitlementCatalog;
+use Talyvane\Application\Clients\MembershipGalleryPolicyReadiness;
 use Talyvane\Features\FeatureAvailability;
 use Talyvane\Infrastructure\Database\FeatureStateRepository;
 use Talyvane\Http\AdminClientController;
@@ -137,39 +137,11 @@ final class Bootstrap
         $contentManagement = new ContentManagementService($pdo, $audit);
         $brandName = (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane');
         $membershipEligibility = static function(string $dependency) use ($pdo,$brandName): bool {
-            try {
-                if ($dependency==='market.policy') {
-                    return $pdo->query(
-                        'SELECT 1 FROM market_policies m JOIN countries c ON c.alpha2=m.country_code
-                         WHERE m.enabled=1 AND m.decision="approved" AND m.expires_at>UTC_TIMESTAMP()
-                           AND c.enabled=1 LIMIT 1'
-                    )->fetchColumn()!==false;
-                }
-                if ($dependency==='consent.current') {
-                    $policyQuery=$pdo->prepare(
-                        'SELECT config_json FROM feature_states
-                         WHERE feature_key="memberships.private_gallery" AND enabled=1 LIMIT 1'
-                    );
-                    $policyQuery->execute();
-                    $policyJson=$policyQuery->fetchColumn();
-                    if (!is_string($policyJson)) { return false; }
-                    $policy=json_decode($policyJson,true);
-                    if (!is_array($policy) || ($policy['private_gallery_policy_approved']??false)!==true ||
-                        ($policy['private_gallery_policy_version']??null)!==MembershipEntitlementCatalog::PRIVATE_GALLERY_POLICY_VERSION ||
-                        !is_string($policy['legal_approval_reference']??null) || strlen(trim($policy['legal_approval_reference']))<8 ||
-                        !is_string($policy['private_gallery_statement_sha256']??null) ||
-                        !hash_equals(MembershipEntitlementCatalog::privateGalleryConsentStatementHash($brandName),
-                            $policy['private_gallery_statement_sha256'])) {
-                        return false;
-                    }
-                    return $pdo->query(
-                        'SELECT 1 FROM consent_grants
-                         WHERE subject_type="companion_profile" AND purpose="profile.publication"
-                           AND audience="public" AND granted=1 AND withdrawn_at IS NULL LIMIT 1'
-                    )->fetchColumn()!==false;
-                }
-            } catch (\PDOException) {
-                return false;
+            if ($dependency==='market.policy') {
+                return MembershipGalleryPolicyReadiness::marketApproved($pdo);
+            }
+            if ($dependency==='consent.current') {
+                return MembershipGalleryPolicyReadiness::approved($pdo,$brandName);
             }
             // Provider, legal and safeguarding readiness require independent external evidence.
             return false;
