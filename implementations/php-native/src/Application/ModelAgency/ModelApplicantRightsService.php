@@ -166,7 +166,7 @@ final class ModelApplicantRightsService
     /** @return array<string,mixed> */
     public function read(string $rightsRequestId,string $requestId): array
     {
-        if (strlen($requestId) < 16 || strlen($requestId) > 64) { throw new \\InvalidArgumentException('Request identifier is invalid.'); }
+        if (strlen($requestId) < 16 || strlen($requestId) > 64) { throw new \InvalidArgumentException('Request identifier is invalid.'); }
         $this->pdo->beginTransaction();
         try {
             [$rights,$application] = $this->verifiedContext($rightsRequestId,'access');
