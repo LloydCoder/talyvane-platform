@@ -6,7 +6,7 @@ namespace Talyvane\Installer;
 final class EnvironmentPreflight
 {
     /** @return array{ok:bool,checks:array<string,array{ok:bool,detail:string}>} */
-    public static function inspect(): array
+    public static function inspect(?string $accountHome = null): array
     {
         $checks = [];
         $checks['php_version'] = [
@@ -31,9 +31,10 @@ final class EnvironmentPreflight
             'ok' => function_exists('session_start') && (bool) ini_get('session.use_cookies'),
             'detail' => function_exists('session_start') && (bool) ini_get('session.use_cookies') ? 'Cookie-backed PHP sessions are available.' : 'Cookie-backed PHP sessions are required.',
         ];
+        $privateWritable = is_string($accountHome) && is_dir($accountHome) && is_writable($accountHome);
         $checks['private_writable'] = [
-            'ok' => is_writable(dirname(__DIR__, 3)),
-            'detail' => is_writable(dirname(__DIR__, 3)) ? 'Application parent is writable.' : 'A private writable account directory is required.',
+            'ok' => $privateWritable,
+            'detail' => $privateWritable ? 'Account home is writable for private application storage.' : 'A private writable account home path must be supplied and accessible.',
         ];
         $ok = true;
         foreach ($checks as $check) {
