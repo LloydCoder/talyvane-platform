@@ -55,9 +55,15 @@ final class Bootstrap
         $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
         $adminBrand = new AdminBrandController($authentication, $contentManagement, $views);
         $adminNavigation = new AdminNavigationController($pdo, $authentication, $contentManagement, $views);
+        $enquiries = new EnquiryService($pdo, $rateLimiter, $audit);
+        $brandName = (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane');
+        $publicEnquiries = new PublicEnquiryController($enquiries, $views, $brandName);
+        $adminEnquiries = new AdminEnquiryController($enquiries, $authentication, $views, $brandName);
         $router = new Router();
 
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
+        $router->add('GET', '/contact', static fn(Request $request): Response => $publicEnquiries->create($request));
+        $router->add('POST', '/enquiries', static fn(Request $request): Response => $publicEnquiries->store($request));
         $router->add('GET', '/pages/{slug}', static fn(Request $request, array $params): Response => $public->page($request, $params));
 
         $router->add('GET', '/admin/login', static fn(Request $request): Response => $adminAuth->loginForm($request));
@@ -73,6 +79,8 @@ final class Bootstrap
         $router->add('POST', '/admin/logout', static fn(Request $request): Response => $adminAuth->logout($request));
         $router->add('GET', '/admin/brand', static fn(Request $request): Response => $adminBrand->show($request));
         $router->add('POST', '/admin/brand', static fn(Request $request): Response => $adminBrand->update($request));
+        $router->add('GET', '/admin/enquiries', static fn(Request $request): Response => $adminEnquiries->index($request));
+        $router->add('POST', '/admin/enquiries/{reference}', static fn(Request $request, array $params): Response => $adminEnquiries->update($request, $params));
         $router->add('GET', '/admin/navigation', static fn(Request $request): Response => $adminNavigation->index($request));
         $router->add('POST', '/admin/navigation', static fn(Request $request, array $params): Response => $adminNavigation->save($request));
         $router->add('POST', '/admin/navigation/{id}', static fn(Request $request, array $params): Response => $adminNavigation->save($request, $params));
