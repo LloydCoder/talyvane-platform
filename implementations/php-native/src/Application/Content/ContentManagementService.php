@@ -125,9 +125,9 @@ final class ContentManagementService
                 $id = self::uuid();
                 $insert = $this->pdo->prepare(
                     'INSERT INTO site_pages (id,slug,title,locale,content,meta_title,meta_description,status,version,published_at,created_by,updated_by,created_at,updated_at)
-                     VALUES (:id,:slug,:title,:locale,:content,:meta_title,:meta_description,"draft",1,NULL,:actor,:actor,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+                     VALUES (:id,:slug,:title,:locale,:content,:meta_title,:meta_description,"draft",1,NULL,:created_by,:updated_by,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
                 );
-                $insert->execute(['id'=>$id,'slug'=>$slug,'title'=>$title,'locale'=>$locale,'content'=>$content,'meta_title'=>$metaTitle,'meta_description'=>$metaDescription,'actor'=>$actor->id]);
+                $insert->execute(['id'=>$id,'slug'=>$slug,'title'=>$title,'locale'=>$locale,'content'=>$content,'meta_title'=>$metaTitle,'meta_description'=>$metaDescription,'created_by'=>$actor->id,'updated_by'=>$actor->id]);
                 $version = 1;
                 $this->savePageVersion($id,$version,$title,$content,$metaTitle,$metaDescription,$actor->id,$reason);
                 $before = null;
