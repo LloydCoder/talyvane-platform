@@ -93,6 +93,37 @@ $assert(str_contains($authMarkup, 'name="_csrf" value="test-csrf-token"'), 'admi
 $assert(str_contains($authMarkup, 'Maison Example'), 'admin sign-in uses the configured white-label brand');
 $assert(str_contains($authMarkup, '&lt;script&gt;alert(1)&lt;/script&gt;'), 'admin sign-in view escapes authentication errors');
 $assert(!str_contains($authMarkup, '<script>alert(1)</script>'), 'admin sign-in view never renders error text as markup');
+$portalRegisterMarkup = $authViews->render('auth/portal', [
+    'screen'=>'register',
+    'brandName'=>'Maison Example',
+    'csrf'=>'portal-csrf',
+    'email'=>'person@example.test',
+    'error'=>'<script>alert(1)</script>',
+]);
+$assert(str_contains($portalRegisterMarkup, 'action="/portal/register"'), 'public portal registration posts to its dedicated endpoint');
+$assert(str_contains($portalRegisterMarkup, 'name="account_type"'), 'public registration requires an explicit client or companion account type');
+$assert(str_contains($portalRegisterMarkup, 'name="_csrf" value="portal-csrf"'), 'public portal registration includes CSRF protection');
+$assert(!str_contains($portalRegisterMarkup, '<script>alert(1)</script>'), 'public portal registration escapes reflected errors');
+$portalVerifyMarkup = $authViews->render('auth/portal', [
+    'screen'=>'verify',
+    'csrf'=>'verify-csrf',
+    'email'=>'person@example.test',
+]);
+$assert(str_contains($portalVerifyMarkup, 'action="/portal/verify"') && str_contains($portalVerifyMarkup, 'pattern="[0-9]{6}"'), 'portal email verification requires a six-digit code');
+$portalLoginMarkup = $authViews->render('auth/portal', [
+    'screen'=>'login',
+    'csrf'=>'portal-login-csrf',
+    'email'=>'person@example.test',
+]);
+$assert(str_contains($portalLoginMarkup, 'action="/portal/login"'), 'portal login is distinct from administrator authentication');
+$portalDashboardMarkup = $authViews->render('auth/portal', [
+    'screen'=>'dashboard',
+    'csrf'=>'portal-dashboard-csrf',
+    'accountType'=>'companion',
+]);
+$assert(str_contains($portalDashboardMarkup, 'Companion workspace'), 'companion portal is visibly separated from the client portal');
+$assert(str_contains($portalDashboardMarkup, 'action="/portal/logout"'), 'portal dashboard exposes CSRF-protected sign-out');
+
 $setupMarkup = $authViews->render('auth/screen', [
     'screen'=>'mfa_setup',
     'csrf'=>'setup-csrf',
