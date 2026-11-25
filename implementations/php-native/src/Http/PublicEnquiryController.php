@@ -6,6 +6,7 @@ namespace Talyvane\Http;
 use InvalidArgumentException;
 use DomainException;
 use Talyvane\Application\CRM\EnquiryService;
+use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\SessionManager;
 
