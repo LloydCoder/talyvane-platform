@@ -22,7 +22,7 @@ final class AuditQueryService
      * @param array<string,string> $filters
      * @return list<array<string,mixed>>
      */
-    public function list(array $filters, int $page = 1): array
+    public function search(array $filters, int $page = 1): array
     {
         if ($page < 1 || $page > self::MAX_PAGE) {
             throw new InvalidArgumentException('The requested audit page is outside the supported range.');
