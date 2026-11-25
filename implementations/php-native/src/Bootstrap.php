@@ -49,6 +49,7 @@ use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Audit\AuditQueryService;
 use Talyvane\Infrastructure\Database\BookingPolicyRepository;
 use Talyvane\Infrastructure\Database\ConnectionFactory;
+use Talyvane\Infrastructure\Database\ReferenceDataImporter;
 use Talyvane\Infrastructure\Mail\SmtpMailer;
 use Talyvane\Infrastructure\Security\RateLimiter;
 use Talyvane\Security\SecretBox;
@@ -70,6 +71,11 @@ final class Bootstrap
         }
 
         $pdo = ConnectionFactory::mysql($config['database']);
+        $referenceData = new ReferenceDataImporter($pdo);
+        $referenceData->importIfNeeded(
+            $root . '/database/reference-data/countries.json',
+            $root . '/database/reference-data/currencies.json'
+        );
         $views = new ViewRenderer($root . DIRECTORY_SEPARATOR . 'views');
 
         $audit = new AuditLogger($pdo);
