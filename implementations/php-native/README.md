@@ -8,6 +8,18 @@ This is an isolated, parallel implementation of Talyvane inside the existing mon
 
 Do not treat a green foundation test as proof of product parity, security certification, production readiness or cPanel compatibility.
 
+## Current native browser-facing slices
+
+The native HTTP kernel currently exposes:
+- Public homepage, CMS pages, privacy/terms aliases, contact/enquiry intake and public destination/profile discovery.
+- Separate client and companion registration, email verification/resend, portal login/logout, and email-code password recovery.
+- Administrator sign-in, first-login password replacement, mandatory MFA setup/challenge, CMS, branding, navigation, enquiry inbox and companion profile publication review.
+
+Portal registration and email-based recovery require a valid private `mail.smtp` configuration in the private configuration file. Without it, mail-dependent routes fail closed while the public site and already verified portal logins remain available. Public discovery returns only allowlisted fields and requires current approved market status, independent adult-eligibility verification and active purpose-specific publication consent. Public profile media delivery is not yet implemented; private media is never linked directly.
+
+These are implemented slices, not a complete product. Customer/companion profile editing, booking management UI, model-agency workflows, safeguarding operations, payment/settlement workflows, full CRM operations and the native installer/package remain incomplete.
+
+
 ## Non-negotiable delivery target
 
 A customer must be able to upload one ZIP through cPanel File Manager, extract it, visit their domain over HTTPS, and complete a browser-based installation. The customer must not need SSH, Composer, npm, Git, Docker, terminal access, manual document-root changes, or manual source-file edits.
