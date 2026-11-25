@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   native-php:
-    name: PHP ${{ matrix.php }} foundation tests
+    name: PHP ${{ matrix.php }} native application tests
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

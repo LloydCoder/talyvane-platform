@@ -113,7 +113,7 @@ final class ModelApplicantRightsService
         $this->pdo->beginTransaction();
         try {
             $query = $this->pdo->prepare(
-                'SELECT id,otp_hash,attempts,expires_at,status FROM model_applicant_rights_requests
+                'SELECT id,request_type,otp_hash,attempts,expires_at,status FROM model_applicant_rights_requests
                  WHERE application_id = :application AND status = "pending" AND completed_at IS NULL
                  ORDER BY created_at DESC LIMIT 1 FOR UPDATE'
             );

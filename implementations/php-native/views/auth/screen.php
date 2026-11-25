@@ -95,6 +95,7 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
   <p class="hint">Authentication and administrator MFA are complete. Website content can be managed here; other operational modules will appear only after their workflows and permissions pass acceptance.</p>
   <?php if (array_intersect($roles, ['super_admin','owner','admin']) !== []): ?>
   <a class="button" href="/admin/content" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open content workspace</a>
+  <a class="button" href="/admin/destinations" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage destinations</a>
   <a class="button" href="/admin/navigation" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage navigation</a>
   <a class="button" href="/admin/enquiries" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open enquiry inbox</a>
   <a class="button" href="/admin/companions" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review companion profiles</a>
@@ -102,7 +103,7 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
   <a class="button" href="/admin/bookings" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage bookings</a>
   <?php if (in_array('verifier', $roles, true)): ?><a class="button" href="/admin/model-agency/verifications" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open verifier queue</a><?php endif; ?>
   <?php endif; ?>
-  <?php if (in_array('super_admin', $roles, true)): ?><a class="button" href="/admin/brand" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Configure brand identity</a><?php endif; ?>
+  <?php if (in_array('super_admin', $roles, true)): ?><a class="button" href="/admin/brand" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Configure brand identity</a><a class="button" href="/admin/audit" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">View security audit trail</a><a class="button" href="/admin/markets" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review market compliance</a><?php endif; ?>
   <form method="post" action="/admin/logout"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><button class="button" type="submit">Sign out securely</button></form>
   <?php endif; ?>
   <div class="footer">Access attempts are rate-limited. Administrator sessions expire after inactivity and are revoked when account security state changes.</div>

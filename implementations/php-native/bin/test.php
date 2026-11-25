@@ -579,6 +579,91 @@ if (class_exists(ZipArchive::class)) {
     catch (RuntimeException) { $assert(true,'ZIP path traversal is rejected'); }
     $assert(!is_file($privatePaths['storage'] . '/escape.txt'),'ZIP traversal did not create an escaped file');
 }
+$assert(Authorization::allows(new Principal('audit-superadmin',['super_admin'],true),'audit.events.view'), 'MFA-verified Super Admin can view audit events');
+$assert(!Authorization::allows(new Principal('audit-owner',['owner'],true),'audit.events.view'), 'agency owner cannot view the platform security audit trail');
+$assert(!Authorization::allows(new Principal('audit-superadmin-no-mfa',['super_admin'],false),'audit.events.view'), 'Super Admin without verified MFA cannot view audit events');
+$auditMarkup = $authViews->render('admin/audit', [
+    'brandName'=>'Maison Example',
+    'items'=>[[
+        'occurred_at'=>'2026-11-25 12:00:00',
+        'event_key'=>'<script>alert(1)</script>',
+        'actor_user_id'=>'actor-1',
+        'target_type'=>'profile',
+        'target_id'=>'profile-1',
+        'reason'=>'Reviewed safely',
+        'request_id'=>'request-1',
+        'policy_version'=>'v1',
+        'before_json'=>'must never be rendered',
+        'after_json'=>'must never be rendered',
+    ]],
+    'filters'=>[],
+    'page'=>1,
+    'previousUrl'=>null,
+    'nextUrl'=>'/admin/audit?page=2',
+    'error'=>'',
+]);
+$assert(str_contains($auditMarkup, 'Security audit trail'), 'Super Admin audit workspace renders its title');
+$assert(str_contains($auditMarkup, 'Maison Example'), 'audit workspace uses the active white-label identity');
+$assert(str_contains($auditMarkup, '&lt;script&gt;alert(1)&lt;/script&gt;'), 'audit event labels are HTML-escaped');
+$assert(!str_contains($auditMarkup, '<script>alert(1)</script>'), 'audit event data cannot inject executable markup');
+$assert(!str_contains($auditMarkup, 'must never be rendered'), 'audit workspace does not render sensitive before/after snapshots');
+$assert(str_contains($auditMarkup, '/admin/audit?page=2'), 'audit workspace exposes bounded pagination');
+$publicProfileMarkup = $authViews->render('public/discovery', [
+    'mode'=>'profile',
+    'profile'=>[
+        'slug'=>'verified-profile',
+        'display_name'=>'Verified Profile',
+        'destination_slug'=>'london',
+        'destination_name'=>'London',
+        'experience_category'=>'Representation',
+        'biography'=>'Public profile biography',
+        'languages'=>['en'],
+    ],
+    'canSaveFavorite'=>true,
+    'csrf'=>'csrf-test-token',
+]);
+$assert(str_contains($publicProfileMarkup, 'action="/portal/favorites/verified-profile"'), 'authenticated client profile page exposes a private shortlist action');
+$assert(str_contains($publicProfileMarkup, 'csrf-test-token'), 'shortlist action carries the server-issued CSRF token');
+$anonymousProfileMarkup = $authViews->render('public/discovery', [
+    'mode'=>'profile',
+    'profile'=>['slug'=>'verified-profile','display_name'=>'Verified Profile','destination_slug'=>'london','destination_name'=>'London'],
+    'canSaveFavorite'=>false,
+    'csrf'=>'',
+]);
+$assert(str_contains($anonymousProfileMarkup, 'Client sign-in to save'), 'anonymous visitors are directed to client sign-in instead of receiving a mutation token');
+\Talyvane\Infrastructure\Logging\PrivateErrorLogger::record(new RuntimeException('DB_PASSWORD=do-not-log-secret'),$privatePaths['logs'],$privatePaths['document_root'],'a1b2c3d4e5f60718');
+$errorLogPath = $privatePaths['logs'] . DIRECTORY_SEPARATOR . 'application-error.log';
+$errorLogContents = is_file($errorLogPath) ? (string) file_get_contents($errorLogPath) : '';
+$assert($errorLogContents !== '' && str_contains($errorLogContents,'RuntimeException') && str_contains($errorLogContents,'a1b2c3d4e5f60718'), 'private runtime error log records exception class and correlation reference');
+$assert(!str_contains($errorLogContents,'DB_PASSWORD') && !str_contains($errorLogContents,'do-not-log-secret'), 'private runtime error log never records exception messages or secrets');
+$errorLogMode = is_file($errorLogPath) ? (fileperms($errorLogPath) & 0777) : 0;
+$assert($errorLogMode === 0600, 'private runtime error log is restricted to owner read/write permissions');
+\Talyvane\Infrastructure\Logging\PrivateErrorLogger::record(new RuntimeException('must not create a public log'),$privatePaths['document_root'],$privatePaths['document_root'],'1122334455667788');
+$assert(!is_file($privatePaths['document_root'] . DIRECTORY_SEPARATOR . 'application-error.log'), 'private error logger refuses to write inside the public document root');
+$destinationMarkup = $authViews->render('admin/destinations',[
+    'brandName'=>'Maison Example',
+    'items'=>[[
+        'id'=>'destination-1','slug'=>'london','country_name'=>'United Kingdom','country_code'=>'GB',
+        'display_name'=>'<script>alert(1)</script>','city_name'=>'London','currency_code'=>'GBP',
+        'locale'=>'en-GB','time_zone'=>'Europe/London','status'=>'draft','market_decision'=>'pending',
+    ]],
+    'countries'=>[['alpha2'=>'GB','name'=>'United Kingdom','enabled'=>1]],
+    'currencies'=>[['code'=>'GBP','name'=>'Pound sterling','enabled'=>1]],
+    'error'=>'','notice'=>'','csrf'=>'csrf-destination-token',
+]);
+$assert(str_contains($destinationMarkup,'&lt;script&gt;alert(1)&lt;/script&gt;') && !str_contains($destinationMarkup,'<script>alert(1)</script>'), 'destination admin escapes database content before rendering');
+$assert(str_contains($destinationMarkup,'/admin/destinations/destination-1') && str_contains($destinationMarkup,'csrf-destination-token'), 'destination admin renders owner-scoped edit forms with CSRF protection');
+$marketMarkup = $authViews->render('admin/markets',[
+    'brandName'=>'Maison Example',
+    'items'=>[[
+        'alpha2'=>'GB','alpha3'=>'GBR','name'=>'<script>alert(1)</script>',
+        'country_enabled'=>1,'market_enabled'=>0,'decision'=>'pending',
+    ]],
+    'error'=>'','notice'=>'','csrf'=>'csrf-market-token',
+]);
+$assert(str_contains($marketMarkup,'&lt;script&gt;alert(1)&lt;/script&gt;') && !str_contains($marketMarkup,'<script>alert(1)</script>'), 'market compliance workspace escapes country reference data');
+$assert(str_contains($marketMarkup,'/admin/markets/GB/review') && str_contains($marketMarkup,'csrf-market-token'), 'market review form is country-scoped and CSRF protected');
+
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($iterator as $entry) {
     $entry->isDir() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());

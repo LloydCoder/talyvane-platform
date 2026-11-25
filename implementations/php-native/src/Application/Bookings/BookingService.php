@@ -11,6 +11,7 @@ use Talyvane\Domain\Consent\ConsentGrant;
 use Talyvane\Domain\Market\MarketPolicy;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Database\BookingPolicyRepository;
+use Talyvane\Features\FeatureAvailability;
 use Talyvane\Security\Authorization;
 use Talyvane\Security\Principal;
 
@@ -164,7 +165,8 @@ final class BookingService
             }
 
             $autoEligible = $policy->automaticEnabled && (bool) $profile['auto_booking_opt_in'] &&
-                !$policy->depositRequired && $this->isWithinCompanionAvailability($profileId,$start,$end);
+                !$policy->depositRequired && $this->isWithinCompanionAvailability($profileId,$start,$end) &&
+                $this->automaticFeatureAvailable($market,$consent,$profileId,$now);
             $mode = $autoEligible ? 'automatic' : 'manual';
             $status = BookingStateMachine::transition('draft','requested','client');
             $depositStatus = $policy->depositRequired ? 'required' : 'not_required';
@@ -211,6 +213,28 @@ final class BookingService
             }
             throw $error;
         }
+    }
+
+    private function automaticFeatureAvailable(MarketPolicy $market, ConsentGrant $consent, string $profileId, DateTimeImmutable $now): bool
+    {
+        $query = $this->pdo->query('SELECT feature_key,enabled FROM feature_states');
+        $states = [];
+        foreach ($query->fetchAll() as $row) {
+            if (is_string($row['feature_key'] ?? null)) {
+                $states[(string) $row['feature_key']] = (bool) $row['enabled'];
+            }
+        }
+        $eligibility = static function (string $dependency) use ($market,$consent,$profileId,$now): bool {
+            return match ($dependency) {
+                'market.policy' => $market->operationalAt($now),
+                'consent.current' => $consent->validFor($profileId,'profile.publication','public',$consent->policyVersion,$now),
+                // Provider underwriting, jurisdictional legal approval and safeguarding readiness
+                // require separately implemented and evidenced control-plane approvals.
+                'provider.approved','legal.approved','safeguarding.ready' => false,
+                default => false,
+            };
+        };
+        return (new FeatureAvailability($states,$eligibility))->enabled('bookings.automatic');
     }
 
     private function isWithinCompanionAvailability(string $profileId, DateTimeImmutable $startUtc, DateTimeImmutable $endUtc): bool

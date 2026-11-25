@@ -15,6 +15,13 @@ The native HTTP kernel currently exposes:
 - Separate client and companion registration, email verification/resend, portal login/logout, and email-code password recovery.
 - Administrator sign-in, first-login password replacement, mandatory MFA setup/challenge, CMS, branding, navigation, enquiry inbox and companion profile publication review.
 - Separate client booking request/history/cancellation, companion booking decision workspace and MFA-admin booking operations. Booking requests use destination-local input times and store UTC; manual review is the safe default, while automatic confirmation remains opt-in and policy-gated.
+- Companion-owned weekly availability management with destination-derived IANA time zones, effective-date windows, overlap prevention, ownership checks and audit events.
+- Client-only private saved-companion shortlist with current discoverability checks, owner-scoped removal and audit events; shortlist membership never grants media or paid entitlements. Public profile pages expose a CSRF-protected save action to authenticated client accounts and use no-store responses when rendering the session token.
+- MFA-protected destination create/update workspace with ISO country/currency references, IANA time-zone/locale validation, and an independent current market-approval gate before publication.
+- Super Admin-only market compliance review with evidence reference, review findings, explicit approval/rejection, dated expiry and transactional audit; market enablement is not inferred from country configuration.
+- Pinned 249-country ISO 3166-1 and 155-current non-fund currency ISO 4217 reference snapshots import idempotently on first application boot; refreshes preserve administrator enablement decisions and keep market approval separate.
+- A Super Admin/MFA-gated, read-only security audit workspace with bounded filtering/pagination; MySQL triggers reject audit-event updates and deletes.
+- Private runtime error logging writes correlation ID, exception class and code to `application-error.log` outside the public root; exception messages, stack traces and request data are deliberately omitted.
 
 Portal registration and email-based recovery require a valid private `mail.smtp` configuration in the private configuration file. Without it, mail-dependent routes fail closed while the public site and already verified portal logins remain available. Public discovery returns only allowlisted fields and requires current approved market status, independent adult-eligibility verification and active purpose-specific publication consent. Public profile media delivery is not yet implemented; private media is never linked directly.
 

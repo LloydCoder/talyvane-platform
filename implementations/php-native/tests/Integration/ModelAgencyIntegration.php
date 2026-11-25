@@ -118,6 +118,11 @@ function runModelAgencyIntegration(PDO $pdo): int
     $accessId = $rights->verify($applicationReference,'model-applicant@example.test',$accessMatch[1] ?? '','203.0.113.11',bin2hex(random_bytes(16)));
     $accessData = $rights->read((string) $accessId,bin2hex(random_bytes(16)));
     $assert(is_string($accessId) && $accessData['applicant_name'] === 'Applicant Example','applicant access request requires a single-use emailed OTP');
+    $rightsAudit = $pdo->prepare('SELECT after_json FROM audit_events WHERE event_key = "model_application.rights.verified" AND target_id = :target ORDER BY occurred_at DESC LIMIT 1');
+    $rightsAudit->execute(['target'=>$applicationId]);
+    $rightsAuditPayload = json_decode((string) $rightsAudit->fetchColumn(),true);
+    $assert(is_array($rightsAuditPayload) && ($rightsAuditPayload['request_type'] ?? null) === 'access',
+        'applicant privacy verification audit records the exact verified rights-request type');
     $rights->finish($accessId);
 
     $rights->request($applicationReference,'model-applicant@example.test','correction','203.0.113.12',bin2hex(random_bytes(16)));

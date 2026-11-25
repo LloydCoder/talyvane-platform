@@ -4,10 +4,14 @@ declare(strict_types=1);
 namespace Talyvane\Http;
 
 use Talyvane\Application\Discovery\DiscoveryService;
+use Talyvane\Application\Identity\AuthenticationService;
+use Talyvane\Security\Csrf;
+use Talyvane\Security\Principal;
+use Talyvane\Security\SessionManager;
 
 final class PublicDiscoveryController
 {
-    public function __construct(private DiscoveryService $discovery, private ViewRenderer $views) {}
+    public function __construct(private DiscoveryService $discovery, private ViewRenderer $views, private AuthenticationService $authentication) {}
 
     public function destinations(Request $request): Response
     {
@@ -36,11 +40,24 @@ final class PublicDiscoveryController
     /** @param array<string,string> $params */
     public function profile(Request $request, array $params): Response
     {
+        SessionManager::start();
         $profile = $this->discovery->profile($params['slug'] ?? '');
         if ($profile === null) {
             return Response::html('<!doctype html><html lang="en"><meta charset="utf-8"><title>Not found</title><h1>This profile is not available.</h1><a href="/destinations">Explore destinations</a></html>',404);
         }
-        return $this->render(['mode'=>'profile','profile'=>$profile]);
+        $principal = $this->authentication->currentPrincipal();
+        $canSaveFavorite = $principal instanceof Principal && $principal->hasRole('client') && count($principal->roles) === 1;
+        $html = $this->views->render('public/discovery',[
+            'mode'=>'profile','profile'=>$profile,'canSaveFavorite'=>$canSaveFavorite,
+            'csrf'=>$canSaveFavorite ? Csrf::issue() : '','brandName'=>'Talyvane',
+        ]);
+        if ($canSaveFavorite) {
+            $headers = Response::html($html)->headers;
+            $headers['cache-control'] = 'no-store, no-cache, must-revalidate, private';
+            $headers['pragma'] = 'no-cache';
+            return new Response($html,200,$headers);
+        }
+        return Response::html($html);
     }
 
     /** @param array<string,mixed> $data */

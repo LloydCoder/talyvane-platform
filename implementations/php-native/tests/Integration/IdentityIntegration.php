@@ -9,6 +9,8 @@ use Talyvane\Application\Identity\UserRegistrationService;
 use Talyvane\Application\Companions\CompanionProfilePublicationService;
 use Talyvane\Application\Companions\CompanionOnboardingService;
 use Talyvane\Application\Discovery\DiscoveryService;
+use Talyvane\Application\Destinations\DestinationManagementService;
+use Talyvane\Application\Globalization\MarketPolicyManagementService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Bookings\BookingCommandService;
 use Talyvane\Application\Bookings\BookingQueryService;
@@ -127,7 +129,7 @@ function runIdentityIntegration(PDO $pdo): int
     $assert($setupPrincipal instanceof Principal && $setupPrincipal->mfaVerified && $setupPrincipal->hasRole('super_admin'),'new Super Admin session is established only after password replacement and MFA');
     $bootstrapAuth->logout();
 
-    $pdo->prepare('INSERT INTO countries (alpha2,alpha3,numeric_code,name,enabled,dataset_version,updated_at) VALUES ("GB","GBR","826","United Kingdom",1,"test-iso-2026",UTC_TIMESTAMP())')->execute();
+    $pdo->prepare('INSERT INTO countries (alpha2,alpha3,numeric_code,name,enabled,dataset_version,updated_at) VALUES ("GB","GBR","826","United Kingdom",1,"test-iso-2026",UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE enabled=1,updated_at=UTC_TIMESTAMP()')->execute();
     $marketInsert = $pdo->prepare('INSERT INTO market_policies (country_code,enabled,decision,reviewer_id,reviewed_at,expires_at,evidence_reference,review_summary,policy_version,updated_at) VALUES ("GB",1,"approved",:reviewer,UTC_TIMESTAMP(),DATE_ADD(UTC_TIMESTAMP(), INTERVAL 1 DAY),"legal-review-evidence","Market counsel review completed","market-v1",UTC_TIMESTAMP())');
     $marketInsert->execute(['reviewer'=>$id]);
     $destinationIdBytes = random_bytes(16);
@@ -202,7 +204,7 @@ function runIdentityIntegration(PDO $pdo): int
     try { $registration->register('native-forbidden-admin@example.test',$password,'super_admin','127.0.0.1',bin2hex(random_bytes(16))); $assert(false,'public registration cannot create privileged roles'); }
     catch (InvalidArgumentException) { $assert(true,'public registration cannot create privileged roles'); }
     $publication = new CompanionProfilePublicationService($pdo,$audit);
-    $publisher = new Principal($id,['super_admin'],true);
+    $publisher = new Principal($id,['super_admin','verifier'],true);
     $publication->publish($publisher,$profileId,'Independent adult verification and current publication consent reviewed',bin2hex(random_bytes(16)));
     $discovery = new DiscoveryService($pdo);
     $publicDestinations = $discovery->destinations();
@@ -211,9 +213,59 @@ function runIdentityIntegration(PDO $pdo): int
     $profileLookup->execute(['id'=>$profileId]);
     $publicSlug = (string) $profileLookup->fetchColumn();
     $publicProfile = $discovery->profile($publicSlug);
+    $favorites = new \Talyvane\Application\Clients\ClientFavoriteService($pdo,$audit,$discovery);
+    $clientFavoritePrincipal = new Principal($registeredId,['client'],false);
+    $favorites->add($clientFavoritePrincipal,$publicSlug,bin2hex(random_bytes(16)));
+    $favoriteRows = $favorites->list($clientFavoritePrincipal);
+    $assert(count($favoriteRows) === 1 && $favoriteRows[0]['slug'] === $publicSlug,
+        'client can save a currently public profile to a private shortlist');
+    $favorites->remove($clientFavoritePrincipal,$publicSlug,bin2hex(random_bytes(16)));
+    $assert($favorites->list($clientFavoritePrincipal) === [],
+        'client can remove a profile from their private shortlist');
+    try { $favorites->add(new Principal($companionId,['companion'],false),$publicSlug,bin2hex(random_bytes(16))); $assert(false,'companion cannot use client favorites'); }
+    catch (DomainException) { $assert(true,'companion cannot use client favorites'); }
     $assert(count($publicDestinations) === 1 && $publicDestinations[0]['slug'] === 'london','public discovery lists only destinations in currently approved markets');
     $assert(count($publicProfiles) === 1 && is_array($publicProfile),'public discovery exposes independently verified and consented profiles');
+    $assert(is_array($publicProfile) && $publicProfile['time_zone'] === 'Europe/London',
+        'public profile projection includes the destination IANA time zone without undefined-field warnings');
     $assert(is_array($publicProfile) && !array_key_exists('user_id',$publicProfile) && !array_key_exists('verification_reference_hash',$publicProfile),'public profile projection excludes account identifiers and verification evidence');
+    $pdo->prepare('INSERT INTO currencies (code,numeric_code,name,symbol,minor_units,enabled,dataset_version,updated_at) VALUES ("GBP","826","Pound sterling","£",2,1,"test-iso-2026",UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE enabled=1,updated_at=UTC_TIMESTAMP()')->execute();
+    $destinationManagement = new DestinationManagementService($pdo,$audit);
+    $newDestinationId = $destinationManagement->save($publisher,null,[
+        'slug'=>'manchester','country_code'=>'GB','city_name'=>'Manchester',
+        'display_name'=>'Manchester','currency_code'=>'GBP','locale'=>'en-GB',
+        'time_zone'=>'Europe/London','status'=>'published',
+    ],bin2hex(random_bytes(16)));
+    $managedDestinations = $destinationManagement->list($publisher);
+    $manchesterRows = array_values(array_filter($managedDestinations,static fn(array $row): bool => $row['id'] === $newDestinationId));
+    $assert(count($manchesterRows) === 1 && $manchesterRows[0]['status'] === 'published' && $manchesterRows[0]['market_decision'] === 'approved',
+        'MFA-protected administrator can publish a destination only inside a currently approved market');
+    $destinationManagement->save($publisher,$newDestinationId,[
+        'slug'=>'manchester','country_code'=>'GB','city_name'=>'Manchester',
+        'display_name'=>'Greater Manchester','currency_code'=>'GBP','locale'=>'en-GB',
+        'time_zone'=>'Europe/London','status'=>'published',
+    ],bin2hex(random_bytes(16)));
+    $updatedDestination = $pdo->prepare('SELECT display_name FROM destinations WHERE id = :id');
+    $updatedDestination->execute(['id'=>$newDestinationId]);
+    $assert($updatedDestination->fetchColumn() === 'Greater Manchester','destination update uses owner-scoped identity and preserves market publication gates');
+    $pdo->prepare('INSERT INTO countries (alpha2,alpha3,numeric_code,name,enabled,dataset_version,updated_at) VALUES ("DE","DEU","276","Germany",1,"test-iso-2026",UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE enabled=1,updated_at=UTC_TIMESTAMP()')->execute();
+    $pdo->prepare('INSERT INTO currencies (code,numeric_code,name,symbol,minor_units,enabled,dataset_version,updated_at) VALUES ("EUR","978","Euro","€",2,1,"test-iso-2026",UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE enabled=1,updated_at=UTC_TIMESTAMP()')->execute();
+    try { $destinationManagement->save($publisher,null,['slug'=>'berlin','country_code'=>'DE','city_name'=>'Berlin','display_name'=>'Berlin','currency_code'=>'EUR','locale'=>'de-DE','time_zone'=>'Europe/Berlin','status'=>'published'],bin2hex(random_bytes(16))); $assert(false,'destination cannot publish without market compliance approval'); }
+    catch (DomainException) { $assert(true,'destination cannot publish without market compliance approval'); }
+    $draftDestinationId = $destinationManagement->save($publisher,null,['slug'=>'berlin','country_code'=>'DE','city_name'=>'Berlin','display_name'=>'Berlin','currency_code'=>'EUR','locale'=>'de-DE','time_zone'=>'Europe/Berlin','status'=>'draft'],bin2hex(random_bytes(16)));
+    $draftDestination = $pdo->prepare('SELECT status FROM destinations WHERE id = :id');
+    $draftDestination->execute(['id'=>$draftDestinationId]);
+    $assert($draftDestination->fetchColumn() === 'draft','destination can be prepared as a private draft before market approval');
+    $marketManagement = new MarketPolicyManagementService($pdo,$audit);
+    $marketManagement->review($publisher,'DE','approved','de-legal-review-evidence-2026','Jurisdiction-specific legal review and operating-model assessment completed.','2027-11-25',true,bin2hex(random_bytes(16)));
+    $destinationManagement->save($publisher,$draftDestinationId,['slug'=>'berlin','country_code'=>'DE','city_name'=>'Berlin','display_name'=>'Berlin','currency_code'=>'EUR','locale'=>'de-DE','time_zone'=>'Europe/Berlin','status'=>'published'],bin2hex(random_bytes(16)));
+    $publishedBerlin = $pdo->prepare('SELECT status FROM destinations WHERE id = :id');
+    $publishedBerlin->execute(['id'=>$draftDestinationId]);
+    $assert($publishedBerlin->fetchColumn() === 'published','destination publication succeeds only after an evidence-backed Super Admin market approval');
+    try { $marketManagement->review(new Principal($registeredId,['client'],false),'DE','rejected','client-evidence-reference','This client must not be allowed to record a compliance decision.','2027-11-25',false,bin2hex(random_bytes(16))); $assert(false,'client cannot record market compliance decisions'); }
+    catch (DomainException) { $assert(true,'client cannot record market compliance decisions'); }
+    try { $destinationManagement->save(new Principal($registeredId,['client'],false),null,['slug'=>'client-city','country_code'=>'GB','city_name'=>'Leeds','display_name'=>'Leeds','currency_code'=>'GBP','locale'=>'en-GB','time_zone'=>'Europe/London','status'=>'draft'],bin2hex(random_bytes(16))); $assert(false,'client cannot create destinations'); }
+    catch (DomainException) { $assert(true,'client cannot create destinations'); }
     $pdo->prepare('UPDATE consent_grants SET withdrawn_at = UTC_TIMESTAMP() WHERE subject_type = "companion_profile" AND subject_id = :profile AND purpose = "profile.publication" AND audience = "public"')->execute(['profile'=>$profileId]);
     $assert($discovery->profile($publicSlug) === null,'public profile immediately disappears when publication consent is withdrawn');
     $pdo->prepare('UPDATE consent_grants SET withdrawn_at = NULL WHERE subject_type = "companion_profile" AND subject_id = :profile AND purpose = "profile.publication" AND audience = "public"')->execute(['profile'=>$profileId]);
@@ -227,6 +279,23 @@ function runIdentityIntegration(PDO $pdo): int
     $availabilityId = substr($availabilityHex,0,8).'-'.substr($availabilityHex,8,4).'-'.substr($availabilityHex,12,4).'-'.substr($availabilityHex,16,4).'-'.substr($availabilityHex,20);
     $availabilityInsert = $pdo->prepare('INSERT INTO companion_availability (id,profile_id,weekday,local_start,local_end,time_zone,effective_from,effective_until,enabled,created_at) VALUES (:id,:profile,:weekday,"00:00:00","23:59:59","Europe/London",:date,NULL,1,UTC_TIMESTAMP())');
     $availabilityInsert->execute(['id'=>$availabilityId,'profile'=>$profileId,'weekday'=>(int) $localBookingStart->format('w'),'date'=>$localDate]);
+    $availabilityService = new \Talyvane\Application\Companions\CompanionAvailabilityService($pdo,$audit);
+    $companionPrincipal = new Principal($companionId,['companion'],false);
+    $weekday = ((int) $localBookingStart->format('w') + 1) % 7;
+    $availabilityRuleId = $availabilityService->save($companionPrincipal,$profileId,$weekday,'09:00','11:30',$localDate,null,bin2hex(random_bytes(16)));
+    $availabilityRows = $availabilityService->listForCompanion($companionPrincipal);
+    $savedAvailability = array_values(array_filter($availabilityRows,static fn(array $row): bool => $row['id'] === $availabilityRuleId));
+    $assert(count($savedAvailability) === 1 && $savedAvailability[0]['local_start'] === '09:00:00' && $savedAvailability[0]['time_zone'] === 'Europe/London',
+        'companion can create a weekly availability window using the profile destination time zone');
+    try { $availabilityService->save($companionPrincipal,$profileId,$weekday,'10:00','12:00',$localDate,null,bin2hex(random_bytes(16))); $assert(false,'overlapping companion availability windows are rejected'); }
+    catch (DomainException) { $assert(true,'overlapping companion availability windows are rejected'); }
+    try { $availabilityService->save(new Principal($registeredId,['companion'],false),$profileId,$weekday,'12:00','13:00',$localDate,null,bin2hex(random_bytes(16))); $assert(false,'a different account cannot manage another companion profile'); }
+    catch (DomainException) { $assert(true,'a different account cannot manage another companion profile'); }
+    $availabilityService->delete($companionPrincipal,$profileId,$availabilityRuleId,bin2hex(random_bytes(16)));
+    $afterAvailabilityDelete = array_values(array_filter($availabilityService->listForCompanion($companionPrincipal),static fn(array $row): bool => $row['id'] === $availabilityRuleId));
+    $assert($afterAvailabilityDelete === [],'companion can remove only their own availability window');
+    try { $availabilityService->save(new Principal($registeredId,['client'],false),$profileId,$weekday,'12:00','13:00',$localDate,null,bin2hex(random_bytes(16))); $assert(false,'client cannot mutate companion availability'); }
+    catch (DomainException) { $assert(true,'client cannot mutate companion availability'); }
     $clientPrincipal = new Principal($registeredId,['client'],false);
     $bookingService = new BookingService($pdo,new BookingPolicyRepository($pdo),$audit);
     $manualBookingId = $bookingService->request($clientPrincipal,$profileId,$localBookingStart->setTimezone(new DateTimeZone('UTC')),$localBookingStart->modify('+60 minutes')->setTimezone(new DateTimeZone('UTC')),null,'Manual booking integration test',bin2hex(random_bytes(16)));
@@ -244,12 +313,13 @@ function runIdentityIntegration(PDO $pdo): int
     $bookingRules = json_encode(['automatic_enabled'=>true,'deposit_required'=>false,'minimum_notice_minutes'=>60,'maximum_advance_days'=>90,'minimum_duration_minutes'=>60,'maximum_duration_minutes'=>480],JSON_THROW_ON_ERROR);
     $settings = $pdo->prepare('INSERT INTO deployment_settings (setting_key,setting_json,version,updated_by,updated_at) VALUES ("booking.rules",:settings,1,:actor,UTC_TIMESTAMP())');
     $settings->execute(['settings'=>$bookingRules,'actor'=>$id]);
+    $pdo->prepare('INSERT INTO feature_states (feature_key,enabled,config_json,updated_by,updated_at) VALUES ("bookings.automatic",1,NULL,:actor,UTC_TIMESTAMP())')->execute(['actor'=>$id]);
     $autoStart = $localBookingStart->modify('+2 hours');
     $autoBookingId = $bookingService->request($clientPrincipal,$profileId,$autoStart->setTimezone(new DateTimeZone('UTC')),$autoStart->modify('+60 minutes')->setTimezone(new DateTimeZone('UTC')),null,null,bin2hex(random_bytes(16)));
     $autoState = $pdo->prepare('SELECT status,booking_mode,companion_opt_in_snapshot FROM bookings WHERE id = :id');
     $autoState->execute(['id'=>$autoBookingId]);
     $automatic = $autoState->fetch();
-    $assert(is_array($automatic) && $automatic['status'] === 'confirmed' && $automatic['booking_mode'] === 'automatic' && (bool) $automatic['companion_opt_in_snapshot'],'automatic confirmation requires enabled rules, companion opt-in and matching local availability');
+    $assert(is_array($automatic) && $automatic['status'] === 'requested' && $automatic['booking_mode'] === 'manual' && (bool) $automatic['companion_opt_in_snapshot'],'automatic booking remains manual until deployment feature, provider, legal and safeguarding prerequisites are operational');
 
     $bookingCommands = new BookingCommandService($pdo,new BookingPolicyRepository($pdo),$audit);
     $superAdmin = new Principal($id,['super_admin'],true);

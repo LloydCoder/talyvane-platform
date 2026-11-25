@@ -4,6 +4,10 @@ declare(strict_types=1);
 namespace Talyvane;
 
 use Talyvane\Application\Companions\CompanionProfilePublicationService;
+use Talyvane\Application\Destinations\DestinationManagementService;
+use Talyvane\Application\Globalization\MarketPolicyManagementService;
+use Talyvane\Application\Clients\ClientFavoriteService;
+use Talyvane\Application\Companions\CompanionAvailabilityService;
 use Talyvane\Application\Bookings\BookingCommandService;
 use Talyvane\Application\Bookings\BookingQueryService;
 use Talyvane\Application\Bookings\BookingService;
@@ -19,8 +23,13 @@ use Talyvane\Application\Identity\MfaService;
 use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Application\Identity\UserRegistrationService;
 use Talyvane\Http\AdminCompanionController;
+use Talyvane\Http\AdminDestinationController;
+use Talyvane\Http\AdminMarketController;
+use Talyvane\Http\ClientFavoriteController;
+use Talyvane\Http\CompanionAvailabilityController;
 use Talyvane\Http\AdminAuthController;
 use Talyvane\Http\AdminBrandController;
+use Talyvane\Http\AdminAuditController;
 use Talyvane\Http\AdminModelAgencyController;
 use Talyvane\Http\AdminNavigationController;
 use Talyvane\Http\AdminEnquiryController;
@@ -37,8 +46,10 @@ use Talyvane\Http\Response;
 use Talyvane\Http\Router;
 use Talyvane\Http\ViewRenderer;
 use Talyvane\Infrastructure\Audit\AuditLogger;
+use Talyvane\Infrastructure\Audit\AuditQueryService;
 use Talyvane\Infrastructure\Database\BookingPolicyRepository;
 use Talyvane\Infrastructure\Database\ConnectionFactory;
+use Talyvane\Infrastructure\Database\ReferenceDataImporter;
 use Talyvane\Infrastructure\Mail\SmtpMailer;
 use Talyvane\Infrastructure\Security\RateLimiter;
 use Talyvane\Security\SecretBox;
@@ -60,6 +71,11 @@ final class Bootstrap
         }
 
         $pdo = ConnectionFactory::mysql($config['database']);
+        $referenceData = new ReferenceDataImporter($pdo);
+        $referenceData->importIfNeeded(
+            $root . '/database/reference-data/countries.json',
+            $root . '/database/reference-data/currencies.json'
+        );
         $views = new ViewRenderer($root . DIRECTORY_SEPARATOR . 'views');
 
         $audit = new AuditLogger($pdo);
@@ -95,9 +111,10 @@ final class Bootstrap
 
         $public = new PublicSiteController($pdo, $views);
         $discovery = new DiscoveryService($pdo);
-        $publicDiscovery = new PublicDiscoveryController($discovery, $views);
+        $publicDiscovery = new PublicDiscoveryController($discovery, $views, $authentication);
         $contentManagement = new ContentManagementService($pdo, $audit);
         $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
+        $adminAudit = new AdminAuditController($authentication, new AuditQueryService($pdo), $views, (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane'));
         $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
         $adminBrand = new AdminBrandController($authentication, $contentManagement, $views);
         $adminNavigation = new AdminNavigationController($pdo, $authentication, $contentManagement, $views);
@@ -107,6 +124,8 @@ final class Bootstrap
         $adminEnquiries = new AdminEnquiryController($enquiries, $authentication, $views, $brandName);
         $companionPublication = new CompanionProfilePublicationService($pdo, $audit);
         $adminCompanions = new AdminCompanionController($authentication, $companionPublication, $views, $brandName);
+        $adminDestinations = new AdminDestinationController($authentication, new DestinationManagementService($pdo, $audit), $views, $brandName);
+        $adminMarkets = new AdminMarketController($authentication, new MarketPolicyManagementService($pdo, $audit), $views, $brandName);
         $modelApplications = new ModelAgencyApplicationService($pdo, $audit);
         $publicModelAgency = new PublicModelAgencyController($pdo, $modelApplications, $contentManagement, $rateLimiter, $modelApplicantRights, $views);
         $adminModelAgency = new AdminModelAgencyController($authentication, $modelApplications, $views, $brandName);
@@ -116,7 +135,9 @@ final class Bootstrap
         $bookingCommands = new BookingCommandService($pdo, $bookingPolicies, $audit);
         $bookingQueries = new BookingQueryService($pdo);
         $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $discovery, $views, $brandName);
+        $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit), $views, $brandName);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery);
+        $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
         $router = new Router();
 
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
@@ -151,10 +172,16 @@ final class Bootstrap
         $router->add('GET', '/portal', static fn(Request $request): Response => $portalAuth->dashboard($request));
         $router->add('POST', '/portal/logout', static fn(Request $request): Response => $portalAuth->logout($request));
         $router->add('GET', '/portal/bookings', static fn(Request $request): Response => $portalBookings->clientIndex($request));
+        $router->add('GET', '/portal/favorites', static fn(Request $request): Response => $clientFavorites->index($request));
+        $router->add('POST', '/portal/favorites/{slug}', static fn(Request $request, array $params): Response => $clientFavorites->add($request, $params));
+        $router->add('POST', '/portal/favorites/{slug}/remove', static fn(Request $request, array $params): Response => $clientFavorites->remove($request, $params));
         $router->add('GET', '/portal/bookings/new', static fn(Request $request): Response => $portalBookings->newForm($request));
         $router->add('POST', '/portal/bookings', static fn(Request $request): Response => $portalBookings->store($request));
         $router->add('POST', '/portal/bookings/{id}/cancel', static fn(Request $request, array $params): Response => $portalBookings->cancel($request, $params));
         $router->add('GET', '/portal/companion/bookings', static fn(Request $request): Response => $portalBookings->companionIndex($request));
+        $router->add('GET', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->index($request));
+        $router->add('POST', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->save($request));
+        $router->add('POST', '/portal/companion/availability/{id}/delete', static fn(Request $request, array $params): Response => $companionAvailability->delete($request, $params));
         $router->add('POST', '/portal/companion/bookings/{id}/decision', static fn(Request $request, array $params): Response => $portalBookings->companionDecision($request, $params));
 
         $router->add('GET', '/admin/login', static fn(Request $request): Response => $adminAuth->loginForm($request));
@@ -167,6 +194,7 @@ final class Bootstrap
         $router->add('POST', '/admin/mfa/setup', static fn(Request $request): Response => $adminAuth->mfaSetup($request));
         $router->add('GET', '/admin/recovery-codes', static fn(Request $request): Response => $adminAuth->recoveryCodes($request));
         $router->add('GET', '/admin', static fn(Request $request): Response => $adminAuth->dashboard($request));
+        $router->add('GET', '/admin/audit', static fn(Request $request): Response => $adminAudit->index($request));
         $router->add('POST', '/admin/logout', static fn(Request $request): Response => $adminAuth->logout($request));
         $router->add('GET', '/admin/brand', static fn(Request $request): Response => $adminBrand->show($request));
         $router->add('POST', '/admin/brand', static fn(Request $request): Response => $adminBrand->update($request));
@@ -177,6 +205,11 @@ final class Bootstrap
         $router->add('POST', '/admin/model-agency/{id}/review', static fn(Request $request, array $params): Response => $adminModelAgency->review($request, $params));
         $router->add('POST', '/admin/model-agency/{id}/verify', static fn(Request $request, array $params): Response => $adminModelAgency->verify($request, $params));
         $router->add('POST', '/admin/model-agency/{id}/legal-hold', static fn(Request $request, array $params): Response => $adminModelAgency->legalHold($request, $params));
+        $router->add('GET', '/admin/markets', static fn(Request $request): Response => $adminMarkets->index($request));
+        $router->add('POST', '/admin/markets/{country_code}/review', static fn(Request $request, array $params): Response => $adminMarkets->review($request, $params));
+        $router->add('GET', '/admin/destinations', static fn(Request $request): Response => $adminDestinations->index($request));
+        $router->add('POST', '/admin/destinations', static fn(Request $request): Response => $adminDestinations->save($request));
+        $router->add('POST', '/admin/destinations/{id}', static fn(Request $request, array $params): Response => $adminDestinations->save($request, $params));
         $router->add('GET', '/admin/companions', static fn(Request $request): Response => $adminCompanions->index($request));
         $router->add('POST', '/admin/companions/{id}/publish', static fn(Request $request, array $params): Response => $adminCompanions->publish($request, $params));
         $router->add('GET', '/admin/enquiries', static fn(Request $request): Response => $adminEnquiries->index($request));
