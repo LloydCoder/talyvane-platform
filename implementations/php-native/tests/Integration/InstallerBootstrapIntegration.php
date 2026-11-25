@@ -7,6 +7,8 @@ use Talyvane\Infrastructure\Mail\Mailer;
 use Talyvane\Infrastructure\Security\RateLimiter;
 use Talyvane\Installer\PrivateInstallerState;
 use Talyvane\Installer\SetupKey;
+use Talyvane\Http\NativeInstallerController;
+use Talyvane\Http\Request;
 use Talyvane\Security\SecretBox;
 
 function runInstallerBootstrapIntegration(PDO $pdo): int
@@ -112,6 +114,36 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
 
         $setupKey->consume();
         $assert(!$setupKey->verify($setupSecret),'private setup key is consumed after successful Super Admin activation');
+
+        $httpHome = $temporaryRoot . DIRECTORY_SEPARATOR . 'http-home';
+        $httpDocumentRoot = $httpHome . DIRECTORY_SEPARATOR . 'public_html';
+        mkdir($httpDocumentRoot,0755,true);
+        $oldServer = $_SERVER;
+        $oldHome = getenv('HOME');
+        $_SERVER['DOCUMENT_ROOT'] = $httpDocumentRoot;
+        $_SERVER['HTTPS'] = 'on';
+        $_SERVER['SERVER_PORT'] = '443';
+        $_SERVER['HTTP_HOST'] = 'installer.example.test';
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['REQUEST_URI'] = '/install';
+        putenv('HOME=' . $httpHome);
+        $installerResponse = (new NativeInstallerController(dirname(__DIR__,2)))->handle(Request::fromGlobals());
+        $installerKeyFiles = glob($httpHome . DIRECTORY_SEPARATOR . '.talyvane' . DIRECTORY_SEPARATOR . 'talyvane' . DIRECTORY_SEPARATOR . '*' . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'INSTALLER-ACCESS-KEY.txt') ?: [];
+        $installerKey = count($installerKeyFiles) === 1 ? trim((string) file_get_contents($installerKeyFiles[0])) : '';
+        $assert(str_contains($installerResponse->body,'Set up your platform') && $installerResponse->status === 503 || str_contains($installerResponse->body,'Set up your platform') && $installerResponse->status === 200,
+            'HTTPS browser installer renders its preflight wizard before application bootstrap');
+        $assert(strlen($installerKey) === 43 && !str_contains($installerResponse->body,$installerKey) &&
+            (fileperms($installerKeyFiles[0]) & 0777) === 0600,
+            'browser installer creates a private setup key but never reveals it in HTML');
+        if (session_status() === PHP_SESSION_ACTIVE) { session_destroy(); }
+        $_SERVER = $oldServer;
+        if ($oldHome === false) { putenv('HOME'); } else { putenv('HOME=' . $oldHome); }
+        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($httpHome,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::CHILD_FIRST);
+        foreach ($iterator as $file) {
+            if ($file->isDir() && !$file->isLink()) { rmdir($file->getPathname()); }
+            else { unlink($file->getPathname()); }
+        }
+        rmdir($httpHome);
     } finally {
         if (is_dir($privateConfig)) {
             foreach (glob($privateConfig . DIRECTORY_SEPARATOR . '*') ?: [] as $file) {
