@@ -62,6 +62,28 @@ function runProfileMediaIntegration(PDO $pdo): int
          VALUES (:id,:profile,:actor,:key,"image/webp",:size,:hash,320,320,:scope,:status,:grant,
                  UTC_TIMESTAMP(),:version,:reviewer,:reviewed,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
     );
+    $recordUploaderAttestations=static function(string $mediaId) use ($pdo,$companionId,$uuid): void {
+        $actorEmail='native-companion@example.test';
+        $statements=[
+            ['image_rights.attested','profile-media-rights-v1','I confirm I own or have the necessary rights and permissions to submit this image.'],
+            ['depicted_adults.attested','profile-media-adult-subjects-v1','I confirm every identifiable person depicted is an adult aged 18 or older and no minor is depicted.'],
+            ['public_publication.attested','profile-media-publication-v1','I separately consent to human review and public display only after approval.'],
+        ];
+        $insert=$pdo->prepare(
+            'INSERT INTO profile_media_consent_events
+             (id,profile_media_id,companion_profile_id,media_reference,actor_id,actor_email,action,
+              capture_method,consent_policy_version,consent_statement,statement_sha256,correlation_id,created_at)
+             VALUES (:id,:media,:profile,:reference,:actor,:email,:action,
+                     "authenticated_companion_portal_checkbox",:version,:statement,:hash,:correlation,UTC_TIMESTAMP())'
+        );
+        foreach ($statements as [$action,$version,$statement]) {
+            $insert->execute([
+                'id'=>$uuid(),'media'=>$mediaId,'profile'=>$profileId,'reference'=>'profile-media:'.$mediaId,
+                'actor'=>$companionId,'email'=>$actorEmail,'action'=>$action,'version'=>$version,
+                'statement'=>$statement,'hash'=>hash('sha256',$statement),'correlation'=>$uuid(),
+            ]);
+        }
+    };
     $audit=new AuditLogger($pdo);
     $discovery=new DiscoveryService($pdo);
     $service=new ProfileMediaService($pdo,$storage,$discovery,$audit);
@@ -74,10 +96,12 @@ function runProfileMediaIntegration(PDO $pdo): int
         $approvedId=$uuid();
         $insertMedia->execute([
             'id'=>$approvedId,'profile'=>$profileId,'actor'=>$companionId,'key'=>$approvedImage['key'],
-            'size'=>$approvedImage['size'],'hash'=>$approvedImage['sha256'],'scope'=>'public','status'=>'approved',
+            'size'=>$approvedImage['size'],'hash'=>$approvedImage['sha256'],'scope'=>'private','status'=>'pending',
             'grant'=>$fixture['consent_grant_id'],'version'=>$fixture['publication_consent_version'],
-            'reviewer'=>$reviewerId,'reviewed'=>gmdate('Y-m-d H:i:s'),
+            'reviewer'=>null,'reviewed'=>null,
         ]);
+        $recordUploaderAttestations($approvedId);
+        $service->review($admin,$approvedId,'approved','Image rights and public profile consent were reviewed and confirmed',true,true,true,$requestId);
         $public=$service->publicMedia($approvedId);
         $assert($public['mime']==='image/webp' && hash_equals($approvedImage['sha256'],hash('sha256',$public['bytes'])),
             'public delivery reads a sanitized private-storage object only after approval and integrity verification');
@@ -113,6 +137,7 @@ function runProfileMediaIntegration(PDO $pdo): int
             'grant'=>$fixture['consent_grant_id'],'version'=>$fixture['publication_consent_version'],
             'reviewer'=>null,'reviewed'=>null,
         ]);
+        $recordUploaderAttestations($pendingId);
         $queue=$service->pendingReview($admin);
         $assert(count(array_filter($queue,static fn(array $item): bool => $item['id']===$pendingId))===1,
             'MFA-authorized administrators can view only pending profile media in the review queue');
@@ -144,6 +169,7 @@ function runProfileMediaIntegration(PDO $pdo): int
             'grant'=>$fixture['consent_grant_id'],'version'=>$fixture['publication_consent_version'],
             'reviewer'=>null,'reviewed'=>null,
         ]);
+        $recordUploaderAttestations($rejectedId);
         $service->review($admin,$rejectedId,'rejected','Image did not meet the current rights and quality review requirements',false,false,false,$requestId);
         $rejectedState=$pdo->prepare('SELECT review_status,media_scope FROM profile_media WHERE id=:id');
         $rejectedState->execute(['id'=>$rejectedId]);
@@ -160,6 +186,7 @@ function runProfileMediaIntegration(PDO $pdo): int
             'grant'=>$fixture['consent_grant_id'],'version'=>$fixture['publication_consent_version'],
             'reviewer'=>null,'reviewed'=>null,
         ]);
+        $recordUploaderAttestations($withdrawnId);
         $service->withdraw($companion,$profileId,$withdrawnId,$requestId);
         $withdrawnState=$pdo->prepare('SELECT review_status,media_scope,withdrawn_by FROM profile_media WHERE id=:id');
         $withdrawnState->execute(['id'=>$withdrawnId]);
