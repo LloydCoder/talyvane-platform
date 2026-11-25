@@ -35,17 +35,28 @@ function runContentManagementIntegration(PDO $pdo): int
         'This is the first reviewed privacy notice.','Privacy Notice','How this service handles information.',
         'Create first draft',bin2hex(random_bytes(16)));
     $assert($service->publicPage('privacy','en') === null,'draft CMS page is never visible publicly');
+    $service->publishPage($admin,$pageId,'Legal reviewer approved first publication',bin2hex(random_bytes(16)));
+    $firstPublished = $service->publicPage('privacy','en');
+    $assert(is_array($firstPublished) && $firstPublished['content'] === 'This is the first reviewed privacy notice.' && (int) $firstPublished['version'] === 1,
+        'initial publication pins an immutable public page revision');
     $service->savePage($admin,$pageId,'privacy','Privacy Notice','en',
         'This is the revised privacy notice.','Privacy Notice','Updated privacy information.',
         'Clarify retention and rights',bin2hex(random_bytes(16)));
-    $service->publishPage($admin,$pageId,'Legal reviewer approved publication',bin2hex(random_bytes(16)));
+    $stillPublished = $service->publicPage('privacy','en');
+    $assert(is_array($stillPublished) && $stillPublished['content'] === 'This is the first reviewed privacy notice.' && (int) $stillPublished['version'] === 1,
+        'saving a new draft never changes the currently published public snapshot');
+    $service->publishPage($admin,$pageId,'Legal reviewer approved revised publication',bin2hex(random_bytes(16)));
     $public = $service->publicPage('privacy','en');
-    $assert(is_array($public) && $public['content'] === 'This is the revised privacy notice.' && $public['status'] === 'published',
-        'only the published page revision is returned to public readers');
+    $assert(is_array($public) && $public['content'] === 'This is the revised privacy notice.' && (int) $public['version'] === 2 && $public['status'] === 'published',
+        'publishing explicitly promotes the selected draft revision to public readers');
     $service->rollbackPage($admin,$pageId,1,'Restore the approved first version',bin2hex(random_bytes(16)));
+    $rollbackDraft = $service->publicPage('privacy','en');
+    $assert(is_array($rollbackDraft) && $rollbackDraft['content'] === 'This is the revised privacy notice.' && (int) $rollbackDraft['version'] === 2,
+        'rollback creates a draft and leaves the currently published snapshot unchanged');
+    $service->publishPage($admin,$pageId,'Legal reviewer approved restored publication',bin2hex(random_bytes(16)));
     $restored = $service->publicPage('privacy','en');
     $assert(is_array($restored) && $restored['content'] === 'This is the first reviewed privacy notice.' && (int) $restored['version'] === 3,
-        'CMS rollback restores historical content as a new version without deleting history');
+        'CMS rollback can be explicitly republished as a new immutable version without deleting history');
 
     $navigationId = $service->saveNavigationItem($admin,null,'header','Discover','route','/companions','en',10,true,bin2hex(random_bytes(16)));
     $navigation = $service->publicNavigation('header','en');
