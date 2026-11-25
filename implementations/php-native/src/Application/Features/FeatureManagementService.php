@@ -31,7 +31,7 @@ final class FeatureManagementService
         if (!FeatureRegistry::known($key) || in_array($key, FeatureRegistry::HARD_INVARIANTS, true)) {
             throw new \DomainException('Feature is unknown or is a non-overridable safeguard.');
         }
-        if (strlen(trim($reason)) < 20 || strlen($reason) > 500) {
+        if ($config !== null) {\n            throw new \\DomainException('Feature-specific configuration schemas must be registered before configuration values can be persisted.');\n        }\n        if (strlen(trim($reason)) < 20 || strlen($reason) > 500) {
             throw new \InvalidArgumentException('A reason of 20 to 500 characters is required.');
         }
         $before = $this->states->enabledStates();
