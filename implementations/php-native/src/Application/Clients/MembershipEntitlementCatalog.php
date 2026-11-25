@@ -28,6 +28,11 @@ final class MembershipEntitlementCatalog
         return array_keys(self::all());
     }
 
+    public static function privateGalleryConsentStatementHash(?string $agencyName=null): string
+    {
+        return hash('sha256',self::privateGalleryConsentStatement($agencyName));
+    }
+
     public static function privateGalleryConsentStatement(?string $agencyName=null): string
     {
         $agency=trim((string)($agencyName??'Talyvane'));
