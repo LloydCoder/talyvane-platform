@@ -64,6 +64,10 @@ $router->add('GET', '/health/{component}', static fn(Request $r, array $p): Resp
 $response = $router->dispatch(new Request('GET', '/health/database'));
 $assert($response->status === 200 && $response->body === '{"component":"database"}', 'router extracts named path parameters');
 $assert($router->dispatch(new Request('GET', '/missing'))->status === 404, 'router returns 404 for unknown routes');
+$uploadRequest = new Request('POST','/upload',[],[],[],'127.0.0.1','upload-request',[
+    'media'=>['name'=>'portrait.webp','tmp_name'=>'/tmp/php-upload','error'=>UPLOAD_ERR_OK,'size'=>128,'type'=>'image/webp'],
+]);
+$assert(($uploadRequest->files['media']['name'] ?? '') === 'portrait.webp', 'native request abstraction preserves uploaded file metadata separately from form fields');
 
 $viewRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'talyvane-views-' . bin2hex(random_bytes(6));
 mkdir($viewRoot . DIRECTORY_SEPARATOR . 'pages', 0700, true);
