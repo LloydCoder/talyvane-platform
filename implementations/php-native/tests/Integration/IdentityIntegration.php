@@ -4,6 +4,7 @@ declare(strict_types=1);
 use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Application\Identity\MfaService;
 use Talyvane\Application\Identity\PasswordChangeService;
+use Talyvane\Application\Identity\UserRegistrationService;
 use Talyvane\Application\Companions\CompanionOnboardingService;
 use Talyvane\Application\Identity\EmailVerificationService;
 use Talyvane\Infrastructure\Mail\Mailer;
@@ -162,5 +163,18 @@ function runIdentityIntegration(PDO $pdo): int
     $clientPrincipal = $bootstrapAuth->currentPrincipal();
     $assert($clientPrincipal instanceof Principal && $clientPrincipal->hasRole('client') && !$clientPrincipal->mfaVerified,'client session remains separate from privileged administration MFA');
     $bootstrapAuth->logout();
+
+    $registrationMailer = new NativeTestMailer();
+    $registrationVerification = new EmailVerificationService($pdo,$registrationMailer,$limiter,$audit,str_repeat('V',32));
+    $registration = new UserRegistrationService($pdo,$registrationVerification,$limiter,$audit);
+    $registeredId = $registration->register('native-registered-client@example.test',$password,'client','127.0.0.1',bin2hex(random_bytes(16)));
+    $registrationCode = preg_match('/code is: ([0-9]{6})/', $registrationMailer->messages[0]['body'], $registrationMatch) ? $registrationMatch[1] : '';
+    $assert($registrationCode !== '' && $registrationVerification->verify($registeredId,'native-registered-client@example.test','account_primary',$registrationCode),'client registration sends and verifies a primary email challenge');
+    $registeredState = $pdo->prepare('SELECT status,email_verified_at FROM users WHERE id = :id');
+    $registeredState->execute(['id'=>$registeredId]);
+    $registered = $registeredState->fetch();
+    $assert(is_array($registered) && $registered['status'] === 'active' && $registered['email_verified_at'] !== null,'client account activates only after email verification');
+    try { $registration->register('native-forbidden-admin@example.test',$password,'super_admin','127.0.0.1',bin2hex(random_bytes(16))); $assert(false,'public registration cannot create privileged roles'); }
+    catch (InvalidArgumentException) { $assert(true,'public registration cannot create privileged roles'); }
     return $assertions;
 }
