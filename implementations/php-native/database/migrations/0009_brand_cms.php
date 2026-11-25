@@ -35,6 +35,26 @@ return [
     KEY navigation_location_idx (location_key, locale, enabled, sort_order),
     CONSTRAINT navigation_parent_fk FOREIGN KEY (parent_id) REFERENCES navigation_items(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+"CREATE TABLE IF NOT EXISTS site_pages (
+    id CHAR(36) NOT NULL PRIMARY KEY,
+    slug VARCHAR(190) NOT NULL,
+    title VARCHAR(190) NOT NULL,
+    locale VARCHAR(35) NOT NULL DEFAULT 'en',
+    content MEDIUMTEXT NOT NULL,
+    meta_title VARCHAR(190) NULL,
+    meta_description VARCHAR(320) NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'draft',
+    version INT UNSIGNED NOT NULL DEFAULT 1,
+    published_at DATETIME NULL,
+    created_by CHAR(36) NOT NULL,
+    updated_by CHAR(36) NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    UNIQUE KEY site_page_slug_locale_unique (slug, locale),
+    KEY site_page_public_idx (status, locale, slug),
+    CONSTRAINT site_page_created_actor_fk FOREIGN KEY (created_by) REFERENCES users(id),
+    CONSTRAINT site_page_updated_actor_fk FOREIGN KEY (updated_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 "CREATE TABLE IF NOT EXISTS site_page_versions (
     id CHAR(36) NOT NULL PRIMARY KEY,
     page_id CHAR(36) NOT NULL,
