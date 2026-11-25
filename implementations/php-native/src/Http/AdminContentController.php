@@ -188,7 +188,7 @@ final class AdminContentController
     private function page(string $mode, array $data = [], int $status = 200): Response
     {
         $payload = $data + [
-            'mode'=>$mode,'csrf'=>Csrf::issue(),'error'=>'','pages'=>[],'page'=>[],
+            'mode'=>$mode,'brandName'=>$this->content->publicBrand()['brand_name'],'csrf'=>Csrf::issue(),'error'=>'','pages'=>[],'page'=>[],
         ];
         $body = $this->views->render('admin/content', $payload);
         return new Response($body, $status, [
