@@ -160,7 +160,9 @@ final class AdminContentController
         }
         if ($request !== null && $request->method === 'POST' && $request->body !== []) {
             foreach (['slug','title','locale','content','meta_title','meta_description'] as $key) {
-                $page[$key] = $this->field($request, $key);
+                if (array_key_exists($key, $request->body)) {
+                    $page[$key] = $this->field($request, $key);
+                }
             }
         }
         return $this->page('edit', ['page'=>$page,'error'=>$message], $status);
