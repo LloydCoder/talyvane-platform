@@ -122,6 +122,9 @@ final class ReferenceDataImporter
     /** @return list<array{alpha2:string,alpha3:string,numeric_code:string,name:string}> */
     private static function validateCountries(array $document): array
     {
+        if (($document['metadata']['market_approval_required'] ?? false) !== true) {
+            throw new RuntimeException('Country reference metadata must preserve the independent market-approval gate.');
+        }
         $rows = $document['countries'];
         $expected = $document['metadata']['records'] ?? null;
         if (!is_int($expected) || $expected < 200 || $expected > 300 || count($rows) !== $expected) {
@@ -155,6 +158,9 @@ final class ReferenceDataImporter
     /** @return list<array{code:string,numeric_code:string,name:string,symbol:string,minor_units:int}> */
     private static function validateCurrencies(array $document): array
     {
+        if (($document['metadata']['fund_codes_excluded'] ?? false) !== true || ($document['metadata']['withdrawn_codes_excluded'] ?? false) !== true) {
+            throw new RuntimeException('Currency reference metadata must exclude fund and withdrawn codes.');
+        }
         $rows = $document['currencies'];
         $expected = $document['metadata']['records'] ?? null;
         if (!is_int($expected) || $expected < 100 || $expected > 250 || count($rows) !== $expected) {
