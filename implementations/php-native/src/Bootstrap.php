@@ -39,6 +39,7 @@ use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Application\Identity\EmailVerificationService;
 use Talyvane\Application\Identity\MfaService;
 use Talyvane\Application\Identity\PasswordChangeService;
+use Talyvane\Application\Identity\PortalPrivacyExportService;
 use Talyvane\Application\Identity\UserRegistrationService;
 use Talyvane\Http\AdminCompanionController;
 use Talyvane\Http\AdminDestinationController;
@@ -57,6 +58,7 @@ use Talyvane\Http\AdminNavigationController;
 use Talyvane\Http\AdminEnquiryController;
 use Talyvane\Http\PortalAuthController;
 use Talyvane\Http\PortalSecurityController;
+use Talyvane\Http\PortalPrivacyController;
 use Talyvane\Http\PublicModelAgencyController;
 use Talyvane\Http\PublicProfileMediaController;
 use Talyvane\Http\PublicModelAgencyRightsController;
@@ -184,6 +186,7 @@ final class Bootstrap
         $clientMemberships = new ClientMembershipService($pdo,$audit,$membershipAvailability);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery, $clientMemberships);
         $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName);
+        $portalPrivacy = new PortalPrivacyController($authentication,new PortalPrivacyExportService($pdo));
         $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
         $clientPrivateGallery = new ClientPrivateGalleryController($authentication,$profileMedia,$views,$brandName);
         $adminClients = new AdminClientController($pdo,$authentication,$clientMemberships,$views,$brandName);
@@ -223,6 +226,7 @@ final class Bootstrap
         $router->add('GET', '/privacy', static fn(Request $request): Response => $public->page($request, ['slug'=>'privacy']));
         $router->add('GET', '/terms', static fn(Request $request): Response => $public->page($request, ['slug'=>'terms']));
 
+        $router->add('GET', '/portal/privacy/export', static fn(Request $request): Response => $portalPrivacy->export($request));
         $router->add('GET', '/portal/security', static fn(Request $request): Response => $portalSecurity->index($request));
         $router->add('POST', '/portal/security', static fn(Request $request): Response => $portalSecurity->changePassword($request));
         $router->add('GET', '/portal/register', static fn(Request $request): Response => $portalAuth->registerForm($request));
