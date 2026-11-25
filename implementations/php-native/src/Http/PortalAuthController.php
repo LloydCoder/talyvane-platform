@@ -1,17 +1,17 @@
 <?php
 declare(strict_types=1);
 
-namespace Talyvane\\Http;
+namespace Talyvane\Http;
 
 use PDO;
-use Talyvane\\Application\\Content\\ContentManagementService;
-use Talyvane\\Application\\Identity\\AuthenticationService;
-use Talyvane\\Application\\Identity\\EmailVerificationService;
-use Talyvane\\Application\\Identity\\UserRegistrationService;
-use Talyvane\\Security\\Authorization;
-use Talyvane\\Security\\Csrf;
-use Talyvane\\Security\\Principal;
-use Talyvane\\Security\\SessionManager;
+use Talyvane\Application\Content\ContentManagementService;
+use Talyvane\Application\Identity\AuthenticationService;
+use Talyvane\Application\Identity\EmailVerificationService;
+use Talyvane\Application\Identity\UserRegistrationService;
+use Talyvane\Security\Authorization;
+use Talyvane\Security\Csrf;
+use Talyvane\Security\Principal;
+use Talyvane\Security\SessionManager;
 
 /** Public client and companion identity journeys; privileged identities are never accepted here. */
 final class PortalAuthController
@@ -45,10 +45,10 @@ final class PortalAuthController
         try {
             $this->registration->register($email, $this->field($request, 'password'), $role, $request->ipAddress, $request->requestId);
             return $this->page('verify', ['email'=>$email,'notice'=>'A verification code has been sent if the address can receive mail. It expires in 10 minutes.']);
-        } catch (\\InvalidArgumentException|\\DomainException $error) {
+        } catch (\InvalidArgumentException|\DomainException $error) {
             $status = str_contains(strtolower($error->getMessage()), 'rate limited') ? 429 : 422;
             return $this->page('register', ['email'=>$email,'error'=>$status === 429 ? 'Please wait before trying again.' : 'The account could not be created with those details.'], $status);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return $this->page('register', ['email'=>$email,'error'=>'Registration is temporarily unavailable. Please try again later.'], 503);
         }
     }
@@ -84,7 +84,7 @@ final class PortalAuthController
                 return $this->page('verify', ['email'=>$email,'error'=>'The verification details could not be accepted.'], 422);
             }
             return $this->page('login', ['email'=>$email,'notice'=>'Your email is verified. You can now sign in.']);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return $this->page('verify', ['email'=>$email,'error'=>'The verification details could not be accepted.'], 422);
         }
     }
