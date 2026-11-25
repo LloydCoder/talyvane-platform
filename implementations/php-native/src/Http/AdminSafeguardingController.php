@@ -6,13 +6,14 @@ use InvalidArgumentException;
 use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Application\Safeguarding\SafeguardingCaseService;
 use Talyvane\Application\Safeguarding\SafeguardingBackupPolicyService;
+use Talyvane\Application\Safeguarding\SafeguardingRetentionPolicyService;
 use Talyvane\Application\Safeguarding\SafeguardingRestoreVerificationService;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\Principal;
 use Talyvane\Security\SessionManager;
 final class AdminSafeguardingController
 {
-    public function __construct(private AuthenticationService $authentication,private SafeguardingCaseService $cases,private SafeguardingBackupPolicyService $backupPolicies,private SafeguardingRestoreVerificationService $restoreVerification,private ViewRenderer $views,private string $brandName) {}
+    public function __construct(private AuthenticationService $authentication,private SafeguardingCaseService $cases,private SafeguardingBackupPolicyService $backupPolicies,private SafeguardingRetentionPolicyService $retentionPolicies,private SafeguardingRestoreVerificationService $restoreVerification,private ViewRenderer $views,private string $brandName) {}
     public function reportForm(Request $request,string $error=''): Response
     {
         SessionManager::start();$actor=$this->authentication->currentPrincipal();if($actor===null)return Response::redirect('/admin/login');
@@ -53,7 +54,7 @@ final class AdminSafeguardingController
     public function governance(Request $request,string $error=''): Response
     {
         SessionManager::start();$actor=$this->authentication->currentPrincipal();if($actor===null)return Response::redirect('/admin/login');
-        try{return $this->page('governance',['items'=>$this->cases->governanceCases($actor),'backupPolicy'=>$this->backupPolicies->current(),'restoreVerifications'=>$this->restoreVerification->recent()],$error);}
+        try{return $this->page('governance',['items'=>$this->cases->governanceCases($actor),'backupPolicy'=>$this->backupPolicies->current(),'retentionPolicies'=>$this->retentionPolicies->all(),'restoreVerifications'=>$this->restoreVerification->recent()],$error);}
         catch(DomainException){return $this->page('governance',['items'=>[]],'This metadata-only workspace is restricted to Owners and Super Admins.',403);}
     }
     public function hold(Request $request,array $params,bool $release=false): Response
@@ -74,6 +75,18 @@ final class AdminSafeguardingController
         try{
             if(!is_int($days))throw new InvalidArgumentException('Backup expiry days must be a whole number.');
             $this->backupPolicies->approve($actor,$days,$this->field($request,'policy_version'),$this->field($request,'reason'),$request->requestId);
+            return Response::redirect('/admin/safeguarding/governance');
+        }catch(InvalidArgumentException|DomainException $error){return $this->governance($request,$error->getMessage());}
+    }
+    public function saveRetentionPolicy(Request $request): Response
+    {
+        SessionManager::start();if(!Csrf::verify($this->field($request,'_csrf')))return $this->governance($request,'Your session expired. Refresh and retry.');
+        $actor=$this->authentication->currentPrincipal();if($actor===null)return Response::redirect('/admin/login');
+        $days=filter_var($this->field($request,'retention_days'),FILTER_VALIDATE_INT);
+        try{
+            if(!is_int($days))throw new InvalidArgumentException('Retention days must be a whole number.');
+            $this->retentionPolicies->save($actor,$this->field($request,'category'),$days,$this->field($request,'legal_basis_reference'),
+                $this->field($request,'policy_version'),$this->field($request,'enabled')==='1',$this->field($request,'reason'),$request->requestId);
             return Response::redirect('/admin/safeguarding/governance');
         }catch(InvalidArgumentException|DomainException $error){return $this->governance($request,$error->getMessage());}
     }
