@@ -109,7 +109,7 @@ final class CompanionMediaController
             return Response::redirect('/portal/companion/media?publication_withdrawn=1');
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->index($request,$error->getMessage(),422);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return $this->index($request,'Publication consent could not be withdrawn securely. Please retry.',503);
         }
     }
@@ -131,7 +131,7 @@ final class CompanionMediaController
             return Response::redirect('/portal/companion/media?publication_renewed=1');
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->index($request,$error->getMessage(),422);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return $this->index($request,'Publication consent could not be renewed securely. Please retry.',503);
         }
     }
