@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 $brandName = is_string($brandName ?? null) && $brandName !== '' ? $brandName : 'Talyvane';
 $initialPassword = is_string($initialPassword ?? null) ? $initialPassword : '';
-$offlineRecoveryKey = is_string($offlineRecoveryKey ?? null) ? $offlineRecoveryKey : '';
 $appUrl = is_string($appUrl ?? null) ? $appUrl : '';
 ?>
 <!doctype html>
@@ -25,8 +24,9 @@ $appUrl = is_string($appUrl ?? null) ? $appUrl : '';
 <h2>One-time administrator credentials</h2>
 <p>Store these values in a password manager and an approved offline recovery location. They are shown once and cannot be retrieved from the application after this page is closed.</p>
 <div class="secret"><label>Initial Super Admin password</label><code><?= $escape($initialPassword) ?></code></div>
-<div class="secret"><label>Offline Super Admin recovery key</label><code><?= $escape($offlineRecoveryKey) ?></code></div>
-<p class="muted">The first administrator login requires a password change and MFA enrollment. The recovery key is separate from the recovery email and must be stored securely.</p>
+<p class="muted">The first administrator login requires a password change and MFA enrollment. The offline deployment recovery key is deliberately never displayed in this browser. It is held encrypted outside the public document root for one-time retrieval through the private CLI.</p>
+<div class="secret"><label>One-time CLI recovery-key retrieval</label><code>php bin/reveal-super-admin-recovery-key.php</code></div>
+<p class="muted">From the private application root, run this command in cPanel Terminal within 24 hours. It prints the recovery key once and deletes its encrypted handoff. Store the key in an approved offline secret vault. Do not redirect command output to a file, terminal transcript or log.</p>
 <a class="button" href="<?= $escape($appUrl) ?>/admin/login">Continue to Super Admin login</a>
 </section>
 </main>
