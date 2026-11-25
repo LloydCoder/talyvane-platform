@@ -64,7 +64,7 @@ final class AuthenticationService
         }
         $mfa = $this->pdo->prepare('SELECT enabled_at FROM admin_mfa_credentials WHERE user_id = :user LIMIT 1');
         $mfa->execute(['user'=>$user['id']]);
-        if ($mfa->fetchColumn() === false || $mfa->fetchColumn() === null) {
+        $mfaEnabledAt = $mfa->fetchColumn();\n        if ($mfaEnabledAt === false || $mfaEnabledAt === null) {
             return ['status'=>'mfa_setup_required'] + $decision;
         }
         return ['status'=>'mfa_required'] + $decision;
