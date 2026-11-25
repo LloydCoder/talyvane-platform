@@ -805,6 +805,20 @@ $assert(str_contains($adminMediaMarkup,'/admin/profile-media/media-1/preview') &
     str_contains($adminMediaMarkup,'name="decision"') && str_contains($adminMediaMarkup,'name="adult_safety_confirmed"') &&
     str_contains($adminMediaMarkup,'name="rights_confirmed"') && str_contains($adminMediaMarkup,'name="consent_confirmed"') && str_contains($adminMediaMarkup,'name="reason"'),
     'administrator media review workspace uses private preview and reasoned approve/reject controls');
+$destinationDiscoveryMarkup=$authViews->render('public/discovery',[
+    'mode'=>'destinations','brandName'=>'Talyvane',
+    'destinations'=>[['slug'=>'london','display_name'=>'London','country_code'=>'GB','time_zone'=>'Europe/London','cover_url'=>'/destination-covers/london']],
+]);
+$assert(str_contains($destinationDiscoveryMarkup,'src="/destination-covers/london"') &&
+    str_contains($destinationDiscoveryMarkup,'London destination cover'),
+    'public destination discovery renders only the approved opaque destination cover route');
+$destinationDetailMarkup=$authViews->render('public/discovery',[
+    'mode'=>'destination','brandName'=>'Talyvane',
+    'destination'=>['slug'=>'london','display_name'=>'London','cover_url'=>'/destination-covers/london'],
+    'profiles'=>[],
+]);
+$assert(str_contains($destinationDetailMarkup,'src="/destination-covers/london"'),
+    'public destination detail renders its approved cover image');
 $publicMediaMarkup = $authViews->render('public/discovery',[
     'mode'=>'profile','brandName'=>'Talyvane','canSaveFavorite'=>false,'csrf'=>'',
     'profile'=>['slug'=>'talent','display_name'=>'Talent Example','destination_slug'=>'london','destination_name'=>'London',
