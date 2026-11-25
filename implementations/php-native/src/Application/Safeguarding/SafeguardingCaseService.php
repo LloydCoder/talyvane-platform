@@ -246,6 +246,111 @@ final class SafeguardingCaseService
         }
     }
 
+    /** @return list<array<string,mixed>> Metadata-only governance projection. */
+    public function governanceCases(Principal $actor): array
+    {
+        $this->assertGovernance($actor);
+        $query=$this->pdo->query(
+            'SELECT id,case_reference,category,severity,status,assigned_specialist_id,
+                    created_at,closed_at,legal_hold,legal_hold_actor_id,legal_hold_at,
+                    retention_due_at,retention_applied_at
+             FROM safeguarding_cases ORDER BY created_at DESC LIMIT 100'
+        );
+        $cases=$query->fetchAll();
+        foreach ($cases as $case) {
+            $this->insertAccessEvent((string) $case['id'],$actor->id,'governance_viewed',bin2hex(random_bytes(16)));
+        }
+        return $cases;
+    }
+
+    public function placeLegalHold(Principal $actor,string $caseId,string $reason,string $requestId): void
+    {
+        $this->assertGovernance($actor);
+        $reason=trim($reason);
+        if (strlen($reason)<20 || strlen($reason)>1000) {
+            throw new InvalidArgumentException('A legal-hold reason between 20 and 1,000 characters is required.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare('SELECT id,legal_hold,encrypted_case_key FROM safeguarding_cases WHERE id=:id FOR UPDATE');
+            $query->execute(['id'=>$caseId]);
+            $case=$query->fetch();
+            if (!is_array($case)) { throw new DomainException('Safeguarding case was not found.'); }
+            if ((int) $case['legal_hold']===1) { throw new DomainException('This safeguarding case already has an active legal hold.'); }
+            $caseKey=$this->crypto->unwrapCaseKey($caseId,is_string($case['encrypted_case_key'])?$case['encrypted_case_key']:null);
+            $eventId=self::uuid();
+            try { $encryptedReason=$this->crypto->encryptHoldReason($caseId,$eventId,$reason,$caseKey); }
+            finally { if (function_exists('sodium_memzero')) { sodium_memzero($caseKey); } }
+            $update=$this->pdo->prepare(
+                'UPDATE safeguarding_cases SET legal_hold=1,legal_hold_reason_ciphertext=:reason,
+                    legal_hold_actor_id=:actor,legal_hold_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE id=:id'
+            );
+            $update->execute(['reason'=>$encryptedReason,'actor'=>$actor->id,'id'=>$caseId]);
+            $insert=$this->pdo->prepare(
+                'INSERT INTO safeguarding_legal_hold_events (id,case_id,actor_user_id,action,encrypted_reason,created_at)
+                 VALUES (:id,:case,:actor,"placed",:reason,UTC_TIMESTAMP())'
+            );
+            $insert->execute(['id'=>$eventId,'case'=>$caseId,'actor'=>$actor->id,'reason'=>$encryptedReason]);
+            $this->insertAccessEvent($caseId,$actor->id,'legal_hold_placed',$requestId);
+            $this->audit->record($actor->id,'safeguarding.legal_hold.placed','safeguarding_case',$caseId,
+                'Metadata-only legal hold placed by privileged reviewer',null,['legal_hold'=>true],$requestId,'safeguarding-governance-v1');
+            $this->pdo->commit();
+        } catch (\Throwable $error) {
+            if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
+            throw $error;
+        }
+    }
+
+    public function releaseLegalHold(Principal $actor,string $caseId,string $reason,string $requestId): void
+    {
+        $this->assertGovernance($actor);
+        $reason=trim($reason);
+        if (strlen($reason)<20 || strlen($reason)>1000) {
+            throw new InvalidArgumentException('A legal-hold release reason between 20 and 1,000 characters is required.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare('SELECT id,legal_hold,legal_hold_actor_id,encrypted_case_key FROM safeguarding_cases WHERE id=:id FOR UPDATE');
+            $query->execute(['id'=>$caseId]);
+            $case=$query->fetch();
+            if (!is_array($case)) { throw new DomainException('Safeguarding case was not found.'); }
+            if ((int) $case['legal_hold']!==1) { throw new DomainException('This safeguarding case has no active legal hold.'); }
+            if ((string) $case['legal_hold_actor_id']===$actor->id) {
+                throw new DomainException('The actor who placed a legal hold cannot release that same hold.');
+            }
+            $caseKey=$this->crypto->unwrapCaseKey($caseId,is_string($case['encrypted_case_key'])?$case['encrypted_case_key']:null);
+            $eventId=self::uuid();
+            try { $encryptedReason=$this->crypto->encryptHoldReason($caseId,$eventId,$reason,$caseKey); }
+            finally { if (function_exists('sodium_memzero')) { sodium_memzero($caseKey); } }
+            $update=$this->pdo->prepare(
+                'UPDATE safeguarding_cases SET legal_hold=0,legal_hold_reason_ciphertext=NULL,
+                    legal_hold_actor_id=NULL,legal_hold_at=NULL,updated_at=UTC_TIMESTAMP() WHERE id=:id'
+            );
+            $update->execute(['id'=>$caseId]);
+            $insert=$this->pdo->prepare(
+                'INSERT INTO safeguarding_legal_hold_events (id,case_id,actor_user_id,action,encrypted_reason,created_at)
+                 VALUES (:id,:case,:actor,"released",:reason,UTC_TIMESTAMP())'
+            );
+            $insert->execute(['id'=>$eventId,'case'=>$caseId,'actor'=>$actor->id,'reason'=>$encryptedReason]);
+            $this->insertAccessEvent($caseId,$actor->id,'legal_hold_released',$requestId);
+            $this->audit->record($actor->id,'safeguarding.legal_hold.released','safeguarding_case',$caseId,
+                'Metadata-only legal hold released by independent privileged reviewer',['legal_hold'=>true],['legal_hold'=>false],
+                $requestId,'safeguarding-governance-v1');
+            $this->pdo->commit();
+        } catch (\Throwable $error) {
+            if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
+            throw $error;
+        }
+    }
+
+    private function assertGovernance(Principal $actor): void
+    {
+        Authorization::require($actor,'safeguarding.governance',true);
+        if (!$actor->hasRole('owner') && !$actor->hasRole('super_admin')) {
+            throw new DomainException('Only an MFA-verified Owner or Super Admin can access safeguarding governance.');
+        }
+    }
+
     /** @return array{due_at:string,policy_version:string}|null */
     private function retentionSchedule(string $category): ?array
     {
