@@ -163,6 +163,23 @@ $assert(str_contains($brandMarkup, 'action="/admin/brand"'), 'brand settings for
 $assert(str_contains($brandMarkup, 'Maison Example'), 'brand settings form shows the active deployment identity');
 $assert(str_contains($brandMarkup, 'name="color_accent"'), 'brand settings expose the configured accent token');
 $assert(!str_contains($brandMarkup, 'private/brand/logo.webp'), 'brand settings never expose private media storage keys');
+$publicHomeMarkup = $authViews->render('public/home', [
+    'brand'=>['brand_name'=>'Maison Example','tagline'=>'A considered experience','seo_defaults'=>['title_suffix'=>' | Official','robots'=>'noindex,nofollow']],
+    'sections'=>[],
+]);
+$assert(str_contains($publicHomeMarkup, '<title>Maison Example | Official</title>'), 'public homepage applies the configured SEO title suffix');
+$assert(str_contains($publicHomeMarkup, '<meta name="robots" content="noindex,nofollow">'), 'public homepage applies the configured robots policy');
+$publicPageMarkup = $authViews->render('public/page', [
+    'brand'=>['brand_name'=>'Maison Example'],
+    'title'=>'Privacy Notice',
+    'content'=>'Public page content',
+    'metaTitle'=>'Privacy Notice | Official',
+    'metaDescription'=>'A clear description',
+    'robots'=>'noindex,nofollow',
+]);
+$assert(str_contains($publicPageMarkup, '<title>Privacy Notice | Official · Maison Example</title>'), 'public CMS page renders the versioned SEO title');
+$assert(str_contains($publicPageMarkup, '<meta name="robots" content="noindex,nofollow">'), 'public CMS page applies the configured robots policy');
+
 
 $assert(str_contains($contentEditMarkup, 'Public readers still see version 1'), 'CMS editor distinguishes a live snapshot from newer draft content');
 $assert(str_contains($contentEditMarkup, 'Publish version 2'), 'CMS editor offers explicit publication for newer draft versions');
