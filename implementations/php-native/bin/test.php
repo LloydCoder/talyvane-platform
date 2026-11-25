@@ -91,6 +91,29 @@ $authMarkup = $authViews->render('auth/screen', [
 $assert(str_contains($authMarkup, 'name="_csrf" value="test-csrf-token"'), 'admin sign-in view includes its CSRF token');
 $assert(str_contains($authMarkup, '&lt;script&gt;alert(1)&lt;/script&gt;'), 'admin sign-in view escapes authentication errors');
 $assert(!str_contains($authMarkup, '<script>alert(1)</script>'), 'admin sign-in view never renders error text as markup');
+$setupMarkup = $authViews->render('auth/screen', [
+    'screen'=>'mfa_setup',
+    'csrf'=>'setup-csrf',
+    'secret'=>'<img src=x onerror=alert(1)>',
+    'error'=>'',
+]);
+$assert(str_contains($setupMarkup, 'action="/admin/mfa/setup"'), 'MFA setup view posts to its dedicated confirmation route');
+$assert(!str_contains($setupMarkup, '<img src=x onerror=alert(1)>'), 'MFA enrollment secret is escaped before rendering');
+$recoveryMarkup = $authViews->render('auth/screen', [
+    'screen'=>'recovery_codes',
+    'csrf'=>'recovery-csrf',
+    'recoveryCodes'=>['ABCDEF1234567890ABCD','<script>bad</script>'],
+]);
+$assert(str_contains($recoveryMarkup, 'ABCDEF1234567890ABCD'), 'one-time recovery codes are rendered for the user');
+$assert(!str_contains($recoveryMarkup, '<script>bad</script>'), 'recovery code content is escaped');
+$dashboardMarkup = $authViews->render('auth/screen', [
+    'screen'=>'dashboard',
+    'csrf'=>'dashboard-csrf',
+    'roles'=>['admin','<svg onload=alert(1)>'],
+]);
+$assert(str_contains($dashboardMarkup, 'Access is limited') || str_contains($dashboardMarkup, 'Control room'), 'administrator dashboard screen has an explicit identity context');
+$assert(!str_contains($dashboardMarkup, '<svg onload=alert(1)>'), 'administrator role labels are escaped');
+
 
 try { Response::redirect('//evil.example'); $assert(false, 'external protocol-relative redirects rejected'); }
 catch (InvalidArgumentException) { $assert(true, 'external protocol-relative redirects rejected'); }
