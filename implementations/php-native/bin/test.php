@@ -579,6 +579,32 @@ if (class_exists(ZipArchive::class)) {
     catch (RuntimeException) { $assert(true,'ZIP path traversal is rejected'); }
     $assert(!is_file($privatePaths['storage'] . '/escape.txt'),'ZIP traversal did not create an escaped file');
 }
+$auditMarkup = $authViews->render('admin/audit', [
+    'brandName'=>'Maison Example',
+    'items'=>[[
+        'occurred_at'=>'2026-11-25 12:00:00',
+        'event_key'=>'<script>alert(1)</script>',
+        'actor_user_id'=>'actor-1',
+        'target_type'=>'profile',
+        'target_id'=>'profile-1',
+        'reason'=>'Reviewed safely',
+        'request_id'=>'request-1',
+        'policy_version'=>'v1',
+        'before_json'=>'must never be rendered',
+        'after_json'=>'must never be rendered',
+    ]],
+    'filters'=>[],
+    'page'=>1,
+    'previousUrl'=>null,
+    'nextUrl'=>'/admin/audit?page=2',
+    'error'=>'',
+]);
+$assert(str_contains($auditMarkup, 'Security audit trail'), 'Super Admin audit workspace renders its title');
+$assert(str_contains($auditMarkup, 'Maison Example'), 'audit workspace uses the active white-label identity');
+$assert(str_contains($auditMarkup, '&lt;script&gt;alert(1)&lt;/script&gt;'), 'audit event labels are HTML-escaped');
+$assert(!str_contains($auditMarkup, '<script>alert(1)</script>'), 'audit event data cannot inject executable markup');
+$assert(!str_contains($auditMarkup, 'must never be rendered'), 'audit workspace does not render sensitive before/after snapshots');
+$assert(str_contains($auditMarkup, '/admin/audit?page=2'), 'audit workspace exposes bounded pagination');
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($iterator as $entry) {
     $entry->isDir() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
