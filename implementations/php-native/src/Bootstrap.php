@@ -10,6 +10,8 @@ use Talyvane\Application\Clients\ClientFavoriteService;
 use Talyvane\Application\Safeguarding\SafeguardingCaseService;
 use Talyvane\Application\Safeguarding\SafeguardingCryptoService;
 use Talyvane\Application\Safeguarding\LocalSafeguardingCaseKeyProvider;
+use Talyvane\Application\Safeguarding\SafeguardingNotificationOutbox;
+use Talyvane\Security\SecretBox;
 use Talyvane\Http\SafeguardingCaseController;
 use Talyvane\Application\Clients\ClientMembershipService;
 use Talyvane\Features\FeatureAvailability;
@@ -160,7 +162,8 @@ final class Bootstrap
         $membershipAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(), static fn(string $dependency): bool => false);
         $adminClients = new AdminClientController($pdo,$authentication,new ClientMembershipService($pdo,$audit,$membershipAvailability),$views,$brandName);
         $safeguardingCrypto = new SafeguardingCryptoService(new LocalSafeguardingCaseKeyProvider($config['app_key']));
-        $safeguardingCases = new SafeguardingCaseService($pdo,$safeguardingCrypto,$audit);
+        $notificationOutbox = new SafeguardingNotificationOutbox($pdo,new SecretBox($config['app_key']),hash('sha256',$config['app_key'].'|safeguarding-outbox-fingerprint-v1',true));
+        $safeguardingCases = new SafeguardingCaseService($pdo,$safeguardingCrypto,$audit,$notificationOutbox);
         $safeguardingController = new SafeguardingCaseController($authentication,$safeguardingCases,$views,$brandName);
         $router = new Router();
 
