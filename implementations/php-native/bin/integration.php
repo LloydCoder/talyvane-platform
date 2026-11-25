@@ -30,4 +30,4 @@ $identityAssertions = runIdentityIntegration($pdo);
 $modelAgencyAssertions = runModelAgencyIntegration($pdo);
 $contentAssertions = runContentManagementIntegration($pdo);
 $enquiryAssertions = runEnquiryIntegration($pdo);
-fwrite(STDOUT, sprintf("Native PHP MySQL integration: %d migrations, %d identity assertions, %d model-agency/privacy assertions and %d content-management assertions, %d enquiry/CRM assertions passed.\\n", count($applied), $identityAssertions, $modelAgencyAssertions, $contentAssertions, $enquiryAssertions));
+fwrite(STDOUT, sprintf("Native PHP MySQL integration: %d migrations, %d identity assertions, %d model-agency/privacy assertions and %d content-management assertions, %d enquiry/CRM assertions passed.\n", count($applied), $identityAssertions, $modelAgencyAssertions, $contentAssertions, $enquiryAssertions));
