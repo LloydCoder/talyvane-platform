@@ -28,7 +28,7 @@ $robots = in_array($seoDefaults['robots'] ?? 'index,follow', ['index,follow','no
 <body>
 <header class="shell masthead">
 <a class="wordmark" href="/"><span class="mark" aria-hidden="true"></span><?= $escape($brand['brand_name']) ?></a>
-<?php if ($navigation !== []): ?><nav class="primary-nav" aria-label="Primary navigation"><?php foreach ($navigation as $item): ?><a href="<?= $escape($item['target_value'] ?? '/') ?>"><?= $escape($item['label'] ?? '') ?></a><?php endforeach; ?></nav><?php else: ?><span class="masthead-note">Considered service. Personal by design.</span><?php endif; ?>
+<?php if ($navigation !== []): ?><nav class="primary-nav" aria-label="Primary navigation"><?php foreach ($navigation as $item): ?><a href="<?= $escape($item['target_value'] ?? '/') ?>"><?= $escape($item['label'] ?? '') ?></a><?php endforeach; ?></nav><?php else: ?><nav class="primary-nav" aria-label="Primary navigation"><a href="/destinations">Explore</a><a href="/contact">Contact</a></nav><?php endif; ?>
 </header>
 <main class="shell">
 <section class="hero" aria-labelledby="page-title">
