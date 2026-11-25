@@ -86,7 +86,7 @@ final class MarketPolicyManagementService
             $policyVersion = is_array($before) ? (string) $before['policy_version'] : 'market-policy-v1';
             $after = [
                 'enabled'=>$enable,'decision'=>$decision,'reviewer_id'=>$actor->id,
-                'reviewed_at'=>gmdate('Y-m-d H:i:s'),'expires_at'=>$expiry->format('Y-m-d 00:00:00'),
+                'reviewed_at'=>gmdate('Y-m-d H:i:s'),'expires_at'=>$expiry->modify('+1 day')->modify('-1 second')->format('Y-m-d H:i:s'),
                 'evidence_reference'=>$evidenceReference,'review_summary'=>$summary,
                 'policy_version'=>$policyVersion,
             ];
