@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
 
-namespace Talyvane\\Http;
+namespace Talyvane\Http;
 
 use DomainException;
-use Talyvane\\Application\\Media\\ProfileMediaService;
-use Talyvane\\Application\\Identity\\AuthenticationService;
-use Talyvane\\Security\\Principal;
-use Talyvane\\Security\\SessionManager;
+use Talyvane\Application\Media\ProfileMediaService;
+use Talyvane\Application\Identity\AuthenticationService;
+use Talyvane\Security\Principal;
+use Talyvane\Security\SessionManager;
 
 final class ClientPrivateGalleryController
 {
@@ -57,7 +57,7 @@ final class ClientPrivateGalleryController
                 'cache-control'=>'private, no-store, max-age=0','x-content-type-options'=>'nosniff',
                 'referrer-policy'=>'no-referrer',
             ]);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return Response::html('Media unavailable',503)->withHeaders([
                 'cache-control'=>'private, no-store, max-age=0','x-content-type-options'=>'nosniff',
             ]);
