@@ -29,7 +29,7 @@ try {
         $accountHome = dirname($documentRoot);
     }
     $configPath = getenv('TALYVANE_CONFIG');
-    if (!is_string($configPath) || $configPath === '') {
+    if (!is_string($configPath) || $configPath === '' || !is_file($configPath)) {
         $paths = PrivatePathResolver::resolve($documentRoot,$accountHome);
         $configPath = $paths['config'] . '/app.php';
         putenv('TALYVANE_CONFIG=' . $configPath);
