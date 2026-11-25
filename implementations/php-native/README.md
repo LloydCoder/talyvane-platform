@@ -18,6 +18,7 @@ The native HTTP kernel currently exposes:
 - Companion-owned weekly availability management with destination-derived IANA time zones, effective-date windows, overlap prevention, ownership checks and audit events.
 - Client-only private saved-companion shortlist with current discoverability checks, owner-scoped removal and audit events; shortlist membership never grants media or paid entitlements. Public profile pages expose a CSRF-protected save action to authenticated client accounts and use no-store responses when rendering the session token.
 - MFA-protected destination create/update workspace with ISO country/currency references, IANA time-zone/locale validation, and an independent current market-approval gate before publication.
+- Super Admin-only market compliance review with evidence reference, review findings, explicit approval/rejection, dated expiry and transactional audit; market enablement is not inferred from country configuration.
 - A Super Admin/MFA-gated, read-only security audit workspace with bounded filtering/pagination; MySQL triggers reject audit-event updates and deletes.
 - Private runtime error logging writes correlation ID, exception class and code to `application-error.log` outside the public root; exception messages, stack traces and request data are deliberately omitted.
 
