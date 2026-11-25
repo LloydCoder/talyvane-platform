@@ -8,6 +8,7 @@ $error = is_string($error ?? null) ? $error : '';
 $notice = is_string($notice ?? null) ? $notice : '';
 $email = is_string($email ?? null) ? $email : '';
 $accountType = is_string($accountType ?? null) ? $accountType : '';
+$membership = is_array($membership ?? null) ? $membership : null;
 $titles = [
  'login'=>['Your private account','Sign in to your verified Talyvane account.'],
  'register'=>['Create an account','Choose the account type that matches how you use the platform.'],
@@ -62,7 +63,17 @@ $titles = [
 <p class="notice">Signed in as a <?= $escape($accountType) ?> account.</p>
 <p class="hint">This portal is intentionally separate from administration and from the other account type. Identity and session checks are active.</p>
 <p><a href="/portal/security">Change your password</a></p>
-<?php if ($accountType === 'client'): ?><p><a href="/portal/bookings">Open your private booking history</a></p><p><a href="/portal/favorites">View your saved companions</a></p><?php elseif ($accountType === 'companion'): ?><p><a href="/portal/companion/bookings">Review your booking requests</a></p><p><a href="/portal/companion/availability">Manage your weekly availability</a></p><p><a href="/portal/companion/media">Manage your profile images</a></p><?php endif; ?>
+<?php if ($accountType === 'client'): ?>
+<p><a href="/portal/bookings">Open your private booking history</a></p><p><a href="/portal/favorites">View your saved companions</a></p>
+<section class="panel" aria-labelledby="membership-heading"><h2 id="membership-heading">Your membership</h2>
+<?php if (is_array($membership)): ?>
+<p><strong><?= $escape($membership['tier_name']) ?></strong> · <?= $escape($membership['plan_key']) ?></p>
+<?php if ($membership['benefits_summary']!==''): ?><p><?= $escape($membership['benefits_summary']) ?></p><?php endif; ?>
+<p class="hint">Active from <?= $escape($membership['starts_at']) ?> UTC<?php if ($membership['ends_at']!==null): ?> until <?= $escape($membership['ends_at']) ?> UTC<?php endif; ?></p>
+<?php if ($membership['entitlements']!==[]): ?><p class="hint">Current entitlements:</p><ul><?php foreach($membership['entitlements'] as $entitlement): ?><li><?= $escape($entitlement) ?></li><?php endforeach; ?></ul><?php endif; ?>
+<?php else: ?><p class="hint">No current membership is assigned to this account.</p><?php endif; ?>
+</section>
+<?php elseif ($accountType === 'companion'): ?><p><a href="/portal/companion/bookings">Review your booking requests</a></p><p><a href="/portal/companion/availability">Manage your weekly availability</a></p><p><a href="/portal/companion/media">Manage your profile images</a></p><?php endif; ?>
 <form method="post" action="/portal/logout"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><button class="button" type="submit">Sign out securely</button></form>
 <?php else: ?>
 <form method="post" action="/portal/login">
