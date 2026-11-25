@@ -13,6 +13,7 @@ use Talyvane\Application\Bookings\BookingQueryService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\Discovery\DiscoveryService;
+use Talyvane\Application\Media\ProfileMediaService;
 use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
 use Talyvane\Application\ModelAgency\ModelApplicantRightsService;
 use Talyvane\Application\CRM\EnquiryService;
@@ -26,15 +27,18 @@ use Talyvane\Http\AdminCompanionController;
 use Talyvane\Http\AdminDestinationController;
 use Talyvane\Http\AdminMarketController;
 use Talyvane\Http\ClientFavoriteController;
+use Talyvane\Http\CompanionMediaController;
 use Talyvane\Http\CompanionAvailabilityController;
 use Talyvane\Http\AdminAuthController;
 use Talyvane\Http\AdminBrandController;
 use Talyvane\Http\AdminAuditController;
 use Talyvane\Http\AdminModelAgencyController;
+use Talyvane\Http\AdminProfileMediaController;
 use Talyvane\Http\AdminNavigationController;
 use Talyvane\Http\AdminEnquiryController;
 use Talyvane\Http\PortalAuthController;
 use Talyvane\Http\PublicModelAgencyController;
+use Talyvane\Http\PublicProfileMediaController;
 use Talyvane\Http\PublicModelAgencyRightsController;
 use Talyvane\Http\PublicDiscoveryController;
 use Talyvane\Http\PublicEnquiryController;
@@ -52,6 +56,7 @@ use Talyvane\Infrastructure\Database\ConnectionFactory;
 use Talyvane\Infrastructure\Database\ReferenceDataImporter;
 use Talyvane\Infrastructure\Mail\SmtpMailer;
 use Talyvane\Infrastructure\Security\RateLimiter;
+use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
 use Talyvane\Security\SecretBox;
 
 final class Bootstrap
@@ -111,6 +116,12 @@ final class Bootstrap
 
         $public = new PublicSiteController($pdo, $views);
         $discovery = new DiscoveryService($pdo);
+        $publicRoot = (string) ($config['paths']['document_root'] ?? ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+        $mediaStorage = new PrivateMediaStorage((string) ($config['paths']['storage'] ?? ''),$publicRoot);
+        $profileMedia = new ProfileMediaService($pdo,$mediaStorage,$discovery,$audit);
+        $companionMedia = new CompanionMediaController($authentication,$profileMedia,$views,$brandName);
+        $adminProfileMedia = new AdminProfileMediaController($authentication,$profileMedia,$views,$brandName);
+        $publicProfileMedia = new PublicProfileMediaController($profileMedia);
         $publicDiscovery = new PublicDiscoveryController($discovery, $views, $authentication);
         $contentManagement = new ContentManagementService($pdo, $audit);
         $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
@@ -155,6 +166,7 @@ final class Bootstrap
         $router->add('GET', '/destinations', static fn(Request $request): Response => $publicDiscovery->destinations($request));
         $router->add('GET', '/destinations/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->destination($request, $params));
         $router->add('GET', '/profiles/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->profile($request, $params));
+        $router->add('GET', '/profile-media/{id}', static fn(Request $request, array $params): Response => $publicProfileMedia->show($request,$params));
         $router->add('GET', '/pages/{slug}', static fn(Request $request, array $params): Response => $public->page($request, $params));
         $router->add('GET', '/privacy', static fn(Request $request): Response => $public->page($request, ['slug'=>'privacy']));
         $router->add('GET', '/terms', static fn(Request $request): Response => $public->page($request, ['slug'=>'terms']));
@@ -179,6 +191,9 @@ final class Bootstrap
         $router->add('POST', '/portal/bookings', static fn(Request $request): Response => $portalBookings->store($request));
         $router->add('POST', '/portal/bookings/{id}/cancel', static fn(Request $request, array $params): Response => $portalBookings->cancel($request, $params));
         $router->add('GET', '/portal/companion/bookings', static fn(Request $request): Response => $portalBookings->companionIndex($request));
+        $router->add('GET', '/portal/companion/media', static fn(Request $request): Response => $companionMedia->index($request));
+        $router->add('POST', '/portal/companion/media', static fn(Request $request): Response => $companionMedia->submit($request));
+        $router->add('POST', '/portal/companion/media/{id}/withdraw', static fn(Request $request,array $params): Response => $companionMedia->withdraw($request,$params));
         $router->add('GET', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->index($request));
         $router->add('POST', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->save($request));
         $router->add('POST', '/portal/companion/availability/{id}/delete', static fn(Request $request, array $params): Response => $companionAvailability->delete($request, $params));
@@ -195,6 +210,9 @@ final class Bootstrap
         $router->add('GET', '/admin/recovery-codes', static fn(Request $request): Response => $adminAuth->recoveryCodes($request));
         $router->add('GET', '/admin', static fn(Request $request): Response => $adminAuth->dashboard($request));
         $router->add('GET', '/admin/audit', static fn(Request $request): Response => $adminAudit->index($request));
+        $router->add('GET', '/admin/profile-media', static fn(Request $request): Response => $adminProfileMedia->index($request));
+        $router->add('GET', '/admin/profile-media/{id}/preview', static fn(Request $request,array $params): Response => $adminProfileMedia->preview($request,$params));
+        $router->add('POST', '/admin/profile-media/{id}/review', static fn(Request $request,array $params): Response => $adminProfileMedia->review($request,$params));
         $router->add('POST', '/admin/logout', static fn(Request $request): Response => $adminAuth->logout($request));
         $router->add('GET', '/admin/brand', static fn(Request $request): Response => $adminBrand->show($request));
         $router->add('POST', '/admin/brand', static fn(Request $request): Response => $adminBrand->update($request));
