@@ -274,6 +274,20 @@ try {
   const dashboardResponse = await page.goto(`${baseUrl}/admin`, { waitUntil: 'networkidle' });
   assert.equal(dashboardResponse.status(), 200, 'MFA-enrolled Super Admin must reach administration');
 
+  await page.goto(baseUrl + '/admin/content/new', { waitUntil: 'networkidle' });
+  await page.locator('[name="title"]').fill('Privacy Notice');
+  await page.locator('[name="slug"]').fill('privacy');
+  await page.locator('[name="locale"]').fill('en');
+  await page.locator('[name="content"]').fill('Privacy notice fixture for automated acceptance tests. Information submitted here is used only to respond to this enquiry.');
+  await page.locator('[name="reason"]').fill('Create privacy notice test fixture');
+  await page.getByRole('button', { name: /Save draft/i }).click();
+  await page.waitForURL(/\/admin\/content\/[0-9a-f-]{36}$/);
+  await page.locator('[name="reason"]').last().fill('Publish privacy notice test fixture');
+  await page.getByRole('button', { name: /Publish version 1/i }).click();
+  await page.waitForLoadState('networkidle');
+  const privacyResponse = await page.goto(baseUrl + '/privacy', { waitUntil: 'networkidle' });
+  assert.equal(privacyResponse.status(), 200, 'canonical privacy route must serve the published CMS snapshot');
+
   // Exercise the public enquiry intake and its MFA-gated administrative lifecycle.
   const contactResponse = await page.goto(baseUrl + '/contact', { waitUntil: 'networkidle' });
   assert.equal(contactResponse.status(), 200, 'public contact page must be available');
