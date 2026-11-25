@@ -20,14 +20,14 @@ final class EnquiryService
     ) {}
 
     /** @param array<string,mixed> $input */
-    public function submit(array $input,string $ipAddress,string $requestId,?string $attribution): ?string
+    public function submit(array $input,string $ipAddress,string $requestId,?string $attribution,string $privacyPolicyVersion): ?string
     {
         // A filled honeypot is treated as a successful submission without persistence.
         if (isset($input['website']) && is_string($input['website']) && trim($input['website']) !== '') {
             return null;
         }
         if ($ipAddress === '' || strlen($ipAddress) > 64 || filter_var($ipAddress,FILTER_VALIDATE_IP) === false ||
-            $requestId === '' || strlen($requestId) > 180) {
+            $requestId === '' || strlen($requestId) > 180 || !preg_match('/^[A-Za-z0-9._-]{1,64}$/D',$privacyPolicyVersion)) {
             throw new \InvalidArgumentException('Enquiry request is invalid.');
         }
 
@@ -78,7 +78,7 @@ final class EnquiryService
             'INSERT INTO enquiries
              (id,reference,name,email,phone,country_code,destination_id,city,subject,message,privacy_acknowledged_at,privacy_policy_version,
               status,assigned_to,attribution_json,internal_notes,created_at,updated_at)
-             VALUES (:id,:reference,:name,:email,:phone,:country,:destination,:city,:subject,:message,UTC_TIMESTAMP(),"privacy-v1",
+             VALUES (:id,:reference,:name,:email,:phone,:country,:destination,:city,:subject,:message,UTC_TIMESTAMP(),:privacy_policy_version,
               "new",NULL,:attribution,NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
         );
         $this->pdo->beginTransaction();
@@ -88,6 +88,7 @@ final class EnquiryService
                 'country'=>$country === '' ? null : $country,'destination'=>$destinationId === '' ? null : $destinationId,
                 'city'=>$city === '' ? null : $city,'subject'=>$subject,'message'=>$message,
                 'attribution'=>$attributionValue === null ? null : json_encode(['source'=>$attributionValue],JSON_THROW_ON_ERROR),
+                'privacy_policy_version'=>$privacyPolicyVersion,
             ]);
             $this->audit->record(null,'crm.enquiry.created','enquiry',$id,'Public enquiry submission',null,
                 ['reference'=>$reference,'status'=>'new'],'enquiry-'.$requestId,'crm-enquiry-v1');
