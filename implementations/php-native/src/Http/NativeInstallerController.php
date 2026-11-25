@@ -142,9 +142,12 @@ final class NativeInstallerController
         if (!Csrf::verify($this->field($request,'_csrf'))) {
             return $this->setupPage($request,$paths,$setupKey,'Your session expired. Refresh the installer and try again.',419);
         }
-        $this->consumeSessionAttempt();
+        try { $this->consumeSessionAttempt(); } catch (DomainException) { return $this->plainError('Installer submissions are temporarily rate limited.',429); }
         if (!$setupKey->verify($this->field($request,'setup_key'))) {
             return $this->setupPage($request,$paths,$setupKey,'The private setup key is invalid.',403);
+        }
+        if (is_array($this->pendingState($paths,$setupKey)->read())) {
+            return Response::redirect('/install/verify');
         }
         if ($lock->isLocked() || is_file($paths['config'] . '/app.php')) {
             return $this->plainError('Installation is already configured or locked.',409);
@@ -458,14 +461,21 @@ final class NativeInstallerController
             }
             return $this->plainError('One-time installation credentials are unavailable or have already been viewed.',410);
         }
-        $store->delete();
-        unset($_SESSION['installer_success_token']);
-        return $this->render('install/success',[
+        $response = $this->render('install/success',[
             'brandName'=>(string) ($success['app_name'] ?? 'Talyvane'),
             'initialPassword'=>(string) ($success['initial_password'] ?? ''),
             'offlineRecoveryKey'=>(string) ($success['offline_recovery_key'] ?? ''),
             'appUrl'=>(string) ($success['app_url'] ?? ''),
         ]);
+        $store->delete();
+        unset($_SESSION['installer_success_token']);
+        $setupKeyPath = $paths['config'] . '/INSTALLER-ACCESS-KEY.txt';
+        if (is_file($setupKeyPath) && !is_link($setupKeyPath)) {
+            $setupKey = new SetupKey($setupKeyPath);
+            $this->pendingState($paths,$setupKey)->delete();
+            $setupKey->consume();
+        }
+        return $response;
     }
 
     private function acquireWorkflowLock(array $paths): mixed
