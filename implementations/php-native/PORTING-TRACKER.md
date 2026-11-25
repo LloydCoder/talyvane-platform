@@ -86,7 +86,7 @@ The native branch currently has 18 ordered PHP migrations plus backend and brows
 | Quote snapshot/acceptance | TGLS, BOOKING | NOT_STARTED | Currency, market, policy and rate immutable on acceptance |
 | Cancellation/rescheduling | ROADMAP | IN_PROGRESS | Client cancellation UI and reschedule service exist; reschedule UI, notifications and policy-specific cancellation fees remain open |
 | Calendar synchronization | ROADMAP | NOT_STARTED | Provider adapter, retries, idempotency and privacy |
-| Client portal | PRODUCT-REQUIREMENTS | NOT_STARTED | Account, history, favourites, receipts, payment status, support, privacy |
+| Client portal | PRODUCT-REQUIREMENTS | IN_PROGRESS | Separate verified client identity, booking request/history/cancellation and private shortlist are wired; full account editing, membership visibility/entitlements, receipts, payment status, support and client privacy-rights workflows remain open |
 | Client favourites | ClientFavoriteController | IN_PROGRESS | Native client-only private shortlist supports save/remove/list, revalidates current public discoverability on add and filters hidden/unconsented profiles from the read model; transactional audit events and integration coverage added. Browser E2E and full portal account management remain open |
 | Membership records | ClientManagementController | NOT_STARTED | Agency assignment and client visibility |
 | Entitlement authorization | CLIENT-MEMBERSHIP | IN_PROGRESS | Active/in-date membership + immutable grant checked on projection and delivery |
