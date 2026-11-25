@@ -108,7 +108,7 @@ final class CompanionMediaController
             }
             $profile=$this->media->profileForCompanion($actor);
             if (!is_array($profile)) { return $this->index($request,'No companion profile is linked to this account.',403); }
-            $this->media->grantMembersOnlyConsent($actor,(string)$profile['id'],(string)($params['id']??''),true,$request->requestId);
+            $this->media->grantMembersOnlyConsent($actor,(string)$profile['id'],(string)($params['id']??''),true,$this->brandName,$request->requestId);
             return Response::redirect('/portal/companion/media?private_consent_granted=1');
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->index($request,$error->getMessage(),422);
@@ -129,7 +129,7 @@ final class CompanionMediaController
         try {
             $profile=$this->media->profileForCompanion($actor);
             if (!is_array($profile)) { return $this->index($request,'No companion profile is linked to this account.',403); }
-            $this->media->withdrawMembersOnlyConsent($actor,(string)$profile['id'],(string)($params['id']??''),$request->requestId);
+            $this->media->withdrawMembersOnlyConsent($actor,(string)$profile['id'],(string)($params['id']??''),$this->brandName,$request->requestId);
             return Response::redirect('/portal/companion/media?private_consent_withdrawn=1');
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->index($request,$error->getMessage(),422);
@@ -202,6 +202,7 @@ final class CompanionMediaController
         $items=$this->media->listForCompanion($actor);
         $html=$this->views->render('portal/media',[
             'brandName'=>$this->brandName,'profile'=>$profile,'items'=>$items,
+            'privateGalleryConsentStatement'=>\\Talyvane\\Application\\Clients\\MembershipEntitlementCatalog::privateGalleryConsentStatement($this->brandName),
             'csrf'=>Csrf::issue(),'error'=>$error,'notice'=>$notice,
         ]);
         return new Response($html,$status,[
