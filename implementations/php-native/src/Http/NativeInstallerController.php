@@ -205,8 +205,9 @@ final class NativeInstallerController
             }
 
             $pdo = $this->connectDatabase($database);
-            $failureStage = 'database migration';
+            $failureStage = 'database preflight';
             $this->assertInstallableDatabase($pdo);
+            $failureStage = 'database migration';
             (new MigrationRunner($pdo,$this->applicationRoot . '/database/migrations'))->migrate();
             $migrationCount = (int) $pdo->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn();
             $migrationFiles = glob($this->applicationRoot . '/database/migrations/*.php') ?: [];
