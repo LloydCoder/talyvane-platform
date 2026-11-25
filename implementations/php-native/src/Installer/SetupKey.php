@@ -27,7 +27,8 @@ final class SetupKey
             throw new \RuntimeException('Installer key already exists or could not be created.');
         }
         try {
-            if (fwrite($handle, $key . PHP_EOL) === false || !fflush($handle)) {
+            $payload = $key . PHP_EOL;
+            if (fwrite($handle, $payload) !== strlen($payload) || !fflush($handle)) {
                 throw new \RuntimeException('Installer key could not be written.');
             }
         } finally {
