@@ -27,6 +27,9 @@ final class DestinationManagementService
                     d.city_name,d.display_name,d.currency_code,cur.name AS currency_name,
                     cur.enabled AS currency_enabled,d.locale,d.time_zone,d.status,
                     CASE WHEN d.cover_media_key IS NULL THEN 0 ELSE 1 END AS has_cover,
+                    (SELECT a.id FROM destination_cover_assets a WHERE a.destination_id=d.id
+                     AND a.private_storage_key=d.cover_media_key AND a.review_status="approved"
+                     AND a.withdrawn_at IS NULL ORDER BY a.reviewed_at DESC LIMIT 1) AS active_cover_asset_id,
                     m.enabled AS market_enabled,m.decision AS market_decision,m.expires_at AS market_expires_at
              FROM destinations d
              JOIN countries c ON c.alpha2 = d.country_code
