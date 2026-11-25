@@ -149,7 +149,7 @@ final class Bootstrap
                            AND audience="public" AND granted=1 AND withdrawn_at IS NULL LIMIT 1'
                     )->fetchColumn()!==false;
                 }
-            } catch (\\PDOException) {
+            } catch (\PDOException) {
                 return false;
             }
             // Provider, legal and safeguarding readiness require independent external evidence.
