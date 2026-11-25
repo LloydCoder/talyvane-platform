@@ -31,7 +31,8 @@ final class SafeguardingCaseService
     public function __construct(
         private PDO $pdo,
         private SafeguardingCryptoService $crypto,
-        private AuditLogger $audit
+        private AuditLogger $audit,
+        private ?SafeguardingNotificationOutbox $notifications=null
     ) {}
 
     /** @return list<array{id:string,email:string}> */
@@ -108,6 +109,7 @@ final class SafeguardingCaseService
                 'summary'=>$summaryCipher,'details'=>$detailsCipher,'subject'=>$subjectCipher,
             ]);
             $this->insertCaseEvent($caseId,$reporter->id,'case.created',null,'open',$eventNote,$eventId);
+            $this->notifications?->enqueue($caseId,$specialistId,$caseReference,$category,$severity);
             $this->insertAccessEvent($caseId,$reporter->id,'submitted',$requestId);
             $this->audit->record($reporter->id,'safeguarding.case.created','safeguarding_case',$caseId,
                 'Restricted safeguarding report submitted',
