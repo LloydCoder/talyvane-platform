@@ -193,4 +193,19 @@ try { SettlementStateMachine::transition('approved','paid','finance','maker-1','
 catch (DomainException) { $assert(true, 'settlement approver cannot attest own payment'); }
 $assert(SettlementStateMachine::transition('approved','paid','finance','maker-1','payer-1','approver-1','external-payment-ref') === 'paid', 'payment attestation requires distinct actors and external evidence');
 
+$tempRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'talyvane-native-' . bin2hex(random_bytes(6));
+$accountHome = $tempRoot . DIRECTORY_SEPARATOR . 'account';
+$documentRoot = $accountHome . DIRECTORY_SEPARATOR . 'public_html';
+mkdir($documentRoot, 0700, true);
+$privatePaths = PrivatePathResolver::resolve($documentRoot, $accountHome);
+$assert(is_dir($privatePaths['application']) && is_dir($privatePaths['logs']), 'cPanel private path resolver creates private application and log directories');
+$assert(!str_starts_with($privatePaths['application'], $privatePaths['document_root'] . DIRECTORY_SEPARATOR), 'private application directory is outside public document root');
+$preflight = EnvironmentPreflight::inspect($accountHome);
+$assert($preflight['checks']['private_writable']['ok'], 'installer preflight checks the supplied account home');
+$iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
+foreach ($iterator as $entry) {
+    $entry->isDir() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
+}
+rmdir($tempRoot);
+
 fwrite(STDOUT, sprintf("Native PHP foundation: %d assertions passed.\n", $tests));
