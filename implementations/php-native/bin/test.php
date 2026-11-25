@@ -132,10 +132,20 @@ $contentEditMarkup = $authViews->render('admin/content', [
     'csrf'=>'cms-edit-csrf',
     'error'=>'',
     'pages'=>[],
-    'page'=>['id'=>'page-1','slug'=>'privacy','title'=>'Privacy','locale'=>'en','content'=>'<script>unsafe</script>','meta_title'=>'','meta_description'=>'','status'=>'draft','version'=>1],
+    'page'=>['id'=>'page-1','slug'=>'privacy','title'=>'Privacy','locale'=>'en','content'=>'<script>unsafe</script>','meta_title'=>'','meta_description'=>'','status'=>'published','version'=>2,'published_version'=>1],
 ]);
 $assert(str_contains($contentEditMarkup, 'name="content"'), 'CMS editor exposes the page content field');
 $assert(!str_contains($contentEditMarkup, '<script>unsafe</script>'), 'CMS editor escapes stored page content in its textarea');
+$assert(str_contains($contentEditMarkup, 'Public readers still see version 1'), 'CMS editor distinguishes a live snapshot from newer draft content');
+$assert(str_contains($contentEditMarkup, 'Publish version 2'), 'CMS editor offers explicit publication for newer draft versions');
+$publishedMarkup = $authViews->render('admin/content', [
+    'mode'=>'edit',
+    'csrf'=>'cms-published-csrf',
+    'error'=>'',
+    'pages'=>[],
+    'page'=>['id'=>'page-2','slug'=>'about','title'=>'About','locale'=>'en','content'=>'Published copy','meta_title'=>'','meta_description'=>'','status'=>'published','version'=>2,'published_version'=>2],
+]);
+$assert(!str_contains($publishedMarkup, 'name="reason"'), 'CMS editor does not offer redundant publication when the current version is already live');
 
 
 
