@@ -121,7 +121,7 @@ final class PublicModelAgencyRightsController
     private function showAccess(string $id): Response
     {
         try {
-            $data=$this->rights?->read($id)??[];
+            $data=$this->rights?->read($id,bin2hex(random_bytes(16)))??[];
             $this->rights?->finish($id);
             $this->clearContext();
             return $this->page('access',['record'=>$data]);
