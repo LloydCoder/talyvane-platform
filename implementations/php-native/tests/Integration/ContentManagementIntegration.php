@@ -58,10 +58,16 @@ function runContentManagementIntegration(PDO $pdo): int
     $assert(is_array($restored) && $restored['content'] === 'This is the first reviewed privacy notice.' && (int) $restored['version'] === 3,
         'CMS rollback can be explicitly republished as a new immutable version without deleting history');
 
-    $navigationId = $service->saveNavigationItem($admin,null,'header','Discover','route','/companions','en',10,true,bin2hex(random_bytes(16)));
+    $navigationId = $service->saveNavigationItem($admin,null,'header','Privacy','page','/pages/privacy','en',10,true,bin2hex(random_bytes(16)));
     $navigation = $service->publicNavigation('header','en');
-    $assert($navigationId !== '' && count($navigation) === 1 && $navigation[0]['label'] === 'Discover',
+    $assert($navigationId !== '' && count($navigation) === 1 && $navigation[0]['label'] === 'Privacy' && $navigation[0]['target_type'] === 'page',
         'enabled navigation is published through a locale-scoped public projection');
+    try {
+        $service->saveNavigationItem($admin,null,'header','Draft page','page','/pages/not-published','en',20,true,bin2hex(random_bytes(16)));
+        $assert(false,'navigation cannot target a page without a published snapshot');
+    } catch (DomainException) {
+        $assert(true,'navigation cannot target a page without a published snapshot');
+    }
     $service->saveNavigationItem($admin,$navigationId,'header','Discover','route','/destinations','en',10,false,bin2hex(random_bytes(16)));
     $assert($service->publicNavigation('header','en') === [],'disabled navigation item is never exposed publicly');
 
