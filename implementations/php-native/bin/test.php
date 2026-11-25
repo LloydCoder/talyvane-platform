@@ -113,6 +113,25 @@ $dashboardMarkup = $authViews->render('auth/screen', [
 ]);
 $assert(str_contains($dashboardMarkup, 'Access is limited') || str_contains($dashboardMarkup, 'Control room'), 'administrator dashboard screen has an explicit identity context');
 $assert(!str_contains($dashboardMarkup, '<svg onload=alert(1)>'), 'administrator role labels are escaped');
+$contentListMarkup = $authViews->render('admin/content', [
+    'mode'=>'list',
+    'csrf'=>'cms-csrf',
+    'error'=>'',
+    'pages'=>[['id'=>'page-1','slug'=>'terms','title'=>'<script>alert(1)</script>','locale'=>'en','status'=>'draft','version'=>2,'updated_at'=>'2026-11-25 10:00:00']],
+    'page'=>[],
+]);
+$assert(str_contains($contentListMarkup, 'action="/admin/content/new"'), 'CMS index exposes the create-page workflow');
+$assert(!str_contains($contentListMarkup, '<script>alert(1)</script>'), 'CMS index escapes untrusted page titles');
+$contentEditMarkup = $authViews->render('admin/content', [
+    'mode'=>'edit',
+    'csrf'=>'cms-edit-csrf',
+    'error'=>'',
+    'pages'=>[],
+    'page'=>['id'=>'page-1','slug'=>'privacy','title'=>'Privacy','locale'=>'en','content'=>'<script>unsafe</script>','meta_title'=>'','meta_description'=>'','status'=>'draft','version'=>1],
+]);
+$assert(str_contains($contentEditMarkup, 'name="content"'), 'CMS editor exposes the page content field');
+$assert(!str_contains($contentEditMarkup, '<script>unsafe</script>'), 'CMS editor escapes stored page content in its textarea');
+
 
 
 try { Response::redirect('//evil.example'); $assert(false, 'external protocol-relative redirects rejected'); }
