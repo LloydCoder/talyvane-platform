@@ -432,15 +432,15 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(count($clientHistory) === 3 && count($companionHistory) === 3,'client and companion booking histories are scoped to their own identities');
     $assert(count($adminBookingQueue) === 3 && array_key_exists('client_user_id',$adminBookingQueue[0]),'MFA-authorized administrators can inspect the booking operations queue');
     $assert(!array_key_exists('client_user_id',$companionHistory[0]) && !array_key_exists('client_user_id',$clientHistory[0]),'client and companion booking read models omit internal account identifiers');
-    $privacyExports=new \\Talyvane\\Application\\Identity\\PortalPrivacyExportService($pdo);
+    $privacyExports=new \Talyvane\Application\Identity\PortalPrivacyExportService($pdo);
     $clientPrivacyExport=$privacyExports->export($clientPrincipal);
     $companionPrivacyExport=$privacyExports->export($companionPrincipal);
     $assert(($clientPrivacyExport['schema']??'')==='talyvane-portal-data-export-v1' &&
         count($clientPrivacyExport['bookings']??[])===3 &&
-        count($clientPrivacyExport['memberships']??[])>=0,
+        is_array($clientPrivacyExport['memberships']??null) && is_array($clientPrivacyExport['favorites']??null),
         'client privacy export includes only the client account bookings, memberships and shortlist data');
     $assert(($companionPrivacyExport['schema']??'')==='talyvane-portal-data-export-v1' &&
-        ($companionPrivacyExport['profile']['display_name']??'')==='Native Profile' &&
+        ($companionPrivacyExport['profile']['display_name']??'')==='Verified Talent' &&
         count($companionPrivacyExport['bookings']??[])===3 &&
         !array_key_exists('client_user_id',$companionPrivacyExport['bookings'][0]??[]),
         'companion privacy export includes own profile, schedule and booking records without client identifiers');
