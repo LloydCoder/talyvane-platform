@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Talyvane\Application\Identity;
 
 use PDO;
-use Talyvane\\Infrastructure\\Audit\\AuditLogger;
+use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Security\Authorization;
 use Talyvane\Security\Principal;
 
@@ -16,7 +16,7 @@ final class PortalPrivacyExportService
     /** @return array<string,mixed> */
     public function export(Principal $actor,string $requestId): array
     {
-        if (strlen($requestId)<16 || strlen($requestId)>190) throw new \\InvalidArgumentException('Privacy export request reference is invalid.');
+        if (strlen($requestId)<16 || strlen($requestId)>190) throw new \InvalidArgumentException('Privacy export request reference is invalid.');
         $isClient=$actor->hasRole('client') && count($actor->roles)===1;
         $isCompanion=$actor->hasRole('companion') && count($actor->roles)===1;
         if (!$isClient && !$isCompanion) throw new \DomainException('A client or companion portal account is required.');
