@@ -274,7 +274,34 @@ try {
   const dashboardResponse = await page.goto(`${baseUrl}/admin`, { waitUntil: 'networkidle' });
   assert.equal(dashboardResponse.status(), 200, 'MFA-enrolled Super Admin must reach administration');
 
-  console.log('PASS: HTTPS preflight, MySQL migrations, SMTP delivery to two addresses, invalid-code rejection, Super Admin provisioning, one-time password handoff, installer lock/removal, first-login password replacement, TOTP MFA enrollment and recovery handoff.');
+  // Exercise the public enquiry intake and its MFA-gated administrative lifecycle.
+  const contactResponse = await page.goto(baseUrl + '/contact', { waitUntil: 'networkidle' });
+  assert.equal(contactResponse.status(), 200, 'public contact page must be available');
+  await page.locator('[name="name"]').fill('E2E Enquiry Visitor');
+  await page.locator('[name="email"]').fill('enquiry-visitor@example.test');
+  await page.locator('[name="phone"]').fill('+1 555 0100');
+  await page.locator('[name="city"]').fill('Toronto');
+  await page.locator('[name="subject"]').fill('A product enquiry');
+  await page.locator('[name="message"]').fill('Please contact me with further information about your services.');
+  await page.locator('[name="privacy_acknowledged"]').check();
+  await Promise.all([
+    page.waitForURL('**/contact?sent=1'),
+    page.getByRole('button', { name: /Send private enquiry/i }).click(),
+  ]);
+  assert.match(await page.locator('body').innerText(), /Your enquiry has been received/i);
+
+  const inboxResponse = await page.goto(baseUrl + '/admin/enquiries', { waitUntil: 'networkidle' });
+  assert.equal(inboxResponse.status(), 200, 'MFA-verified Super Admin must access the enquiry inbox');
+  assert.match(await page.locator('body').innerText(), /E2E Enquiry Visitor/);
+  const enquiryForm = page.locator('form[action^="/admin/enquiries/"]').first();
+  await enquiryForm.locator('[name="status"]').selectOption('responded');
+  await enquiryForm.locator('[name="reason"]').fill('E2E verified customer response state');
+  await enquiryForm.getByRole('button', { name: /Save status/i }).click();
+  await page.waitForLoadState('networkidle');
+  assert.match(await page.locator('body').innerText(), /status updated and audit event recorded/i);
+  assert.equal(await page.locator('form[action^="/admin/enquiries/"] [name="status"]').first().inputValue(), 'responded');
+
+  console.log('PASS: HTTPS preflight, MySQL migrations, SMTP delivery to two addresses, invalid-code rejection, Super Admin provisioning, one-time password handoff, installer lock/removal, first-login password replacement, TOTP MFA enrollment, recovery handoff, public enquiry intake, privacy acknowledgement, admin inbox and audited status update.');
 } finally {
   await context.close();
   await browser.close();
