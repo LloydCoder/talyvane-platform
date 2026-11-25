@@ -186,6 +186,8 @@ function runIdentityIntegration(PDO $pdo): int
     $registered = $registeredState->fetch();
     $assert(is_array($registered) && $registered['status'] === 'active' && $registered['email_verified_at'] !== null,'client account activates only after email verification');
     $recovery = new AccountRecoveryService($pdo,$registrationVerification,$limiter,$audit);
+    $recovery->request('native-bootstrap@example.test');
+    $assert(count($registrationMailer->messages) === 1,'public portal password recovery never sends recovery codes to privileged administrator accounts');
     $recovery->request('native-registered-client@example.test');
     $recoveryCode = preg_match('/code is: ([0-9]{6})/', $registrationMailer->messages[1]['body'], $recoveryMatch) ? $recoveryMatch[1] : '';
     $recoveredPassword = str_repeat('R',24) . '!';
