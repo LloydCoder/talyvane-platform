@@ -32,8 +32,17 @@ final class OneTimeRecoveryKeyHandoff
             $expiresAt <= time() || $expiresAt > time()+86400) {
             throw new RuntimeException('Offline recovery-key handoff is invalid.');
         }
-        if (file_exists($this->stateFile) || is_link($this->stateFile)) {
-            throw new RuntimeException('Offline recovery-key handoff already exists.');
+        if (is_link($this->stateFile)) {
+            throw new RuntimeException('Offline recovery-key handoff must not be a symlink.');
+        }
+        if (file_exists($this->stateFile)) {
+            $existing = $this->state->read();
+            if (!is_array($existing) || !is_string($existing['offline_recovery_key'] ?? null) ||
+                !hash_equals($existing['offline_recovery_key'],$recoveryKey) ||
+                !is_int($existing['expires_at'] ?? null) || $existing['expires_at'] <= time()) {
+                throw new RuntimeException('Existing offline recovery-key handoff does not match this installation.');
+            }
+            return;
         }
         $this->state->write([
             'offline_recovery_key'=>$recoveryKey,
