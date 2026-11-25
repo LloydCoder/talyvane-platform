@@ -51,7 +51,8 @@ final class InstallerLock
             throw new \RuntimeException('Installer lock already exists or could not be created.');
         }
         try {
-            if (fwrite($handle, $state . PHP_EOL) === false || !fflush($handle)) {
+            $payload = $state . PHP_EOL;
+            if (fwrite($handle, $payload) !== strlen($payload) || !fflush($handle)) {
                 throw new \RuntimeException('Permanent installer lock could not be written.');
             }
         } finally {
