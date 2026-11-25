@@ -739,8 +739,8 @@ $assert(str_contains($pendingDestinationMarkup,'/admin/destination-covers/cover-
     str_contains($pendingDestinationMarkup,'name="reason"'),
     'destination cover review requires a reasoned independent approve/reject decision');
 $assert(DestinationCoverService::RIGHTS_VERSION==='destination-cover-rights-v1' &&
-    hash('sha256',DestinationCoverService::RIGHTS_STATEMENT)===hash('sha256',trim(DestinationCoverService::RIGHTS_STATEMENT)),
-    'destination cover rights declaration is versioned and has a deterministic statement hash');
+    DestinationCoverService::RIGHTS_STATEMENT==='I confirm that I own or have the necessary rights and permissions to use this image as the destination cover, including all copyright, licence, property and identifiable-person likeness rights. I authorize its display on this destination page and understand that approval is required before publication.',
+    'destination cover rights declaration preserves its canonical versioned statement exactly');
 $assert(PrivateMediaStorage::validKey('destination-covers/0123456789abcdef0123456789abcdef.webp'),
     'destination cover storage accepts only opaque sanitized private media keys');
 $marketMarkup = $authViews->render('admin/markets',[
