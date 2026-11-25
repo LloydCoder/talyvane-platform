@@ -247,12 +247,41 @@ final class NativeInstallerController
         }
 
         try {
-            if (($pending['phase'] ?? '') !== 'activated') {
-                $pdo = ConnectionFactory::mysql($pending['database']);
-                $emailVerification = new EmailVerificationService(
-                    $pdo,new SmtpMailer($pending['mail']),new RateLimiter($pdo,$pending['app_key']),
-                    new AuditLogger($pdo),(string) $pending['app_key']
+            $pdo = ConnectionFactory::mysql($pending['database']);
+            $emailVerification = new EmailVerificationService(
+                $pdo,new SmtpMailer($pending['mail']),new RateLimiter($pdo,$pending['app_key']),
+                new AuditLogger($pdo),(string) $pending['app_key']
+            );
+            $bootstrapQuery = $pdo->prepare(
+                'SELECT user_id,activated_at FROM super_admin_bootstrap_challenges
+                 WHERE singleton_id=1 AND primary_email=:primary AND recovery_email=:recovery
+                   AND proof_hash=:proof LIMIT 1'
+            );
+            $bootstrapQuery->execute([
+                'primary'=>$pending['primary_email'],'recovery'=>$pending['recovery_email'],
+                'proof'=>hash_hmac('sha256',(string) $pending['bootstrap_proof'],(string) $pending['app_key']),
+            ]);
+            $bootstrapRow = $bootstrapQuery->fetch();
+            if (!is_array($bootstrapRow)) {
+                $bootstrap = $emailVerification->prepareSuperAdminBootstrap(
+                    $setupKey,$setupKey->read(),(string) $pending['primary_email'],
+                    (string) $pending['recovery_email'],(string) $pending['bootstrap_proof']
                 );
+                $pending['user_id'] = $bootstrap['user_id'];
+                $pending['phase'] = 'pending';
+                $pendingStore->write($pending);
+                $bootstrapRow = ['user_id'=>$bootstrap['user_id'],'activated_at'=>null];
+            } else {
+                $pending['user_id'] = (string) $bootstrapRow['user_id'];
+            }
+
+            if ($bootstrapRow['activated_at'] !== null) {
+                if (!is_string($pending['initial_password'] ?? null) || !is_string($pending['offline_recovery_key'] ?? null)) {
+                    throw new RuntimeException('Activated Super Admin credentials are unavailable in the private pending state.');
+                }
+                $pending['phase'] = 'activated';
+                $pendingStore->write($pending);
+            } elseif (($pending['phase'] ?? '') !== 'activated') {
                 $primaryCode = $this->field($request,'primary_code');
                 $recoveryCode = $this->field($request,'recovery_code');
                 if (preg_match('/^[0-9]{6}$/D',$primaryCode)) {
@@ -268,7 +297,13 @@ final class NativeInstallerController
                 }
                 $credentials = $emailVerification->activateSuperAdmin(
                     (string) $pending['user_id'],(string) $pending['primary_email'],
-                    (string) $pending['recovery_email'],(string) $pending['bootstrap_proof'],$request->requestId
+                    (string) $pending['recovery_email'],(string) $pending['bootstrap_proof'],$request->requestId,
+                    function(array $credentials) use (&$pending,$pendingStore): void {
+                        $pending['phase'] = 'activating';
+                        $pending['initial_password'] = $credentials['initial_password'];
+                        $pending['offline_recovery_key'] = $credentials['offline_recovery_key'];
+                        $pendingStore->write($pending);
+                    }
                 );
                 $pending['phase'] = 'activated';
                 $pending['initial_password'] = $credentials['initial_password'];
