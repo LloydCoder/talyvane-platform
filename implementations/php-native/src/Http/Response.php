@@ -20,7 +20,7 @@ final readonly class Response
 
     public static function html(string $body, int $status = 200): self
     {
-        return new self($body, $status);
+        return new self($body, $status, self::securityHeaders(['content-type' => 'text/html; charset=utf-8']));
     }
 
     /** @param array<string,mixed> $data */
@@ -29,7 +29,7 @@ final readonly class Response
         return new self(
             json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
             $status,
-            ['content-type' => 'application/json; charset=utf-8', 'cache-control' => 'no-store']
+            self::securityHeaders(['content-type' => 'application/json; charset=utf-8', 'cache-control' => 'no-store'])
         );
     }
 
@@ -38,7 +38,7 @@ final readonly class Response
         if (!str_starts_with($location, '/') || str_starts_with($location, '//') || preg_match('/[\r\n]/', $location)) {
             throw new \InvalidArgumentException('Redirect target must be a safe local path.');
         }
-        return new self('', $status, ['location' => $location, 'cache-control' => 'no-store']);
+        return new self('', $status, self::securityHeaders(['location' => $location, 'cache-control' => 'no-store']));
     }
 
     public function send(): never
@@ -49,5 +49,17 @@ final readonly class Response
         }
         echo $this->body;
         exit;
+    }
+
+    /** @param array<string,string> $headers @return array<string,string> */
+    private static function securityHeaders(array $headers): array
+    {
+        return $headers + [
+            'x-content-type-options' => 'nosniff',
+            'x-frame-options' => 'DENY',
+            'referrer-policy' => 'strict-origin-when-cross-origin',
+            'permissions-policy' => 'camera=(), microphone=(), geolocation=()',
+            'content-security-policy' => "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+        ];
     }
 }
