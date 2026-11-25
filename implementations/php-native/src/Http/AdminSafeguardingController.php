@@ -85,7 +85,7 @@ final class AdminSafeguardingController
             $this->restoreVerification->verify($actor,$this->field($request,'backup_reference'),$this->field($request,'manifest_sha256'),$this->field($request,'policy_version'),$request->requestId);
             return Response::redirect('/admin/safeguarding/governance');
         }catch(InvalidArgumentException|DomainException $error){return $this->governance($request,$error->getMessage());}
-        catch(\\Throwable){return $this->governance($request,'Restore verification failed. Inspect the private application log.');}
+        catch(\Throwable){return $this->governance($request,'Restore verification failed. Inspect the private application log.');}
     }
     private function field(Request $request,string $key): string{$value=$request->body[$key]??'';return is_string($value)?trim($value):'';}
     private function page(string $mode,array $data,string $error,int $status=200): Response
