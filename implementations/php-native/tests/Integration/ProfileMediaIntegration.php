@@ -161,7 +161,9 @@ function runProfileMediaIntegration(PDO $pdo): int
         $assert(is_array($withdrawn) && $withdrawn['review_status']==='withdrawn' && $withdrawn['media_scope']==='private' &&
             $withdrawn['withdrawn_by']===$companionId && !file_exists($withdrawnImage['path']),
             'companion withdrawal immediately privatizes the media, records the actor and deletes the image');
-        $eventId=(string) $pdo->query('SELECT id FROM profile_media_consent_events WHERE profile_media_id="'.$withdrawnId.'" ORDER BY created_at DESC LIMIT 1')->fetchColumn();
+        $eventQuery=$pdo->prepare('SELECT id FROM profile_media_consent_events WHERE profile_media_id=:media ORDER BY created_at DESC LIMIT 1');
+        $eventQuery->execute(['media'=>$withdrawnId]);
+        $eventId=(string) $eventQuery->fetchColumn();
         $updateRejected=false;
         try { $pdo->prepare('UPDATE profile_media_consent_events SET action="tampered" WHERE id=:id')->execute(['id'=>$eventId]); }
         catch (PDOException) { $updateRejected=true; }
