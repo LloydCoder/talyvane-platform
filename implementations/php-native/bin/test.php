@@ -4,6 +4,11 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
 use Talyvane\Domain\Money;
+use Talyvane\Domain\Booking\BookingStateMachine;
+use Talyvane\Domain\Consent\ConsentGrant;
+use Talyvane\Domain\Market\MarketPolicy;
+use Talyvane\Domain\Membership\MembershipAccess;
+use Talyvane\Domain\ModelAgency\ApplicationStateMachine;
 use Talyvane\Features\FeatureAvailability;
 use Talyvane\Features\FeatureRegistry;
 use Talyvane\Http\Request;
