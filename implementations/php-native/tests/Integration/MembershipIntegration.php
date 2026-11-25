@@ -48,6 +48,11 @@ function runMembershipIntegration(PDO $pdo): int
         );
     $assert(preg_match('/^[0-9a-f-]{36}$/',$membershipId)===1,'membership assignment returns a stable UUID');
     $assert($entitlements->has($clientId,'media.private_gallery'),'current membership and active entitlement grant authorize the approved entitlement');
+    $clientMembership=$memberships->currentForClient(new Principal($clientId,['client'],false));
+    $assert(is_array($clientMembership) && $clientMembership['tier_name']==='Gold',
+        'verified client can view only their current membership summary');
+    $assert(($clientMembership['entitlements']??[])===['media.private_gallery'],
+        'client membership summary exposes only currently effective allowlisted entitlement keys');
     $assert(!$entitlements->has($clientId,'unknown.entitlement'),'unknown entitlement keys fail closed');
     $eventCount=$pdo->prepare('SELECT COUNT(*) FROM membership_events WHERE client_user_id=:client');
     $eventCount->execute(['client'=>$clientId]);
