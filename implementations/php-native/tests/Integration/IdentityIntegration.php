@@ -9,6 +9,7 @@ use Talyvane\Application\Identity\UserRegistrationService;
 use Talyvane\Application\Companions\CompanionProfilePublicationService;
 use Talyvane\Application\Companions\CompanionOnboardingService;
 use Talyvane\Application\Discovery\DiscoveryService;
+use Talyvane\Application\Destinations\DestinationManagementService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Bookings\BookingCommandService;
 use Talyvane\Application\Bookings\BookingQueryService;
@@ -227,6 +228,27 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(is_array($publicProfile) && $publicProfile['time_zone'] === 'Europe/London',
         'public profile projection includes the destination IANA time zone without undefined-field warnings');
     $assert(is_array($publicProfile) && !array_key_exists('user_id',$publicProfile) && !array_key_exists('verification_reference_hash',$publicProfile),'public profile projection excludes account identifiers and verification evidence');
+    $pdo->prepare('INSERT INTO currencies (code,numeric_code,name,symbol,minor_units,enabled,dataset_version,updated_at) VALUES ("GBP","826","Pound sterling","£",2,1,"test-iso-2026",UTC_TIMESTAMP())')->execute();
+    $destinationManagement = new DestinationManagementService($pdo,$audit);
+    $newDestinationId = $destinationManagement->save($publisher,null,[
+        'slug'=>'manchester','country_code'=>'GB','city_name'=>'Manchester',
+        'display_name'=>'Manchester','currency_code'=>'GBP','locale'=>'en-GB',
+        'time_zone'=>'Europe/London','status'=>'published',
+    ],bin2hex(random_bytes(16)));
+    $managedDestinations = $destinationManagement->list($publisher);
+    $manchesterRows = array_values(array_filter($managedDestinations,static fn(array $row): bool => $row['id'] === $newDestinationId));
+    $assert(count($manchesterRows) === 1 && $manchesterRows[0]['status'] === 'published' && $manchesterRows[0]['market_decision'] === 'approved',
+        'MFA-protected administrator can publish a destination only inside a currently approved market');
+    $destinationManagement->save($publisher,$newDestinationId,[
+        'slug'=>'manchester','country_code'=>'GB','city_name'=>'Manchester',
+        'display_name'=>'Greater Manchester','currency_code'=>'GBP','locale'=>'en-GB',
+        'time_zone'=>'Europe/London','status'=>'published',
+    ],bin2hex(random_bytes(16)));
+    $updatedDestination = $pdo->prepare('SELECT display_name FROM destinations WHERE id = :id');
+    $updatedDestination->execute(['id'=>$newDestinationId]);
+    $assert($updatedDestination->fetchColumn() === 'Greater Manchester','destination update uses owner-scoped identity and preserves market publication gates');
+    try { $destinationManagement->save(new Principal($registeredId,['client'],false),null,['slug'=>'client-city','country_code'=>'GB','city_name'=>'Leeds','display_name'=>'Leeds','currency_code'=>'GBP','locale'=>'en-GB','time_zone'=>'Europe/London','status'=>'draft'],bin2hex(random_bytes(16))); $assert(false,'client cannot create destinations'); }
+    catch (DomainException) { $assert(true,'client cannot create destinations'); }
     $pdo->prepare('UPDATE consent_grants SET withdrawn_at = UTC_TIMESTAMP() WHERE subject_type = "companion_profile" AND subject_id = :profile AND purpose = "profile.publication" AND audience = "public"')->execute(['profile'=>$profileId]);
     $assert($discovery->profile($publicSlug) === null,'public profile immediately disappears when publication consent is withdrawn');
     $pdo->prepare('UPDATE consent_grants SET withdrawn_at = NULL WHERE subject_type = "companion_profile" AND subject_id = :profile AND purpose = "profile.publication" AND audience = "public"')->execute(['profile'=>$profileId]);
