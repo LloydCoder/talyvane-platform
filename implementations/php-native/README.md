@@ -17,6 +17,7 @@ The native HTTP kernel currently exposes:
 - Separate client booking request/history/cancellation, companion booking decision workspace and MFA-admin booking operations. Booking requests use destination-local input times and store UTC; manual review is the safe default, while automatic confirmation remains opt-in and policy-gated.
 - Companion-owned weekly availability management with destination-derived IANA time zones, effective-date windows, overlap prevention, ownership checks and audit events.
 - Client-only private saved-companion shortlist with current discoverability checks, owner-scoped removal and audit events; shortlist membership never grants media or paid entitlements. Public profile pages expose a CSRF-protected save action to authenticated client accounts and use no-store responses when rendering the session token.
+- MFA-protected destination create/update workspace with ISO country/currency references, IANA time-zone/locale validation, and an independent current market-approval gate before publication.
 - A Super Admin/MFA-gated, read-only security audit workspace with bounded filtering/pagination; MySQL triggers reject audit-event updates and deletes.
 - Private runtime error logging writes correlation ID, exception class and code to `application-error.log` outside the public root; exception messages, stack traces and request data are deliberately omitted.
 
