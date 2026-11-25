@@ -468,10 +468,10 @@ final class ProfileMediaService
             $key=(string)$row['private_storage_key'];
             $this->pdo->prepare(
                 'UPDATE profile_media SET review_status="withdrawn",media_scope="private",
-                    members_only_consent_withdrawn_at=UTC_TIMESTAMP(),members_only_consent_withdrawn_by=:actor,
-                    withdrawn_at=UTC_TIMESTAMP(),withdrawn_by=:actor,updated_at=UTC_TIMESTAMP()
+                    members_only_consent_withdrawn_at=UTC_TIMESTAMP(),members_only_consent_withdrawn_by=:consent_actor,
+                    withdrawn_at=UTC_TIMESTAMP(),withdrawn_by=:media_actor,updated_at=UTC_TIMESTAMP()
                  WHERE id=:media'
-            )->execute(['actor'=>$actor->id,'media'=>$mediaId]);
+            )->execute(['consent_actor'=>$actor->id,'media_actor'=>$actor->id,'media'=>$mediaId]);
             $this->recordConsent($mediaId,$profileId,$actor,
                 'I withdraw my separate consent for this image to appear in the members-only gallery. Access must stop immediately and the stored image must be deleted.',
                 'private_gallery.consent.withdrawn','members-only-gallery-v1',$requestId);
