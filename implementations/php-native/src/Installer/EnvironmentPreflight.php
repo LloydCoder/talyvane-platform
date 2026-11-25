@@ -65,6 +65,8 @@ final class EnvironmentPreflight
             $ok = $ok && $check['ok'];
         }
         return ['ok'=>$ok,'checks'=>$checks];
+    }
+
     private static function iniBytes(string $value): int
     {
         $value = trim($value);
@@ -82,7 +84,5 @@ final class EnvironmentPreflight
             'K' => $number * 1024,
             default => $number,
         };
-    }
-
     }
 }
