@@ -11,7 +11,7 @@ use Talyvane\Installer\SetupKey;
 
 final class EmailVerificationService
 {
-    private const PURPOSES = ['account_primary','admin_primary','admin_recovery','privacy_rights'];
+    private const PURPOSES = ['account_primary','account_recovery','admin_primary','admin_recovery','privacy_rights'];
 
     public function __construct(
         private PDO $pdo,
@@ -41,7 +41,7 @@ final class EmailVerificationService
             throw new \DomainException('Account does not exist.');
         }
         $primary = strtolower($primary);
-        if (in_array($purpose, ['account_primary','admin_primary','privacy_rights'], true) && !hash_equals($primary, $email)) {
+        if (in_array($purpose, ['account_primary','account_recovery','admin_primary','privacy_rights'], true) && !hash_equals($primary, $email)) {
             throw new \DomainException('Primary verification address does not match the account.');
         }
         if ($purpose === 'admin_recovery' && hash_equals($primary, $email)) {
