@@ -201,7 +201,7 @@ final class EmailVerificationService
         $userId = self::uuid();
         $bootstrapProof ??= rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
         if (strlen($bootstrapProof) !== 43 || !preg_match('/^[A-Za-z0-9_-]{43}$/D',$bootstrapProof)) {
-            throw new \\InvalidArgumentException('Super Admin bootstrap proof is invalid.');
+            throw new \InvalidArgumentException('Super Admin bootstrap proof is invalid.');
         }
         $temporaryPassword = bin2hex(random_bytes(32));
         $this->pdo->beginTransaction();
