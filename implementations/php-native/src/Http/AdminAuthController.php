@@ -5,6 +5,7 @@ namespace Talyvane\Http;
 
 use DomainException;
 use InvalidArgumentException;
+use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Security\Authorization;
@@ -20,6 +21,7 @@ final class AdminAuthController
     public function __construct(
         private AuthenticationService $authentication,
         private PasswordChangeService $passwords,
+        private ContentManagementService $content,
         private ViewRenderer $views
     ) {}
 
@@ -227,6 +229,7 @@ final class AdminAuthController
     {
         $payload = $data + [
             'screen'=>$screen,
+            'brandName'=>$this->content->publicBrand()['brand_name'],
             'csrf'=>Csrf::issue(),
             'error'=>'',
             'email'=>'',
