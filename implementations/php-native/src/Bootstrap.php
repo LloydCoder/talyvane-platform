@@ -234,6 +234,8 @@ final class Bootstrap
         $router->add('GET', '/portal/companion/media', static fn(Request $request): Response => $companionMedia->index($request));
         $router->add('POST', '/portal/companion/media', static fn(Request $request): Response => $companionMedia->submit($request));
         $router->add('POST', '/portal/companion/media/{id}/withdraw', static fn(Request $request,array $params): Response => $companionMedia->withdraw($request,$params));
+        $router->add('POST', '/portal/companion/media/{id}/members-only/consent', static fn(Request $request,array $params): Response => $companionMedia->grantMembersOnlyConsent($request,$params));
+        $router->add('POST', '/portal/companion/media/{id}/members-only/withdraw', static fn(Request $request,array $params): Response => $companionMedia->withdrawMembersOnlyConsent($request,$params));
         $router->add('POST', '/portal/companion/publication/withdraw', static fn(Request $request): Response => $companionMedia->withdrawPublicationConsent($request));
         $router->add('POST', '/portal/companion/publication/renew', static fn(Request $request): Response => $companionMedia->renewPublicationConsent($request));
         $router->add('GET', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->index($request));
