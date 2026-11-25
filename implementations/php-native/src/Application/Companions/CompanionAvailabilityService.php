@@ -17,6 +17,20 @@ final class CompanionAvailabilityService
 {
     public function __construct(private PDO $pdo, private AuditLogger $audit) {}
 
+    /** @return array<string,mixed>|null */
+    public function profileForCompanion(Principal $actor): ?array
+    {
+        $this->assertCompanion($actor);
+        $query = $this->pdo->prepare(
+            'SELECT p.id,p.display_name,p.status,d.display_name AS destination_name,d.time_zone
+             FROM companion_profiles p JOIN destinations d ON d.id = p.destination_id
+             WHERE p.user_id = :actor LIMIT 1'
+        );
+        $query->execute(['actor'=>$actor->id]);
+        $profile = $query->fetch();
+        return is_array($profile) ? $profile : null;
+    }
+
     /** @return list<array<string,mixed>> */
     public function listForCompanion(Principal $actor): array
     {
