@@ -32,6 +32,7 @@ use Talyvane\Security\Principal;
 use Talyvane\Security\Totp;
 use Talyvane\Infrastructure\Logging\StructuredLogger;
 use Talyvane\Infrastructure\Logging\PrivateErrorLogger;
+use Talyvane\Infrastructure\Database\MigrationRunner;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
 use Talyvane\Infrastructure\Mail\SmtpMailer;
 use Talyvane\Installer\PrivatePathResolver;
@@ -440,6 +441,12 @@ catch (InvalidArgumentException) { $assert(true,'SMTP encryption downgrade is re
 $redacted = StructuredLogger::redact(['smtpPassword'=>'do-not-log','nested'=>['api_key'=>'do-not-log-either','status'=>'failed']]);
 $assert($redacted['smtpPassword'] === '[REDACTED]' && $redacted['nested']['api_key'] === '[REDACTED]', 'structured logger redacts nested secrets');
 $assert($redacted['nested']['status'] === 'failed', 'structured logger preserves non-sensitive diagnostics');
+$triggerRestriction = new PDOException('Sensitive database error message');
+$triggerRestriction->errorInfo = ['HY000',1419,'Do not expose this server diagnostic'];
+$assert(MigrationRunner::isSharedHostingTriggerRestriction($triggerRestriction,'CREATE TRIGGER audit_guard BEFORE UPDATE ON audit_events FOR EACH ROW SIGNAL SQLSTATE \'45000\''),
+    'migration runner recognizes only MySQL 1419 restrictions on trigger creation as a shared-hosting capability gap');
+$assert(!MigrationRunner::isSharedHostingTriggerRestriction($triggerRestriction,'UPDATE audit_events SET event_key = \'changed\''),
+    'migration runner never suppresses ordinary database failures as optional trigger capability');
 
 $box = new SecretBox(str_repeat('k', 32));
 $encrypted = $box->encrypt('sensitive-provider-secret', 'provider:payments');
