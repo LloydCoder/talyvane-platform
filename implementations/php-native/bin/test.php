@@ -682,9 +682,16 @@ $assert(str_contains($companionMediaMarkup,'enctype="multipart/form-data"') &&
     str_contains($companionMediaMarkup,'name="depicted_adults_confirmed"') &&
     str_contains($companionMediaMarkup,'name="publication_confirmed"') &&
     str_contains($companionMediaMarkup,'/portal/companion/publication/withdraw') &&
-    str_contains($companionMediaMarkup,'/portal/companion/publication/renew') &&
     str_contains($companionMediaMarkup,'&lt;script&gt;profile&lt;/script&gt;'),
     'companion media workspace requires separate rights/publication attestations and escapes profile data');
+$unpublishedMediaMarkup = $authViews->render('portal/media',[
+    'brandName'=>'Talyvane','csrf'=>'media-csrf','error'=>'','notice'=>'',
+    'profile'=>['id'=>'profile-1','slug'=>'talent','display_name'=>'Talent Example','status'=>'unpublished','destination_name'=>'London'],
+    'items'=>[],
+]);
+$assert(str_contains($unpublishedMediaMarkup,'/portal/companion/publication/renew') &&
+    str_contains($unpublishedMediaMarkup,'name="publication_consent_confirmed"'),
+    'unpublished companion can grant a new versioned publication consent only through explicit confirmation');
 $adminMediaMarkup = $authViews->render('admin/profile-media',[
     'brandName'=>'Talyvane','csrf'=>'review-csrf','error'=>'','notice'=>'',
     'items'=>[['id'=>'media-1','profile_name'=>'Talent Example','profile_slug'=>'talent','destination_name'=>'London','width'=>320,'height'=>320,'created_at'=>'2026-11-25']],
