@@ -9,6 +9,9 @@ final readonly class Money
 {
     public function __construct(public int $minorUnits, public string $currency, public int $precision)
     {
+        if ($minorUnits < 0) {
+            throw new InvalidArgumentException('Money values must be non-negative; represent reversals as separate ledger directions.');
+        }
         if (!preg_match('/^[A-Z]{3}$/D', $currency)) {
             throw new InvalidArgumentException('Currency must be an ISO 4217 alpha code.');
         }
@@ -26,13 +29,20 @@ final readonly class Money
         if (strlen($fraction) > $precision) {
             throw new InvalidArgumentException('Amount exceeds the currency precision.');
         }
+        if ($precision < 0 || $precision > 4) {
+            throw new InvalidArgumentException('Unsupported currency precision.');
+        }
         $scale = 10 ** $precision;
         $whole = (int) $m[1];
         if ($whole > intdiv(PHP_INT_MAX, $scale)) {
             throw new InvalidArgumentException('Amount exceeds supported range.');
         }
-        $minor = ($whole * $scale) + (int) str_pad($fraction, $precision, '0');
-        return new self($minor, $currency, $precision);
+        $base = $whole * $scale;
+        $fractionMinor = (int) str_pad($fraction, $precision, '0');
+        if ($fractionMinor > PHP_INT_MAX - $base) {
+            throw new InvalidArgumentException('Amount exceeds supported range.');
+        }
+        return new self($base + $fractionMinor, $currency, $precision);
     }
 
     public function toDecimal(): string
