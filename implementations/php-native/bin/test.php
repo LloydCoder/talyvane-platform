@@ -653,6 +653,16 @@ $destinationMarkup = $authViews->render('admin/destinations',[
 ]);
 $assert(str_contains($destinationMarkup,'&lt;script&gt;alert(1)&lt;/script&gt;') && !str_contains($destinationMarkup,'<script>alert(1)</script>'), 'destination admin escapes database content before rendering');
 $assert(str_contains($destinationMarkup,'/admin/destinations/destination-1') && str_contains($destinationMarkup,'csrf-destination-token'), 'destination admin renders owner-scoped edit forms with CSRF protection');
+$marketMarkup = $authViews->render('admin/markets',[
+    'brandName'=>'Maison Example',
+    'items'=>[[
+        'alpha2'=>'GB','alpha3'=>'GBR','name'=>'<script>alert(1)</script>',
+        'country_enabled'=>1,'market_enabled'=>0,'decision'=>'pending',
+    ]],
+    'error'=>'','notice'=>'','csrf'=>'csrf-market-token',
+]);
+$assert(str_contains($marketMarkup,'&lt;script&gt;alert(1)&lt;/script&gt;') && !str_contains($marketMarkup,'<script>alert(1)</script>'), 'market compliance workspace escapes country reference data');
+$assert(str_contains($marketMarkup,'/admin/markets/GB/review') && str_contains($marketMarkup,'csrf-market-token'), 'market review form is country-scoped and CSRF protected');
 
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($iterator as $entry) {
