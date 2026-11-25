@@ -172,7 +172,7 @@ final class EmailVerificationService
         $recoveryEmail = strtolower(trim($recoveryEmail));
         if (!filter_var($primaryEmail,FILTER_VALIDATE_EMAIL) || !filter_var($recoveryEmail,FILTER_VALIDATE_EMAIL) ||
             hash_equals($primaryEmail,$recoveryEmail)) {
-            throw new \\InvalidArgumentException('Super Admin requires two distinct valid email addresses.');
+            throw new \InvalidArgumentException('Super Admin requires two distinct valid email addresses.');
         }
         $existingBootstrap = $this->pdo->query('SELECT user_id,activated_at,expires_at FROM super_admin_bootstrap_challenges WHERE singleton_id = 1')->fetch();
         if (is_array($existingBootstrap)) {
@@ -189,7 +189,7 @@ final class EmailVerificationService
                 $deleteUser = $this->pdo->prepare('DELETE FROM users WHERE id = :user AND status = \'pending\'');
                 $deleteUser->execute(['user'=>$oldUser]);
                 $this->pdo->commit();
-            } catch (\\Throwable $error) {
+            } catch (\Throwable $error) {
                 if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
                 throw $error;
             }
@@ -218,7 +218,7 @@ final class EmailVerificationService
                 'proof'=>hash_hmac('sha256',$bootstrapProof,$this->pepper),
             ]);
             $this->pdo->commit();
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
@@ -227,7 +227,7 @@ final class EmailVerificationService
         try {
             $this->issue($userId,$primaryEmail,'admin_primary');
             $this->issue($userId,$recoveryEmail,'admin_recovery');
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             $this->pdo->beginTransaction();
             try {
                 $deleteChallenges = $this->pdo->prepare('DELETE FROM email_verification_challenges WHERE user_id = :user');
@@ -237,9 +237,9 @@ final class EmailVerificationService
                 $deleteUser = $this->pdo->prepare('DELETE FROM users WHERE id = :user AND status = \'pending\'');
                 $deleteUser->execute(['user'=>$userId]);
                 $this->pdo->commit();
-            } catch (\\Throwable $cleanupError) {
+            } catch (\Throwable $cleanupError) {
                 if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
-                throw new \\RuntimeException('Email delivery failed and pending bootstrap cleanup also failed.',0,$cleanupError);
+                throw new \RuntimeException('Email delivery failed and pending bootstrap cleanup also failed.',0,$cleanupError);
             }
             throw $error;
         }
@@ -308,7 +308,7 @@ final class EmailVerificationService
             $this->audit->record($userId,'super_admin.bootstrap.activated','user',$userId,'Both Super Admin email addresses verified',null,['status'=>'active','primary_verified'=>true,'recovery_verified'=>true],$requestId,'super-admin-bootstrap-v1');
             $this->pdo->commit();
             return ['initial_password'=>$initialPassword,'offline_recovery_key'=>$offlineRecoveryKey];
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
