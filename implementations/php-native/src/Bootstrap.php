@@ -18,6 +18,7 @@ use Talyvane\Application\Safeguarding\SafeguardingRestoreVerificationService;
 use Talyvane\Security\SecretBox;
 use Talyvane\Http\AdminSafeguardingController;
 use Talyvane\Application\Clients\ClientMembershipService;
+use Talyvane\Application\Clients\MembershipEntitlementService;
 use Talyvane\Features\FeatureAvailability;
 use Talyvane\Infrastructure\Database\FeatureStateRepository;
 use Talyvane\Http\AdminClientController;
@@ -131,9 +132,11 @@ final class Bootstrap
 
         $public = new PublicSiteController($pdo, $views);
         $discovery = new DiscoveryService($pdo);
+        $membershipAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(), static fn(string $dependency): bool => false);
+        $membershipEntitlements = new MembershipEntitlementService($pdo,$membershipAvailability);
         $publicRoot = (string) ($config['paths']['document_root'] ?? ($_SERVER['DOCUMENT_ROOT'] ?? ''));
         $mediaStorage = new PrivateMediaStorage((string) ($config['paths']['storage'] ?? ''),$publicRoot);
-        $profileMedia = new ProfileMediaService($pdo,$mediaStorage,$discovery,$audit);
+        $profileMedia = new ProfileMediaService($pdo,$mediaStorage,$discovery,$audit,$membershipEntitlements);
         $publicDiscovery = new PublicDiscoveryController($discovery, $views, $authentication);
         $contentManagement = new ContentManagementService($pdo, $audit);
         $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
@@ -162,7 +165,6 @@ final class Bootstrap
         $bookingQueries = new BookingQueryService($pdo);
         $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $discovery, $views, $brandName);
         $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit), $views, $brandName);
-        $membershipAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(), static fn(string $dependency): bool => false);
         $clientMemberships = new ClientMembershipService($pdo,$audit,$membershipAvailability);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery, $clientMemberships);
         $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName);
