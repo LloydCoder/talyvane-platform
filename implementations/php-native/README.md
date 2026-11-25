@@ -18,6 +18,7 @@ The native HTTP kernel currently exposes:
 - Companion-owned weekly availability management with destination-derived IANA time zones, effective-date windows, overlap prevention, ownership checks and audit events.
 - Client-only private saved-companion shortlist with current discoverability checks, owner-scoped removal and audit events; shortlist membership never grants media or paid entitlements. Public profile pages expose a CSRF-protected save action to authenticated client accounts and use no-store responses when rendering the session token.
 - A Super Admin/MFA-gated, read-only security audit workspace with bounded filtering/pagination; MySQL triggers reject audit-event updates and deletes.
+- Private runtime error logging writes correlation ID, exception class and code to `application-error.log` outside the public root; exception messages, stack traces and request data are deliberately omitted.
 
 Portal registration and email-based recovery require a valid private `mail.smtp` configuration in the private configuration file. Without it, mail-dependent routes fail closed while the public site and already verified portal logins remain available. Public discovery returns only allowlisted fields and requires current approved market status, independent adult-eligibility verification and active purpose-specific publication consent. Public profile media delivery is not yet implemented; private media is never linked directly.
 
