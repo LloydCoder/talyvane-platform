@@ -357,25 +357,13 @@ final class SafeguardingCaseService
     /** @return array{due_at:string,policy_version:string}|null */
     private function retentionSchedule(string $category): ?array
     {
-        if (!$this->crypto->supportsDestruction() || getenv('SAFEGUARDING_CASE_RETENTION_SCHEDULE_APPROVED')!=='true' ||
-            getenv('SAFEGUARDING_CASE_BACKUP_POLICY_APPROVED')!=='true') {
-            return null;
-        }
-        $days=filter_var(getenv('SAFEGUARDING_CASE_RETENTION_DAYS'),FILTER_VALIDATE_INT);
-        $backupDays=filter_var(getenv('SAFEGUARDING_CASE_BACKUP_EXPIRY_DAYS'),FILTER_VALIDATE_INT);
-        $version=trim((string) getenv('SAFEGUARDING_CASE_RETENTION_POLICY_VERSION'));
-        if (!is_int($days) || $days<1 || !is_int($backupDays) || $backupDays<1 || $version==='' || strlen($version)>64) {
-            return null;
-        }
-        $backupPolicy=$this->pdo->query(
+        if (!$this->crypto->supportsDestruction()) { return null; }
+        $backup=$this->pdo->query(
             'SELECT policy_version,expiry_days,encrypted_backups,enabled,approved_by
              FROM safeguarding_backup_retention_policies WHERE singleton_id=1 LIMIT 1'
         )->fetch(PDO::FETCH_ASSOC);
-        if (!is_array($backupPolicy) || (int)$backupPolicy['enabled']!==1 ||
-            (int)$backupPolicy['encrypted_backups']!==1 || (int)$backupPolicy['expiry_days']!==$backupDays ||
-            !hash_equals($version,(string)$backupPolicy['policy_version'])) {
-            return null;
-        }
+        if (!is_array($backup)||(int)$backup['enabled']!==1||(int)$backup['encrypted_backups']!==1||
+            (int)$backup['expiry_days']<1) { return null; }
         $restore=$this->pdo->prepare(
             'SELECT 1 FROM safeguarding_restore_verifications v
              JOIN users u ON u.id=v.verified_by AND u.status="active"
@@ -385,23 +373,21 @@ final class SafeguardingCaseService
                AND v.verified_at>=UTC_TIMESTAMP()-INTERVAL 90 DAY
                AND v.verified_by<>:approver LIMIT 1'
         );
-        $restore->execute(['version'=>$version,'approver'=>$backupPolicy['approved_by']]);
-        if ($restore->fetchColumn()===false) {
-            return null;
-        }
+        $restore->execute(['version'=>$backup['policy_version'],'approver'=>$backup['approved_by']]);
+        if ($restore->fetchColumn()===false) { return null; }
         $query=$this->pdo->prepare(
             'SELECT retention_days,policy_version,legal_basis_reference
-             FROM safeguarding_retention_policies WHERE category=:category AND enabled=1 LIMIT 1'
+             FROM safeguarding_retention_policies
+             WHERE category=:category AND enabled=1 LIMIT 1'
         );
         $query->execute(['category'=>$category]);
-        $policy=$query->fetch();
-        if (!is_array($policy) || (int) $policy['retention_days']!==$days ||
-            !hash_equals((string) $policy['policy_version'],$version) ||
-            trim((string) $policy['legal_basis_reference'])==='') {
-            return null;
-        }
-        $due=(new \DateTimeImmutable('now',new \DateTimeZone('UTC')))->modify('+'.($days+$backupDays).' days');
-        return ['due_at'=>$due->format('Y-m-d H:i:s'),'policy_version'=>$version];
+        $policy=$query->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($policy)||(int)$policy['retention_days']<1||
+            !hash_equals((string)$backup['policy_version'],(string)$policy['policy_version'])||
+            trim((string)$policy['legal_basis_reference'])==='') { return null; }
+        $days=(int)$policy['retention_days']+(int)$backup['expiry_days'];
+        $due=(new \\DateTimeImmutable('now',new \\DateTimeZone('UTC')))->modify('+'.$days.' days');
+        return ['due_at'=>$due->format('Y-m-d H:i:s'),'policy_version'=>(string)$policy['policy_version']];
     }
 
     private function insertCaseEvent(
