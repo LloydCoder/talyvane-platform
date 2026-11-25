@@ -210,6 +210,24 @@ $assert(str_contains($brandMarkup, 'action="/admin/brand"'), 'brand settings for
 $assert(str_contains($brandMarkup, 'Maison Example'), 'brand settings form shows the active deployment identity');
 $assert(str_contains($brandMarkup, 'name="color_accent"'), 'brand settings expose the configured accent token');
 $assert(!str_contains($brandMarkup, 'private/brand/logo.webp'), 'brand settings never expose private media storage keys');
+$rightsRequestMarkup = $authViews->render('public/model-agency-rights', [
+    'screen'=>'request',
+    'csrf'=>'rights-request-csrf',
+]);
+$assert(str_contains($rightsRequestMarkup, 'action="/model-agency/privacy"'), 'model applicant privacy rights start through a dedicated endpoint');
+$assert(str_contains($rightsRequestMarkup, 'name="request_type"'), 'model applicant can choose access correction withdrawal or erasure');
+$rightsVerifyMarkup = $authViews->render('public/model-agency-rights', [
+    'screen'=>'verify',
+    'csrf'=>'rights-verify-csrf',
+]);
+$assert(str_contains($rightsVerifyMarkup, 'pattern="[0-9]{8}"'), 'model applicant rights require an eight-digit email verification code');
+$rightsEraseMarkup = $authViews->render('public/model-agency-rights', [
+    'screen'=>'confirm',
+    'requestType'=>'erasure',
+    'csrf'=>'rights-erase-csrf',
+]);
+$assert(str_contains($rightsEraseMarkup, 'action="/model-agency/privacy/erase"'), 'verified applicant erasure requires a separate CSRF-protected confirmation');
+
 $modelAgencyMarkup = $authViews->render('public/model-agency', [
     'screen'=>'form',
     'csrf'=>'model-agency-csrf',
