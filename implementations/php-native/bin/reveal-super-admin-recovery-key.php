@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+use Talyvane\Installer\OneTimeRecoveryKeyHandoff;
+use Talyvane\Security\SecretBox;
+
 /**
  * One-time CLI-only handoff. Never expose this script through the web server.
  * Run from the private native application root using cPanel Terminal/SSH.
@@ -11,9 +14,6 @@ if (PHP_SAPI !== 'cli') {
 }
 
 require dirname(__DIR__) . '/bootstrap.php';
-
-use Talyvane\Installer\OneTimeRecoveryKeyHandoff;
-use Talyvane\Security\SecretBox;
 
 $homeValue = getenv('HOME') ?: ($_SERVER['HOME'] ?? '');
 $home = is_string($homeValue) && $homeValue !== '' ? realpath($homeValue) : false;
