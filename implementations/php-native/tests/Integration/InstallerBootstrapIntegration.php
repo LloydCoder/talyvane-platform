@@ -60,6 +60,20 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
         $httpHome = $temporaryRoot . DIRECTORY_SEPARATOR . 'http-home';
         $httpDocumentRoot = $httpHome . DIRECTORY_SEPARATOR . 'public_html';
         mkdir($httpDocumentRoot,0755,true);
+        $applicationRoot = $httpHome . DIRECTORY_SEPARATOR . '.talyvane' . DIRECTORY_SEPARATOR . 'apps' . DIRECTORY_SEPARATOR . 'installer' . DIRECTORY_SEPARATOR . 'talyvane-native-app';
+        mkdir($applicationRoot,0700,true);
+        $sourceRoot = dirname(__DIR__,2);
+        foreach (['src','database','views','public'] as $directory) {
+            $sourceDirectory = $sourceRoot . DIRECTORY_SEPARATOR . $directory;
+            $targetDirectory = $applicationRoot . DIRECTORY_SEPARATOR . $directory;
+            $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($sourceDirectory,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::SELF_FIRST);
+            foreach ($iterator as $entry) {
+                $target = $targetDirectory . DIRECTORY_SEPARATOR . $iterator->getSubPathName();
+                if ($entry->isDir()) { if (!is_dir($target)) { mkdir($target,0700,true); } }
+                elseif ($entry->isFile() && !$entry->isLink()) { if (!is_dir(dirname($target))) { mkdir(dirname($target),0700,true); } copy($entry->getPathname(),$target); }
+            }
+        }
+        copy($sourceRoot . DIRECTORY_SEPARATOR . 'bootstrap.php',$applicationRoot . DIRECTORY_SEPARATOR . 'bootstrap.php');
         $oldServer = $_SERVER;
         $oldGet = $_GET;
         $oldPost = $_POST;
@@ -87,7 +101,6 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
                 $this->messages[] = ['recipient'=>$recipient,'subject'=>$subject,'body'=>$textBody];
             }
         };
-        $applicationRoot = dirname(__DIR__,2);
         $controller = new NativeInstallerController(
             $applicationRoot,
             static fn(array $config): PDO => $pdo,
@@ -164,8 +177,9 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
         $installedConfig = count($configFiles) === 1 ? require $configFiles[0] : [];
         $assert(is_array($installedConfig) && $installedConfig['database']['password'] === '  database-secret  ' &&
             $installedConfig['mail']['password'] === '  smtp-secret  ' &&
-            !str_starts_with(realpath($configFiles[0]) ?: '',realpath($httpDocumentRoot) ?: '/invalid-public-root'),
-            'installer preserves exact connection secrets and stores configuration outside the public root');
+            !str_starts_with(realpath($configFiles[0]) ?: '',realpath($httpDocumentRoot) ?: '/invalid-public-root') &&
+            ($installedConfig['paths']['application'] ?? null) === realpath($applicationRoot),
+            'installer preserves exact connection secrets and records the actual private application code root');
         $recoveryHandoffFiles = glob(dirname($configFiles[0]) . DIRECTORY_SEPARATOR . 'INSTALLER-RECOVERY-HANDOFF.json') ?: [];
         $cliScript = $applicationRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'reveal-super-admin-recovery-key.php';
         $runRecoveryCli = static function() use ($cliScript,$applicationRoot,$httpHome,$configFiles): array {
