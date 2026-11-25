@@ -18,6 +18,12 @@ final readonly class Response
         }
     }
 
+    /** @param array<string,string> $headers */
+    public function withHeaders(array $headers): self
+    {
+        return new self($this->body,$this->status,array_replace($this->headers,$headers));
+    }
+
     public static function html(string $body, int $status = 200): self
     {
         return new self($body, $status, self::securityHeaders(['content-type' => 'text/html; charset=utf-8']));
