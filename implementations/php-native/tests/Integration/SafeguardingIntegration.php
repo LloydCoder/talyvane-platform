@@ -41,6 +41,16 @@ function runSafeguardingIntegration(PDO $pdo): int {
  $dispatcher=new SafeguardingNotificationDispatcher($pdo,$box,$mailer);$dispatch=$dispatcher->dispatchBatch(10);
  $assert($dispatch['delivered']===1&&count($mailer->messages)===1&&$mailer->messages[0]['recipient']===$recipient&&!str_contains($mailer->messages[0]['body'],'potential consent issue'),'outbox dispatch delivers a minimal notification without confidential narrative');
  $again=$dispatcher->dispatchBatch(10);$assert($again['claimed']===0&&count($mailer->messages)===1,'delivered safeguarding notification is not sent again');
+ $createdRetry=$service->create($admin,'safety_concern','medium','Retry delivery case','This case exercises bounded outbox retry behaviour.','',$sid,bin2hex(random_bytes(16)));
+ $retryId=(string)$pdo->query('SELECT id FROM safeguarding_cases WHERE case_reference='.$pdo->quote($createdRetry['case_reference']))->fetchColumn();
+ $failingMailer=new class implements Mailer { public function send(string $recipient,string $subject,string $textBody):void{throw new RuntimeException('SMTP transport unavailable');} };
+ $retryDispatcher=new SafeguardingNotificationDispatcher($pdo,$box,$failingMailer);$retryResult=$retryDispatcher->dispatchBatch(10);
+ $retryRow=$pdo->prepare('SELECT status,attempts,last_error_code FROM safeguarding_notification_outbox WHERE case_id=:id');$retryRow->execute(['id'=>$retryId]);$retryState=$retryRow->fetch(PDO::FETCH_ASSOC);
+ $assert($retryResult['retried']===1&&is_array($retryState)&&$retryState['status']==='pending'&&(int)$retryState['attempts']===1&&$retryState['last_error_code']==='RuntimeException','failed notification delivery is retried with a bounded attempt count and sanitized error class');
+ $pdo->prepare('UPDATE safeguarding_notification_outbox SET available_at=UTC_TIMESTAMP()-INTERVAL 1 SECOND WHERE case_id=:id')->execute(['id'=>$retryId]);
+ $retryMailer=new class implements Mailer { public array $messages=[]; public function send(string $recipient,string $subject,string $textBody):void{$this->messages[]=$textBody;} };
+ $retrySuccess=(new SafeguardingNotificationDispatcher($pdo,$box,$retryMailer))->dispatchBatch(10);
+ $assert($retrySuccess['delivered']===1&&count($retryMailer->messages)===1,'retry becomes delivered after SMTP recovers');
  
  $detail=$service->assignedCase($specialist,$id,bin2hex(random_bytes(16)));
  $assert($detail['summary']==='Confidential safeguarding concern'&&$detail['subject_reference']==='opaque-reference:123','assigned specialist reads assigned case');
