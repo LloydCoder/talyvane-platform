@@ -44,4 +44,4 @@ jobs:
           --config p/security-headers
           --metrics=off
           --error
-          app bootstrap config database install public resources routes cpanel-public-root .github
+          app bootstrap config database install public resources routes cpanel-public-root implementations/php-native .github
