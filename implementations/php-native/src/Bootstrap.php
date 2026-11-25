@@ -48,8 +48,8 @@ final class Bootstrap
         $passwords = new PasswordChangeService($pdo, $rateLimiter, $audit);
 
         $public = new PublicSiteController($pdo, $views);
-        $adminAuth = new AdminAuthController($authentication, $passwords, $views);
         $contentManagement = new ContentManagementService($pdo, $audit);
+        $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
         $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
         $router = new Router();
 
