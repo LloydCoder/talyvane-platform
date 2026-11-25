@@ -8,6 +8,7 @@ use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Application\Identity\MfaService;
 use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Http\AdminAuthController;
+use Talyvane\Http\AdminBrandController;
 use Talyvane\Http\AdminContentController;
 use Talyvane\Http\PublicSiteController;
 use Talyvane\Http\Request;
@@ -51,6 +52,7 @@ final class Bootstrap
         $contentManagement = new ContentManagementService($pdo, $audit);
         $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
         $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
+        $adminBrand = new AdminBrandController($authentication, $contentManagement, $views);
         $router = new Router();
 
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
@@ -67,6 +69,9 @@ final class Bootstrap
         $router->add('GET', '/admin/recovery-codes', static fn(Request $request): Response => $adminAuth->recoveryCodes($request));
         $router->add('GET', '/admin', static fn(Request $request): Response => $adminAuth->dashboard($request));
         $router->add('POST', '/admin/logout', static fn(Request $request): Response => $adminAuth->logout($request));
+        $router->add('GET', '/admin/brand', static fn(Request $request): Response => $adminBrand->show($request));
+        $router->add('POST', '/admin/brand', static fn(Request $request): Response => $adminBrand->update($request));
+
         $router->add('GET', '/admin/content', static fn(Request $request): Response => $adminContent->index($request));
         $router->add('GET', '/admin/content/new', static fn(Request $request): Response => $adminContent->create($request));
         $router->add('POST', '/admin/content', static fn(Request $request, array $params): Response => $adminContent->save($request));
