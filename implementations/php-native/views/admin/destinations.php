@@ -64,11 +64,26 @@ $csrf = is_string($csrf ?? null) ? $csrf : '';
 </div>
 <div class="actions"><button class="button" type="submit">Save destination</button></div>
 </form>
+<form method="post" action="/admin/destinations/<?= $escape($item['id'] ?? '') ?>/cover" enctype="multipart/form-data" class="cover-upload">
+<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<div class="field"><label>Destination cover image (JPEG, PNG or WebP; max 8 MB)</label><input type="file" name="cover_image" accept="image/jpeg,image/png,image/webp" required></div>
+<label class="help"><input type="checkbox" name="rights_confirmed" value="1" required> I confirm I own or hold the necessary copyright, licence, property and likeness permissions for this image and authorize its use as this destination cover.</label>
+<div class="actions"><button class="button" type="submit">Submit cover for independent review</button></div>
+</form>
 </article>
 <?php endforeach; ?>
 </div>
 <?php endif; ?>
-<p class="help">This workspace intentionally excludes cover-image uploads until the private media pipeline, rights declaration and review workflow are available.</p>
+<p class="help">Cover images are stored outside the public web root, re-encoded to WebP, and remain private until a different MFA-authorized administrator approves the rights-attested submission.</p>
+<?php $pendingCovers = is_array($pendingCovers ?? null) ? $pendingCovers : []; ?>
+<?php if ($pendingCovers !== []): ?><div class="items"><h3>Pending cover review</h3>
+<?php foreach ($pendingCovers as $cover): ?><article class="item"><div class="item-head"><div><h2><?= $escape($cover['destination_name'] ?? '') ?></h2><div class="meta">Submitted <?= $escape($cover['created_at'] ?? '') ?></div></div><span class="pill">Pending rights review</span></div>
+<form method="post" action="/admin/destination-covers/<?= $escape($cover['id'] ?? '') ?>/review">
+<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<div class="field"><label>Review decision</label><select name="decision" required><option value="approved">Approve</option><option value="rejected">Reject</option></select></div>
+<div class="field"><label>Reason (10–500 characters)</label><input name="reason" minlength="10" maxlength="500" required></div>
+<div class="actions"><button class="button" type="submit">Record independent review</button></div>
+</form></article><?php endforeach; ?></div><?php endif; ?>
 </section>
 </main>
 </body>
