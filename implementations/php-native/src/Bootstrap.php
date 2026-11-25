@@ -105,7 +105,7 @@ final class Bootstrap
         $modelApplications = new ModelAgencyApplicationService($pdo, $audit);
         $publicModelAgency = new PublicModelAgencyController($pdo, $modelApplications, $contentManagement, $rateLimiter, $modelApplicantRights, $views);
         $adminModelAgency = new AdminModelAgencyController($authentication, $modelApplications, $views, $brandName);
-        $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views);
+        $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views, $brandName);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery);
         $router = new Router();
 
