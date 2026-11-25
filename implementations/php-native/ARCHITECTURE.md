@@ -66,3 +66,7 @@ Public profile media and members-only media are separate authorization paths. A 
 ## Quality gates
 
 No feature is accepted without requirement traceability, tests for success and failure states, authorization tests, audit coverage where applicable, accessibility checks, and operational documentation. Production release additionally requires a reproducible cPanel ZIP, clean-install test, upgrade test, backup/restore test, and staging acceptance on the actual target hosting configuration.
+
+## Destination cover media
+
+Destination covers use the shared private media storage pipeline and the `destination_cover_assets` governance ledger. Uploaders attest to a versioned rights statement; assets are re-encoded to WebP and remain private in `pending` state. A different MFA-authorized agency administrator must review with a reason. Approval verifies the stored bytes against SHA-256 and binds the exact private key to the destination. Public delivery requires an approved cover, published destination, enabled country, current approved market review by an MFA-backed administrator, and a matching destination pointer. Withdrawal is audited, clears the public pointer transactionally, and deletes private bytes. Storage keys are never rendered to users. This is an operator attestation and human-review workflow, not a rights-verification service or legal opinion.
