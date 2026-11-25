@@ -640,6 +640,19 @@ $errorLogMode = is_file($errorLogPath) ? (fileperms($errorLogPath) & 0777) : 0;
 $assert($errorLogMode === 0600, 'private runtime error log is restricted to owner read/write permissions');
 \Talyvane\Infrastructure\Logging\PrivateErrorLogger::record(new RuntimeException('must not create a public log'),$privatePaths['document_root'],$privatePaths['document_root'],'1122334455667788');
 $assert(!is_file($privatePaths['document_root'] . DIRECTORY_SEPARATOR . 'application-error.log'), 'private error logger refuses to write inside the public document root');
+$destinationMarkup = $authViews->render('admin/destinations',[
+    'brandName'=>'Maison Example',
+    'items'=>[[
+        'id'=>'destination-1','slug'=>'london','country_name'=>'United Kingdom','country_code'=>'GB',
+        'display_name'=>'<script>alert(1)</script>','city_name'=>'London','currency_code'=>'GBP',
+        'locale'=>'en-GB','time_zone'=>'Europe/London','status'=>'draft','market_decision'=>'pending',
+    ]],
+    'countries'=>[['alpha2'=>'GB','name'=>'United Kingdom','enabled'=>1]],
+    'currencies'=>[['code'=>'GBP','name'=>'Pound sterling','enabled'=>1]],
+    'error'=>'','notice'=>'','csrf'=>'csrf-destination-token',
+]);
+$assert(str_contains($destinationMarkup,'&lt;script&gt;alert(1)&lt;/script&gt;') && !str_contains($destinationMarkup,'<script>alert(1)</script>'), 'destination admin escapes database content before rendering');
+$assert(str_contains($destinationMarkup,'/admin/destinations/destination-1') && str_contains($destinationMarkup,'csrf-destination-token'), 'destination admin renders owner-scoped edit forms with CSRF protection');
 
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($iterator as $entry) {
