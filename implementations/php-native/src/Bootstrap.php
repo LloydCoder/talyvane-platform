@@ -158,6 +158,7 @@ final class Bootstrap
         $router->add('GET', '/admin/model-agency/verifications', static fn(Request $request): Response => $adminModelAgency->verificationQueue($request));
         $router->add('POST', '/admin/model-agency/{id}/review', static fn(Request $request, array $params): Response => $adminModelAgency->review($request, $params));
         $router->add('POST', '/admin/model-agency/{id}/verify', static fn(Request $request, array $params): Response => $adminModelAgency->verify($request, $params));
+        $router->add('POST', '/admin/model-agency/{id}/legal-hold', static fn(Request $request, array $params): Response => $adminModelAgency->legalHold($request, $params));
         $router->add('GET', '/admin/companions', static fn(Request $request): Response => $adminCompanions->index($request));
         $router->add('POST', '/admin/companions/{id}/publish', static fn(Request $request, array $params): Response => $adminCompanions->publish($request, $params));
         $router->add('GET', '/admin/enquiries', static fn(Request $request): Response => $adminEnquiries->index($request));
