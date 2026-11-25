@@ -60,7 +60,7 @@ Public profile media and members-only media are separate authorization paths. A 
 - Every media-byte request rechecks the membership grant, profile discoverability and market eligibility, the exact current public publication grant/version, the separate members-only consent, human reviewer attestations, and the stored content hash.
 - Media and membership records are locked for the duration of authorization and byte retrieval so concurrent membership suspension or companion withdrawal serializes with delivery.
 - Withdrawal changes the media to a non-deliverable state, records consent/audit evidence, removes it from gallery projections, and deletes the private bytes after the transaction commits.
-- The global feature flag remains disabled by default. Current market and consent prerequisites must be satisfied before it can be enabled; provider, legal and safeguarding prerequisites remain fail-closed until independent evidence adapters exist.
+- The global feature flag remains disabled by default. Activation requires an explicit deployment legal-approval reference, current policy version, exact brand-bound consent-statement hash and current market/public-consent prerequisites. A brand or policy-version change invalidates stored approval and existing per-image consent. Provider and safeguarding prerequisites remain fail-closed until independent evidence adapters exist.
 - Gallery pages and image responses are private, non-cacheable, non-indexable, and use opaque application routes rather than storage URLs.
 
 ## Quality gates
