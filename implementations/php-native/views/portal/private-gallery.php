@@ -1,0 +1,11 @@
+<?php
+declare(strict_types=1);
+$brandName=is_string($brandName??null)?$brandName:'Talyvane';
+$items=is_array($items??null)?$items:[];
+$error=is_string($error??null)?$error:'';
+?>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Members gallery · <?= $escape($brandName) ?></title>
+<style>
+:root{color-scheme:light;--ink:#182638;--muted:#667487;--paper:#f4f2ed;--panel:#fffefa;--line:#e6e2d9;--night:#142235}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.6 Inter,ui-sans-serif,system-ui,sans-serif}.shell{width:min(1080px,calc(100% - 32px));margin:auto}.top{padding:22px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}.brand{font:600 20px Georgia,serif;letter-spacing:.08em}a{color:var(--ink)}main{padding:42px 0 80px}h1{font:400 clamp(34px,5vw,52px)/1.1 Georgia,serif;margin:0 0 10px}.muted{color:var(--muted)}.error{padding:14px;background:#fff3f1;border:1px solid #e7c9c3}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px;margin-top:28px}.item{background:var(--panel);border:1px solid var(--line);padding:12px}.item img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;background:#e8e3d9}.item p{margin:10px 4px}
+</style></head><body><header class="shell top"><span class="brand"><?= $escape($brandName) ?></span><a href="/portal">Client portal</a></header><main class="shell"><p class="muted">PRIVATE CLIENT BENEFIT</p><h1>Members-only gallery</h1><p class="muted">Images appear here only while your membership entitlement, the companion's separate image consent, public profile eligibility and current market approval remain valid. This page is private and not indexed.</p>
+<?php if($error!==''): ?><p class="error" role="alert"><?= $escape($error) ?></p><?php elseif($items===[]): ?><p class="muted">No members-only images are currently available.</p><?php else: ?><section class="grid"><?php foreach($items as $item): ?><article class="item"><img src="<?= $escape($item['url']) ?>" alt="Approved members-only profile image" loading="lazy"><p><strong><?= $escape($item['profile_name']) ?></strong></p></article><?php endforeach; ?></section><?php endif; ?></main></body></html>
