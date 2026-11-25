@@ -164,9 +164,12 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
             'installer shows the one-time administrator credential handoff after lock creation');
         preg_match('/<label>Initial Super Admin password<\/label><code>([^<]+)<\/code>/',$successResponse->body,$passwordMatch);
         $initialPassword = html_entity_decode($passwordMatch[1] ?? '',ENT_QUOTES | ENT_HTML5,'UTF-8');
-        $assert($initialPassword !== '' && !str_contains($successResponse->body,'Offline Super Admin recovery key') &&
-            str_contains($successResponse->body,'cPanel Terminal'),
-            'browser handoff displays only the initial password and directs recovery-key retrieval to the CLI');
+        preg_match('/<label>Offline Super Admin recovery key<\/label><code>([^<]+)<\/code>/',$successResponse->body,$recoveryMatch);
+        $offlineRecoveryKey = html_entity_decode($recoveryMatch[1] ?? '',ENT_QUOTES | ENT_HTML5,'UTF-8');
+        $assert($initialPassword !== '' && strlen($offlineRecoveryKey) === 43 &&
+            str_contains($successResponse->headers['cache-control'] ?? '','no-store') &&
+            str_contains($successResponse->headers['referrer-policy'] ?? '','no-referrer'),
+            'HTTPS one-time browser handoff displays both generated credentials with no-store and no-referrer protections');
 
         $configFiles = glob($httpHome . DIRECTORY_SEPARATOR . '.talyvane' . DIRECTORY_SEPARATOR . 'talyvane' . DIRECTORY_SEPARATOR . '*' . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'app.php') ?: [];
         $lockFiles = glob($httpHome . DIRECTORY_SEPARATOR . '.talyvane' . DIRECTORY_SEPARATOR . 'talyvane' . DIRECTORY_SEPARATOR . '*' . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'INSTALLATION-LOCK.json') ?: [];
@@ -181,29 +184,8 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
             ($installedConfig['paths']['application'] ?? null) === realpath($applicationRoot),
             'installer preserves exact connection secrets and records the actual private application code root');
         $recoveryHandoffFiles = glob(dirname($configFiles[0]) . DIRECTORY_SEPARATOR . 'INSTALLER-RECOVERY-HANDOFF.json') ?: [];
-        $cliScript = $applicationRoot . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'reveal-super-admin-recovery-key.php';
-        $runRecoveryCli = static function() use ($cliScript,$applicationRoot,$httpHome,$configFiles): array {
-            $process = proc_open([PHP_BINARY,$cliScript],[
-                0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w'],
-            ],$pipes,$applicationRoot,[
-                'HOME'=>$httpHome,'TALYVANE_CONFIG'=>$configFiles[0],
-            ]);
-            if (!is_resource($process)) { throw new RuntimeException('Could not start the recovery-key CLI integration process.'); }
-            fclose($pipes[0]);
-            $stdout = stream_get_contents($pipes[1]);
-            $stderr = stream_get_contents($pipes[2]);
-            fclose($pipes[1]);
-            fclose($pipes[2]);
-            return ['status'=>proc_close($process),'stdout'=>is_string($stdout)?$stdout:'','stderr'=>is_string($stderr)?$stderr:''];
-        };
-        $cliResult = count($recoveryHandoffFiles) === 1 ? $runRecoveryCli() : ['status'=>1,'stdout'=>'','stderr'=>''];
-        $offlineRecoveryKey = trim($cliResult['stdout']);
-        $assert($cliResult['status'] === 0 && strlen($offlineRecoveryKey) === 43 &&
-            !str_contains($successResponse->body,$offlineRecoveryKey) && !file_exists($recoveryHandoffFiles[0] ?? ''),
-            'offline recovery key is encrypted outside the browser and consumed once through the private CLI');
-        $secondCliResult = $runRecoveryCli();
-        $assert($secondCliResult['status'] === 1 && trim($secondCliResult['stdout']) === '',
-            'offline recovery key cannot be retrieved twice through the CLI');
+        $assert($recoveryHandoffFiles === [],
+            'successful browser handoff does not require terminal access or leave a duplicate recovery secret');
 
         $installedUser = $pdo->prepare('SELECT status,first_login_required,password_hash FROM users WHERE email = "first-admin@example.test" LIMIT 1');
         $installedUser->execute();
