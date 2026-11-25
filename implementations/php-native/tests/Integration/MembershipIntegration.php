@@ -68,13 +68,21 @@ function runMembershipIntegration(PDO $pdo): int
         $assert(!$entitlements->has($clientId,'media.private_gallery'),'superseding membership revokes effective entitlement access immediately');
         $eventCount->execute(['client'=>$clientId]);
         $assert((int) $eventCount->fetchColumn()===3,'supersession and reassignment are both recorded');
-    $memberships->revoke($actor,$secondId,'Client membership cancelled after a documented request.','cancelled',bin2hex(random_bytes(16)));
+    $thirdId=$memberships->assign(
+            $actor,$clientId,'platinum','Platinum','Membership with private gallery entitlement for cancellation test',
+            new DateTimeImmutable('now -1 minute',new DateTimeZone('UTC')),
+            new DateTimeImmutable('now +3 days',new DateTimeZone('UTC')),
+            ['media.private_gallery'],'Client approved a new membership with a private-gallery entitlement.',
+            bin2hex(random_bytes(16))
+        );
+    $assert($entitlements->has($clientId,'media.private_gallery'),'new active membership grants its explicitly approved entitlement');
+    $memberships->cancel($actor,$thirdId,'Client membership cancelled after a documented request.',bin2hex(random_bytes(16)));
     $revoked=$pdo->prepare('SELECT status FROM memberships WHERE id=:id');
-    $revoked->execute(['id'=>$secondId]);
+    $revoked->execute(['id'=>$thirdId]);
     $assert($revoked->fetchColumn()==='cancelled','explicit membership cancellation persists a terminal status');
     $assert(!$entitlements->has($clientId,'media.private_gallery'),'cancelled membership immediately revokes effective entitlement access');
     $eventCount->execute(['client'=>$clientId]);
-    $assert((int) $eventCount->fetchColumn()===4,'membership cancellation is recorded as an append-only lifecycle event');
+    $assert((int) $eventCount->fetchColumn()===6,'supersession, assignment and cancellation are recorded as append-only lifecycle events');
 
 
     $tamperRejected=false;
