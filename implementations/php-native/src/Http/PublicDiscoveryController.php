@@ -7,7 +7,7 @@ use Talyvane\Application\Discovery\DiscoveryService;
 
 final class PublicDiscoveryController
 {
-    public function __construct(private DiscoveryService $discovery, private ViewRenderer $views) {}
+    public function __construct(private DiscoveryService $discovery, private ViewRenderer $views, private AuthenticationService $authentication) {}
 
     public function destinations(Request $request): Response
     {
@@ -36,11 +36,14 @@ final class PublicDiscoveryController
     /** @param array<string,string> $params */
     public function profile(Request $request, array $params): Response
     {
+        SessionManager::start();
         $profile = $this->discovery->profile($params['slug'] ?? '');
         if ($profile === null) {
             return Response::html('<!doctype html><html lang="en"><meta charset="utf-8"><title>Not found</title><h1>This profile is not available.</h1><a href="/destinations">Explore destinations</a></html>',404);
         }
-        return $this->render(['mode'=>'profile','profile'=>$profile]);
+        $principal = $this->authentication->currentPrincipal();
+        $canSaveFavorite = $principal instanceof Principal && $principal->hasRole('client') && count($principal->roles) === 1;
+        return $this->render(['mode'=>'profile','profile'=>$profile,'canSaveFavorite'=>$canSaveFavorite,'csrf'=>$canSaveFavorite ? Csrf::issue() : '']);
     }
 
     /** @param array<string,mixed> $data */
