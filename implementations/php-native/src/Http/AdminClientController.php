@@ -37,7 +37,17 @@ final class AdminClientController
              LEFT JOIN memberships m ON m.client_user_id=u.id AND m.status="active"
              ORDER BY u.created_at DESC LIMIT 200'
         );
-        return $this->page($query->fetchAll(PDO::FETCH_ASSOC),$error,$status);
+        $noticeKey=$request->query['membership_assigned']??null;
+        $noticeKey=is_string($noticeKey)?$noticeKey:'';
+        if ($noticeKey==='') {
+            $noticeKey=$request->query['membership_cancelled']??$request->query['membership_suspended']??null;
+            $noticeKey=is_string($noticeKey)?$noticeKey:'';
+        }
+        $notice=match($noticeKey) {
+            '1' => 'Membership update saved.',
+            default => '',
+        };
+        return $this->page($query->fetchAll(PDO::FETCH_ASSOC),$error,$status,$notice);
     }
 
     /** @param array<string,string> $params */
@@ -97,6 +107,27 @@ final class AdminClientController
         }
     }
 
+    /** @param array<string,string> $params */
+    public function suspend(Request $request,array $params): Response
+    {
+        $principal=$this->principal();
+        if ($principal instanceof Response) { return $principal; }
+        if (!Csrf::verify($this->field($request,'_csrf'))) {
+            return $this->index($request,'Your session expired. Refresh this page and try again.',419);
+        }
+        try {
+            $this->memberships->suspend(
+                $principal,
+                (string)($params['id'] ?? ''),
+                $this->field($request,'reason'),
+                $request->requestId
+            );
+            return Response::redirect('/admin/clients?membership_suspended=1');
+        } catch (InvalidArgumentException|DomainException $error) {
+            return $this->index($request,$error->getMessage(),422);
+        }
+    }
+
     private function principal(): Principal|Response
     {
         SessionManager::start();
@@ -109,12 +140,13 @@ final class AdminClientController
     }
 
     /** @param list<array<string,mixed>> $clients */
-    private function page(array $clients,string $error,int $status): Response
+    private function page(array $clients,string $error,int $status,string $notice=''): Response
     {
         $html=$this->views->render('admin/clients',[
             'brandName'=>$this->brandName,
             'csrf'=>Csrf::issue(),
             'error'=>$error,
+            'notice'=>$notice,
             'clients'=>$clients,
             'entitlements'=>['media.private_gallery'=>'Private members-only gallery'],
         ]);
