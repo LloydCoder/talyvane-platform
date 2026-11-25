@@ -42,12 +42,12 @@ final class SetupKey
     public function read(): string
     {
         if (!is_file($this->privateKeyFile) || is_link($this->privateKeyFile) || !is_readable($this->privateKeyFile)) {
-            throw new \\RuntimeException('Private installer key is unavailable.');
+            throw new \RuntimeException('Private installer key is unavailable.');
         }
         $stored = file_get_contents($this->privateKeyFile);
         $key = is_string($stored) ? trim($stored) : '';
         if (strlen($key) !== 43 || !preg_match('/^[A-Za-z0-9_-]{43}$/D',$key)) {
-            throw new \\RuntimeException('Private installer key is invalid.');
+            throw new \RuntimeException('Private installer key is invalid.');
         }
         return $key;
     }
