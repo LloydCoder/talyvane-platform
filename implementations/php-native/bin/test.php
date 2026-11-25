@@ -121,7 +121,7 @@ $contentListMarkup = $authViews->render('admin/content', [
     'pages'=>[['id'=>'page-1','slug'=>'terms','title'=>'<script>alert(1)</script>','locale'=>'en','status'=>'draft','version'=>2,'updated_at'=>'2026-11-25 10:00:00']],
     'page'=>[],
 ]);
-$assert(str_contains($contentListMarkup, 'action="/admin/content/new"'), 'CMS index exposes the create-page workflow');
+$assert(str_contains($contentListMarkup, 'href="/admin/content/new"'), 'CMS index exposes the create-page workflow');
 $assert(!str_contains($contentListMarkup, '<script>alert(1)</script>'), 'CMS index escapes untrusted page titles');
 $contentEditMarkup = $authViews->render('admin/content', [
     'mode'=>'edit',
