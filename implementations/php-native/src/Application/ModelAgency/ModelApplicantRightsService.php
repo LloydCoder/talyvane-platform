@@ -176,6 +176,7 @@ final class ModelApplicantRightsService
                 'experience_summary'=>$application['experience_summary'],
                 'status'=>$application['status'],
                 'privacy_notice_version'=>$application['privacy_notice_version'],
+                'privacy_acknowledged_at'=>$application['privacy_acknowledged_at'],
                 'created_at'=>$application['created_at'],
             ];
             $this->pdo->commit();
