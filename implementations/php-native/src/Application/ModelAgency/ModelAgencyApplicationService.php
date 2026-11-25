@@ -24,6 +24,7 @@ final class ModelAgencyApplicationService
         ?string $portfolioUrl,
         ?string $experienceSummary,
         bool $adultAttested,
+        bool $privacyAcknowledged,
         string $privacyNoticeVersion,
         string $requestId
     ): string {
@@ -33,7 +34,7 @@ final class ModelAgencyApplicationService
         $city = trim($city);
         if ($name === '' || strlen($name) > 120 || filter_var($email,FILTER_VALIDATE_EMAIL) === false ||
             strlen($email) > 254 || !preg_match('/^[A-Z]{2}$/D',$country) ||
-            $city === '' || strlen($city) > 120 || !$adultAttested ||
+            $city === '' || strlen($city) > 120 || !$adultAttested || !$privacyAcknowledged ||
             ($phone !== null && (strlen($phone) > 40 || preg_match('/^[+0-9(). \-]{5,40}$/D',trim($phone)) !== 1)) ||
             ($experienceSummary !== null && strlen($experienceSummary) > 8000) ||
             ($portfolioUrl !== null && (strlen($portfolioUrl) > 2048 ||
@@ -75,9 +76,9 @@ final class ModelAgencyApplicationService
             $insert = $this->pdo->prepare(
                 'INSERT INTO model_talent_applications
                  (id,application_reference,applicant_name,email,phone,country_code,city,portfolio_url,experience_summary,
-                  adult_eligibility_attested_at,privacy_notice_version,status,retention_due_at,created_at,updated_at)
+                  adult_eligibility_attested_at,privacy_acknowledged_at,privacy_notice_version,status,retention_due_at,created_at,updated_at)
                  VALUES (:id,:reference,:name,:email,:phone,:country,:city,:portfolio,:experience,
-                  UTC_TIMESTAMP(),:notice,"submitted",:retention,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+                  UTC_TIMESTAMP(),UTC_TIMESTAMP(),:notice,"submitted",:retention,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
             );
             $insert->execute([
                 'id'=>$id,'reference'=>$reference,'name'=>$name,'email'=>$email,'phone'=>$phone,
@@ -88,7 +89,7 @@ final class ModelAgencyApplicationService
             $this->audit->record(null,'model_application.submitted','model_application',$id,'Applicant submitted a model-agency application',null,[
                 'country_code'=>$country,
                 'privacy_notice_version'=>$privacyNoticeVersion,
-                'adult_attestation_recorded'=>true,
+                'adult_attestation_recorded'=>true,\n                'privacy_acknowledged'=>true,
                 'retention_due_at'=>$retention->format('Y-m-d H:i:s'),
             ],$requestId,'model-agency-intake-v1');
             $this->pdo->commit();
