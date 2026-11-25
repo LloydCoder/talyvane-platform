@@ -1,12 +1,12 @@
 # Talyvane — Native PHP implementation
 
-This directory is the isolated workspace for a native PHP implementation of Talyvane.
+This is an isolated, parallel implementation of Talyvane inside the existing monorepo. The Laravel application remains intact and is the behavioral reference until a formal parity review changes that decision.
 
 ## Status
 
-**Scaffold only — not an application and not deployable.**
+**Foundation in progress — not a complete application and not deployable.** The initial HTTP kernel, routing primitive, money value object, password hashing helper, CSRF token helper, feature registry and dependency-free smoke test have been started. The feature-by-feature implementation ledger is [PORTING-TRACKER.md](PORTING-TRACKER.md).
 
-The Laravel application remains the existing implementation and is not moved, renamed, or modified by this workspace. The native PHP implementation must be developed and evaluated independently before any decision is made about the preferred production implementation.
+Do not treat a green foundation test as proof of product parity, security certification, production readiness or cPanel compatibility.
 
 ## Non-negotiable delivery target
 
@@ -16,7 +16,8 @@ The installer must discover the hosting layout safely, keep application code/con
 
 ## Engineering constraints
 
-- Target the PHP version supported by the agreed HostSailor account; verify the actual runtime before setting a minimum version.
+- Keep native PHP isolated from Laravel runtime files, dependencies, configuration, sessions, migrations and release artifacts.
+- Target PHP 8.3+ provisionally to match the current documented Laravel host baseline; verify the actual HostSailor web-SAPI runtime before locking the release minimum.
 - Use PDO with parameterized queries and explicit transaction boundaries.
 - Keep domain logic independent of HTTP, database, filesystem, and mail adapters.
 - Use secure password hashing, CSRF protection, session hardening, rate limiting, authorization checks, MFA, audit logging, and safe error handling.
@@ -31,6 +32,7 @@ The installer must discover the hosting layout safely, keep application code/con
 implementations/php-native/
 ├── README.md
 ├── ARCHITECTURE.md
+├── PORTING-TRACKER.md
 ├── public/                 # Only web-accessible entrypoint and static assets
 ├── src/                    # Domain, application, and infrastructure code
 ├── config/                 # Non-secret configuration templates
@@ -47,11 +49,15 @@ implementations/php-native/
 
 The final release ZIP may use a different flattened layout if required for cPanel compatibility. Build output must be reproducible and must not include development secrets, test data, or local environment files.
 
-## Current phase
+## Development sequence
 
-1. Establish the implementation boundary and architecture.
-2. Inventory the canonical product requirements and map every requirement to native PHP modules and tests.
-3. Build the secure installer and deployment bootstrap first.
-4. Implement vertical slices with tests, beginning with identity, authorization, audit, and installation lifecycle.
-5. Compare feature parity, security, operations, and cPanel deployment against Laravel.
-6. Do not promote either implementation based on a homepage/demo alone.
+1. Requirement inventory and traceability.
+2. Secure runtime, installer, database migrations and deployment bootstrap.
+3. Identity, authorization, MFA, audit and recovery.
+4. Public site, CMS, discovery, booking and client/companion portals.
+5. Model agency applications, agreements, portfolios, casting, assignments and settlements.
+6. Verification, consent, safeguarding, CRM, communications, payments and globalization.
+7. Super Admin configuration, integrations, reporting and operational workflows.
+8. Automated parity/security tests, cPanel package, real-host acceptance, backup/restore and upgrade drills.
+
+See [PORTING-TRACKER.md](PORTING-TRACKER.md) for acceptance status. No module is complete until its success/failure states, role boundaries, audit events, accessibility, privacy and operations evidence are accepted.
