@@ -29,7 +29,10 @@ function runSafeguardingIntegration(PDO $pdo): int {
  $appKey=str_repeat('K',32);$box=new SecretBox($appKey);
  $outbox=new SafeguardingNotificationOutbox($pdo,$box,hash('sha256',$appKey.'|safeguarding-outbox-fingerprint-v1',true));
  $service=new SafeguardingCaseService($pdo,new SafeguardingCryptoService(new LocalSafeguardingCaseKeyProvider($appKey)),new AuditLogger($pdo),$outbox);
- $created=$service->create($admin,'coercion','high','Confidential safeguarding concern','A privacy-minimised report for integration testing.','opaque-reference:123',$sid,bin2hex(random_bytes(16)));
+
+ try{$service->create($admin,'coercion','high','Confidential safeguarding concern','A privacy-minimised report for integration testing.','',$sid,bin2hex(random_bytes(16)));throw new RuntimeException('Safeguarding integration failed: legacy category unexpectedly accepted');}catch(InvalidArgumentException){}
+ try{$service->create($admin,'consent_concern','high','Too short','This report details a privacy-minimised safeguarding concern.','',$sid,bin2hex(random_bytes(16)));throw new RuntimeException('Safeguarding integration failed: short summary unexpectedly accepted');}catch(InvalidArgumentException){}
+ $created=$service->create($admin,'coercion_or_exploitation','high','Confidential safeguarding concern','A privacy-minimised report for integration testing.','opaque-reference:123',$sid,bin2hex(random_bytes(16)));
  $id=(string)$pdo->query('SELECT id FROM safeguarding_cases WHERE case_reference='.$pdo->quote($created['case_reference']))->fetchColumn();
  $n=0;$assert=static function(bool $ok,string $m)use(&$n):void{$n++;if(!$ok)throw new RuntimeException('Safeguarding integration failed: '.$m);};
  $out=$pdo->prepare('SELECT id,recipient_ciphertext,payload_ciphertext,status FROM safeguarding_notification_outbox WHERE case_id=:id');$out->execute(['id'=>$id]);$notification=$out->fetch(PDO::FETCH_ASSOC);
@@ -41,7 +44,7 @@ function runSafeguardingIntegration(PDO $pdo): int {
  $dispatcher=new SafeguardingNotificationDispatcher($pdo,$box,$mailer);$dispatch=$dispatcher->dispatchBatch(10);
  $assert($dispatch['delivered']===1&&count($mailer->messages)===1&&$mailer->messages[0]['recipient']===$recipient&&!str_contains($mailer->messages[0]['body'],'potential consent issue'),'outbox dispatch delivers a minimal notification without confidential narrative');
  $again=$dispatcher->dispatchBatch(10);$assert($again['claimed']===0&&count($mailer->messages)===1,'delivered safeguarding notification is not sent again');
- $createdRetry=$service->create($admin,'safety_concern','medium','Retry delivery case','This case exercises bounded outbox retry behaviour.','',$sid,bin2hex(random_bytes(16)));
+ $createdRetry=$service->create($admin,'consent_concern','medium','Retry delivery case','This case exercises bounded outbox retry behaviour.','',$sid,bin2hex(random_bytes(16)));
  $retryId=(string)$pdo->query('SELECT id FROM safeguarding_cases WHERE case_reference='.$pdo->quote($createdRetry['case_reference']))->fetchColumn();
  $failingMailer=new class implements Mailer { public function send(string $recipient,string $subject,string $textBody):void{throw new RuntimeException('SMTP transport unavailable');} };
  $retryDispatcher=new SafeguardingNotificationDispatcher($pdo,$box,$failingMailer);$retryResult=$retryDispatcher->dispatchBatch(10);
@@ -66,8 +69,8 @@ function runSafeguardingIntegration(PDO $pdo): int {
  $assert(($backupPolicies->current()['policy_version']??null)==='safeguard-v1','encrypted backup policy is stored with accountable approval');
  try{$backupPolicies->approve($owner,365,'safeguard-v2','The same approver cannot approve a replacement backup policy.',bin2hex(random_bytes(16)));$assert(false,'same backup policy approver rejected');}catch(DomainException){$assert(true,'backup policy changes require a different privileged approver');}
  $retentionPolicies=new SafeguardingRetentionPolicyService($pdo,new AuditLogger($pdo));
- $retentionPolicies->save($admin,'coercion',365,'Applicable legal retention basis reference','safeguard-v1',true,'Independent Super Admin approved this category retention period.',bin2hex(random_bytes(16)));
- $assert(count(array_filter($retentionPolicies->all(),static fn(array $r):bool=>$r['category']==='coercion'&&(int)$r['enabled']===1))===1,'category retention policy is versioned and maker-checker approved');
+ $retentionPolicies->save($admin,'coercion_or_exploitation',365,'Applicable legal retention basis reference','safeguard-v1',true,'Independent Super Admin approved this category retention period.',bin2hex(random_bytes(16)));
+ $assert(count(array_filter($retentionPolicies->all(),static fn(array $r):bool=>$r['category']==='coercion_or_exploitation'&&(int)$r['enabled']===1))===1,'category retention policy is versioned and maker-checker approved');
  try{(new SafeguardingRetentionService($pdo,new SafeguardingCryptoService(new LocalSafeguardingCaseKeyProvider($appKey))))->apply();$assert(false,'local key retention must fail closed');}catch(RuntimeException){$assert(true,'local application-key custody cannot claim backup-safe cryptographic erasure');}
  try{(new SafeguardingRestoreVerificationService($pdo,new SafeguardingCryptoService(new LocalSafeguardingCaseKeyProvider($appKey)),new AuditLogger($pdo)))->verify($admin,'verified-backup-reference','a'.str_repeat('b',63),'safeguard-v1',bin2hex(random_bytes(16)));$assert(false,'Vault restore verification must fail with local provider');}catch(RuntimeException){$assert(true,'restore reconciliation requires external Vault Transit');}
  $pdo->prepare('UPDATE admin_mfa_credentials SET enabled_at=NULL WHERE user_id=:id')->execute(['id'=>$sid]);
