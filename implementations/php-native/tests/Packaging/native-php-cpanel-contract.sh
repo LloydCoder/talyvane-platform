@@ -32,11 +32,18 @@ for required in \
   talyvane-native-app/src/Installer/SafeZipExtractor.php \
   talyvane-native-app/database/migrations/0001_core.php \
   talyvane-native-app/database/migrations/0021_membership_entitlements.php \
+  talyvane-native-app/database/migrations/0022_safeguarding_restore_verification.php \
+  talyvane-native-app/database/migrations/0023_safeguarding_retention_policy_events.php \
   talyvane-native-app/database/reference-data/countries.json \
   talyvane-native-app/views/install/wizard.php \
   talyvane-native-app/vendor/autoload.php \
   talyvane-native-app/bin/reveal-super-admin-recovery-key.php \
-  talyvane-native-app/bin/dispatch-safeguarding-notifications.php; do
+  talyvane-native-app/bin/dispatch-safeguarding-notifications.php \
+  talyvane-native-app/bin/apply-safeguarding-retention.php \
+  talyvane-native-app/bin/verify-safeguarding-restore.php \
+  talyvane-native-app/src/Application/Safeguarding/VaultTransitSafeguardingCaseKeyProvider.php \
+  talyvane-native-app/src/Application/Safeguarding/SafeguardingRetentionService.php \
+  talyvane-native-app/src/Application/Safeguarding/SafeguardingRestoreVerificationService.php; do
   grep -Fxq "$required" "$tmp/private.txt" || { echo "Native private payload is incomplete: $required" >&2; exit 1; }
 done
 if grep -Eq '(^|/)tests/|(^|/)\.env($|\.)|(^|/)(integration|test)\.php$|\.log$|\.sqlite$' "$tmp/private.txt"; then
