@@ -31,6 +31,7 @@ use Talyvane\Security\Principal;
 use Talyvane\Security\Totp;
 use Talyvane\Infrastructure\Logging\StructuredLogger;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
+use Talyvane\Infrastructure\Mail\SmtpMailer;
 use Talyvane\Installer\PrivatePathResolver;
 use Talyvane\Installer\EnvironmentPreflight;
 use Talyvane\Installer\SetupKey;
