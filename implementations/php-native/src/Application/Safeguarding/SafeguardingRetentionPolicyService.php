@@ -12,7 +12,7 @@ use Talyvane\Security\Principal;
 
 final class SafeguardingRetentionPolicyService
 {
-    private const CATEGORIES=['safety_concern','exploitation','coercion','trafficking','minor_safety','harassment','violence','wellbeing','other'];
+    private const CATEGORIES=['consent_concern','coercion_or_exploitation','trafficking_concern','minor_safety_concern','nonconsensual_content','threat_or_harassment','privacy_or_data_risk','other'];
 
     public function __construct(private PDO $pdo,private AuditLogger $audit) {}
 
