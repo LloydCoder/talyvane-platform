@@ -21,7 +21,7 @@ final class BookingStateMachine
     ];
 
     private const ACTOR_TRANSITIONS = [
-        'client' => ['requested>cancelled','accepted>cancelled','confirmed>cancelled'],
+        'client' => ['draft>requested','requested>cancelled','accepted>cancelled','confirmed>cancelled'],
         'companion' => ['requested>accepted','requested>declined','pending_review>accepted','pending_review>declined','confirmed>disputed'],
         'admin' => ['requested>pending_review','requested>awaiting_automatic_rule','requested>accepted','requested>declined','pending_review>accepted','pending_review>declined','awaiting_automatic_rule>accepted','awaiting_automatic_rule>pending_review','accepted>confirmed','confirmed>completed','confirmed>cancelled','confirmed>no_show','completed>disputed'],
         'owner' => ['requested>pending_review','requested>awaiting_automatic_rule','requested>accepted','requested>declined','pending_review>accepted','pending_review>declined','awaiting_automatic_rule>accepted','awaiting_automatic_rule>pending_review','accepted>confirmed','confirmed>completed','confirmed>cancelled','confirmed>no_show','completed>disputed'],
