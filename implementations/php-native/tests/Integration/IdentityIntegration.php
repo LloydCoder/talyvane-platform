@@ -204,7 +204,7 @@ function runIdentityIntegration(PDO $pdo): int
     try { $registration->register('native-forbidden-admin@example.test',$password,'super_admin','127.0.0.1',bin2hex(random_bytes(16))); $assert(false,'public registration cannot create privileged roles'); }
     catch (InvalidArgumentException) { $assert(true,'public registration cannot create privileged roles'); }
     $publication = new CompanionProfilePublicationService($pdo,$audit);
-    $publisher = new Principal($id,['super_admin'],true);
+    $publisher = new Principal($id,['super_admin','verifier'],true);
     $publication->publish($publisher,$profileId,'Independent adult verification and current publication consent reviewed',bin2hex(random_bytes(16)));
     $discovery = new DiscoveryService($pdo);
     $publicDestinations = $discovery->destinations();
