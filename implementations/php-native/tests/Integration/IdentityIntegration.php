@@ -453,9 +453,15 @@ function runIdentityIntegration(PDO $pdo): int
     $privilegedExportDenied=false;
     try { $privacyExports->export($principal,bin2hex(random_bytes(16))); } catch (DomainException) { $privilegedExportDenied=true; }
     $assert($privilegedExportDenied,'administrator accounts cannot use the client/companion portal privacy export');
+    $privacyExports->export($clientPrincipal,bin2hex(random_bytes(16)));
+    $privacyExports->export($clientPrincipal,bin2hex(random_bytes(16)));
+    $privacyExportRateLimited=false;
+    try { $privacyExports->export($clientPrincipal,bin2hex(random_bytes(16))); }
+    catch (\\Talyvane\\Application\\Identity\\PortalPrivacyExportRateLimitException) { $privacyExportRateLimited=true; }
+    $assert($privacyExportRateLimited,'privacy export requests are rate-limited per portal account');
     $exportAudit=$pdo->prepare('SELECT COUNT(*) FROM audit_events WHERE event_key="portal.privacy.exported" AND actor_user_id IN (:client,:companion)');
     $exportAudit->execute(['client'=>$clientId,'companion'=>$companionId]);
-    $assert((int)$exportAudit->fetchColumn()===2,'each successful client/companion privacy export emits a correlated audit event');
+    $assert((int)$exportAudit->fetchColumn()===4,'each successful client/companion privacy export emits a correlated audit event');
 
 
     return $assertions;
