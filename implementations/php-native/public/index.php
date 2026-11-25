@@ -6,15 +6,15 @@ declare(strict_types=1);
  * by the web server. Never place secrets, logs, uploads or application source
  * beneath this directory.
  */
-$root = dirname(__DIR__);
-require $root . '/bootstrap.php';
-
 use Talyvane\Http\NativeInstallerController;
 use Talyvane\Http\Request;
 use Talyvane\Http\Response;
 use Talyvane\Infrastructure\Logging\PrivateErrorLogger;
 use Talyvane\Installer\InstallerLock;
 use Talyvane\Installer\PrivatePathResolver;
+
+$root = dirname(__DIR__);
+require $root . '/bootstrap.php';
 
 try {
     $request = Request::fromGlobals();
