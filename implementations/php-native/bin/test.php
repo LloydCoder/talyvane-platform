@@ -23,6 +23,7 @@ use Talyvane\Features\FeatureRegistry;
 use Talyvane\Http\Request;
 use Talyvane\Http\Response;
 use Talyvane\Http\Router;
+use Talyvane\Http\ViewRenderer;
 use Talyvane\Security\Authorization;
 use Talyvane\Security\PasswordHasher;
 use Talyvane\Security\RecoveryCodes;
@@ -63,6 +64,20 @@ $router->add('GET', '/health/{component}', static fn(Request $r, array $p): Resp
 $response = $router->dispatch(new Request('GET', '/health/database'));
 $assert($response->status === 200 && $response->body === '{"component":"database"}', 'router extracts named path parameters');
 $assert($router->dispatch(new Request('GET', '/missing'))->status === 404, 'router returns 404 for unknown routes');
+
+$viewRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'talyvane-views-' . bin2hex(random_bytes(6));
+mkdir($viewRoot . DIRECTORY_SEPARATOR . 'pages', 0700, true);
+file_put_contents($viewRoot . DIRECTORY_SEPARATOR . 'pages' . DIRECTORY_SEPARATOR . 'sample.php', '<h1><?= $escape($title) ?></h1>');
+$views = new ViewRenderer($viewRoot);
+$assert($views->render('pages/sample', ['title'=>'<script>alert(1)</script>']) === '<h1>&lt;script&gt;alert(1)&lt;/script&gt;</h1>', 'view renderer HTML-escapes untrusted values');
+try { $views->render('../outside'); $assert(false, 'view identifiers reject traversal'); }
+catch (InvalidArgumentException) { $assert(true, 'view identifiers reject traversal'); }
+try { $views->render('pages/missing'); $assert(false, 'view renderer rejects missing templates'); }
+catch (RuntimeException) { $assert(true, 'view renderer rejects missing templates'); }
+unlink($viewRoot . DIRECTORY_SEPARATOR . 'pages' . DIRECTORY_SEPARATOR . 'sample.php');
+rmdir($viewRoot . DIRECTORY_SEPARATOR . 'pages');
+rmdir($viewRoot);
+
 try { Response::redirect('//evil.example'); $assert(false, 'external protocol-relative redirects rejected'); }
 catch (InvalidArgumentException) { $assert(true, 'external protocol-relative redirects rejected'); }
 try { Response::redirect("/safe\r\nLocation: https://evil.example"); $assert(false, 'CRLF redirect injection rejected'); }
