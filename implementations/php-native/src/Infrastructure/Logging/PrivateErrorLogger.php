@@ -33,7 +33,7 @@ final class PrivateErrorLogger
                 'exception_class'=>$error::class,
                 'exception_code'=>(string) $error->getCode(),
             ];
-            if ($error instanceof \\PDOException && is_array($error->errorInfo ?? null)) {
+            if ($error instanceof \PDOException && is_array($error->errorInfo ?? null)) {
                 $sqlState = $error->errorInfo[0] ?? null;
                 $driverCode = $error->errorInfo[1] ?? null;
                 if (is_string($sqlState) && preg_match('/^[A-Z0-9]{5}$/D',$sqlState)) {
