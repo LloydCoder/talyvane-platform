@@ -66,6 +66,15 @@ $router->add('GET', '/health/{component}', static fn(Request $r, array $p): Resp
 $response = $router->dispatch(new Request('GET', '/health/database'));
 $assert($response->status === 200 && $response->body === '{"component":"database"}', 'router extracts named path parameters');
 $assert($router->dispatch(new Request('GET', '/missing'))->status === 404, 'router returns 404 for unknown routes');
+$router->add('GET','/portal/membership',static fn(Request $r,array $p): Response => Response::html('private membership'));
+$router->add('GET','/public-page',static fn(Request $r,array $p): Response => Response::html('public page'));
+$privateResponse=$router->dispatch(new Request('GET','/portal/membership'));
+$assert(str_contains($privateResponse->headers['cache-control']??'','no-store') &&
+    ($privateResponse->headers['pragma']??'')==='no-cache',
+    'client and companion portal responses are explicitly non-cacheable');
+$publicResponse=$router->dispatch(new Request('GET','/public-page'));
+$assert(!isset($publicResponse->headers['cache-control']),
+    'public HTML responses retain their independently configurable cache policy');
 $uploadRequest = new Request('POST','/upload',[],[],[],'127.0.0.1','upload-request',[
     'media'=>['name'=>'portrait.webp','tmp_name'=>'/tmp/php-upload','error'=>UPLOAD_ERR_OK,'size'=>128,'type'=>'image/webp'],
 ]);
