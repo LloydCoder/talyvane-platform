@@ -210,6 +210,35 @@ $assert(str_contains($brandMarkup, 'action="/admin/brand"'), 'brand settings for
 $assert(str_contains($brandMarkup, 'Maison Example'), 'brand settings form shows the active deployment identity');
 $assert(str_contains($brandMarkup, 'name="color_accent"'), 'brand settings expose the configured accent token');
 $assert(!str_contains($brandMarkup, 'private/brand/logo.webp'), 'brand settings never expose private media storage keys');
+$clientBookingsMarkup = $authViews->render('portal/bookings', [
+    'mode'=>'client-list',
+    'brandName'=>'Maison Example',
+    'csrf'=>'client-booking-csrf',
+    'items'=>[['id'=>'booking-1','booking_reference'=>'TVN-ABC123','profile_name'=>'Talent Example','destination_name'=>'London','starts_at_utc'=>'2026-11-26 10:00:00','ends_at_utc'=>'2026-11-26 11:00:00','time_zone'=>'Europe/London','status'=>'requested','deposit_status'=>'not_required']],
+]);
+$assert(str_contains($clientBookingsMarkup, '/portal/bookings/booking-1/cancel'), 'client booking history exposes an ownership-scoped cancellation action');
+$companionBookingsMarkup = $authViews->render('portal/bookings', [
+    'mode'=>'companion-list',
+    'brandName'=>'Maison Example',
+    'csrf'=>'companion-booking-csrf',
+    'items'=>[['id'=>'booking-1','booking_reference'=>'TVN-ABC123','profile_name'=>'Talent Example','destination_name'=>'London','starts_at_utc'=>'2026-11-26 10:00:00','ends_at_utc'=>'2026-11-26 11:00:00','time_zone'=>'Europe/London','status'=>'requested','deposit_status'=>'not_required']],
+]);
+$assert(str_contains($companionBookingsMarkup, '/portal/companion/bookings/booking-1/decision'), 'companion booking workspace exposes accept and decline decisions');
+$adminBookingsMarkup = $authViews->render('portal/bookings', [
+    'mode'=>'admin-list',
+    'brandName'=>'Maison Example',
+    'csrf'=>'admin-booking-csrf',
+    'items'=>[['id'=>'booking-1','booking_reference'=>'TVN-ABC123','client_user_id'=>'internal-user-id','profile_name'=>'Talent Example','destination_name'=>'London','starts_at_utc'=>'2026-11-26 10:00:00','ends_at_utc'=>'2026-11-26 11:00:00','time_zone'=>'Europe/London','status'=>'requested','deposit_status'=>'not_required']],
+]);
+$assert(str_contains($adminBookingsMarkup, '/admin/bookings/booking-1/status'), 'administrator booking operations have a dedicated transition form');
+$bookingNewMarkup = $authViews->render('portal/bookings', [
+    'mode'=>'client-new',
+    'brandName'=>'Maison Example',
+    'csrf'=>'new-booking-csrf',
+    'profile'=>['id'=>'profile-1','slug'=>'talent-one','display_name'=>'Talent Example','destination_name'=>'London','time_zone'=>'Europe/London'],
+]);
+$assert(str_contains($bookingNewMarkup, 'destination local time') && str_contains($bookingNewMarkup, 'name="starts_at"'), 'booking requests capture destination-local start and end times');
+
 $rightsRequestMarkup = $authViews->render('public/model-agency-rights', [
     'screen'=>'request',
     'csrf'=>'rights-request-csrf',
