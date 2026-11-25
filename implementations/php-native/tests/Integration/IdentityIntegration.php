@@ -247,6 +247,14 @@ function runIdentityIntegration(PDO $pdo): int
     $updatedDestination = $pdo->prepare('SELECT display_name FROM destinations WHERE id = :id');
     $updatedDestination->execute(['id'=>$newDestinationId]);
     $assert($updatedDestination->fetchColumn() === 'Greater Manchester','destination update uses owner-scoped identity and preserves market publication gates');
+    $pdo->prepare('INSERT INTO countries (alpha2,alpha3,numeric_code,name,enabled,dataset_version,updated_at) VALUES ("DE","DEU","276","Germany",1,"test-iso-2026",UTC_TIMESTAMP())')->execute();
+    $pdo->prepare('INSERT INTO currencies (code,numeric_code,name,symbol,minor_units,enabled,dataset_version,updated_at) VALUES ("EUR","978","Euro","€",2,1,"test-iso-2026",UTC_TIMESTAMP())')->execute();
+    try { $destinationManagement->save($publisher,null,['slug'=>'berlin','country_code'=>'DE','city_name'=>'Berlin','display_name'=>'Berlin','currency_code'=>'EUR','locale'=>'de-DE','time_zone'=>'Europe/Berlin','status'=>'published'],bin2hex(random_bytes(16))); $assert(false,'destination cannot publish without market compliance approval'); }
+    catch (DomainException) { $assert(true,'destination cannot publish without market compliance approval'); }
+    $draftDestinationId = $destinationManagement->save($publisher,null,['slug'=>'berlin','country_code'=>'DE','city_name'=>'Berlin','display_name'=>'Berlin','currency_code'=>'EUR','locale'=>'de-DE','time_zone'=>'Europe/Berlin','status'=>'draft'],bin2hex(random_bytes(16)));
+    $draftDestination = $pdo->prepare('SELECT status FROM destinations WHERE id = :id');
+    $draftDestination->execute(['id'=>$draftDestinationId]);
+    $assert($draftDestination->fetchColumn() === 'draft','destination can be prepared as a private draft before market approval');
     try { $destinationManagement->save(new Principal($registeredId,['client'],false),null,['slug'=>'client-city','country_code'=>'GB','city_name'=>'Leeds','display_name'=>'Leeds','currency_code'=>'GBP','locale'=>'en-GB','time_zone'=>'Europe/London','status'=>'draft'],bin2hex(random_bytes(16))); $assert(false,'client cannot create destinations'); }
     catch (DomainException) { $assert(true,'client cannot create destinations'); }
     $pdo->prepare('UPDATE consent_grants SET withdrawn_at = UTC_TIMESTAMP() WHERE subject_type = "companion_profile" AND subject_id = :profile AND purpose = "profile.publication" AND audience = "public"')->execute(['profile'=>$profileId]);
