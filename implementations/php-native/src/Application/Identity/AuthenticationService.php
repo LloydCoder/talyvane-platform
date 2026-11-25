@@ -174,7 +174,7 @@ final class AuthenticationService
             throw new \\DomainException('Administrator account state changed during MFA setup.');
         }
         $roles = $this->roles($userId);
-        $codes = $this->mfa->confirmEnrollment(new Principal($userId,$roles,false),$code,$requestId);
+        if ((bool) $user['first_login_required'] || !$this->rateLimiter->consume('auth.mfa_setup',$userId,5,300,900)) {\n            throw new \\DomainException('MFA setup is blocked by account state or rate limiting.');\n        }\n        $codes = $this->mfa->confirmEnrollment(new Principal($userId,$roles,false),$code,$requestId);
         unset($_SESSION['_admin_mfa_setup_pending']);
         $this->finalizeAdminSession($userId,(int) $user['admin_session_version']);
         return $codes;
@@ -189,7 +189,7 @@ final class AuthenticationService
             return false;
         }
         $user = $this->activeUser((string) $pending['user_id']);
-        if ($user === null || (int) $user['admin_session_version'] !== (int) $pending['session_version']) {
+        if ($user === null || (bool) $user['first_login_required'] || (int) $user['admin_session_version'] !== (int) $pending['session_version']) {
             unset($_SESSION['_admin_mfa_pending']);
             return false;
         }
@@ -283,7 +283,7 @@ final class AuthenticationService
     /** @return array<string,mixed>|null */
     private function activeUser(string $userId): ?array
     {
-        $statement = $this->pdo->prepare("SELECT id, status, email_verified_at, admin_session_version FROM users WHERE id = :id LIMIT 1");
+        $statement = $this->pdo->prepare("SELECT id, status, email_verified_at, first_login_required, admin_session_version FROM users WHERE id = :id LIMIT 1");
         $statement->execute(['id'=>$userId]);
         $user = $statement->fetch();
         return is_array($user) && $user['status'] === 'active' && $user['email_verified_at'] !== null ? $user : null;
