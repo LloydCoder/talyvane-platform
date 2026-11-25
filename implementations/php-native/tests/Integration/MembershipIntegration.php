@@ -106,6 +106,18 @@ function runMembershipIntegration(PDO $pdo): int
     $suspended=$pdo->prepare('SELECT status FROM memberships WHERE id=:id');
     $suspended->execute(['id'=>$fourthId]);
     $assert($suspended->fetchColumn()==='suspended','membership suspension persists a non-active status');
+    $directoryMembership=$pdo->prepare(
+        'SELECT m.status FROM users u
+         LEFT JOIN memberships m ON m.id=(
+             SELECT latest.id FROM memberships latest
+             WHERE latest.client_user_id=u.id
+             ORDER BY latest.created_at DESC,latest.id DESC LIMIT 1
+         )
+         WHERE u.id=:client'
+    );
+    $directoryMembership->execute(['client'=>$clientId]);
+    $assert($directoryMembership->fetchColumn()==='suspended',
+        'admin client directory can distinguish a suspended membership from no membership');
     $assert(!$entitlements->has($clientId,'media.private_gallery'),'suspended membership immediately revokes effective entitlement access');
     $assert($memberships->currentForClient(new Principal($clientId,['client'],false))===null,
         'client portal hides a suspended membership from its current-membership projection');
