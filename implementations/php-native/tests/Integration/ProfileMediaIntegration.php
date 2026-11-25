@@ -125,7 +125,13 @@ function runProfileMediaIntegration(PDO $pdo): int
         } catch (DomainException) {
             $assert(true,'companions cannot access the administrator media-review queue');
         }
-        $service->review($admin,$pendingId,'approved','Image rights and public profile consent were reviewed and confirmed',$requestId);
+        try {
+            $service->review($admin,$pendingId,'approved','Image rights and public profile consent were reviewed and confirmed',false,true,true,$requestId);
+            $assert(false,'media cannot be approved without adult-safety attestation');
+        } catch (InvalidArgumentException) {
+            $assert(true,'media cannot be approved without adult-safety attestation');
+        }
+        $service->review($admin,$pendingId,'approved','Image rights and public profile consent were reviewed and confirmed',true,true,true,$requestId);
         $approvedAfterReview=$service->publicMedia($pendingId);
         $assert(hash_equals($pendingImage['sha256'],hash('sha256',$approvedAfterReview['bytes'])),
             'human approval changes pending media to public only after current eligibility and consent rechecks');
@@ -138,7 +144,7 @@ function runProfileMediaIntegration(PDO $pdo): int
             'grant'=>$fixture['consent_grant_id'],'version'=>$fixture['publication_consent_version'],
             'reviewer'=>null,'reviewed'=>null,
         ]);
-        $service->review($admin,$rejectedId,'rejected','Image did not meet the current rights and quality review requirements',$requestId);
+        $service->review($admin,$rejectedId,'rejected','Image did not meet the current rights and quality review requirements',false,false,false,$requestId);
         $rejectedState=$pdo->prepare('SELECT review_status,media_scope FROM profile_media WHERE id=:id');
         $rejectedState->execute(['id'=>$rejectedId]);
         $rejected=$rejectedState->fetch();
