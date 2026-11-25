@@ -229,7 +229,7 @@ function runProfileMediaIntegration(PDO $pdo): int
             $pendingProfileRow['publication_consent_version']==='profile-publication-v2' &&
             $pendingProfileRow['publication_consent_withdrawn_at']===null && !(bool) $pendingProfileRow['auto_booking_opt_in'],
             'renewed publication consent creates a new version and requires fresh human publication review');
-        $publication=new \\Talyvane\\Application\\Companions\\CompanionProfilePublicationService($pdo,$audit);
+        $publication=new \Talyvane\Application\Companions\CompanionProfilePublicationService($pdo,$audit);
         $publication->publish($admin,$profileId,'New versioned consent and current adult eligibility reviewed',bin2hex(random_bytes(16)));
         $republished=$discovery->profile((string) $fixture['slug']);
         $assert(is_array($republished) && ($republished['media'] ?? [])===[] && ($republished['primary_media_url'] ?? null)===null,
