@@ -14,7 +14,7 @@ A screen, route, database table, stub, or passing unit test alone does not estab
 
 ## 1. Runtime, installation and operations
 
-The native branch currently has 13 ordered PHP migrations plus backend slices for identity, companion onboarding, bookings, model-agency applications/rights/agreements, branding and CMS. The historical MySQL suite passed 13 migrations and 58 workflow assertions before the latest changes; this is not evidence for the current branch head. The public CMS layer now includes a fixed-root PHP view renderer, escaped templates, public-home rendering, published-page lookup, and the `site_pages` schema required by CMS revisions. The public home and CMS page templates now have a responsive editorial visual system (accessible focus states, reduced-motion handling, mobile layout, and text-only CMS rendering); this is a visual implementation, not browser acceptance evidence. A regression test was added for the throttled-admin-login failure and the undefined dummy-hash constant was corrected. These latest changes are awaiting CI execution. Admin/customer/companion application flows and the remaining product domains remain open.
+The native branch currently has 13 ordered PHP migrations plus backend slices for identity, companion onboarding, bookings, model-agency applications/rights/agreements, branding and CMS. At commit `d88bab66`, the dedicated native-PHP matrix (PHP 8.3/8.4/8.5), MySQL integration, single-ZIP package workflow, Semgrep and installer browser E2E all passed; the separate Laravel CI PHP 8.5 job was still running at last inspection. The public CMS layer includes a fixed-root PHP view renderer, escaped templates, public-home rendering, published-page lookup, and the `site_pages` schema required by CMS revisions. Public templates use a responsive editorial visual system with accessible focus states, reduced-motion handling, mobile layout and text-only CMS rendering. The administrator browser sign-in lifecycle has now been added: CSRF-protected login, first-login password replacement, mandatory MFA setup/challenge, single-use recovery-code presentation, session rotation, rate limits, no-store responses and a permission-checked secure entry screen. New auth view/controller wiring and rendering-safety tests are newer than `d88bab66` and must pass their own CI before acceptance. Customer/companion application flows and the remaining product domains remain open.
 
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
@@ -40,14 +40,14 @@ The native branch currently has 13 ordered PHP migrations plus backend slices fo
 | Client registration/login/logout | routes/web.php, portal auth | IN_PROGRESS | Validation, throttling, session rotation and role separation |
 | Client email verification | portal auth | NOT_STARTED | Expiring, single-use, rate-limited verification |
 | Companion provisioning/login | SECURITY-PRIVACY | NOT_STARTED | Trusted provisioning; no public companion self-registration unless approved |
-| Admin login/logout | admin routes | NOT_STARTED | Throttling, secure sessions and audit events |
+| Admin login/logout | admin routes | IN_PROGRESS | CSRF-protected browser flow, throttling, secure sessions and permission-checked entry point; audit coverage and browser acceptance remain open |
 | Roles: Super Admin, Owner, Admin | SECURITY-PRIVACY | IN_PROGRESS | Server-side least privilege and negative authorization tests |
 | Finance specialist isolation | SECURITY-PRIVACY | IN_PROGRESS | Finance sees settlement workspace only |
 | Verifier specialist isolation | SECURITY-PRIVACY | IN_PROGRESS | Minimal adult-eligibility queue only |
 | Safeguarding specialist isolation | SECURITY-PRIVACY | IN_PROGRESS | Assigned-case access only |
-| MFA/TOTP and replay prevention | SECURITY-PRIVACY | IN_PROGRESS | RFC-compatible TOTP, replay state, recovery codes single-use |
+| MFA/TOTP and replay prevention | SECURITY-PRIVACY | IN_PROGRESS | RFC-compatible TOTP, replay state, browser challenge/setup and one-time recovery codes; browser acceptance remains open |
 | Session versioning/revocation | SUPER-ADMIN-RECOVERY | IN_PROGRESS | Password/recovery/role changes invalidate prior sessions and pending MFA |
-| First-login password replacement | Installer E2E | NOT_STARTED | One-time password expires and must be replaced |
+| First-login password replacement | Installer E2E | IN_PROGRESS | Expiring one-time session, mandatory password replacement, session-version revocation and MFA enrollment handoff |
 | Initial password recovery | Admin recovery routes | NOT_STARTED | Short-lived verified recovery and session invalidation |
 | Super Admin offline recovery | SUPER-ADMIN-RECOVERY | NOT_STARTED | Password + offline key, key rotation, notices, append-only audit |
 | Two-owner break-glass | SUPER-ADMIN-RECOVERY | NOT_STARTED | Independent owners, dual verification, distinct credentials and approvals |
