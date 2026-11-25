@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Talyvane\Http;
 
+use Closure;
 use DomainException;
 use InvalidArgumentException;
 use PDO;
@@ -30,7 +31,7 @@ final class NativeInstallerController
 {
     private ?array $paths = null;
 
-    public function __construct(private string $applicationRoot) {}
+    public function __construct(private string $applicationRoot,private ?Closure $pdoFactory=null,private ?Closure $mailerFactory=null) {}
 
     public function handle(Request $request): Response
     {
@@ -198,7 +199,7 @@ final class NativeInstallerController
                 throw new InvalidArgumentException('SMTP sender details or encryption mode are invalid.');
             }
 
-            $pdo = ConnectionFactory::mysql($database);
+            $pdo = $this->connectDatabase($database);
             $this->assertInstallableDatabase($pdo);
             (new MigrationRunner($pdo,$this->applicationRoot . '/database/migrations'))->migrate();
             $migrationCount = (int) $pdo->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn();
@@ -226,7 +227,7 @@ final class NativeInstallerController
             $pendingStore->write($pending);
 
             try {
-                $mailer = new SmtpMailer($mail);
+                $mailer = $this->createMailer($mail);
                 $emailVerification = new EmailVerificationService(
                     $pdo,$mailer,new RateLimiter($pdo,$appKey),new AuditLogger($pdo),$appKey
                 );
@@ -292,9 +293,9 @@ final class NativeInstallerController
         }
 
         try {
-            $pdo = ConnectionFactory::mysql($pending['database']);
+            $pdo = $this->connectDatabase($pending['database']);
             $emailVerification = new EmailVerificationService(
-                $pdo,new SmtpMailer($pending['mail']),new RateLimiter($pdo,$pending['app_key']),
+                $pdo,$this->createMailer($pending['mail']),new RateLimiter($pdo,$pending['app_key']),
                 new AuditLogger($pdo),(string) $pending['app_key']
             );
             $bootstrapQuery = $pdo->prepare(
@@ -506,6 +507,30 @@ final class NativeInstallerController
             flock($handle,LOCK_UN);
             fclose($handle);
         }
+    }
+
+    /** @param array<string,mixed> $database */
+    private function connectDatabase(array $database): PDO
+    {
+        $pdo = $this->pdoFactory !== null
+            ? ($this->pdoFactory)($database)
+            : ConnectionFactory::mysql($database);
+        if (!$pdo instanceof PDO) {
+            throw new RuntimeException('Installer database connector returned an invalid connection.');
+        }
+        return $pdo;
+    }
+
+    /** @param array<string,mixed> $mail */
+    private function createMailer(array $mail): Mailer
+    {
+        $mailer = $this->mailerFactory !== null
+            ? ($this->mailerFactory)($mail)
+            : new SmtpMailer($mail);
+        if (!$mailer instanceof Mailer) {
+            throw new RuntimeException('Installer mail transport is unavailable.');
+        }
+        return $mailer;
     }
 
     private function preflight(array $paths): array
