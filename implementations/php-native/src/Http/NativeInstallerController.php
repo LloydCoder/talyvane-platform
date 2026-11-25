@@ -571,6 +571,13 @@ final class NativeInstallerController
             $accountHome = dirname($documentRoot);
         }
         $this->paths = PrivatePathResolver::resolve($documentRoot,$accountHome);
+        $codeRoot = realpath($this->applicationRoot);
+        if ($codeRoot === false || !is_dir($codeRoot) || is_link($this->applicationRoot) ||
+            !$this->isWithin($codeRoot,$this->paths['home']) ||
+            $this->isWithin($codeRoot,$this->paths['document_root'])) {
+            throw new RuntimeException('Native application code must be a verified private directory outside the public document root.');
+        }
+        $this->paths['application'] = $codeRoot;
         return $this->paths;
     }
 
