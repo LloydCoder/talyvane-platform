@@ -15,7 +15,7 @@ final class MigrationRunner
      * binary-log policy requires elevated privileges. Only known trigger
      * privilege errors are deferred; every other SQL error remains fatal.
      */
-    public static function isSharedHostingTriggerRestriction(\\PDOException $error,string $sql): bool
+    public static function isSharedHostingTriggerRestriction(\PDOException $error,string $sql): bool
     {
         if (preg_match('/^CREATE\\s+TRIGGER\\b/i',ltrim($sql)) !== 1 || !is_array($error->errorInfo ?? null)) {
             return false;
@@ -93,7 +93,7 @@ final class MigrationRunner
                     }
                     try {
                         $this->pdo->exec($sql);
-                    } catch (\\PDOException $error) {
+                    } catch (\PDOException $error) {
                         if (!self::isSharedHostingTriggerRestriction($error,$sql)) {
                             throw $error;
                         }
