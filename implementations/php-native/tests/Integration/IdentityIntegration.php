@@ -287,6 +287,59 @@ function runIdentityIntegration(PDO $pdo): int
     $publishedBerlin = $pdo->prepare('SELECT status FROM destinations WHERE id = :id');
     $publishedBerlin->execute(['id'=>$draftDestinationId]);
     $assert($publishedBerlin->fetchColumn() === 'published','destination publication succeeds only after an evidence-backed Super Admin market approval');
+    $coverRoot=sys_get_temp_dir().DIRECTORY_SEPARATOR.'talyvane-cover-private-'.bin2hex(random_bytes(6));
+    $coverPublic=$coverRoot.DIRECTORY_SEPARATOR.'public';
+    $coverPrivate=$coverRoot.DIRECTORY_SEPARATOR.'private';
+    mkdir($coverPublic,0755,true);
+    $coverStorage=new \\Talyvane\\Infrastructure\\Storage\\PrivateMediaStorage($coverPrivate,$coverPublic);
+    $coverService=new \\Talyvane\\Application\\Destinations\\DestinationCoverService($pdo,$coverStorage,$audit);
+    $assert($coverService->pending($principal)===[],'destination cover review queue starts empty');
+    $coverDenied=false;
+    try { $coverService->pending($clientPrincipal); } catch (DomainException) { $coverDenied=true; }
+    $assert($coverDenied,'client cannot inspect destination cover moderation queue');
+    $coverFilename=bin2hex(random_bytes(16)).'.webp';
+    $coverDirectory=$coverPrivate.DIRECTORY_SEPARATOR.'destination-covers';
+    mkdir($coverDirectory,0700,true);
+    $coverImage=imagecreatetruecolor(320,320);
+    imagefilledrectangle($coverImage,0,0,319,319,imagecolorallocate($coverImage,40,60,80));
+    $coverPath=$coverDirectory.DIRECTORY_SEPARATOR.$coverFilename;
+    $assert(imagewebp($coverImage,$coverPath,80),'integration fixture creates a sanitized WebP destination cover');
+    imagedestroy($coverImage);
+    chmod($coverPath,0600);
+    $coverKey='destination-covers/'.$coverFilename;
+    $coverHash=hash_file('sha256',$coverPath);
+    $coverAssetId=(string)$pdo->query('SELECT UUID()')->fetchColumn();
+    $pdo->prepare(
+        'INSERT INTO destination_cover_assets
+         (id,destination_id,uploaded_by,private_storage_key,mime_type,file_size,sha256,
+          rights_declaration_version,rights_statement_hash,rights_confirmed_at,review_status,created_at)
+         VALUES (:id,:destination,:uploader,:key,"image/webp",:size,:hash,:version,:statement_hash,UTC_TIMESTAMP(),"pending",UTC_TIMESTAMP())'
+    )->execute([
+        'id'=>$coverAssetId,'destination'=>$newDestinationId,'uploader'=>$clientId,'key'=>$coverKey,
+        'size'=>filesize($coverPath),'hash'=>$coverHash,
+        'version'=>\\Talyvane\\Application\\Destinations\\DestinationCoverService::RIGHTS_VERSION,
+        'statement_hash'=>hash('sha256',\\Talyvane\\Application\\Destinations\\DestinationCoverService::RIGHTS_STATEMENT),
+    ]);
+    $coverSelfApprovalDenied=false;
+    try { $coverService->review(new Principal($clientId,['owner'],true),$coverAssetId,'approved','Review attempt from uploader account',bin2hex(random_bytes(16))); }
+    catch (DomainException) { $coverSelfApprovalDenied=true; }
+    $assert($coverSelfApprovalDenied,'destination cover uploader cannot approve their own asset');
+    $coverService->review($principal,$coverAssetId,'approved','Rights evidence and image integrity reviewed by independent administrator',bin2hex(random_bytes(16)));
+    $approvedCover=$coverService->publicCover('manchester');
+    $coverState=$pdo->prepare('SELECT cover_media_key,rights_declaration_version FROM destinations WHERE id=:id');
+    $coverState->execute(['id'=>$newDestinationId]);
+    $coverMetadata=$coverState->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($coverMetadata) && $coverMetadata['cover_media_key']===$coverKey &&
+        $coverMetadata['rights_declaration_version']===\\Talyvane\\Application\\Destinations\\DestinationCoverService::RIGHTS_VERSION,
+        'independent approval binds the exact rights-attested private asset to the destination');
+    $assert(is_array($approvedCover) && $approvedCover['mime']==='image/webp' &&
+        hash_equals($coverHash,hash('sha256',$approvedCover['bytes'])),
+        'public destination cover delivery requires a published market-approved destination and verified approved asset');
+    unlink($coverPath);
+    rmdir($coverDirectory);
+    rmdir($coverPrivate);
+    rmdir($coverPublic);
+    rmdir($coverRoot);
     try { $marketManagement->review(new Principal($registeredId,['client'],false),'DE','rejected','client-evidence-reference','This client must not be allowed to record a compliance decision.','2027-11-25',false,bin2hex(random_bytes(16))); $assert(false,'client cannot record market compliance decisions'); }
     catch (DomainException) { $assert(true,'client cannot record market compliance decisions'); }
     try { $destinationManagement->save(new Principal($registeredId,['client'],false),null,['slug'=>'client-city','country_code'=>'GB','city_name'=>'Leeds','display_name'=>'Leeds','currency_code'=>'GBP','locale'=>'en-GB','time_zone'=>'Europe/London','status'=>'draft'],bin2hex(random_bytes(16))); $assert(false,'client cannot create destinations'); }
