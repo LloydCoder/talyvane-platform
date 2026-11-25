@@ -49,9 +49,10 @@ final class AuditLogger
     /** @param array<string,mixed> $data @return array<string,mixed> */
     private static function redact(array $data): array
     {
-        $blocked = ['password', 'password_hash', 'secret', 'token', 'api_key', 'private_key', 'seed_phrase', 'identity_document'];
+        $blocked = ['password', 'passwordhash', 'secret', 'secretkey', 'token', 'apikey', 'privatekey', 'seedphrase', 'identitydocument', 'totpsecret', 'recoverycodes'];
         foreach ($data as $key => $value) {
-            if (in_array(strtolower((string) $key), $blocked, true)) {
+            $normalized = strtolower((string) preg_replace('/[^a-zA-Z0-9]/', '', (string) $key));
+            if (in_array($normalized, $blocked, true)) {
                 $data[$key] = '[REDACTED]';
             } elseif (is_array($value)) {
                 $data[$key] = self::redact($value);
