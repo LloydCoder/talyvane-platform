@@ -46,7 +46,7 @@ $action = $id === '' ? '/admin/content' : '/admin/content/' . rawurlencode($id);
       <tbody><?php foreach ($pages as $item): ?>
       <?php
         $itemVersion = (int) ($item['version'] ?? 1);
-        $itemPublishedVersion = $item['published_version'] === null ? null : (int) $item['published_version'];
+        $itemPublishedVersion = ($item['published_version'] ?? null) === null ? null : (int) $item['published_version'];
         $itemStatus = (string) ($item['status'] ?? 'draft');
         $itemStatusLabel = $itemStatus === 'published' && $itemPublishedVersion !== null && $itemPublishedVersion < $itemVersion
             ? 'Published · draft changes'
