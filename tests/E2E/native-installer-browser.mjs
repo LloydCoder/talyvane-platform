@@ -164,7 +164,7 @@ try {
   const credentialBlocks = await page.locator('.secret').evaluateAll((blocks) =>
     blocks.map((block) => ({
       label: block.querySelector('label')?.textContent?.trim() ?? '',
-      value: block.querySelector('code')?.innerText ?? '',
+      value: block.querySelector('code')?.textContent?.trim() ?? '',
     })),
   );
   const initialPassword = credentialBlocks.find((item) => item.label.includes('Initial Super Admin password'))?.value ?? '';
