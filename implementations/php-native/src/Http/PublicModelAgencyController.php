@@ -30,17 +30,17 @@ final class PublicModelAgencyController
     {
         SessionManager::start();
         if (!Csrf::verify($this->field($request,'_csrf'))) {
-            return $this->page('form',$this->intakeContext()+['error'=>'Your session expired. Refresh this page and try again.'],419);
+            return $this->page('form',array_replace($this->intakeContext(),['error'=>'Your session expired. Refresh this page and try again.']),419);
         }
         $context=$this->intakeContext();
         if (!$context['available']) {
-            return $this->page('form',$context+['error'=>'Applications are temporarily unavailable.'],503);
+            return $this->page('form',array_replace($context,['error'=>'Applications are temporarily unavailable.']),503);
         }
         $email=strtolower(trim($this->field($request,'email')));
         $ip=$request->ipAddress;
         if (!$this->limiter->consume('model-application.ip',$ip,3,3600,3600) ||
             !$this->limiter->consume('model-application.email-ip',$email.'|'.$ip,2,86400,86400)) {
-            return $this->page('form',$context+['error'=>'Please wait before submitting another application.'],429);
+            return $this->page('form',array_replace($context,['error'=>'Please wait before submitting another application.']),429);
         }
         $adult=$this->field($request,'adult_attested')==='1';
         $privacy=$this->field($request,'privacy_acknowledged')==='1';
@@ -65,7 +65,7 @@ final class PublicModelAgencyController
         } catch (\InvalidArgumentException|\DomainException $error) {
             return $this->page('form',$context+['error'=>$error instanceof \DomainException ? $error->getMessage() : 'Check the application fields and required acknowledgements.'],422);
         } catch (\Throwable) {
-            return $this->page('form',$context+['error'=>'The application could not be submitted. Please try again later.'],503);
+            return $this->page('form',array_replace($context,['error'=>'The application could not be submitted. Please try again later.']),503);
         }
     }
 
@@ -77,8 +77,11 @@ final class PublicModelAgencyController
         $query->execute(['key'=>'model_agency.intake']);
         $raw=$query->fetchColumn();
         $policy=is_string($raw) ? json_decode($raw,true) : null;
-        $version=is_array($policy) && is_string($policy['privacy_notice_version'] ?? null) ? $policy['privacy_notice_version'] : '';
-        $available=is_array($policy) && ($policy['enabled'] ?? false) === true && $version !== '' && is_array($privacyPage);
+        $configuredVersion=is_array($policy) && is_string($policy['privacy_notice_version'] ?? null) ? $policy['privacy_notice_version'] : '';
+        $publishedVersion=is_array($privacyPage) ? 'privacy-v'.(int)($privacyPage['version'] ?? 0) : '';
+        $version=$configuredVersion;
+        $available=is_array($policy) && ($policy['enabled'] ?? false) === true && $version !== '' &&
+            $publishedVersion !== 'privacy-v0' && hash_equals($publishedVersion,$configuredVersion);
         return ['available'=>$available,'privacyVersion'=>$version,'privacyPage'=>$privacyPage,'error'=>'','values'=>[]];
     }
 
