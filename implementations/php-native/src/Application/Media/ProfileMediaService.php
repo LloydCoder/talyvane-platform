@@ -203,7 +203,7 @@ final class ProfileMediaService
                  FROM profile_media pm JOIN companion_profiles p ON p.id=pm.profile_id
                  WHERE pm.id=:id FOR UPDATE'
             );
-            $query->execute(['id'=>$mediaId,'consent_version'=>$policyVersion,'statement_hash'=>$statementHash]);
+            $query->execute(['id'=>$mediaId]);
             $media=$query->fetch();
             if (!is_array($media) || $media['review_status']!=='pending') {
                 throw new DomainException('This media item is not awaiting review.');
