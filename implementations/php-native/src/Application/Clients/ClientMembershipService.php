@@ -38,7 +38,7 @@ final class ClientMembershipService
     ): string {
         Authorization::require($actor,'clients.manage',true);
         if (!$actor->hasRole('owner') && !$actor->hasRole('admin')) {
-            throw new DomainException('Only an authorized agency operator can assign client membership.');
+            throw new DomainException('Only an MFA-protected agency owner or admin can assign client membership.');
         }
         if (!$this->features->enabled('memberships')) {
             throw new DomainException('Membership operations are disabled until the deployment Super Admin enables the feature.');
