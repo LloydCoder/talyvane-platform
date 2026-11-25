@@ -31,6 +31,8 @@ use Talyvane\Security\Principal;
 use Talyvane\Security\Totp;
 use Talyvane\Infrastructure\Logging\StructuredLogger;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
+use Talyvane\Installer\PrivatePathResolver;
+use Talyvane\Installer\EnvironmentPreflight;
 
 $tests = 0;
 $assert = static function (bool $condition, string $message) use (&$tests): void {
