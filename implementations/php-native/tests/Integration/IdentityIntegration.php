@@ -64,29 +64,36 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(!$mfa->consumeRecoveryCode($id,$codes[0],bin2hex(random_bytes(16))),'recovery code cannot be reused');
     $auth->logout();
 
-    $bootstrapIdBytes = random_bytes(16);
-    $bootstrapIdBytes[6] = chr((ord($bootstrapIdBytes[6]) & 15) | 64);
-    $bootstrapIdBytes[8] = chr((ord($bootstrapIdBytes[8]) & 63) | 128);
-    $bootstrapHex = bin2hex($bootstrapIdBytes);
-    $bootstrapId = substr($bootstrapHex,0,8).'-'.substr($bootstrapHex,8,4).'-'.substr($bootstrapHex,12,4).'-'.substr($bootstrapHex,16,4).'-'.substr($bootstrapHex,20);
-    $pending = $pdo->prepare('INSERT INTO users (id,email,password_hash,status,email_verified_at,first_login_required,admin_session_version,created_at,updated_at) VALUES (:id,:email,:hash,"pending",NULL,1,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())');
-    $pending->execute(['id'=>$bootstrapId,'email'=>'native-bootstrap@example.test','hash'=>PasswordHasher::hash($password)]);
+    $installerDirectory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'talyvane-installer-' . bin2hex(random_bytes(6));
+    mkdir($installerDirectory,0700,true);
+    $setupKey = new SetupKey($installerDirectory . DIRECTORY_SEPARATOR . 'installer.key');
+    $installerKey = $setupKey->create();
     $mailer = new NativeTestMailer();
     $verification = new EmailVerificationService($pdo,$mailer,$limiter,$audit,str_repeat('E',32));
-    $verification->issue($bootstrapId,'native-bootstrap@example.test','admin_primary');
-    $verification->issue($bootstrapId,'native-recovery@example.test','admin_recovery');
+    $prepared = $verification->prepareSuperAdminBootstrap($setupKey,$installerKey,'native-bootstrap@example.test','native-recovery@example.test');
+    $bootstrapId = $prepared['user_id'];
     $primaryCode = preg_match('/code is: ([0-9]{6})/', $mailer->messages[0]['body'], $primaryMatch) ? $primaryMatch[1] : '';
     $recoveryCode = preg_match('/code is: ([0-9]{6})/', $mailer->messages[1]['body'], $recoveryMatch) ? $recoveryMatch[1] : '';
     $assert($primaryCode !== '' && $recoveryCode !== '' && $mailer->messages[0]['recipient'] !== $mailer->messages[1]['recipient'],'dual-address codes are delivered to distinct email addresses');
     $assert($verification->verify($bootstrapId,'native-bootstrap@example.test','admin_primary',$primaryCode),'primary Super Admin email verification succeeds');
     $assert($verification->verify($bootstrapId,'native-recovery@example.test','admin_recovery',$recoveryCode),'recovery Super Admin email verification succeeds');
     $assert($verification->bothAdminAddressesVerified($bootstrapId,'native-bootstrap@example.test','native-recovery@example.test'),'Super Admin activation requires both verified addresses');
-    $offlineKey = str_repeat('O',40);
-    $verification->activateSuperAdmin($bootstrapId,'native-bootstrap@example.test','native-recovery@example.test',$offlineKey,bin2hex(random_bytes(16)));
-    $bootstrapState = $pdo->prepare('SELECT status,first_login_required,email_verified_at FROM users WHERE id = :id');
+    try {
+        $verification->activateSuperAdmin($bootstrapId,'native-bootstrap@example.test','native-recovery@example.test',str_repeat('x',43),bin2hex(random_bytes(16)));
+        $assert(false,'Super Admin activation rejects invalid installer proof');
+    } catch (DomainException) {
+        $assert(true,'Super Admin activation rejects invalid installer proof');
+    }
+    $bootstrapSecrets = $verification->activateSuperAdmin($bootstrapId,'native-bootstrap@example.test','native-recovery@example.test',$prepared['bootstrap_proof'],bin2hex(random_bytes(16)));
+    $bootstrapState = $pdo->prepare('SELECT status,first_login_required,email_verified_at,password_hash FROM users WHERE id = :id');
     $bootstrapState->execute(['id'=>$bootstrapId]);
     $state = $bootstrapState->fetch();
     $assert(is_array($state) && $state['status'] === 'active' && (bool) $state['first_login_required'] && $state['email_verified_at'] !== null,'Super Admin activates only after dual email verification and must replace initial password');
+    $assert(is_array($state) && password_verify($bootstrapSecrets['initial_password'],(string) $state['password_hash']),'one-time Super Admin password is returned after activation and stored only as a hash');
+    $offline = $pdo->query('SELECT offline_recovery_key_hash FROM super_admin_recovery WHERE singleton_id = 1')->fetchColumn();
+    $assert(is_string($offline) && password_verify($bootstrapSecrets['offline_recovery_key'],$offline),'offline recovery key is stored only as a password hash');
     $assert((int) $pdo->query('SELECT COUNT(*) FROM super_admin_recovery WHERE singleton_id = 1')->fetchColumn() === 1,'Super Admin offline recovery record is stored once');
+    $setupKey->consume();
+    rmdir($installerDirectory);
     return $assertions;
 }
