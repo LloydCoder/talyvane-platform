@@ -17,6 +17,7 @@ $root = dirname(__DIR__);
 require $root . '/bootstrap.php';
 
 try {
+    $privateConfigForLogging = null;
     $request = Request::fromGlobals();
     if (str_starts_with($request->path,'/install')) {
         (new NativeInstallerController($root))->handle($request)->send();
@@ -28,13 +29,10 @@ try {
     if ($accountHome === '' && $documentRoot !== '' && basename(rtrim($documentRoot,DIRECTORY_SEPARATOR)) === 'public_html') {
         $accountHome = dirname($documentRoot);
     }
-    $configPath = getenv('TALYVANE_CONFIG');
-    if (!is_string($configPath) || $configPath === '' || !is_file($configPath)) {
-        $paths = PrivatePathResolver::resolve($documentRoot,$accountHome);
-        $configPath = $paths['config'] . '/app.php';
-        putenv('TALYVANE_CONFIG=' . $configPath);
-        $_ENV['TALYVANE_CONFIG'] = $configPath;
-    }
+    $paths = PrivatePathResolver::resolve($documentRoot,$accountHome);
+    $configPath = $paths['config'] . '/app.php';
+    putenv('TALYVANE_CONFIG=' . $configPath);
+    $_ENV['TALYVANE_CONFIG'] = $configPath;
     if (is_link($configPath) || !is_file($configPath) || !is_readable($configPath)) {
         Response::redirect('/install')->send();
         exit;
@@ -52,6 +50,7 @@ try {
     if (!is_array($privateConfig)) {
         throw new RuntimeException('Private application configuration is invalid.');
     }
+    $privateConfigForLogging = $privateConfig;
     $configDirectory = $privateConfig['paths']['config'] ?? dirname($configReal);
     if (!is_string($configDirectory) || $configDirectory === '' || is_link($configDirectory)) {
         throw new RuntimeException('Private installation directory is invalid.');
@@ -71,18 +70,10 @@ try {
 } catch (Throwable $error) {
     $reference = bin2hex(random_bytes(8));
     $logDirectory = null;
-    $configPath = getenv('TALYVANE_CONFIG');
-    if (is_string($configPath) && $configPath !== '' && is_file($configPath) && is_readable($configPath) && !is_link($configPath)) {
-        try {
-            $privateConfig = require $configPath;
-            if (is_array($privateConfig)) {
-                $candidate = $privateConfig['paths']['logs'] ?? $privateConfig['logs_path'] ?? null;
-                if (is_string($candidate) && $candidate !== '') {
-                    $logDirectory = $candidate;
-                }
-            }
-        } catch (Throwable) {
-            $logDirectory = null;
+    if (is_array($privateConfigForLogging)) {
+        $candidate = $privateConfigForLogging['paths']['logs'] ?? $privateConfigForLogging['logs_path'] ?? null;
+        if (is_string($candidate) && $candidate !== '') {
+            $logDirectory = $candidate;
         }
     }
     if (is_string($logDirectory)) {
