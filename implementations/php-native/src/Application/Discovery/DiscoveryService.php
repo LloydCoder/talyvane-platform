@@ -45,10 +45,11 @@ final class DiscoveryService
     }
 
     /** @return list<array<string,mixed>> */
-    public function profiles(string $destinationSlug, int $limit = 24, int $offset = 0): array
+    public function profiles(?string $destinationSlug, int $limit = 24, int $offset = 0): array
     {
         $limit = max(1,min(48,$limit));
         $offset = max(0,min(10000,$offset));
+        $destinationFilter = $destinationSlug === null ? '' : 'd.slug = :slug AND ';
         $query = $this->pdo->prepare(
             'SELECT p.id,p.slug,p.display_name,p.biography,p.languages_json,p.experience_category,d.country_code,
                     d.slug AS destination_slug,d.display_name AS destination_name,d.time_zone,
@@ -67,7 +68,7 @@ final class DiscoveryService
              JOIN destinations d ON d.id = p.destination_id
              JOIN countries c ON c.alpha2 = d.country_code
              JOIN market_policies m ON m.country_code = d.country_code
-             WHERE d.slug = :slug AND d.status = "published" AND c.enabled = 1
+             WHERE ' . $destinationFilter . 'd.status = "published" AND c.enabled = 1
                AND p.status = "published" AND p.adult_eligibility_status = "verified"
                AND p.adult_verified_at IS NOT NULL AND p.adult_verified_by IS NOT NULL
                AND p.publication_consent_version IS NOT NULL AND p.publication_consent_withdrawn_at IS NULL
@@ -81,7 +82,9 @@ final class DiscoveryService
                AND m.enabled = 1 AND m.decision = "approved"
              ORDER BY p.display_name ASC LIMIT :limit OFFSET :offset'
         );
-        $query->bindValue(':slug',$destinationSlug,PDO::PARAM_STR);
+        if ($destinationSlug !== null) {
+            $query->bindValue(':slug',$destinationSlug,PDO::PARAM_STR);
+        }
         $query->bindValue(':limit',$limit,PDO::PARAM_INT);
         $query->bindValue(':offset',$offset,PDO::PARAM_INT);
         $query->execute();
