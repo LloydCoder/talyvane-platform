@@ -672,6 +672,32 @@ $marketMarkup = $authViews->render('admin/markets',[
 $assert(str_contains($marketMarkup,'&lt;script&gt;alert(1)&lt;/script&gt;') && !str_contains($marketMarkup,'<script>alert(1)</script>'), 'market compliance workspace escapes country reference data');
 $assert(str_contains($marketMarkup,'/admin/markets/GB/review') && str_contains($marketMarkup,'csrf-market-token'), 'market review form is country-scoped and CSRF protected');
 
+$companionMediaMarkup = $authViews->render('portal/media',[
+    'brandName'=>'Talyvane','csrf'=>'media-csrf','error'=>'','notice'=>'',
+    'profile'=>['id'=>'profile-1','slug'=>'talent','display_name'=>'<script>profile</script>','status'=>'published','destination_name'=>'London'],
+    'items'=>[['id'=>'media-1','width'=>320,'height'=>320,'created_at'=>'2026-11-25','review_status'=>'pending','media_scope'=>'private']],
+]);
+$assert(str_contains($companionMediaMarkup,'enctype="multipart/form-data"') &&
+    str_contains($companionMediaMarkup,'name="rights_confirmed"') &&
+    str_contains($companionMediaMarkup,'name="publication_confirmed"') &&
+    str_contains($companionMediaMarkup,'&lt;script&gt;profile&lt;/script&gt;'),
+    'companion media workspace requires separate rights/publication attestations and escapes profile data');
+$adminMediaMarkup = $authViews->render('admin/profile-media',[
+    'brandName'=>'Talyvane','csrf'=>'review-csrf','error'=>'','notice'=>'',
+    'items'=>[['id'=>'media-1','profile_name'=>'Talent Example','profile_slug'=>'talent','destination_name'=>'London','width'=>320,'height'=>320,'created_at'=>'2026-11-25']],
+]);
+$assert(str_contains($adminMediaMarkup,'/admin/profile-media/media-1/preview') &&
+    str_contains($adminMediaMarkup,'name="decision"') && str_contains($adminMediaMarkup,'name="reason"'),
+    'administrator media review workspace uses private preview and reasoned approve/reject controls');
+$publicMediaMarkup = $authViews->render('public/discovery',[
+    'mode'=>'profile','brandName'=>'Talyvane','canSaveFavorite'=>false,'csrf'=>'',
+    'profile'=>['slug'=>'talent','display_name'=>'Talent Example','destination_slug'=>'london','destination_name'=>'London',
+        'experience_category'=>'Profile','biography'=>'','languages'=>[],'media'=>[['id'=>'media-1','url'=>'/profile-media/media-1']]],
+]);
+$assert(str_contains($publicMediaMarkup,'src="/profile-media/media-1"') &&
+    str_contains($publicMediaMarkup,'Approved profile photograph'),
+    'public profile template renders approved media only through opaque controller routes');
+
 $logRoot = $tempRoot . DIRECTORY_SEPARATOR . 'private-logs';
 $logPublic = $tempRoot . DIRECTORY_SEPARATOR . 'public-root';
 mkdir($logRoot,0700,true);
