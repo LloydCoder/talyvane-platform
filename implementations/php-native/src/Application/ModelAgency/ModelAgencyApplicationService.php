@@ -30,7 +30,7 @@ final class ModelAgencyApplicationService
                  SELECT v2.id FROM model_applicant_verifications v2
                  WHERE v2.application_id = a.id ORDER BY v2.decision_order DESC LIMIT 1
              )
-             WHERE a.anonymized_at IS NULL AND a.status IN ("submitted","under_review","accepted")
+             WHERE a.anonymized_at IS NULL AND a.status IN ("submitted","under_review","accepted","declined","withdrawn")
              ORDER BY a.created_at DESC LIMIT :limit'
         );
         $query->bindValue(':limit',$limit,PDO::PARAM_INT);
