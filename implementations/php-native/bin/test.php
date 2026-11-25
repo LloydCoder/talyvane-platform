@@ -679,6 +679,7 @@ $companionMediaMarkup = $authViews->render('portal/media',[
 ]);
 $assert(str_contains($companionMediaMarkup,'enctype="multipart/form-data"') &&
     str_contains($companionMediaMarkup,'name="rights_confirmed"') &&
+    str_contains($companionMediaMarkup,'name="depicted_adults_confirmed"') &&
     str_contains($companionMediaMarkup,'name="publication_confirmed"') &&
     str_contains($companionMediaMarkup,'&lt;script&gt;profile&lt;/script&gt;'),
     'companion media workspace requires separate rights/publication attestations and escapes profile data');
@@ -687,7 +688,8 @@ $adminMediaMarkup = $authViews->render('admin/profile-media',[
     'items'=>[['id'=>'media-1','profile_name'=>'Talent Example','profile_slug'=>'talent','destination_name'=>'London','width'=>320,'height'=>320,'created_at'=>'2026-11-25']],
 ]);
 $assert(str_contains($adminMediaMarkup,'/admin/profile-media/media-1/preview') &&
-    str_contains($adminMediaMarkup,'name="decision"') && str_contains($adminMediaMarkup,'name="reason"'),
+    str_contains($adminMediaMarkup,'name="decision"') && str_contains($adminMediaMarkup,'name="adult_safety_confirmed"') &&
+    str_contains($adminMediaMarkup,'name="rights_confirmed"') && str_contains($adminMediaMarkup,'name="consent_confirmed"') && str_contains($adminMediaMarkup,'name="reason"'),
     'administrator media review workspace uses private preview and reasoned approve/reject controls');
 $publicMediaMarkup = $authViews->render('public/discovery',[
     'mode'=>'profile','brandName'=>'Talyvane','canSaveFavorite'=>false,'csrf'=>'',
