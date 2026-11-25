@@ -28,7 +28,7 @@ final class FeatureAvailability
         }
         $stack[] = $key;
         foreach ($definition['dependencies'] as $dependency) {
-            if (in_array($dependency, ['market.policy','verification.age','consent.current','provider.approved','legal.approved','safeguarding.ready'], true)) {
+            if (in_array($dependency, ['market.policy','consent.current','provider.approved','legal.approved','safeguarding.ready'], true)) {
                 if (!(($this->eligibility)($dependency))) {
                     return false;
                 }
