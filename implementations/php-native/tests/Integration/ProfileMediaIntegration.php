@@ -62,7 +62,7 @@ function runProfileMediaIntegration(PDO $pdo): int
          VALUES (:id,:profile,:actor,:key,"image/webp",:size,:hash,320,320,:scope,:status,:grant,
                  UTC_TIMESTAMP(),:version,:reviewer,:reviewed,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
     );
-    $recordUploaderAttestations=static function(string $mediaId) use ($pdo,$companionId,$uuid): void {
+    $recordUploaderAttestations=static function(string $mediaId) use ($pdo,$companionId,$profileId,$uuid): void {
         $actorEmail='native-companion@example.test';
         $statements=[
             ['image_rights.attested','profile-media-rights-v1','I confirm I own or have the necessary rights and permissions to submit this image.'],
