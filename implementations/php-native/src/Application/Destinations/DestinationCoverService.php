@@ -123,6 +123,14 @@ final class DestinationCoverService
                 'UPDATE destination_cover_assets SET review_status=:status,reviewed_by=:reviewer,
                  reviewed_at=UTC_TIMESTAMP(),review_reason=:reason WHERE id=:id AND review_status="pending"'
             )->execute(['status'=>$decision,'reviewer'=>$reviewer->id,'reason'=>$reason,'id'=>$assetId]);
+            if ($decision==='approved' && $oldKey!==null && $oldKey!==(string)$asset['private_storage_key']) {
+                $this->pdo->prepare(
+                    'UPDATE destination_cover_assets SET review_status="superseded",withdrawn_at=UTC_TIMESTAMP(),
+                     review_reason="Superseded by a newer independently approved destination cover"
+                     WHERE destination_id=:destination AND private_storage_key=:key
+                       AND review_status="approved" AND withdrawn_at IS NULL'
+                )->execute(['destination'=>$asset['destination_id'],'key'=>$oldKey]);
+            }
             $this->audit->record($reviewer->id,'destination.cover.reviewed','destination_cover',$assetId,
                 $reason,['review_status'=>'pending'],['review_status'=>$decision,'destination_id'=>$asset['destination_id']],
                 $requestId,'destination-cover-governance-v1');
