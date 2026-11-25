@@ -59,12 +59,13 @@ final class ProfileMediaService
         string $profileId,
         array $upload,
         bool $rightsConfirmed,
+        bool $depictedAdultsConfirmed,
         bool $publicationConfirmed,
         string $requestId
     ): string {
         $this->assertCompanion($actor);
-        if (!$rightsConfirmed || !$publicationConfirmed) {
-            throw new InvalidArgumentException('Separate image-rights and public-publication confirmations are required.');
+        if (!$rightsConfirmed || !$depictedAdultsConfirmed || !$publicationConfirmed) {
+            throw new InvalidArgumentException('Separate image-rights, depicted-adult and public-publication confirmations are required.');
         }
         $profile = $this->profileForCompanion($actor);
         if (!is_array($profile) || !hash_equals((string) $profile['id'],$profileId)) {
@@ -85,6 +86,7 @@ final class ProfileMediaService
         $image = $this->storage->storeImage($upload,'profile-media',8_388_608);
         $mediaId = self::uuid();
         $rightsStatement = 'I confirm that I own or have the necessary rights and permissions to submit this image, including the likeness rights of every identifiable person depicted.';
+        $adultStatement = 'I confirm that every identifiable person depicted in this image is an adult aged 18 or older and that no minor is depicted.';
         $publicationStatement = 'I separately consent to this image being submitted for human review and, only if approved, displayed publicly on my companion profile.';
         $this->pdo->beginTransaction();
         try {
@@ -118,8 +120,9 @@ final class ProfileMediaService
                 'width'=>$image['width'],'height'=>$image['height'],'grant'=>$grant['id'],
                 'version'=>$current['publication_consent_version'],
             ]);
-            $this->recordConsent($mediaId,$profileId,$actor,$rightsStatement,'image_rights.attested',(string) $current['publication_consent_version'],$requestId);
-            $this->recordConsent($mediaId,$profileId,$actor,$publicationStatement,'public_publication.attested',(string) $current['publication_consent_version'],$requestId);
+            $this->recordConsent($mediaId,$profileId,$actor,$rightsStatement,'image_rights.attested','profile-media-rights-v1',$requestId);
+            $this->recordConsent($mediaId,$profileId,$actor,$adultStatement,'depicted_adults.attested','profile-media-adult-subjects-v1',$requestId);
+            $this->recordConsent($mediaId,$profileId,$actor,$publicationStatement,'public_publication.attested','profile-media-publication-v1',$requestId);
             $this->audit->record($actor->id,'profile.media.submitted','profile_media',$mediaId,
                 'Companion submitted a private image for human review',
                 null,['review_status'=>'pending','media_scope'=>'private','profile_id'=>$profileId],
@@ -170,7 +173,7 @@ final class ProfileMediaService
         return ['bytes'=>$bytes,'mime'=>'image/webp'];
     }
 
-    public function review(Principal $actor,string $mediaId,string $decision,string $reason,string $requestId): void
+    public function review(Principal $actor,string $mediaId,string $decision,string $reason,bool $adultSafetyConfirmed,bool $rightsConfirmed,bool $consentConfirmed,string $requestId): void
     {
         $this->assertReviewer($actor);
         if (!in_array($decision,['approved','rejected'],true)) {
@@ -179,6 +182,9 @@ final class ProfileMediaService
         $reason=trim($reason);
         if (strlen($reason)<10 || strlen($reason)>500) {
             throw new InvalidArgumentException('A review reason between 10 and 500 characters is required.');
+        }
+        if ($decision==='approved' && (!$adultSafetyConfirmed || !$rightsConfirmed || !$consentConfirmed)) {
+            throw new InvalidArgumentException('Approval requires explicit adult-safety, image-rights and consent attestations.');
         }
         $this->pdo->beginTransaction();
         $deleteKey=null;
@@ -226,6 +232,17 @@ final class ProfileMediaService
             ]);
             if ($update->rowCount()!==1) {
                 throw new DomainException('Media review state changed; reload and retry.');
+            }
+            if ($decision==='approved') {
+                $this->recordConsent($mediaId,(string) $media['profile_id'],$actor,
+                    'I reviewed the image and confirm every identifiable person depicted is an adult aged 18 or older; no minor is depicted.',
+                    'reviewer.adult_safety.confirmed','profile-media-review-v1',$requestId,'mfa_admin_review_attestation');
+                $this->recordConsent($mediaId,(string) $media['profile_id'],$actor,
+                    'I reviewed the uploader rights attestation and the available image evidence and found no apparent rights conflict.',
+                    'reviewer.image_rights.confirmed','profile-media-review-v1',$requestId,'mfa_admin_review_attestation');
+                $this->recordConsent($mediaId,(string) $media['profile_id'],$actor,
+                    'I reviewed the image and available evidence and found no apparent coercion or non-consensual depiction.',
+                    'reviewer.consent_safety.confirmed','profile-media-review-v1',$requestId,'mfa_admin_review_attestation');
             }
             $this->audit->record($actor->id,'profile.media.reviewed','profile_media',$mediaId,$reason,
                 $before,['review_status'=>$decision,'media_scope'=>$decision==='approved'?'public':'private'],
@@ -313,7 +330,7 @@ final class ProfileMediaService
             $key=(string) $media['private_storage_key'];
             $this->recordConsent($mediaId,$profileId,$actor,
                 'I withdraw this image from my profile submissions and public distribution.',
-                'media.withdrawn',(string) ($media['consent_version'] ?? 'profile-publication-v1'),$requestId,'authenticated_companion_portal_withdrawal');
+                'media.withdrawn','profile-media-withdrawal-v1',$requestId,'authenticated_companion_portal_withdrawal');
             $this->audit->record($actor->id,'profile.media.withdrawn','profile_media',$mediaId,
                 'Companion withdrew an individual profile image',
                 ['review_status'=>$media['review_status']],['review_status'=>'withdrawn','media_scope'=>'private'],
