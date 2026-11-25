@@ -186,7 +186,7 @@ final class ContentManagementService
                 ['status'=>'published','version'=>$version,'published_version'=>$version],
                 $requestId,'cms-page-v1');
             $this->pdo->commit();
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
