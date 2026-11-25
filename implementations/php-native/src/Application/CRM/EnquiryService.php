@@ -142,8 +142,9 @@ final class EnquiryService
     }
 
     /** @return list<array<string,mixed>> */
-    public function list(int $limit = 50,int $offset = 0): array
+    public function list(Principal $actor,int $limit = 50,int $offset = 0): array
     {
+        Authorization::require($actor,'enquiries.manage',true);
         $limit = max(1,min(100,$limit));
         $offset = max(0,min(100000,$offset));
         $query = $this->pdo->prepare(
