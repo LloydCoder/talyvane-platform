@@ -27,7 +27,7 @@ final class EnquiryService
             return null;
         }
         if ($ipAddress === '' || strlen($ipAddress) > 64 || filter_var($ipAddress,FILTER_VALIDATE_IP) === false ||
-            $requestId === '' || strlen($requestId) > 190) {
+            $requestId === '' || strlen($requestId) > 180) {
             throw new \InvalidArgumentException('Enquiry request is invalid.');
         }
 
@@ -73,12 +73,12 @@ final class EnquiryService
 
         $id = self::uuid();
         $reference = 'TV-' . strtoupper(bin2hex(random_bytes(5)));
-        $attributionValue = $attribution === null ? null : substr(trim($attribution),0,500);
+        $attributionValue = self::safeAttribution($attribution);
         $insert = $this->pdo->prepare(
             'INSERT INTO enquiries
-             (id,reference,name,email,phone,country_code,destination_id,city,subject,message,privacy_acknowledged_at,
+             (id,reference,name,email,phone,country_code,destination_id,city,subject,message,privacy_acknowledged_at,privacy_policy_version,
               status,assigned_to,attribution_json,internal_notes,created_at,updated_at)
-             VALUES (:id,:reference,:name,:email,:phone,:country,:destination,:city,:subject,:message,UTC_TIMESTAMP(),
+             VALUES (:id,:reference,:name,:email,:phone,:country,:destination,:city,:subject,:message,UTC_TIMESTAMP(),"privacy-v1",
               "new",NULL,:attribution,NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
         );
         $this->pdo->beginTransaction();
@@ -154,6 +154,28 @@ final class EnquiryService
         $query->bindValue(':offset',$offset,PDO::PARAM_INT);
         $query->execute();
         return $query->fetchAll();
+    }
+
+    private static function safeAttribution(?string $referer): ?string
+    {
+        if ($referer === null || strlen($referer) > 2048) {
+            return null;
+        }
+        $parts = parse_url($referer);
+        if (!is_array($parts) || !in_array(strtolower((string) ($parts['scheme'] ?? '')),['http','https'],true) ||
+            !isset($parts['host']) || isset($parts['user']) || isset($parts['pass'])) {
+            return null;
+        }
+        $host = strtolower((string) $parts['host']);
+        if (preg_match('/^[a-z0-9.-]+$/D',$host) !== 1) {
+            return null;
+        }
+        $port = isset($parts['port']) && in_array((int) $parts['port'],[80,443],true) ? ':' . (int) $parts['port'] : '';
+        $path = (string) ($parts['path'] ?? '/');
+        if (preg_match('/[\r\n\x00-\x20]/',$path) === 1) {
+            return null;
+        }
+        return substr(strtolower((string) $parts['scheme']) . '://' . $host . $port . $path,0,500);
     }
 
     private static function uuid(): string
