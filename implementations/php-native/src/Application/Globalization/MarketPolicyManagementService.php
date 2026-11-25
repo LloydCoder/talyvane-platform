@@ -99,7 +99,7 @@ final class MarketPolicyManagementService
                 );
                 $update->execute([
                     'enabled'=>$enable ? 1 : 0,'decision'=>$decision,'reviewer'=>$actor->id,
-                    'expires'=>$expiry->format('Y-m-d 00:00:00'),'evidence'=>$evidenceReference,
+                    'expires'=>$expiry->modify('+1 day')->modify('-1 second')->format('Y-m-d H:i:s'),'evidence'=>$evidenceReference,
                     'summary'=>$summary,'country'=>$countryCode,
                 ]);
             } else {
@@ -110,7 +110,7 @@ final class MarketPolicyManagementService
                 );
                 $insert->execute([
                     'country'=>$countryCode,'enabled'=>$enable ? 1 : 0,'decision'=>$decision,
-                    'reviewer'=>$actor->id,'expires'=>$expiry->format('Y-m-d 00:00:00'),
+                    'reviewer'=>$actor->id,'expires'=>$expiry->modify('+1 day')->modify('-1 second')->format('Y-m-d H:i:s'),
                     'evidence'=>$evidenceReference,'summary'=>$summary,'version'=>$policyVersion,
                 ]);
             }
