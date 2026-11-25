@@ -136,6 +136,28 @@ $contentEditMarkup = $authViews->render('admin/content', [
 ]);
 $assert(str_contains($contentEditMarkup, 'name="content"'), 'CMS editor exposes the page content field');
 $assert(!str_contains($contentEditMarkup, '<script>unsafe</script>'), 'CMS editor escapes stored page content in its textarea');
+$brandMarkup = $authViews->render('admin/brand', [
+    'csrf'=>'brand-csrf',
+    'error'=>'',
+    'saved'=>false,
+    'brand'=>[
+        'brand_name'=>'Maison Example',
+        'tagline'=>'Considered representation',
+        'color_tokens'=>['primary'=>'#17233B','accent'=>'#C58B43','surface'=>'#F7F5F0'],
+        'typography'=>['heading'=>'Georgia','body'=>'Inter'],
+        'contact_details'=>['email'=>'hello@example.test','phone'=>'+1 555 0100','website'=>'https://example.test'],
+        'social_links'=>['instagram'=>'https://instagram.com/example'],
+        'seo_defaults'=>['title_suffix'=>' | Maison Example','robots'=>'index,follow'],
+        'logo_storage_key'=>'private/brand/logo.webp',
+        'favicon_storage_key'=>null,
+        'version'=>3,
+    ],
+]);
+$assert(str_contains($brandMarkup, 'action="/admin/brand"'), 'brand settings form posts to the dedicated Super Admin route');
+$assert(str_contains($brandMarkup, 'Maison Example'), 'brand settings form shows the active deployment identity');
+$assert(str_contains($brandMarkup, 'name="color_accent"'), 'brand settings expose the configured accent token');
+$assert(!str_contains($brandMarkup, 'private/brand/logo.webp'), 'brand settings never expose private media storage keys');
+
 $assert(str_contains($contentEditMarkup, 'Public readers still see version 1'), 'CMS editor distinguishes a live snapshot from newer draft content');
 $assert(str_contains($contentEditMarkup, 'Publish version 2'), 'CMS editor offers explicit publication for newer draft versions');
 $publishedMarkup = $authViews->render('admin/content', [
