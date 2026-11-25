@@ -65,6 +65,7 @@ $titles = [
 <p><a href="/portal/security">Change your password</a></p>
 <?php if ($accountType === 'client'): ?>
 <p><a href="/portal/bookings">Open your private booking history</a></p><p><a href="/portal/favorites">View your saved companions</a></p>
+<?php if (is_array($membership) && in_array("media.private_gallery",$membership["entitlements"]??[],true)): ?><p><a href="/portal/gallery">Open the members-only gallery</a></p><?php endif; ?>
 <section class="panel" aria-labelledby="membership-heading"><h2 id="membership-heading">Your membership</h2>
 <?php if (is_array($membership)): ?>
 <p><strong><?= $escape($membership['tier_name']) ?></strong> · <?= $escape($membership['plan_key']) ?></p>
