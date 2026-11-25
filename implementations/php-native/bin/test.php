@@ -631,7 +631,7 @@ $anonymousProfileMarkup = $authViews->render('public/discovery', [
     'csrf'=>'',
 ]);
 $assert(str_contains($anonymousProfileMarkup, 'Client sign-in to save'), 'anonymous visitors are directed to client sign-in instead of receiving a mutation token');
-\\Talyvane\\Infrastructure\\Logging\\PrivateErrorLogger::record(new RuntimeException('DB_PASSWORD=do-not-log-secret'),$privatePaths['logs'],$privatePaths['document_root'],'a1b2c3d4e5f60718');
+\Talyvane\Infrastructure\Logging\PrivateErrorLogger::record(new RuntimeException('DB_PASSWORD=do-not-log-secret'),$privatePaths['logs'],$privatePaths['document_root'],'a1b2c3d4e5f60718');
 $errorLogPath = $privatePaths['logs'] . DIRECTORY_SEPARATOR . 'application-error.log';
 $errorLogContents = is_file($errorLogPath) ? (string) file_get_contents($errorLogPath) : '';
 $assert($errorLogContents !== '' && str_contains($errorLogContents,'RuntimeException') && str_contains($errorLogContents,'a1b2c3d4e5f60718'), 'private runtime error log records exception class and correlation reference');
