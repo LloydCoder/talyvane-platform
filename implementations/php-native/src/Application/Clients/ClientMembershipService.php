@@ -207,9 +207,23 @@ final class ClientMembershipService
     /** Cancel an active membership immediately; immutable grants remain as historical evidence. */
     public function cancel(Principal $actor,string $membershipId,string $reason,string $requestId): void
     {
+        $this->transitionStatus($actor,$membershipId,$reason,$requestId,'cancelled');
+    }
+
+    /** Suspend an active membership immediately without deleting historical grants. */
+    public function suspend(Principal $actor,string $membershipId,string $reason,string $requestId): void
+    {
+        $this->transitionStatus($actor,$membershipId,$reason,$requestId,'suspended');
+    }
+
+    private function transitionStatus(Principal $actor,string $membershipId,string $reason,string $requestId,string $status): void
+    {
+        if (!in_array($status,['cancelled','suspended'],true)) {
+            throw new InvalidArgumentException('Membership status transition is invalid.');
+        }
         Authorization::require($actor,'clients.manage',true);
         if (!$actor->hasRole('super_admin') && !$actor->hasRole('owner') && !$actor->hasRole('admin')) {
-            throw new DomainException('Only an authorized agency operator can cancel a client membership.');
+            throw new DomainException('Only an authorized agency operator can change a client membership.');
         }
         if (!$this->features->enabled('memberships')) {
             throw new DomainException('Membership operations are disabled until the deployment Super Admin enables the feature.');
@@ -218,7 +232,7 @@ final class ClientMembershipService
         if (!preg_match('/^[a-f0-9-]{36}$/D',$membershipId) ||
             strlen($reason)<20 || strlen($reason)>500 ||
             !preg_match('/^[a-f0-9]{16,64}$/D',$requestId)) {
-            throw new InvalidArgumentException('Membership identity, cancellation reason or request reference is invalid.');
+            throw new InvalidArgumentException('Membership identity, reason or request reference is invalid.');
         }
 
         $this->pdo->beginTransaction();
@@ -239,22 +253,23 @@ final class ClientMembershipService
             $query->execute(['id'=>$membershipId]);
             $membership=$query->fetch(PDO::FETCH_ASSOC);
             if (!is_array($membership) || $membership['status']!=='active') {
-                throw new DomainException('Only an existing active membership can be cancelled.');
+                throw new DomainException('Only an existing active membership can be changed.');
             }
             $before=$this->snapshot($membership);
             $update=$this->pdo->prepare(
-                'UPDATE memberships SET status="cancelled",updated_at=UTC_TIMESTAMP()
+                'UPDATE memberships SET status=:status,updated_at=UTC_TIMESTAMP()
                  WHERE id=:id AND status="active"'
             );
-            $update->execute(['id'=>$membershipId]);
+            $update->execute(['status'=>$status,'id'=>$membershipId]);
             if ($update->rowCount()!==1) {
                 throw new DomainException('Membership state changed concurrently; retry the operation.');
             }
             $after=$before;
-            $after['status']='cancelled';
-            $this->event($membershipId,(string)$membership['client_user_id'],$actor,'membership.cancelled',$before,$after,$reason,$requestId);
+            $after['status']=$status;
+            $eventKey='membership.'.$status;
+            $this->event($membershipId,(string)$membership['client_user_id'],$actor,$eventKey,$before,$after,$reason,$requestId);
             $this->audit->record(
-                $actor->id,'client.membership.cancelled','client_membership',$membershipId,$reason,
+                $actor->id,'client.'.$eventKey,'client_membership',$membershipId,$reason,
                 $before,$after,$requestId,'client-membership-v1'
             );
             $this->pdo->commit();
