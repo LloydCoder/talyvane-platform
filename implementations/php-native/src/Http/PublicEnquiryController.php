@@ -15,7 +15,7 @@ final class PublicEnquiryController
     public function create(Request $request): Response
     {
         SessionManager::start();
-        return $this->render();
+        return $this->render('',(string) ($request->query['sent'] ?? '') === '1');
     }
 
     public function store(Request $request): Response
@@ -36,9 +36,8 @@ final class PublicEnquiryController
         }
     }
 
-    private function render(string $error = '',bool $unused = false,int $status = 200,array $values = []): Response
+    private function render(string $error = '',bool $sent = false,int $status = 200,array $values = []): Response
     {
-        $sent = false;
         $body = $this->views->render('public/contact',[
             'brandName'=>$this->brandName,
             'csrf'=>Csrf::issue(),
