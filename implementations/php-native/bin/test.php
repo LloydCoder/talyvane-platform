@@ -145,7 +145,7 @@ $publishedMarkup = $authViews->render('admin/content', [
     'pages'=>[],
     'page'=>['id'=>'page-2','slug'=>'about','title'=>'About','locale'=>'en','content'=>'Published copy','meta_title'=>'','meta_description'=>'','status'=>'published','version'=>2,'published_version'=>2],
 ]);
-$assert(!str_contains($publishedMarkup, 'name="reason"'), 'CMS editor does not offer redundant publication when the current version is already live');
+$assert(!str_contains($publishedMarkup, '/publish'), 'CMS editor does not offer redundant publication when the current version is already live');
 
 
 
