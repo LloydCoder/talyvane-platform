@@ -25,7 +25,7 @@ The native branch currently has 18 ordered PHP migrations plus backend and brows
 | Dual-email verification | Installer and recovery requirements | NOT_STARTED | Separate mailbox codes, expiry, attempt limits and verified state |
 | Super Admin bootstrap | SUPER-ADMIN-RECOVERY | NOT_STARTED | Singleton, verified addresses, one-time credentials, offline recovery key |
 | Installer permanent lock | SECURE-BROWSER-INSTALLER | IN_PROGRESS | Durable lock; malformed/missing state fails closed; cleanup not required for lock |
-| Private diagnostic logging | cPanel installer diagnostics | IN_PROGRESS | Correlation ID, redaction, restrictive permissions, no public log endpoint |
+| Private diagnostic logging | PrivateErrorLogger | IN_PROGRESS | Private runtime log records correlation ID, exception class and code only; no exception message, stack trace or request data; owner-only file permissions and private-root validation. Rotation, monitoring, alerting and installer diagnostics remain open |
 | Upgrade/migration process | DEPLOYMENT-OPERATIONS | IN_PROGRESS | Forward-only migration, backup, compatibility and rollback evidence |
 | Backup/restore | DEPLOYMENT-OPERATIONS | NOT_STARTED | DB + private files restore drill on isolated environment |
 | Health checks and operations | ARCHITECTURE, DEPLOYMENT-OPERATIONS | NOT_STARTED | Safe diagnostics, SMTP, storage, scheduler and disk monitoring |
