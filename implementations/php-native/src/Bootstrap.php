@@ -194,6 +194,8 @@ final class Bootstrap
         $router->add('GET', '/portal/companion/media', static fn(Request $request): Response => $companionMedia->index($request));
         $router->add('POST', '/portal/companion/media', static fn(Request $request): Response => $companionMedia->submit($request));
         $router->add('POST', '/portal/companion/media/{id}/withdraw', static fn(Request $request,array $params): Response => $companionMedia->withdraw($request,$params));
+        $router->add('POST', '/portal/companion/publication/withdraw', static fn(Request $request): Response => $companionMedia->withdrawPublicationConsent($request));
+        $router->add('POST', '/portal/companion/publication/renew', static fn(Request $request): Response => $companionMedia->renewPublicationConsent($request));
         $router->add('GET', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->index($request));
         $router->add('POST', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->save($request));
         $router->add('POST', '/portal/companion/availability/{id}/delete', static fn(Request $request, array $params): Response => $companionAvailability->delete($request, $params));
