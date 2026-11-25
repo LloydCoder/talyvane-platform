@@ -77,6 +77,22 @@ final class AdminModelAgencyController
         }
     }
 
+    /** @param array<string,string> $params */
+    public function legalHold(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if (!Csrf::verify($this->field($request,'_csrf'))) return $this->index($request,'Your session expired. Refresh this page and try again.',419);
+        $actor=$this->authentication->currentPrincipal();
+        if ($actor===null) return Response::redirect('/admin/login');
+        try {
+            $enabled=$this->field($request,'legal_hold')==='1';
+            $this->applications->updateLegalHold($actor,(string)($params['id']??''),$enabled,$this->field($request,'reason'),$request->requestId);
+            return Response::redirect('/admin/model-agency');
+        } catch (InvalidArgumentException|DomainException $error) {
+            return $this->index($request,$error->getMessage(),422);
+        }
+    }
+
     private function field(Request $request,string $name): string
     {
         $value=$request->body[$name]??'';
