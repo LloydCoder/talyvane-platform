@@ -51,6 +51,18 @@ The implementation must be threat-modelled against OWASP Top 10:2025 and tested 
 - maintain tamper-evident audit trails for privileged and safeguarding-sensitive actions;
 - separate ordinary application access from restricted safeguarding evidence access.
 
+## Private media and membership boundary
+
+Public profile media and members-only media are separate authorization paths. A `members_only` moderation decision does not itself grant gallery publication consent or client access.
+
+- Companion consent is a separate, versioned, per-image grant captured from the authenticated companion portal; only the linked companion account may grant or withdraw it.
+- Client gallery access requires a client-only principal, an active and in-date membership, and an active immutable `media.private_gallery` entitlement grant.
+- Every media-byte request rechecks the membership grant, profile discoverability and market eligibility, the exact current public publication grant/version, the separate members-only consent, human reviewer attestations, and the stored content hash.
+- Media and membership records are locked for the duration of authorization and byte retrieval so concurrent membership suspension or companion withdrawal serializes with delivery.
+- Withdrawal changes the media to a non-deliverable state, records consent/audit evidence, removes it from gallery projections, and deletes the private bytes after the transaction commits.
+- The global feature flag remains disabled by default. Current market and consent prerequisites must be satisfied before it can be enabled; provider, legal and safeguarding prerequisites remain fail-closed until independent evidence adapters exist.
+- Gallery pages and image responses are private, non-cacheable, non-indexable, and use opaque application routes rather than storage URLs.
+
 ## Quality gates
 
 No feature is accepted without requirement traceability, tests for success and failure states, authorization tests, audit coverage where applicable, accessibility checks, and operational documentation. Production release additionally requires a reproducible cPanel ZIP, clean-install test, upgrade test, backup/restore test, and staging acceptance on the actual target hosting configuration.
