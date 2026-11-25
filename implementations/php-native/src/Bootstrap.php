@@ -3,30 +3,30 @@ declare(strict_types=1);
 
 namespace Talyvane;
 
-use Talyvane\\Application\\Content\\ContentManagementService;
-use Talyvane\\Application\\CRM\\EnquiryService;
-use Talyvane\\Application\\Identity\\AuthenticationService;
-use Talyvane\\Application\\Identity\\EmailVerificationService;
-use Talyvane\\Application\\Identity\\MfaService;
-use Talyvane\\Application\\Identity\\PasswordChangeService;
-use Talyvane\\Application\\Identity\\UserRegistrationService;
-use Talyvane\\Http\\AdminAuthController;
-use Talyvane\\Http\\AdminBrandController;
-use Talyvane\\Http\\AdminNavigationController;
-use Talyvane\\Http\\AdminEnquiryController;
-use Talyvane\\Http\\PortalAuthController;
-use Talyvane\\Http\\PublicEnquiryController;
-use Talyvane\\Http\\AdminContentController;
-use Talyvane\\Http\\PublicSiteController;
-use Talyvane\\Http\\Request;
-use Talyvane\\Http\\Response;
-use Talyvane\\Http\\Router;
-use Talyvane\\Http\\ViewRenderer;
-use Talyvane\\Infrastructure\\Audit\\AuditLogger;
-use Talyvane\\Infrastructure\\Database\\ConnectionFactory;
-use Talyvane\\Infrastructure\\Mail\\SmtpMailer;
-use Talyvane\\Infrastructure\\Security\\RateLimiter;
-use Talyvane\\Security\\SecretBox;
+use Talyvane\Application\Content\ContentManagementService;
+use Talyvane\Application\CRM\EnquiryService;
+use Talyvane\Application\Identity\AuthenticationService;
+use Talyvane\Application\Identity\EmailVerificationService;
+use Talyvane\Application\Identity\MfaService;
+use Talyvane\Application\Identity\PasswordChangeService;
+use Talyvane\Application\Identity\UserRegistrationService;
+use Talyvane\Http\AdminAuthController;
+use Talyvane\Http\AdminBrandController;
+use Talyvane\Http\AdminNavigationController;
+use Talyvane\Http\AdminEnquiryController;
+use Talyvane\Http\PortalAuthController;
+use Talyvane\Http\PublicEnquiryController;
+use Talyvane\Http\AdminContentController;
+use Talyvane\Http\PublicSiteController;
+use Talyvane\Http\Request;
+use Talyvane\Http\Response;
+use Talyvane\Http\Router;
+use Talyvane\Http\ViewRenderer;
+use Talyvane\Infrastructure\Audit\AuditLogger;
+use Talyvane\Infrastructure\Database\ConnectionFactory;
+use Talyvane\Infrastructure\Mail\SmtpMailer;
+use Talyvane\Infrastructure\Security\RateLimiter;
+use Talyvane\Security\SecretBox;
 
 final class Bootstrap
 {
@@ -34,14 +34,14 @@ final class Bootstrap
     {
         $configPath = getenv('TALYVANE_CONFIG');
         if (!is_string($configPath) || $configPath === '' || !is_file($configPath) || !is_readable($configPath)) {
-            throw new \\RuntimeException('Private configuration is not available. Run the secure installer.');
+            throw new \RuntimeException('Private configuration is not available. Run the secure installer.');
         }
         $config = require $configPath;
         if (!is_array($config) || !isset($config['app_key']) || !is_string($config['app_key']) || strlen($config['app_key']) < 32) {
-            throw new \\RuntimeException('Private application configuration is invalid.');
+            throw new \RuntimeException('Private application configuration is invalid.');
         }
         if (!isset($config['database']) || !is_array($config['database'])) {
-            throw new \\RuntimeException('Database configuration is missing.');
+            throw new \RuntimeException('Database configuration is missing.');
         }
 
         $pdo = ConnectionFactory::mysql($config['database']);
@@ -69,7 +69,7 @@ final class Bootstrap
                     hash_hmac('sha256', 'talyvane-email-verification-v1', $config['app_key'])
                 );
                 $registration = new UserRegistrationService($pdo, $emailVerification, $rateLimiter, $audit);
-            } catch (\\InvalidArgumentException) {
+            } catch (\InvalidArgumentException) {
                 // Mail-dependent account creation stays unavailable; the public site and existing accounts remain usable.
             }
         }
