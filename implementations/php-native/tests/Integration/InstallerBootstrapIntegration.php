@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use Talyvane\Http\NativeInstallerController;
 use Talyvane\Http\Request;
+use Talyvane\Infrastructure\Database\ConnectionFactory;
 use Talyvane\Infrastructure\Mail\Mailer;
 use Talyvane\Installer\PrivateInstallerState;
 use Talyvane\Installer\SetupKey;
@@ -11,6 +12,16 @@ use Talyvane\Security\SecretBox;
 
 function runInstallerBootstrapIntegration(PDO $pdo): int
 {
+    $sharedDatabase = $pdo;
+    $databaseName = 'talyvane_installer_' . bin2hex(random_bytes(5));
+    $host = getenv('DB_HOST') ?: '127.0.0.1';
+    $port = (int) (getenv('DB_PORT') ?: 3306);
+    $username = getenv('DB_USER') ?: 'root';
+    $password = getenv('DB_PASSWORD') ?: '';
+    $server = new PDO(sprintf('mysql:host=%s;port=%d;charset=utf8mb4',$host,$port),$username,$password,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_EMULATE_PREPARES=>false]);
+    if (!preg_match('/^[a-zA-Z0-9_]{1,64}$/D',$databaseName)) { throw new RuntimeException('Installer integration database name is invalid.'); }
+    $server->exec('CREATE DATABASE `' . $databaseName . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    $pdo = ConnectionFactory::mysql(['host'=>$host,'port'=>$port,'database'=>$databaseName,'username'=>$username,'password'=>$password]);
     $assertions = 0;
     $assert = static function(bool $condition,string $message) use (&$assertions): void {
         $assertions++;
@@ -189,6 +200,10 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
         }
         rmdir($httpHome);
     } finally {
+        $pdo = null;
+        $server->exec('DROP DATABASE IF EXISTS `' . $databaseName . '`');
+        $sharedBootstrapCount = (int) $sharedDatabase->query('SELECT COUNT(*) FROM super_admin_bootstrap_challenges')->fetchColumn();
+        if ($sharedBootstrapCount !== 0) { throw new RuntimeException('Installer integration leaked bootstrap state into the shared identity database.'); }
         if (is_dir($privateConfig)) {
             foreach (glob($privateConfig . DIRECTORY_SEPARATOR . '*') ?: [] as $file) {
                 if (is_file($file) && !is_link($file)) { @unlink($file); }
