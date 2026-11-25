@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 use Talyvane\Application\Discovery\DiscoveryService;
+use Talyvane\Application\Clients\MembershipEntitlementService;
+use Talyvane\Features\FeatureAvailability;
 use Talyvane\Application\Media\ProfileMediaService;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
@@ -185,6 +187,48 @@ function runProfileMediaIntegration(PDO $pdo): int
         $publicProjection=$service->publicMediaForProfile($profileId);
         $assert(count(array_filter($publicProjection,static fn(array $item): bool => $item['id']===$membersOnlyId))===0,
             'members-only media is excluded from public profile media projections');
+
+        $clientId=$uuid();
+        $clientRole=$pdo->prepare(
+            'INSERT INTO users (id,email,password_hash,status,email_verified_at,first_login_required,admin_session_version,created_at,updated_at)
+             VALUES (:id,:email,:password,"active",UTC_TIMESTAMP(),0,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+        );
+        $clientRole->execute(['id'=>$clientId,'email'=>'private-gallery-'.$clientId.'@example.test','password'=>password_hash('not-used',PASSWORD_DEFAULT)]);
+        $pdo->prepare('INSERT INTO user_roles (user_id,role_key,granted_by,granted_at) VALUES (:id,"client",NULL,UTC_TIMESTAMP())')
+            ->execute(['id'=>$clientId]);
+        $membershipId=$uuid();
+        $pdo->prepare(
+            'INSERT INTO memberships (id,client_user_id,plan_key,status,starts_at,ends_at,created_at,updated_at)
+             VALUES (:id,:client,"gallery-test","active",DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 MINUTE),DATE_ADD(UTC_TIMESTAMP(),INTERVAL 1 DAY),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+        )->execute(['id'=>$membershipId,'client'=>$clientId]);
+        $pdo->prepare(
+            'INSERT INTO membership_grants (id,membership_id,entitlement_key,active,starts_at,ends_at,granted_by,created_at)
+             VALUES (:id,:membership,"media.private_gallery",1,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 MINUTE),DATE_ADD(UTC_TIMESTAMP(),INTERVAL 1 DAY),:actor,UTC_TIMESTAMP())'
+        )->execute(['id'=>$uuid(),'membership'=>$membershipId,'actor'=>$reviewerId]);
+        $galleryFeatures=new FeatureAvailability(
+            ['memberships'=>true,'memberships.private_gallery'=>true],
+            static fn(string $dependency): bool => true
+        );
+        $galleryEntitlements=new MembershipEntitlementService($pdo,$galleryFeatures);
+        $galleryService=new ProfileMediaService($pdo,$storage,$discovery,$audit,$galleryEntitlements);
+        $companionClient=new Principal($clientId,['client'],false);
+        $service->grantMembersOnlyConsent($companion,$profileId,$membersOnlyId,true,$requestId);
+        $gallery=$galleryService->privateGalleryForClient($companionClient);
+        $assert(count(array_filter($gallery,static fn(array $item): bool => $item['id']===$membersOnlyId))===1,
+            'a client with a current membership entitlement can see separately consented members-only media');
+        $privateDelivery=$galleryService->privateMediaForClient($companionClient,$membersOnlyId);
+        $assert(hash_equals($membersOnlyImage['sha256'],hash('sha256',$privateDelivery['bytes'])) &&
+            $privateDelivery['mime']==='image/webp',
+            'private gallery delivery verifies media integrity after rechecking client entitlement and companion consent');
+        $noEntitlementDenied=false;
+        try { $galleryService->privateMediaForClient(new Principal($reviewerId,['super_admin'],true),$membersOnlyId); }
+        catch (DomainException) { $noEntitlementDenied=true; }
+        $assert($noEntitlementDenied,'non-client principals cannot access the members-only gallery even when they have administrative MFA');
+        $service->withdrawMembersOnlyConsent($companion,$profileId,$membersOnlyId,$requestId);
+        $withdrawnGallery=$galleryService->privateGalleryForClient($companionClient);
+        $assert(count(array_filter($withdrawnGallery,static fn(array $item): bool => $item['id']===$membersOnlyId))===0 &&
+            !file_exists($membersOnlyImage['path']),
+            'companion withdrawal immediately removes the image from gallery delivery and deletes its private bytes');
 
         $rejectedImage=$makeImage();
         $rejectedId=$uuid();
