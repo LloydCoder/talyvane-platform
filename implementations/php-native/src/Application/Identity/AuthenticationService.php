@@ -101,6 +101,85 @@ final class AuthenticationService
         ];
     }
 
+    /** @param array{status:string,user_id?:string,session_version?:int} $decision */
+    public function beginFirstLoginPasswordChange(array $decision): void
+    {
+        if (($decision['status'] ?? '') !== 'first_login_required' || !isset($decision['user_id'],$decision['session_version'])) {
+            throw new \\DomainException('First-login password replacement is not available.');
+        }
+        SessionManager::start();
+        SessionManager::rotateAfterAuthentication();
+        $_SESSION['_admin_password_change_pending'] = [
+            'user_id'=>$decision['user_id'],
+            'session_version'=>$decision['session_version'],
+            'expires_at'=>time() + 600,
+        ];
+    }
+
+    public function completeFirstLoginPasswordChange(PasswordChangeService $passwords, string $currentPassword, string $newPassword, string $requestId): string
+    {
+        $pending = $_SESSION['_admin_password_change_pending'] ?? null;
+        if (!is_array($pending) || !isset($pending['user_id'],$pending['session_version'],$pending['expires_at']) ||
+            (int) $pending['expires_at'] < time()) {
+            unset($_SESSION['_admin_password_change_pending']);
+            throw new \\DomainException('First-login password replacement session has expired.');
+        }
+        $userId = (string) $pending['user_id'];
+        $user = $this->activeUser($userId);
+        if ($user === null || (int) $user['admin_session_version'] !== (int) $pending['session_version']) {
+            unset($_SESSION['_admin_password_change_pending']);
+            throw new \\DomainException('First-login account state changed; authenticate again.');
+        }
+        $newVersion = $passwords->changeFirstLoginPassword($userId,$currentPassword,$newPassword,$requestId);
+        $roles = $this->roles($userId);
+        unset($_SESSION['_admin_password_change_pending']);
+        SessionManager::rotateAfterAuthentication();
+        $_SESSION['_admin_mfa_setup_pending'] = [
+            'user_id'=>$userId,
+            'session_version'=>$newVersion,
+            'expires_at'=>time() + 600,
+        ];
+        return $this->mfa->beginEnrollment(new Principal($userId,$roles,false));
+    }
+
+    /** @param array{status:string,user_id?:string,session_version?:int,roles?:list<string>} $decision */
+    public function beginAdminMfaSetup(array $decision): string
+    {
+        if (($decision['status'] ?? '') !== 'mfa_setup_required' || !isset($decision['user_id'],$decision['session_version'],$decision['roles'])) {
+            throw new \\DomainException('Administrator MFA setup is not available.');
+        }
+        SessionManager::start();
+        SessionManager::rotateAfterAuthentication();
+        $_SESSION['_admin_mfa_setup_pending'] = [
+            'user_id'=>$decision['user_id'],
+            'session_version'=>$decision['session_version'],
+            'expires_at'=>time() + 600,
+        ];
+        return $this->mfa->beginEnrollment(new Principal($decision['user_id'],$decision['roles'],false));
+    }
+
+    /** Returns recovery codes exactly once after successful MFA enrollment. */
+    public function completeAdminMfaSetup(string $code, string $requestId): array
+    {
+        $pending = $_SESSION['_admin_mfa_setup_pending'] ?? null;
+        if (!is_array($pending) || !isset($pending['user_id'],$pending['session_version'],$pending['expires_at']) ||
+            (int) $pending['expires_at'] < time()) {
+            unset($_SESSION['_admin_mfa_setup_pending']);
+            throw new \\DomainException('Administrator MFA setup session has expired.');
+        }
+        $userId = (string) $pending['user_id'];
+        $user = $this->activeUser($userId);
+        if ($user === null || (int) $user['admin_session_version'] !== (int) $pending['session_version']) {
+            unset($_SESSION['_admin_mfa_setup_pending']);
+            throw new \\DomainException('Administrator account state changed during MFA setup.');
+        }
+        $roles = $this->roles($userId);
+        $codes = $this->mfa->confirmEnrollment(new Principal($userId,$roles,false),$code,$requestId);
+        unset($_SESSION['_admin_mfa_setup_pending']);
+        $this->finalizeAdminSession($userId,(int) $user['admin_session_version']);
+        return $codes;
+    }
+
     public function completeAdminMfa(string $code): bool
     {
         $pending = $_SESSION['_admin_mfa_pending'] ?? null;
