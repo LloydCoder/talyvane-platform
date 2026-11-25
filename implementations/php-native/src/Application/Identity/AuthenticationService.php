@@ -12,7 +12,7 @@ use Talyvane\Security\SessionManager;
 /** Authentication decisions are distinct from authorization and privileged MFA completion. */
 final class AuthenticationService
 {
-    private const DUMMY_HASH = '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
+    private static ?string $dummyHash = null;
     private const ADMIN_ROLES = ['super_admin','owner','admin','finance','verifier','safeguarding'];
     private const PORTAL_ROLES = ['client','companion'];
 
@@ -22,6 +22,11 @@ final class AuthenticationService
         private MfaService $mfa
     ) {}
 
+    private static function dummyHash(): string
+    {
+        return self::$dummyHash ??= password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT);
+    }
+
     /** @return array{status:string,user_id?:string,session_version?:int,roles?:list<string>} */
     public function verifyPassword(string $email, string $password, string $context, string $ipAddress): array
     {
@@ -30,7 +35,7 @@ final class AuthenticationService
         }
         $email = strtolower(trim($email));
         if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 254) {
-            password_verify($password, self::DUMMY_HASH);
+            password_verify($password, self::dummyHash());
             return ['status'=>'invalid_credentials'];
         }
         $scope = $context === 'admin' ? 'auth.admin' : 'auth.portal';
@@ -41,7 +46,7 @@ final class AuthenticationService
         $statement = $this->pdo->prepare('SELECT id, email, password_hash, status, email_verified_at, first_login_required, admin_session_version FROM users WHERE email = :email LIMIT 1');
         $statement->execute(['email'=>$email]);
         $user = $statement->fetch();
-        $hash = is_array($user) ? (string) $user['password_hash'] : self::DUMMY_HASH;
+        $hash = is_array($user) ? (string) $user['password_hash'] : self::dummyHash();
         $passwordValid = password_verify($password, $hash);
         if (!is_array($user) || !$passwordValid || $user['status'] !== 'active' || $user['email_verified_at'] === null) {
             return ['status'=>'invalid_credentials'];
