@@ -9,7 +9,6 @@ return [
         ADD COLUMN height INT UNSIGNED NOT NULL DEFAULT 0 AFTER width,
         ADD COLUMN rights_confirmed_at DATETIME NULL AFTER consent_grant_id,
         ADD COLUMN consent_version VARCHAR(80) NULL AFTER rights_confirmed_at,
-        ADD COLUMN reviewed_at DATETIME NULL AFTER reviewed_by,
         ADD COLUMN review_note VARCHAR(1000) NULL AFTER reviewed_at,
         ADD COLUMN withdrawn_at DATETIME NULL AFTER review_note,
         ADD COLUMN withdrawn_by CHAR(36) NULL AFTER withdrawn_at,
