@@ -146,8 +146,14 @@ final class DestinationCoverService
              JOIN destination_cover_assets a ON a.destination_id=d.id
              WHERE d.slug=:slug AND d.status="published" AND d.cover_media_key=a.private_storage_key
                AND c.enabled=1 AND m.enabled=1 AND m.decision="approved"
-               AND m.expires_at>UTC_TIMESTAMP() AND m.reviewer_id IS NOT NULL
-               AND a.review_status="approved" AND a.withdrawn_at IS NULL
+               AND m.reviewed_at IS NOT NULL AND m.expires_at>UTC_TIMESTAMP()
+               AND EXISTS (
+                   SELECT 1 FROM user_roles ur JOIN admin_mfa_credentials mfa ON mfa.user_id=ur.user_id
+                   WHERE ur.user_id=m.reviewer_id AND ur.role_key IN ("owner","admin","super_admin")
+                     AND mfa.enabled_at IS NOT NULL
+               )
+               AND a.review_status="approved" AND a.reviewed_by IS NOT NULL
+               AND a.reviewed_at IS NOT NULL AND a.withdrawn_at IS NULL
              ORDER BY a.reviewed_at DESC LIMIT 1'
         );
         $query->execute(['slug'=>$slug]);
