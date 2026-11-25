@@ -11,7 +11,7 @@ use Talyvane\Security\Principal;
 /** Allowlisted, principal-scoped privacy export; excludes credentials and third-party contact data. */
 final class PortalPrivacyExportService
 {
-    public function __construct(private PDO $pdo,private AuditLogger $audit) {}
+    public function __construct(private PDO $pdo,private AuditLogger $audit,private RateLimiter $limiter) {}
 
     /** @return array<string,mixed> */
     public function export(Principal $actor,string $requestId): array
@@ -21,6 +21,9 @@ final class PortalPrivacyExportService
         $isCompanion=$actor->hasRole('companion') && count($actor->roles)===1;
         if (!$isClient && !$isCompanion) throw new \DomainException('A client or companion portal account is required.');
         Authorization::require($actor,$isClient?'client.booking.manage':'companion.self.view',false);
+        if (!$this->limiter->consume('portal.privacy.export',$actor->id,3,3600,3600)) {
+            throw new \\DomainException('Privacy export is temporarily unavailable. Try again later.');
+        }
 
         $account=$this->pdo->prepare(
             'SELECT id,email,email_verified_at,created_at FROM users WHERE id=:id AND status="active" LIMIT 1'
