@@ -117,7 +117,7 @@ final class NativeInstallerController
         $configFile = $paths['config'] . '/app.php';
         $keyFile = $paths['config'] . '/INSTALLER-ACCESS-KEY.txt';
         if (!is_file($keyFile) && !file_exists($configFile)) {
-            $setupKey->create();
+            try { $setupKey->create(); } catch (RuntimeException) { if (!is_file($keyFile)) { throw new RuntimeException('Private installer key could not be created.'); } }
         }
         if (is_file($keyFile)) {
             $pending = $this->pendingState($paths,$setupKey)->read();
@@ -314,6 +314,7 @@ final class NativeInstallerController
                 );
                 $pending['user_id'] = $bootstrap['user_id'];
                 $pending['phase'] = 'pending';
+                $pending['expires_at'] = time()+1800;
                 $pendingStore->write($pending);
                 $bootstrapRow = ['user_id'=>$bootstrap['user_id'],'activated_at'=>null];
             } else {
@@ -410,6 +411,7 @@ final class NativeInstallerController
         }
         $pendingStore->delete();
         $setupKey->consume();
+        SessionManager::rotateAfterAuthentication();
         unset($_SESSION['installer_pending_nonce']);
         $_SESSION['installer_success_token'] = $successToken;
         return Response::redirect('/install/success');
