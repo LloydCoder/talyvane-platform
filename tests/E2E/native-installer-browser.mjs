@@ -163,7 +163,7 @@ try {
   assert.match(await page.locator('body').innerText(), /Your platform is ready/i);
   const credentialBlocks = await page.locator('.secret').evaluateAll((blocks) =>
     blocks.map((block) => ({
-      label: block.querySelector('label')?.innerText ?? '',
+      label: block.querySelector('label')?.textContent?.trim() ?? '',
       value: block.querySelector('code')?.innerText ?? '',
     })),
   );
