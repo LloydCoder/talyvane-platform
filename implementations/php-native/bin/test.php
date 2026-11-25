@@ -81,6 +81,7 @@ rmdir($viewRoot);
 $authViews = new ViewRenderer(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'views');
 $authMarkup = $authViews->render('auth/screen', [
     'screen'=>'login',
+    'brandName'=>'Maison Example',
     'csrf'=>'test-csrf-token',
     'error'=>'<script>alert(1)</script>',
     'email'=>'person@example.test',
@@ -89,6 +90,7 @@ $authMarkup = $authViews->render('auth/screen', [
     'roles'=>[],
 ]);
 $assert(str_contains($authMarkup, 'name="_csrf" value="test-csrf-token"'), 'admin sign-in view includes its CSRF token');
+$assert(str_contains($authMarkup, 'Maison Example'), 'admin sign-in uses the configured white-label brand');
 $assert(str_contains($authMarkup, '&lt;script&gt;alert(1)&lt;/script&gt;'), 'admin sign-in view escapes authentication errors');
 $assert(!str_contains($authMarkup, '<script>alert(1)</script>'), 'admin sign-in view never renders error text as markup');
 $setupMarkup = $authViews->render('auth/screen', [
@@ -122,6 +124,7 @@ $contentListMarkup = $authViews->render('admin/content', [
     'page'=>[],
 ]);
 $assert(str_contains($contentListMarkup, 'href="/admin/content/new"'), 'CMS index exposes the create-page workflow');
+$assert(str_contains($contentListMarkup, 'Maison Example'), 'CMS workspace uses the configured white-label brand');
 $assert(!str_contains($contentListMarkup, '<script>alert(1)</script>'), 'CMS index escapes untrusted page titles');
 $contentEditMarkup = $authViews->render('admin/content', [
     'mode'=>'edit',
