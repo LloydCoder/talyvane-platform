@@ -225,7 +225,7 @@ function runProfileMediaIntegration(PDO $pdo): int
         catch (DomainException) { $noEntitlementDenied=true; }
         $assert($noEntitlementDenied,'non-client principals cannot access the members-only gallery even when they have administrative MFA');
         $service->withdrawMembersOnlyConsent($companion,$profileId,$membersOnlyId,'Talyvane',$requestId);
-        $withdrawnGallery=$galleryService->privateGalleryForClient($companionClient);
+        $withdrawnGallery=$galleryService->privateGalleryForClient($companionClient,'Talyvane');
         $assert(count(array_filter($withdrawnGallery,static fn(array $item): bool => $item['id']===$membersOnlyId))===0 &&
             !file_exists($membersOnlyImage['path']),
             'companion withdrawal immediately removes the image from gallery delivery and deletes its private bytes');
