@@ -5,6 +5,7 @@ namespace Talyvane\Http;
 
 use PDO;
 use Talyvane\Application\Content\ContentManagementService;
+use Talyvane\Application\Identity\AccountRecoveryService;
 use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Application\Identity\EmailVerificationService;
 use Talyvane\Application\Identity\UserRegistrationService;
@@ -22,7 +23,8 @@ final class PortalAuthController
         private ContentManagementService $content,
         private ViewRenderer $views,
         private ?UserRegistrationService $registration,
-        private ?EmailVerificationService $verification
+        private ?EmailVerificationService $verification,
+        private ?AccountRecoveryService $recovery
     ) {}
 
     public function registerForm(Request $request): Response
@@ -86,6 +88,66 @@ final class PortalAuthController
             return $this->page('login', ['email'=>$email,'notice'=>'Your email is verified. You can now sign in.']);
         } catch (\Throwable) {
             return $this->page('verify', ['email'=>$email,'error'=>'The verification details could not be accepted.'], 422);
+        }
+    }
+
+    public function resendVerification(Request $request): Response
+    {
+        SessionManager::start();
+        if (!Csrf::verify($this->field($request, '_csrf'))) {
+            return $this->page('verify', ['email'=>$this->field($request, 'email'),'error'=>'Your session expired. Refresh this page and try again.'], 419);
+        }
+        $email = strtolower(trim($this->field($request, 'email')));
+        if ($this->registration !== null && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $lookup = $this->pdo->prepare('SELECT id FROM users WHERE email = :email AND status = "pending" AND email_verified_at IS NULL LIMIT 1');
+            $lookup->execute(['email'=>$email]);
+            $userId = $lookup->fetchColumn();
+            if (is_string($userId)) {
+                try { $this->registration->resendPrimaryVerification($userId); } catch (\\Throwable) {}
+            }
+        }
+        return $this->page('verify', ['email'=>$email,'notice'=>'If this account is awaiting verification, a new code has been sent.']);
+    }
+
+    public function recoveryForm(Request $request): Response
+    {
+        SessionManager::start();
+        return $this->page('recovery_request');
+    }
+
+    public function requestRecovery(Request $request): Response
+    {
+        SessionManager::start();
+        if (!Csrf::verify($this->field($request, '_csrf'))) {
+            return $this->page('recovery_request', ['error'=>'Your session expired. Refresh this page and try again.'], 419);
+        }
+        if ($this->recovery !== null) {
+            try { $this->recovery->request($this->field($request, 'email')); } catch (\\Throwable) {}
+        }
+        return $this->page('recovery_complete', ['email'=>strtolower(trim($this->field($request, 'email'))),'notice'=>'If an active account matches that address, a recovery code has been sent.']);
+    }
+
+    public function completeRecovery(Request $request): Response
+    {
+        SessionManager::start();
+        if (!Csrf::verify($this->field($request, '_csrf'))) {
+            return $this->page('recovery_complete', ['email'=>$this->field($request, 'email'),'error'=>'Your session expired. Refresh this page and try again.'], 419);
+        }
+        $email = strtolower(trim($this->field($request, 'email')));
+        $password = $this->field($request, 'new_password');
+        if (!hash_equals($password, $this->field($request, 'confirm_password'))) {
+            return $this->page('recovery_complete', ['email'=>$email,'error'=>'The new password entries do not match.'], 422);
+        }
+        if ($this->recovery === null) {
+            return $this->page('recovery_complete', ['email'=>$email,'error'=>'Account recovery is temporarily unavailable.'], 503);
+        }
+        try {
+            if (!$this->recovery->complete($email, $this->field($request, 'code'), $password, $request->requestId)) {
+                return $this->page('recovery_complete', ['email'=>$email,'error'=>'The recovery details could not be accepted.'], 422);
+            }
+            return $this->page('login', ['email'=>$email,'notice'=>'Your password has been reset. Sign in with your new password.']);
+        } catch (\\Throwable) {
+            return $this->page('recovery_complete', ['email'=>$email,'error'=>'The recovery details could not be accepted.'], 422);
         }
     }
 
