@@ -151,6 +151,8 @@ final class ModelApplicantRightsService
                  verified_at = UTC_TIMESTAMP(),expires_at = DATE_ADD(UTC_TIMESTAMP(),INTERVAL 30 MINUTE)
                  WHERE id = :id'
             )->execute(['attempts'=>$attempts,'id'=>$rights['id']]);
+            $this->audit->record(null,'model_application.rights.verified','model_application',(string) $app['id'],
+                'Applicant verified a privacy-rights request',null,['request_type'=>$rights['request_type']],$requestId,'applicant-rights-v1');
             $this->pdo->commit();
             return (string) $rights['id'];
         } catch (Throwable $error) {
