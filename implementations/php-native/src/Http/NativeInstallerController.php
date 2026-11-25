@@ -169,13 +169,13 @@ final class NativeInstallerController
                 'port'=>$this->integerField($request,'db_port',1,65535),
                 'database'=>$this->requiredText($request,'db_name',1,64),
                 'username'=>$this->requiredText($request,'db_user',1,128),
-                'password'=>$this->requiredText($request,'db_password',1,1024),
+                'password'=>$this->requiredSecret($request,'db_password',1024),
             ];
             $mail = [
                 'host'=>$this->requiredText($request,'mail_host',1,253),
                 'port'=>$this->integerField($request,'mail_port',1,65535),
                 'username'=>$this->requiredText($request,'mail_username',1,254),
-                'password'=>$this->requiredText($request,'mail_password',1,1024),
+                'password'=>$this->requiredSecret($request,'mail_password',1024),
                 'from_email'=>$this->requiredText($request,'mail_from_email',3,254),
                 'from_name'=>$this->requiredText($request,'mail_from_name',1,120),
                 'encryption'=>$this->requiredText($request,'mail_encryption',3,3),
@@ -573,6 +573,15 @@ final class NativeInstallerController
         return $value;
     }
 
+    private function requiredSecret(Request $request,string $name,int $max): string
+    {
+        $value = $request->body[$name] ?? null;
+        if (!is_string($value) || $value === '' || strlen($value) > $max || preg_match('/[\r\n\0]/',$value)) {
+            throw new InvalidArgumentException('A required installation secret is missing or invalid: ' . $name . '.');
+        }
+        return $value;
+    }
+
     private function integerField(Request $request,string $name,int $min,int $max): int
     {
         $value = $this->field($request,$name);
@@ -597,6 +606,7 @@ final class NativeInstallerController
             strtolower((string) ($parts['scheme'] ?? '')) !== 'https' ||
             !isset($parts['host']) || !isset($requestParts['host']) ||
             strtolower((string) $parts['host']) !== strtolower((string) $requestParts['host']) ||
+            (int) ($parts['port'] ?? 443) !== (int) ($requestParts['port'] ?? 443) ||
             isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment']) ||
             !in_array((string) ($parts['path'] ?? ''),['','/'],true)) {
             throw new InvalidArgumentException('Canonical URL must be this site’s HTTPS origin without credentials, query or fragment.');
