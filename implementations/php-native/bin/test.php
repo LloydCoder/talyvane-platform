@@ -681,6 +681,8 @@ $assert(str_contains($companionMediaMarkup,'enctype="multipart/form-data"') &&
     str_contains($companionMediaMarkup,'name="rights_confirmed"') &&
     str_contains($companionMediaMarkup,'name="depicted_adults_confirmed"') &&
     str_contains($companionMediaMarkup,'name="publication_confirmed"') &&
+    str_contains($companionMediaMarkup,'/portal/companion/publication/withdraw') &&
+    str_contains($companionMediaMarkup,'/portal/companion/publication/renew') &&
     str_contains($companionMediaMarkup,'&lt;script&gt;profile&lt;/script&gt;'),
     'companion media workspace requires separate rights/publication attestations and escapes profile data');
 $adminMediaMarkup = $authViews->render('admin/profile-media',[
