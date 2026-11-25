@@ -608,6 +608,29 @@ $assert(str_contains($auditMarkup, '&lt;script&gt;alert(1)&lt;/script&gt;'), 'au
 $assert(!str_contains($auditMarkup, '<script>alert(1)</script>'), 'audit event data cannot inject executable markup');
 $assert(!str_contains($auditMarkup, 'must never be rendered'), 'audit workspace does not render sensitive before/after snapshots');
 $assert(str_contains($auditMarkup, '/admin/audit?page=2'), 'audit workspace exposes bounded pagination');
+$publicProfileMarkup = $authViews->render('public/discovery', [
+    'mode'=>'profile',
+    'profile'=>[
+        'slug'=>'verified-profile',
+        'display_name'=>'Verified Profile',
+        'destination_slug'=>'london',
+        'destination_name'=>'London',
+        'experience_category'=>'Representation',
+        'biography'=>'Public profile biography',
+        'languages'=>['en'],
+    ],
+    'canSaveFavorite'=>true,
+    'csrf'=>'csrf-test-token',
+]);
+$assert(str_contains($publicProfileMarkup, 'action="/portal/favorites/verified-profile"'), 'authenticated client profile page exposes a private shortlist action');
+$assert(str_contains($publicProfileMarkup, 'csrf-test-token'), 'shortlist action carries the server-issued CSRF token');
+$anonymousProfileMarkup = $authViews->render('public/discovery', [
+    'mode'=>'profile',
+    'profile'=>['slug'=>'verified-profile','display_name'=>'Verified Profile','destination_slug'=>'london','destination_name'=>'London'],
+    'canSaveFavorite'=>false,
+    'csrf'=>'',
+]);
+$assert(str_contains($anonymousProfileMarkup, 'Client sign-in to save'), 'anonymous visitors are directed to client sign-in instead of receiving a mutation token');
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($iterator as $entry) {
     $entry->isDir() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
