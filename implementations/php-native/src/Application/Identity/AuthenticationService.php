@@ -5,7 +5,6 @@ namespace Talyvane\Application\Identity;
 
 use PDO;
 use Talyvane\Infrastructure\Security\RateLimiter;
-use Talyvane\Security\MfaService as MissingMfaService;
 use Talyvane\Security\Principal;
 use Talyvane\Security\SessionManager;
 
