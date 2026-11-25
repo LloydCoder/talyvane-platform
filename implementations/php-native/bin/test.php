@@ -208,6 +208,23 @@ $assert(str_contains($brandMarkup, 'action="/admin/brand"'), 'brand settings for
 $assert(str_contains($brandMarkup, 'Maison Example'), 'brand settings form shows the active deployment identity');
 $assert(str_contains($brandMarkup, 'name="color_accent"'), 'brand settings expose the configured accent token');
 $assert(!str_contains($brandMarkup, 'private/brand/logo.webp'), 'brand settings never expose private media storage keys');
+$discoveryMarkup = $authViews->render('public/discovery', [
+    'mode'=>'destination',
+    'brandName'=>'Maison Example',
+    'destination'=>['slug'=>'london','display_name'=>'London'],
+    'profiles'=>[['slug'=>'talent-one','display_name'=>'<script>alert(1)</script>','experience_category'=>'Representation']],
+]);
+$assert(str_contains($discoveryMarkup, 'href="/profiles/talent-one"'), 'public discovery links to published profiles');
+$assert(!str_contains($discoveryMarkup, '<script>alert(1)</script>'), 'public discovery escapes profile data');
+$adminCompanionMarkup = $authViews->render('admin/companions', [
+    'brandName'=>'Maison Example',
+    'csrf'=>'companion-review-csrf',
+    'error'=>'',
+    'items'=>[['id'=>'profile-1','slug'=>'<script>bad</script>','display_name'=>'<img src=x onerror=alert(1)>','destination_name'=>'London','adult_eligibility_status'=>'verified','adult_verified_at'=>'2026-11-25 10:00:00','publication_consent_version'=>'consent-v1','created_at'=>'2026-11-25 09:00:00']],
+]);
+$assert(str_contains($adminCompanionMarkup, '/admin/companions/profile-1/publish'), 'admin companion review exposes the audited publication action');
+$assert(!str_contains($adminCompanionMarkup, '<img src=x onerror=alert(1)>') && !str_contains($adminCompanionMarkup, '<script>bad</script>'), 'admin companion review escapes profile data');
+
 $publicHomeMarkup = $authViews->render('public/home', [
     'brand'=>['brand_name'=>'Maison Example','tagline'=>'A considered experience','seo_defaults'=>['title_suffix'=>' | Official','robots'=>'noindex,nofollow']],
     'sections'=>[],
