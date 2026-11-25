@@ -145,8 +145,8 @@ catch (DomainException) { $assert(true, 'agreement cannot be marked executed wit
 $assert(CastingStateMachine::submission('submitted','selected','admin') === 'selected', 'agency can select a casting submission');
 try { CastingStateMachine::submission('submitted','selected','applicant'); $assert(false, 'applicant cannot select themselves'); }
 catch (DomainException) { $assert(true, 'applicant cannot select themselves'); }
-$assert(AssignmentStateMachine::transition('offered','accepted','applicant','agency-1','talent-1',null,'acceptance-evidence') === 'accepted', 'talent acceptance requires evidence');
-try { AssignmentStateMachine::transition('offered','confirmed','applicant','agency-1','talent-1'); $assert(false, 'talent cannot confirm agency assignment'); }
+$assert(AssignmentStateMachine::transition('offered','accepted','applicant','acceptance-evidence') === 'accepted', 'talent acceptance requires evidence');
+try { AssignmentStateMachine::transition('offered','confirmed','applicant','agency-1'); $assert(false, 'talent cannot confirm agency assignment'); }
 catch (DomainException) { $assert(true, 'talent cannot confirm agency assignment'); }
 $licence = new ImageLicencePolicy('active','portfolio.display','GB','public',true,true,true,'execution-ref',$now->modify('-1 day'),$now->modify('+1 day'),null);
 $assert($licence->permits('portfolio.display','GB','public',$now), 'image licence permits only current approved purpose and audience');
