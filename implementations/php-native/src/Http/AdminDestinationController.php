@@ -66,7 +66,7 @@ final class AdminDestinationController
     private function administrator(): ?Principal
     {
         $principal = $this->authentication->currentPrincipal();
-        if ($principal === null || count(array_intersect($principal->roles,['super_admin','owner','admin'])) !== 1) {
+        if ($principal === null || (!$principal->hasRole('super_admin') && count(array_intersect($principal->roles,['owner','admin'])) !== 1)) {
             return null;
         }
         return $principal;
