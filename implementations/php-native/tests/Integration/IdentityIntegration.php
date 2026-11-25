@@ -214,6 +214,7 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(is_array($automatic) && $automatic['status'] === 'confirmed' && $automatic['booking_mode'] === 'automatic' && (bool) $automatic['companion_opt_in_snapshot'],'automatic confirmation requires enabled rules, companion opt-in and matching local availability');
 
     $bookingCommands = new BookingCommandService($pdo,new BookingPolicyRepository($pdo),$audit);
+    $superAdmin = new Principal($id,['super_admin'],true);
     $companionPrincipal = new Principal($companionId,['companion'],false);
     $bookingCommands->transition($companionPrincipal,$manualBookingId,'accepted','Companion accepted the requested booking',bin2hex(random_bytes(16)));
     $bookingCommands->transition($superAdmin,$manualBookingId,'confirmed','Administrator confirmed after deposit gate review',bin2hex(random_bytes(16)));
