@@ -13,7 +13,7 @@ final class VaultTransitSafeguardingCaseKeyProvider implements SafeguardingCaseK
     public function __construct(private array $config)
     {
         $this->endpoint();
-        $this->namespace();
+        $this->keyNamespace();
         $this->runtimeToken();
         $this->retentionToken();
     }
@@ -167,7 +167,7 @@ final class VaultTransitSafeguardingCaseKeyProvider implements SafeguardingCaseK
         return $mount;
     }
 
-    private function namespace(): string
+    private function keyNamespace(): string
     {
         $value=strtolower(trim((string)($this->config['namespace']??'')));
         if (!preg_match('/^[a-z0-9]{8,32}$/D',$value)) {
@@ -176,7 +176,7 @@ final class VaultTransitSafeguardingCaseKeyProvider implements SafeguardingCaseK
         return $value;
     }
 
-    private function casePrefix(): string { return 'case-'.$this->namespace().'-'; }
+    private function casePrefix(): string { return 'case-'.$this->keyNamespace().'-'; }
 
     private function runtimeToken(): string
     {
