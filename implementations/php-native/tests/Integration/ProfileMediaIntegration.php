@@ -212,19 +212,19 @@ function runProfileMediaIntegration(PDO $pdo): int
         $galleryEntitlements=new MembershipEntitlementService($pdo,$galleryFeatures);
         $galleryService=new ProfileMediaService($pdo,$storage,$discovery,$audit,$galleryEntitlements);
         $companionClient=new Principal($clientId,['client'],false);
-        $service->grantMembersOnlyConsent($companion,$profileId,$membersOnlyId,true,$requestId);
-        $gallery=$galleryService->privateGalleryForClient($companionClient);
+        $service->grantMembersOnlyConsent($companion,$profileId,$membersOnlyId,true,'Talyvane',$requestId);
+        $gallery=$galleryService->privateGalleryForClient($companionClient,'Talyvane');
         $assert(count(array_filter($gallery,static fn(array $item): bool => $item['id']===$membersOnlyId))===1,
             'a client with a current membership entitlement can see separately consented members-only media');
-        $privateDelivery=$galleryService->privateMediaForClient($companionClient,$membersOnlyId);
+        $privateDelivery=$galleryService->privateMediaForClient($companionClient,$membersOnlyId,'Talyvane');
         $assert(hash_equals($membersOnlyImage['sha256'],hash('sha256',$privateDelivery['bytes'])) &&
             $privateDelivery['mime']==='image/webp',
             'private gallery delivery verifies media integrity after rechecking client entitlement and companion consent');
         $noEntitlementDenied=false;
-        try { $galleryService->privateMediaForClient(new Principal($reviewerId,['super_admin'],true),$membersOnlyId); }
+        try { $galleryService->privateMediaForClient(new Principal($reviewerId,['super_admin'],true),$membersOnlyId,'Talyvane'); }
         catch (DomainException) { $noEntitlementDenied=true; }
         $assert($noEntitlementDenied,'non-client principals cannot access the members-only gallery even when they have administrative MFA');
-        $service->withdrawMembersOnlyConsent($companion,$profileId,$membersOnlyId,$requestId);
+        $service->withdrawMembersOnlyConsent($companion,$profileId,$membersOnlyId,'Talyvane',$requestId);
         $withdrawnGallery=$galleryService->privateGalleryForClient($companionClient);
         $assert(count(array_filter($withdrawnGallery,static fn(array $item): bool => $item['id']===$membersOnlyId))===0 &&
             !file_exists($membersOnlyImage['path']),
