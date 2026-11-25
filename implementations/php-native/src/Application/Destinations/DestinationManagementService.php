@@ -85,10 +85,14 @@ final class DestinationManagementService
                 throw new DomainException('Country and currency must exist in the platform reference datasets.');
             }
 
-            $slugQuery = $this->pdo->prepare(
-                'SELECT id FROM destinations WHERE slug = :slug AND (:id IS NULL OR id <> :id) LIMIT 1'
-            );
-            $slugQuery->execute(['slug'=>$slug,'id'=>$destinationId]);
+            $slugQuery = $destinationId === null
+                ? $this->pdo->prepare('SELECT id FROM destinations WHERE slug = :slug LIMIT 1')
+                : $this->pdo->prepare('SELECT id FROM destinations WHERE slug = :slug AND id <> :id LIMIT 1');
+            $slugParams = ['slug'=>$slug];
+            if ($destinationId !== null) {
+                $slugParams['id'] = $destinationId;
+            }
+            $slugQuery->execute($slugParams);
             if ($slugQuery->fetchColumn() !== false) {
                 throw new InvalidArgumentException('That destination slug is already in use.');
             }
