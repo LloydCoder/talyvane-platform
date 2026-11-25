@@ -100,4 +100,31 @@ $assert(!Authorization::allows($safeguarding, 'bookings.manage'), 'safeguarding 
 $superAdmin = new Principal('super-1', ['super_admin'], true);
 $assert(!Authorization::allows($superAdmin, 'security.authorization.bypass'), 'even Super Admin cannot bypass authorization invariant');
 
+$now = new DateTimeImmutable('2026-11-25T12:00:00+00:00');
+$approvedMarket = new MarketPolicy('GB', true, 'approved', 'reviewer-1', $now->modify('-1 day'), $now->modify('+30 days'), 'evidence-ref-1', 'Counsel review recorded');
+$assert($approvedMarket->operationalAt($now), 'market requires active approval and review evidence');
+$pendingMarket = new MarketPolicy('NG', true, 'pending', null, null, null, null, null);
+$assert(!$pendingMarket->operationalAt($now), 'pending market fails closed');
+
+$membership = new MembershipAccess('active', $now->modify('-2 days'), $now->modify('+2 days'), 'private_gallery', $now->modify('-1 day'), $now->modify('+1 day'), true);
+$assert($membership->allows('private_gallery', $now), 'active membership and grant permit matching entitlement');
+$assert(!$membership->allows('priority_concierge', $now), 'membership tier does not grant unrelated entitlement');
+$assert(!$membership->allows('private_gallery', $now->modify('+2 days')), 'expired grant denies private content');
+
+$consent = new ConsentGrant('talent-1', 'portfolio.display', 'public', 'v3', true, $now->modify('-1 day'), null);
+$assert($consent->validFor('talent-1','portfolio.display','public','v3',$now), 'current purpose-bound consent is valid');
+$assert(!$consent->validFor('talent-1','portfolio.display','members','v3',$now), 'consent does not cross distribution audiences');
+$assert(!$consent->validFor('talent-1','portfolio.display','public','v4',$now), 'stale consent policy version is rejected');
+
+$assert(BookingStateMachine::transition('requested','accepted','companion') === 'accepted', 'companion can accept an eligible booking request');
+try { BookingStateMachine::transition('requested','accepted','client'); $assert(false, 'client cannot accept booking for provider'); }
+catch (DomainException) { $assert(true, 'client cannot accept booking for provider'); }
+try { BookingStateMachine::transition('completed','confirmed','admin'); $assert(false, 'terminal booking state cannot reopen'); }
+catch (DomainException) { $assert(true, 'terminal booking state cannot reopen'); }
+
+$assert(ApplicationStateMachine::transition('submitted','under_review','admin') === 'under_review', 'admin can move application into review');
+$assert(ApplicationStateMachine::transition('accepted','withdrawn','applicant') === 'withdrawn', 'applicant can withdraw their application');
+try { ApplicationStateMachine::transition('submitted','accepted','applicant'); $assert(false, 'applicant cannot self-approve application'); }
+catch (DomainException) { $assert(true, 'applicant cannot self-approve application'); }
+
 fwrite(STDOUT, sprintf("Native PHP foundation: %d assertions passed.\n", $tests));
