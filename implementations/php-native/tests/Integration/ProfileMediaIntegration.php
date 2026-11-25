@@ -214,6 +214,9 @@ function runProfileMediaIntegration(PDO $pdo): int
         $galleryEntitlements=new MembershipEntitlementService($pdo,$galleryFeatures);
         $galleryService=new ProfileMediaService($pdo,$storage,$discovery,$audit,$galleryEntitlements);
         $companionClient=new Principal($clientId,['client'],false);
+        $assert(MembershipEntitlementCatalog::privateGalleryConsentStatement('Talyvane')===
+            'I separately agree that Talyvane may display this image only in its members-only gallery to eligible clients with a current agency-approved membership, as described in the current privacy notice. This permission is separate from public profile publication and may be withdrawn at any time.',
+            'native consent catalogue preserves the canonical Laravel members-only consent statement exactly');
         $previousPolicyQuery=$pdo->prepare(
             'SELECT enabled,config_json,updated_by FROM feature_states WHERE feature_key="memberships.private_gallery" LIMIT 1'
         );
