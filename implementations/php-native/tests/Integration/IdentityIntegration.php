@@ -132,8 +132,8 @@ function runIdentityIntegration(PDO $pdo): int
     $companionId = substr($companionHex,0,8).'-'.substr($companionHex,8,4).'-'.substr($companionHex,12,4).'-'.substr($companionHex,16,4).'-'.substr($companionHex,20);
     $companionInsert = $pdo->prepare('INSERT INTO users (id,email,password_hash,status,email_verified_at,first_login_required,admin_session_version,created_at,updated_at) VALUES (:id,"native-companion@example.test",:hash,"active",UTC_TIMESTAMP(),0,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())');
     $companionInsert->execute(['id'=>$companionId,'hash'=>PasswordHasher::hash($password)]);
-    $role->execute(['user'=>$companionId,'role'=>'companion']);
-    $role->execute(['user'=>$id,'role'=>'verifier']);
+    $role->execute(['id'=>$companionId,'role'=>'companion']);
+    $role->execute(['id'=>$id,'role'=>'verifier']);
     $verifier = new Principal($id,['super_admin','verifier'],true);
     $onboarding = new CompanionOnboardingService($pdo,$audit);
     $profileId = $onboarding->createVerifiedProfile($verifier,$companionId,$destinationId,'Verified Talent','Biography supplied by the companion',['en','fr'],'representation',hash('sha256','provider-verification-reference'),true,'consent-v1','consent-evidence-reference-001',bin2hex(random_bytes(16)));
