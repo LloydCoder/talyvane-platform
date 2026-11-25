@@ -5,6 +5,7 @@ namespace Talyvane;
 
 use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\CRM\EnquiryService;
+use Talyvane\Application\Identity\AccountRecoveryService;
 use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Application\Identity\EmailVerificationService;
 use Talyvane\Application\Identity\MfaService;
@@ -57,7 +58,8 @@ final class Bootstrap
         $passwords = new PasswordChangeService($pdo, $rateLimiter, $audit);
 
         $emailVerification = null;
-        $registration = null;\n        $recovery = null;
+        $registration = null;
+        $recovery = null;
         if (isset($config['mail']['smtp']) && is_array($config['mail']['smtp'])) {
             try {
                 $mailer = new SmtpMailer($config['mail']['smtp']);
@@ -68,7 +70,8 @@ final class Bootstrap
                     $audit,
                     hash_hmac('sha256', 'talyvane-email-verification-v1', $config['app_key'])
                 );
-                $registration = new UserRegistrationService($pdo, $emailVerification, $rateLimiter, $audit);\n                $recovery = new AccountRecoveryService($pdo, $emailVerification, $rateLimiter, $audit);
+                $registration = new UserRegistrationService($pdo, $emailVerification, $rateLimiter, $audit);
+                $recovery = new AccountRecoveryService($pdo, $emailVerification, $rateLimiter, $audit);
             } catch (\InvalidArgumentException) {
                 // Mail-dependent account creation stays unavailable; the public site and existing accounts remain usable.
             }
@@ -97,7 +100,11 @@ final class Bootstrap
         $router->add('GET', '/portal/register', static fn(Request $request): Response => $portalAuth->registerForm($request));
         $router->add('POST', '/portal/register', static fn(Request $request): Response => $portalAuth->register($request));
         $router->add('GET', '/portal/verify', static fn(Request $request): Response => $portalAuth->verifyForm($request));
-        $router->add('POST', '/portal/verify', static fn(Request $request): Response => $portalAuth->verify($request));\n        $router->add('POST', '/portal/verify/resend', static fn(Request $request): Response => $portalAuth->resendVerification($request));\n        $router->add('GET', '/portal/recovery', static fn(Request $request): Response => $portalAuth->recoveryForm($request));\n        $router->add('POST', '/portal/recovery', static fn(Request $request): Response => $portalAuth->requestRecovery($request));\n        $router->add('POST', '/portal/recovery/complete', static fn(Request $request): Response => $portalAuth->completeRecovery($request));
+        $router->add('POST', '/portal/verify', static fn(Request $request): Response => $portalAuth->verify($request));
+        $router->add('POST', '/portal/verify/resend', static fn(Request $request): Response => $portalAuth->resendVerification($request));
+        $router->add('GET', '/portal/recovery', static fn(Request $request): Response => $portalAuth->recoveryForm($request));
+        $router->add('POST', '/portal/recovery', static fn(Request $request): Response => $portalAuth->requestRecovery($request));
+        $router->add('POST', '/portal/recovery/complete', static fn(Request $request): Response => $portalAuth->completeRecovery($request));
         $router->add('GET', '/portal/login', static fn(Request $request): Response => $portalAuth->loginForm($request));
         $router->add('POST', '/portal/login', static fn(Request $request): Response => $portalAuth->login($request));
         $router->add('GET', '/portal', static fn(Request $request): Response => $portalAuth->dashboard($request));
