@@ -169,7 +169,7 @@ final class DestinationCoverService
                 ['review_status'=>$asset['review_status']],['review_status'=>'withdrawn','destination_id'=>$asset['destination_id']],
                 $requestId,'destination-cover-governance-v1');
             $this->pdo->commit();
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             if ($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $error;
         }
