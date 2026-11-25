@@ -139,4 +139,28 @@ $assert(ApplicationStateMachine::transition('accepted','withdrawn','applicant') 
 try { ApplicationStateMachine::transition('submitted','accepted','applicant'); $assert(false, 'applicant cannot self-approve application'); }
 catch (DomainException) { $assert(true, 'applicant cannot self-approve application'); }
 
+$assert(AgreementStateMachine::transition('offered','executed','admin','external-agreement-ref') === 'executed', 'agreement execution requires external evidence');
+try { AgreementStateMachine::transition('offered','executed','admin'); $assert(false, 'agreement cannot be marked executed without evidence'); }
+catch (DomainException) { $assert(true, 'agreement cannot be marked executed without evidence'); }
+$assert(CastingStateMachine::submission('submitted','selected','admin') === 'selected', 'agency can select a casting submission');
+try { CastingStateMachine::submission('submitted','selected','applicant'); $assert(false, 'applicant cannot select themselves'); }
+catch (DomainException) { $assert(true, 'applicant cannot select themselves'); }
+$assert(AssignmentStateMachine::transition('offered','accepted','applicant','agency-1','talent-1',null,'acceptance-evidence') === 'accepted', 'talent acceptance requires evidence');
+try { AssignmentStateMachine::transition('offered','confirmed','applicant','agency-1','talent-1'); $assert(false, 'talent cannot confirm agency assignment'); }
+catch (DomainException) { $assert(true, 'talent cannot confirm agency assignment'); }
+$licence = new ImageLicencePolicy('active','portfolio.display','GB','public',true,true,true,'execution-ref',$now->modify('-1 day'),$now->modify('+1 day'),null);
+$assert($licence->permits('portfolio.display','GB','public',$now), 'image licence permits only current approved purpose and audience');
+$assert(!$licence->permits('advertising','GB','public',$now), 'image licence cannot be reused for another purpose');
+$calculation = SettlementCalculator::calculate(100000,20000,10000,2000,'GBP');
+$assert($calculation['commission_minor'] === 20000 && $calculation['model_net_minor'] === 70000, 'settlement uses exact integer minor-unit commission');
+try { SettlementCalculator::calculate(100000,5000,5001,2000,'GBP'); $assert(false, 'expense cap enforced'); }
+catch (DomainException) { $assert(true, 'expense cap enforced'); }
+try { SettlementCalculator::calculate(1000,1000,1000,2000,'GBP'); $assert(false, 'negative settlement net rejected'); }
+catch (DomainException) { $assert(true, 'negative settlement net rejected'); }
+try { SettlementStateMachine::transition('draft','approved','finance','maker-1','maker-1'); $assert(false, 'settlement creator cannot approve own settlement'); }
+catch (DomainException) { $assert(true, 'settlement creator cannot approve own settlement'); }
+try { SettlementStateMachine::transition('approved','paid','finance','maker-1','approver-1','approver-1','external-payment-ref'); $assert(false, 'settlement approver cannot attest own payment'); }
+catch (DomainException) { $assert(true, 'settlement approver cannot attest own payment'); }
+$assert(SettlementStateMachine::transition('approved','paid','finance','maker-1','payer-1','approver-1','external-payment-ref') === 'paid', 'payment attestation requires distinct actors and external evidence');
+
 fwrite(STDOUT, sprintf("Native PHP foundation: %d assertions passed.\n", $tests));
