@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace Talyvane;
 
+use Talyvane\Application\Companions\CompanionProfilePublicationService;
 use Talyvane\Application\Content\ContentManagementService;
+use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\CRM\EnquiryService;
 use Talyvane\Application\Identity\AccountRecoveryService;
 use Talyvane\Application\Identity\AuthenticationService;
@@ -11,11 +13,13 @@ use Talyvane\Application\Identity\EmailVerificationService;
 use Talyvane\Application\Identity\MfaService;
 use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Application\Identity\UserRegistrationService;
+use Talyvane\Http\AdminCompanionController;
 use Talyvane\Http\AdminAuthController;
 use Talyvane\Http\AdminBrandController;
 use Talyvane\Http\AdminNavigationController;
 use Talyvane\Http\AdminEnquiryController;
 use Talyvane\Http\PortalAuthController;
+use Talyvane\Http\PublicDiscoveryController;
 use Talyvane\Http\PublicEnquiryController;
 use Talyvane\Http\AdminContentController;
 use Talyvane\Http\PublicSiteController;
@@ -78,6 +82,8 @@ final class Bootstrap
         }
 
         $public = new PublicSiteController($pdo, $views);
+        $discovery = new DiscoveryService($pdo);
+        $publicDiscovery = new PublicDiscoveryController($discovery, $views);
         $contentManagement = new ContentManagementService($pdo, $audit);
         $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
         $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
@@ -87,12 +93,17 @@ final class Bootstrap
         $brandName = (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane');
         $publicEnquiries = new PublicEnquiryController($enquiries, $contentManagement, $views, $brandName);
         $adminEnquiries = new AdminEnquiryController($enquiries, $authentication, $views, $brandName);
+        $companionPublication = new CompanionProfilePublicationService($pdo, $audit);
+        $adminCompanions = new AdminCompanionController($authentication, $companionPublication, $views, $brandName);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery);
         $router = new Router();
 
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
         $router->add('GET', '/contact', static fn(Request $request): Response => $publicEnquiries->create($request));
         $router->add('POST', '/enquiries', static fn(Request $request): Response => $publicEnquiries->store($request));
+        $router->add('GET', '/destinations', static fn(Request $request): Response => $publicDiscovery->destinations($request));
+        $router->add('GET', '/destinations/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->destination($request, $params));
+        $router->add('GET', '/profiles/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->profile($request, $params));
         $router->add('GET', '/pages/{slug}', static fn(Request $request, array $params): Response => $public->page($request, $params));
         $router->add('GET', '/privacy', static fn(Request $request): Response => $public->page($request, ['slug'=>'privacy']));
         $router->add('GET', '/terms', static fn(Request $request): Response => $public->page($request, ['slug'=>'terms']));
@@ -123,6 +134,8 @@ final class Bootstrap
         $router->add('POST', '/admin/logout', static fn(Request $request): Response => $adminAuth->logout($request));
         $router->add('GET', '/admin/brand', static fn(Request $request): Response => $adminBrand->show($request));
         $router->add('POST', '/admin/brand', static fn(Request $request): Response => $adminBrand->update($request));
+        $router->add('GET', '/admin/companions', static fn(Request $request): Response => $adminCompanions->index($request));
+        $router->add('POST', '/admin/companions/{id}/publish', static fn(Request $request, array $params): Response => $adminCompanions->publish($request, $params));
         $router->add('GET', '/admin/enquiries', static fn(Request $request): Response => $adminEnquiries->index($request));
         $router->add('POST', '/admin/enquiries/{reference}', static fn(Request $request, array $params): Response => $adminEnquiries->update($request, $params));
         $router->add('GET', '/admin/navigation', static fn(Request $request): Response => $adminNavigation->index($request));
