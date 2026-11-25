@@ -202,6 +202,18 @@ mkdir($documentRoot, 0700, true);
 $privatePaths = PrivatePathResolver::resolve($documentRoot, $accountHome);
 $assert(is_dir($privatePaths['application']) && is_dir($privatePaths['logs']), 'cPanel private path resolver creates private application and log directories');
 $assert(!str_starts_with($privatePaths['application'], $privatePaths['document_root'] . DIRECTORY_SEPARATOR), 'private application directory is outside public document root');
+$setupKey = new SetupKey($privatePaths['config'] . DIRECTORY_SEPARATOR . 'installer.key');
+$plainKey = $setupKey->create();
+$assert($setupKey->verify($plainKey), 'one-time installer key verifies from private file');
+$assert(!$setupKey->verify('invalid'), 'invalid installer key is rejected');
+$lock = new InstallerLock($privatePaths['config'] . DIRECTORY_SEPARATOR . 'installed.lock');
+$assert(!$lock->isLocked(), 'new installation begins unlocked');
+$lock->lock('12345678-1234-4234-8234-123456789abc');
+$assert($lock->isLocked(), 'permanent installer lock is written and verified');
+try { $lock->lock('12345678-1234-4234-8234-123456789abc'); $assert(false, 'installer lock cannot be overwritten'); }
+catch (RuntimeException) { $assert(true, 'installer lock cannot be overwritten'); }
+$setupKey->consume();
+$assert(!$setupKey->verify($plainKey), 'installer key is consumed after lock');
 $preflight = EnvironmentPreflight::inspect($accountHome);
 $assert($preflight['checks']['private_writable']['ok'], 'installer preflight checks the supplied account home');
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
