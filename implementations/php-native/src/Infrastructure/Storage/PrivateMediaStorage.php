@@ -102,7 +102,7 @@ final class PrivateMediaStorage
                 !imagewebp($image,$temporaryTarget,84) || !is_file($temporaryTarget) || is_link($temporaryTarget)) {
                 throw new RuntimeException('Image re-encoding failed.');
             }
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             if (is_file($temporaryTarget) && !is_link($temporaryTarget)) { @unlink($temporaryTarget); }
             throw $error;
         } finally {
