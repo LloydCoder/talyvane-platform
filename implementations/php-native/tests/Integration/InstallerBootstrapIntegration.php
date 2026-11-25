@@ -151,6 +151,11 @@ function runInstallerBootstrapIntegration(PDO $pdo): int
         $assert(count($configFiles) === 1 && count($lockFiles) === 1 && $keyStillExists === [] &&
             (fileperms($configFiles[0]) & 0777) === 0600,
             'installer writes private configuration and permanent lock, then consumes the setup key');
+        $installedConfig = count($configFiles) === 1 ? require $configFiles[0] : [];
+        $assert(is_array($installedConfig) && $installedConfig['database']['password'] === '  database-secret  ' &&
+            $installedConfig['mail']['password'] === '  smtp-secret  ' &&
+            !str_starts_with(realpath($configFiles[0]) ?: '',realpath($httpDocumentRoot) ?: '/invalid-public-root'),
+            'installer preserves exact connection secrets and stores configuration outside the public root');
 
         $installedUser = $pdo->prepare('SELECT status,first_login_required,password_hash FROM users WHERE email = "first-admin@example.test" LIMIT 1');
         $installedUser->execute();
