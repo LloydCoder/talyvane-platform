@@ -15,8 +15,9 @@ use Talyvane\Security\Principal;
 final class SafeguardingCaseService
 {
     private const CATEGORIES=[
-        'safety_concern','exploitation','coercion','trafficking','minor_safety',
-        'harassment','violence','wellbeing','other',
+        'consent_concern','coercion_or_exploitation','trafficking_concern',
+        'minor_safety_concern','nonconsensual_content','threat_or_harassment',
+        'privacy_or_data_risk','other',
     ];
     private const SEVERITIES=['low','medium','high','critical'];
     private const TRANSITIONS=[
@@ -69,8 +70,8 @@ final class SafeguardingCaseService
         if (!in_array($category,self::CATEGORIES,true) || !in_array($severity,self::SEVERITIES,true)) {
             throw new InvalidArgumentException('Choose a valid safeguarding category and severity.');
         }
-        if (strlen($summary)<10 || strlen($summary)>1000 || strlen($details)<20 || strlen($details)>10000 ||
-            strlen($subjectReference)>1000 || strlen($specialistId)>64) {
+        if (strlen($summary)<20 || strlen($summary)>300 || strlen($details)<30 || strlen($details)>5000 ||
+            strlen($subjectReference)>160 || strlen($specialistId)>64) {
             throw new InvalidArgumentException('Safeguarding report fields are missing or exceed their limits.');
         }
         $caseId=self::uuid();
