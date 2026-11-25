@@ -76,7 +76,7 @@ $action = $id === '' ? '/admin/content' : '/admin/content/' . rawurlencode($id);
     <?php if (($page['status'] ?? '') !== 'published'): ?>
     <form method="post" action="<?= $escape('/admin/content/' . rawurlencode($id) . '/publish') ?>" class="actions">
       <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
-      <input type="hidden" name="reason" value="Content reviewed and approved for publication">
+      <label class="muted" for="publication_reason">Publication reason</label><input id="publication_reason" name="reason" minlength="8" maxlength="500" required placeholder="Explain why this page is approved for publication">
       <button class="button" type="submit">Publish page</button>
     </form>
     <?php endif; ?>
