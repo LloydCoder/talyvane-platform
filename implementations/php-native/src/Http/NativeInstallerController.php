@@ -171,7 +171,7 @@ final class NativeInstallerController
             return $this->setupPage($request,$paths,$setupKey,'Confirm the dedicated database and authorized SMTP sender before continuing.',422);
         }
 
-        $failureStage = 'database';
+        $failureStage = 'database connection';
         try {
             $appName = $this->requiredText($request,'app_name',2,120);
             $appUrl = $this->canonicalHttpsUrl($this->requiredText($request,'app_url',12,255),$request);
@@ -205,6 +205,7 @@ final class NativeInstallerController
             }
 
             $pdo = $this->connectDatabase($database);
+            $failureStage = 'database migration';
             $this->assertInstallableDatabase($pdo);
             (new MigrationRunner($pdo,$this->applicationRoot . '/database/migrations'))->migrate();
             $migrationCount = (int) $pdo->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn();
@@ -212,6 +213,7 @@ final class NativeInstallerController
             if ($migrationCount !== count($migrationFiles)) {
                 throw new RuntimeException('The native database schema did not reach the expected migration version.');
             }
+            $failureStage = 'reference data import';
             $referenceData = new ReferenceDataImporter($pdo);
             $referenceData->importIfNeeded(
                 $this->applicationRoot . '/database/reference-data/countries.json',
@@ -228,10 +230,11 @@ final class NativeInstallerController
             ];
             $nonce = bin2hex(random_bytes(32));
             $pending['session_nonce_hash'] = hash('sha256',$nonce);
+            $failureStage = 'private installer state';
             $pendingStore = $this->pendingState($paths,$setupKey);
             $pendingStore->write($pending);
 
-            $failureStage = 'smtp';
+            $failureStage = 'SMTP verification-email delivery';
             try {
                 $mailer = $this->createMailer($mail);
                 $emailVerification = new EmailVerificationService(
@@ -255,9 +258,7 @@ final class NativeInstallerController
             return $this->setupPage($request,$paths,$setupKey,$error->getMessage(),422);
         } catch (Throwable $error) {
             $this->logFailure($error);
-            $message = $failureStage === 'smtp'
-                ? 'SMTP connection or verification-email delivery failed. Check the TLS mode, hostname, port and authentication settings.'
-                : 'Database connection, migration or private bootstrap-state preparation failed. Check database credentials, privileges and private-directory permissions.';
+            $message = 'Installation setup failed during ' . $failureStage . '. Check the corresponding connection settings, permissions and available disk space, then retry.';
             return $this->setupPage($request,$paths,$setupKey,$message,503);
         }
     }
