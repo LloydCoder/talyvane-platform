@@ -163,7 +163,7 @@ final class EmailVerificationService
     }
 
     /** @return array{user_id:string,bootstrap_proof:string,primary_email:string,recovery_email:string} */
-    public function prepareSuperAdminBootstrap(SetupKey $setupKey, string $submittedSetupKey, string $primaryEmail, string $recoveryEmail): array
+    public function prepareSuperAdminBootstrap(SetupKey $setupKey, string $submittedSetupKey, string $primaryEmail, string $recoveryEmail, ?string $bootstrapProof = null): array
     {
         if (!$setupKey->verify($submittedSetupKey)) {
             throw new \DomainException('Installer setup key is invalid.');
@@ -199,7 +199,10 @@ final class EmailVerificationService
             throw new \DomainException('A Super Admin bootstrap is already active or has been completed.');
         }
         $userId = self::uuid();
-        $bootstrapProof = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+        $bootstrapProof ??= rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+        if (strlen($bootstrapProof) !== 43 || !preg_match('/^[A-Za-z0-9_-]{43}$/D',$bootstrapProof)) {
+            throw new \\InvalidArgumentException('Super Admin bootstrap proof is invalid.');
+        }
         $temporaryPassword = bin2hex(random_bytes(32));
         $this->pdo->beginTransaction();
         try {
