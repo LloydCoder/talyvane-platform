@@ -529,13 +529,25 @@ final class ProfileMediaService
 
     public function privateMediaForClient(Principal $actor,string $mediaId): array
     {
-        if (!$actor->hasRole('client') || count($actor->roles)!==1 ||
-            $this->membershipEntitlements===null ||
-            !$this->membershipEntitlements->has($actor->id,'media.private_gallery')) {
+        if (!$actor->hasRole('client') || count($actor->roles)!==1 || $this->membershipEntitlements===null) {
             throw new DomainException('An active client membership with the private-gallery entitlement is required.');
         }
         $this->pdo->beginTransaction();
         try {
+            $entitlementLock=$this->pdo->prepare(
+                'SELECT m.id FROM users u
+                 JOIN user_roles r ON r.user_id=u.id AND r.role_key="client"
+                 JOIN memberships m ON m.client_user_id=u.id AND m.status="active"
+                 JOIN membership_grants g ON g.membership_id=m.id AND g.entitlement_key="media.private_gallery" AND g.active=1
+                 WHERE u.id=:client AND u.status="active" AND u.email_verified_at IS NOT NULL
+                   AND m.starts_at<=UTC_TIMESTAMP() AND (m.ends_at IS NULL OR m.ends_at>UTC_TIMESTAMP())
+                   AND g.starts_at<=UTC_TIMESTAMP() AND (g.ends_at IS NULL OR g.ends_at>UTC_TIMESTAMP())
+                 LIMIT 1 FOR UPDATE'
+            );
+            $entitlementLock->execute(['client'=>$actor->id]);
+            if ($entitlementLock->fetchColumn()===false || !$this->membershipEntitlements->has($actor->id,'media.private_gallery')) {
+                throw new DomainException('An active client membership with the private-gallery entitlement is required.');
+            }
             $query=$this->pdo->prepare(
                 'SELECT pm.profile_id,pm.private_storage_key,pm.sha256,pm.consent_grant_id,
                         pm.consent_version,pm.members_only_consent_version,p.slug,p.publication_consent_version
