@@ -161,6 +161,31 @@ function runProfileMediaIntegration(PDO $pdo): int
         $assert(hash_equals($pendingImage['sha256'],hash('sha256',$approvedAfterReview['bytes'])),
             'human approval changes pending media to public only after current eligibility and consent rechecks');
 
+        $membersOnlyImage=$makeImage();
+        $membersOnlyId=$uuid();
+        $insertMedia->execute([
+            'id'=>$membersOnlyId,'profile'=>$profileId,'actor'=>$companionId,'key'=>$membersOnlyImage['key'],
+            'size'=>$membersOnlyImage['size'],'hash'=>$membersOnlyImage['sha256'],'scope'=>'private','status'=>'pending',
+            'grant'=>$fixture['consent_grant_id'],'version'=>$fixture['publication_consent_version'],
+            'reviewer'=>null,'reviewed'=>null,
+        ]);
+        $recordUploaderAttestations($membersOnlyId);
+        $service->review($admin,$membersOnlyId,'approved','Image rights and private audience restrictions were reviewed and confirmed',true,true,true,$requestId,'members_only');
+        $membersOnlyState=$pdo->prepare('SELECT review_status,media_scope FROM profile_media WHERE id=:id');
+        $membersOnlyState->execute(['id'=>$membersOnlyId]);
+        $membersOnlyRow=$membersOnlyState->fetch();
+        $assert(is_array($membersOnlyRow) && $membersOnlyRow['review_status']==='approved' && $membersOnlyRow['media_scope']==='members_only',
+            'reviewers can approve an image for the members-only audience without publishing it publicly');
+        try {
+            $service->publicMedia($membersOnlyId);
+            $assert(false,'members-only media must never pass the public media delivery endpoint');
+        } catch (DomainException) {
+            $assert(true,'members-only media must never pass the public media delivery endpoint');
+        }
+        $publicProjection=$service->publicMediaForProfile($profileId);
+        $assert(count(array_filter($publicProjection,static fn(array $item): bool => $item['id']===$membersOnlyId))===0,
+            'members-only media is excluded from public profile media projections');
+
         $rejectedImage=$makeImage();
         $rejectedId=$uuid();
         $insertMedia->execute([
