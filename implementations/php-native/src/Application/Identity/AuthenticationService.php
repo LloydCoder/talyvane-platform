@@ -40,7 +40,7 @@ final class AuthenticationService
         }
         $scope = $context === 'admin' ? 'auth.admin' : 'auth.portal';
         if (!$this->rateLimiter->consume($scope, $email . '|' . $ipAddress, 10, 60, 900)) {
-            password_verify($password, self::DUMMY_HASH);
+            password_verify($password, self::dummyHash());
             return ['status'=>'rate_limited'];
         }
         $statement = $this->pdo->prepare('SELECT id, email, password_hash, status, email_verified_at, first_login_required, admin_session_version FROM users WHERE email = :email LIMIT 1');
