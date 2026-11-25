@@ -68,6 +68,14 @@ function runMembershipIntegration(PDO $pdo): int
         $assert(!$entitlements->has($clientId,'media.private_gallery'),'superseding membership revokes effective entitlement access immediately');
         $eventCount->execute(['client'=>$clientId]);
         $assert((int) $eventCount->fetchColumn()===3,'supersession and reassignment are both recorded');
+    $memberships->revoke($actor,$secondId,'Client membership cancelled after a documented request.','cancelled',bin2hex(random_bytes(16)));
+    $revoked=$pdo->prepare('SELECT status FROM memberships WHERE id=:id');
+    $revoked->execute(['id'=>$secondId]);
+    $assert($revoked->fetchColumn()==='cancelled','explicit membership cancellation persists a terminal status');
+    $assert(!$entitlements->has($clientId,'media.private_gallery'),'cancelled membership immediately revokes effective entitlement access');
+    $eventCount->execute(['client'=>$clientId]);
+    $assert((int) $eventCount->fetchColumn()===4,'membership cancellation is recorded as an append-only lifecycle event');
+
 
     $tamperRejected=false;
     try { $pdo->exec('UPDATE membership_events SET reason="tampered"'); }
