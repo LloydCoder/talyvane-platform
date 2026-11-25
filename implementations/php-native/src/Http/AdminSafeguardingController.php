@@ -5,12 +5,14 @@ use DomainException;
 use InvalidArgumentException;
 use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Application\Safeguarding\SafeguardingCaseService;
+use Talyvane\Application\Safeguarding\SafeguardingBackupPolicyService;
+use Talyvane\Application\Safeguarding\SafeguardingRestoreVerificationService;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\Principal;
 use Talyvane\Security\SessionManager;
 final class AdminSafeguardingController
 {
-    public function __construct(private AuthenticationService $authentication,private SafeguardingCaseService $cases,private ViewRenderer $views,private string $brandName) {}
+    public function __construct(private AuthenticationService $authentication,private SafeguardingCaseService $cases,private SafeguardingBackupPolicyService $backupPolicies,private SafeguardingRestoreVerificationService $restoreVerification,private ViewRenderer $views,private string $brandName) {}
     public function reportForm(Request $request,string $error=''): Response
     {
         SessionManager::start();$actor=$this->authentication->currentPrincipal();if($actor===null)return Response::redirect('/admin/login');
@@ -51,7 +53,7 @@ final class AdminSafeguardingController
     public function governance(Request $request,string $error=''): Response
     {
         SessionManager::start();$actor=$this->authentication->currentPrincipal();if($actor===null)return Response::redirect('/admin/login');
-        try{return $this->page('governance',['items'=>$this->cases->governanceCases($actor)],$error);}
+        try{return $this->page('governance',['items'=>$this->cases->governanceCases($actor),'backupPolicy'=>$this->backupPolicies->current(),'restoreVerifications'=>$this->restoreVerification->recent()],$error);}
         catch(DomainException){return $this->page('governance',['items'=>[]],'This metadata-only workspace is restricted to Owners and Super Admins.',403);}
     }
     public function hold(Request $request,array $params,bool $release=false): Response
@@ -63,6 +65,27 @@ final class AdminSafeguardingController
             else $this->cases->placeLegalHold($actor,(string)($params['id']??''),$this->field($request,'reason'),$request->requestId);
             return Response::redirect('/admin/safeguarding/governance');
         }catch(InvalidArgumentException|DomainException $error){return $this->governance($request,$error->getMessage());}
+    }
+    public function approveBackupPolicy(Request $request): Response
+    {
+        SessionManager::start();if(!Csrf::verify($this->field($request,'_csrf')))return $this->governance($request,'Your session expired. Refresh and retry.');
+        $actor=$this->authentication->currentPrincipal();if($actor===null)return Response::redirect('/admin/login');
+        $days=filter_var($this->field($request,'expiry_days'),FILTER_VALIDATE_INT);
+        try{
+            if(!is_int($days))throw new InvalidArgumentException('Backup expiry days must be a whole number.');
+            $this->backupPolicies->approve($actor,$days,$this->field($request,'policy_version'),$this->field($request,'reason'),$request->requestId);
+            return Response::redirect('/admin/safeguarding/governance');
+        }catch(InvalidArgumentException|DomainException $error){return $this->governance($request,$error->getMessage());}
+    }
+    public function verifyRestore(Request $request): Response
+    {
+        SessionManager::start();if(!Csrf::verify($this->field($request,'_csrf')))return $this->governance($request,'Your session expired. Refresh and retry.');
+        $actor=$this->authentication->currentPrincipal();if($actor===null)return Response::redirect('/admin/login');
+        try{
+            $this->restoreVerification->verify($actor,$this->field($request,'backup_reference'),$this->field($request,'manifest_sha256'),$this->field($request,'policy_version'),$request->requestId);
+            return Response::redirect('/admin/safeguarding/governance');
+        }catch(InvalidArgumentException|DomainException $error){return $this->governance($request,$error->getMessage());}
+        catch(\\Throwable){return $this->governance($request,'Restore verification failed. Inspect the private application log.');}
     }
     private function field(Request $request,string $key): string{$value=$request->body[$key]??'';return is_string($value)?trim($value):'';}
     private function page(string $mode,array $data,string $error,int $status=200): Response
