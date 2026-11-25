@@ -4,6 +4,10 @@ declare(strict_types=1);
 namespace Talyvane\Http;
 
 use Talyvane\Application\Discovery\DiscoveryService;
+use Talyvane\Application\Identity\AuthenticationService;
+use Talyvane\Security\Csrf;
+use Talyvane\Security\Principal;
+use Talyvane\Security\SessionManager;
 
 final class PublicDiscoveryController
 {
