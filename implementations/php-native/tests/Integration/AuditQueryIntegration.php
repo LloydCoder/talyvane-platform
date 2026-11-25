@@ -46,5 +46,24 @@ function runAuditQueryIntegration(PDO $pdo): int
     $filtered = $queries->search(['event_key'=>'audit.test.odd','target_type'=>'integration_fixture'], 1);
     $assert(count($filtered) === 27, 'audit filters combine event and target type with parameterized exact matching');
     $assert($filtered[0]['event_key'] === 'audit.test.odd', 'audit rows are ordered newest first');
+    $fixture = $pdo->prepare('SELECT id FROM audit_events WHERE target_type = "integration_fixture" AND target_id = "fixture-0" LIMIT 1');
+    $fixture->execute();
+    $fixtureId = $fixture->fetchColumn();
+    $assert(is_string($fixtureId), 'audit append-only fixture exists');
+    try {
+        $pdo->prepare('UPDATE audit_events SET reason = "tampered" WHERE id = :id')->execute(['id'=>$fixtureId]);
+        $assert(false,'database rejects audit event updates');
+    } catch (PDOException) {
+        $assert(true,'database rejects audit event updates');
+    }
+    try {
+        $pdo->prepare('DELETE FROM audit_events WHERE id = :id')->execute(['id'=>$fixtureId]);
+        $assert(false,'database rejects audit event deletion');
+    } catch (PDOException) {
+        $assert(true,'database rejects audit event deletion');
+    }
+    $verifyImmutable = $pdo->prepare('SELECT reason FROM audit_events WHERE id = :id');
+    $verifyImmutable->execute(['id'=>$fixtureId]);
+    $assert($verifyImmutable->fetchColumn() === 'Pagination fixture','rejected mutations leave the original audit evidence intact');
     return $assertions;
 }
