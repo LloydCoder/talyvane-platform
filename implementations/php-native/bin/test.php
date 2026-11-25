@@ -31,6 +31,7 @@ use Talyvane\Security\SecretBox;
 use Talyvane\Security\Principal;
 use Talyvane\Security\Totp;
 use Talyvane\Infrastructure\Logging\StructuredLogger;
+use Talyvane\Infrastructure\Logging\PrivateErrorLogger;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
 use Talyvane\Infrastructure\Mail\SmtpMailer;
 use Talyvane\Installer\PrivatePathResolver;
@@ -667,6 +668,23 @@ $marketMarkup = $authViews->render('admin/markets',[
 ]);
 $assert(str_contains($marketMarkup,'&lt;script&gt;alert(1)&lt;/script&gt;') && !str_contains($marketMarkup,'<script>alert(1)</script>'), 'market compliance workspace escapes country reference data');
 $assert(str_contains($marketMarkup,'/admin/markets/GB/review') && str_contains($marketMarkup,'csrf-market-token'), 'market review form is country-scoped and CSRF protected');
+
+$logRoot = $tempRoot . DIRECTORY_SEPARATOR . 'private-logs';
+$logPublic = $tempRoot . DIRECTORY_SEPARATOR . 'public-root';
+mkdir($logRoot,0700,true);
+mkdir($logPublic,0755,true);
+$logFile = $logRoot . DIRECTORY_SEPARATOR . 'application-error.log';
+file_put_contents($logFile,str_repeat('x',5_242_880));
+chmod($logFile,0600);
+PrivateErrorLogger::record(new RuntimeException('sensitive exception message must never be logged'),$logRoot,$logPublic,'0123456789abcdef');
+$rotatedLog = $logFile . '.1';
+$currentLog = (string) file_get_contents($logFile);
+$assert(is_file($rotatedLog) && strlen($currentLog) < 1024 && !str_contains($currentLog,'sensitive exception message') &&
+    (fileperms($logFile) & 0777) === 0600,
+    'private error logging rotates at five MiB, keeps owner-only permissions and excludes exception messages');
+$assert(is_file($logRoot . DIRECTORY_SEPARATOR . '.application-error.lock') &&
+    (fileperms($logRoot . DIRECTORY_SEPARATOR . '.application-error.lock') & 0777) === 0600,
+    'private error logging serializes concurrent writers with a private stable lock');
 
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($iterator as $entry) {
