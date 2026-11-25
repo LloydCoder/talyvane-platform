@@ -13,6 +13,16 @@ $e=static fn(mixed $v):string=>htmlspecialchars((string)$v,ENT_QUOTES|ENT_SUBSTI
 <div><label>Starts (UTC)</label><input type="datetime-local" name="starts_at" required></div><div><label>Ends (UTC, optional)</label><input type="datetime-local" name="ends_at"></div></div>
 <label>Benefits summary</label><textarea name="benefits_summary" maxlength="1000"></textarea>
 <label><input type="checkbox" name="entitlements[]" value="media.private_gallery"> Private members-only gallery</label>
-<label>Reason (20–500 characters)</label><textarea name="reason" minlength="20" maxlength="500" required></textarea><button type="submit">Save membership</button></form></details></td></tr><?php endforeach;?>
+<label>Reason (20–500 characters)</label><textarea name="reason" minlength="20" maxlength="500" required></textarea><button type="submit">Save membership</button></form></details>
+<?php if(($client['membership_status']??null)==='active' && is_string($client['membership_id']??null)):?>
+<details><summary>Cancel active membership</summary>
+<form method="post" action="/admin/memberships/<?= $e($client['membership_id']) ?>/cancel">
+<input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+<label>Cancellation reason (20–500 characters)</label>
+<textarea name="reason" minlength="20" maxlength="500" required></textarea>
+<button type="submit">Cancel membership now</button>
+</form></details>
+<?php endif;?>
+</td></tr><?php endforeach;?>
 <?php if($clients===[]):?><tr><td colspan="4">No client accounts are registered.</td></tr><?php endif;?>
 </tbody></table></div></section></main></body></html>
