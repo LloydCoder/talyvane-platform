@@ -112,5 +112,23 @@ function runIdentityIntegration(PDO $pdo): int
     $setupPrincipal = $bootstrapAuth->currentPrincipal();
     $assert($setupPrincipal instanceof Principal && $setupPrincipal->mfaVerified && $setupPrincipal->hasRole('super_admin'),'new Super Admin session is established only after password replacement and MFA');
     $bootstrapAuth->logout();
+
+    $clientBytes = random_bytes(16);
+    $clientBytes[6] = chr((ord($clientBytes[6]) & 15) | 64);
+    $clientBytes[8] = chr((ord($clientBytes[8]) & 63) | 128);
+    $clientHex = bin2hex($clientBytes);
+    $clientId = substr($clientHex,0,8).'-'.substr($clientHex,8,4).'-'.substr($clientHex,12,4).'-'.substr($clientHex,16,4).'-'.substr($clientHex,20);
+    $clientInsert = $pdo->prepare('INSERT INTO users (id,email,password_hash,status,email_verified_at,first_login_required,admin_session_version,created_at,updated_at) VALUES (:id,:email,:hash,"active",UTC_TIMESTAMP(),0,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())');
+    $clientInsert->execute(['id'=>$clientId,'email'=>'native-client@example.test','hash'=>PasswordHasher::hash($password)]);
+    $clientRole = $pdo->prepare('INSERT INTO user_roles (user_id,role_key,granted_by,granted_at) VALUES (:id,"client",NULL,UTC_TIMESTAMP())');
+    $clientRole->execute(['id'=>$clientId]);
+    $clientAdminDecision = $bootstrapAuth->verifyPassword('native-client@example.test',$password,'admin','127.0.0.1');
+    $assert(($clientAdminDecision['status'] ?? '') === 'invalid_credentials','client identity cannot authenticate into the administration context');
+    $clientDecision = $bootstrapAuth->verifyPassword('native-client@example.test',$password,'portal','127.0.0.1');
+    $assert(($clientDecision['status'] ?? '') === 'authenticated','client identity can authenticate into the client portal');
+    $bootstrapAuth->establishPortalSession($clientDecision);
+    $clientPrincipal = $bootstrapAuth->currentPrincipal();
+    $assert($clientPrincipal instanceof Principal && $clientPrincipal->hasRole('client') && !$clientPrincipal->mfaVerified,'client session remains separate from privileged administration MFA');
+    $bootstrapAuth->logout();
     return $assertions;
 }
