@@ -10,6 +10,7 @@ use Talyvane\Application\Companions\CompanionProfilePublicationService;
 use Talyvane\Application\Companions\CompanionOnboardingService;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Destinations\DestinationManagementService;
+use Talyvane\Application\Globalization\MarketPolicyManagementService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Bookings\BookingCommandService;
 use Talyvane\Application\Bookings\BookingQueryService;
@@ -255,6 +256,14 @@ function runIdentityIntegration(PDO $pdo): int
     $draftDestination = $pdo->prepare('SELECT status FROM destinations WHERE id = :id');
     $draftDestination->execute(['id'=>$draftDestinationId]);
     $assert($draftDestination->fetchColumn() === 'draft','destination can be prepared as a private draft before market approval');
+    $marketManagement = new MarketPolicyManagementService($pdo,$audit);
+    $marketManagement->review($publisher,'DE','approved','de-legal-review-evidence-2026','Jurisdiction-specific legal review and operating-model assessment completed.','2027-11-25',true,bin2hex(random_bytes(16)));
+    $destinationManagement->save($publisher,$draftDestinationId,['slug'=>'berlin','country_code'=>'DE','city_name'=>'Berlin','display_name'=>'Berlin','currency_code'=>'EUR','locale'=>'de-DE','time_zone'=>'Europe/Berlin','status'=>'published'],bin2hex(random_bytes(16)));
+    $publishedBerlin = $pdo->prepare('SELECT status FROM destinations WHERE id = :id');
+    $publishedBerlin->execute(['id'=>$draftDestinationId]);
+    $assert($publishedBerlin->fetchColumn() === 'published','destination publication succeeds only after an evidence-backed Super Admin market approval');
+    try { $marketManagement->review(new Principal($registeredId,['client'],false),'DE','rejected','client-evidence-reference','This client must not be allowed to record a compliance decision.','2027-11-25',false,bin2hex(random_bytes(16))); $assert(false,'client cannot record market compliance decisions'); }
+    catch (DomainException) { $assert(true,'client cannot record market compliance decisions'); }
     try { $destinationManagement->save(new Principal($registeredId,['client'],false),null,['slug'=>'client-city','country_code'=>'GB','city_name'=>'Leeds','display_name'=>'Leeds','currency_code'=>'GBP','locale'=>'en-GB','time_zone'=>'Europe/London','status'=>'draft'],bin2hex(random_bytes(16))); $assert(false,'client cannot create destinations'); }
     catch (DomainException) { $assert(true,'client cannot create destinations'); }
     $pdo->prepare('UPDATE consent_grants SET withdrawn_at = UTC_TIMESTAMP() WHERE subject_type = "companion_profile" AND subject_id = :profile AND purpose = "profile.publication" AND audience = "public"')->execute(['profile'=>$profileId]);
