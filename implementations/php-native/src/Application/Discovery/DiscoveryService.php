@@ -135,6 +135,7 @@ final class DiscoveryService
         if (!is_array($row) || !self::marketIsOperational($row)) { return null; }
         $profile = self::publicProfileFields($row);
         $profile['media'] = $this->publicMediaForProfile((string) $row['id']);
+        $profile['primary_media_url'] = $profile['media'][0]['url'] ?? null;
         return $profile;
     }
 
