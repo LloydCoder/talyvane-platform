@@ -179,7 +179,7 @@ The native branch currently has an ordered PHP migration runner and initial core
 
 ## 9. Non-functional and security verification
 
-Current verified scope: GitHub Actions syntax lint and dependency-free foundation tests have passed on PHP 8.3, 8.4 and 8.5 for commit `ea0af1aaadba4c2074b5e4a239b7fe24696a196e`. Subsequent changes require their own completed CI run before being treated as verified.
+Current verified scope: GitHub Actions syntax lint and the dependency-free test runner passed on PHP 8.3, 8.4 and 8.5 for commit `1eeb8e0048865b898e62d163408a506ff430ec14`; each matrix leg completed successfully with 76 assertions. This verifies only the foundation and pure domain-policy tests. Database integration, browser workflows, installer, UI, complete feature parity and real-host acceptance remain unverified.
 
 - [ ] Applicable OWASP ASVS 5.0 requirements mapped to controls, automated tests and manual review.
 - [ ] OWASP Top 10:2025 threat model covering public site, identity, admin, bookings, media, safeguarding, payments, integrations, exports, installer, backups and upgrades.
