@@ -179,6 +179,34 @@ function runProfileMediaIntegration(PDO $pdo): int
         $assert($eventId!=='' && $updateRejected && $deleteRejected,
             'database triggers make profile-media consent evidence append-only');
 
+        $service->withdrawPublicationConsent($companion,$profileId,$requestId);
+        $withdrawnProfile=$pdo->prepare('SELECT status,publication_consent_withdrawn_at,auto_booking_opt_in FROM companion_profiles WHERE id=:id');
+        $withdrawnProfile->execute(['id'=>$profileId]);
+        $withdrawnProfileRow=$withdrawnProfile->fetch();
+        $assert(is_array($withdrawnProfileRow) && $withdrawnProfileRow['status']==='unpublished' &&
+            $withdrawnProfileRow['publication_consent_withdrawn_at']!==null && !(bool) $withdrawnProfileRow['auto_booking_opt_in'] &&
+            $discovery->profile((string) $fixture['slug'])===null,
+            'profile-wide publication withdrawal immediately unpublishes the profile and disables automatic booking');
+        try {
+            $service->renewPublicationConsent($companion,$profileId,false,$requestId);
+            $assert(false,'publication consent renewal requires an explicit confirmation');
+        } catch (InvalidArgumentException) {
+            $assert(true,'publication consent renewal requires an explicit confirmation');
+        }
+        $service->renewPublicationConsent($companion,$profileId,true,$requestId);
+        $pendingProfile=$pdo->prepare('SELECT status,publication_consent_version,publication_consent_withdrawn_at,auto_booking_opt_in FROM companion_profiles WHERE id=:id');
+        $pendingProfile->execute(['id'=>$profileId]);
+        $pendingProfileRow=$pendingProfile->fetch();
+        $assert(is_array($pendingProfileRow) && $pendingProfileRow['status']==='pending_review' &&
+            $pendingProfileRow['publication_consent_version']==='profile-publication-v2' &&
+            $pendingProfileRow['publication_consent_withdrawn_at']===null && !(bool) $pendingProfileRow['auto_booking_opt_in'],
+            'renewed publication consent creates a new version and requires fresh human publication review');
+        $publication=new \\Talyvane\\Application\\Companions\\CompanionProfilePublicationService($pdo,$audit);
+        $publication->publish($admin,$profileId,'New versioned consent and current adult eligibility reviewed',bin2hex(random_bytes(16)));
+        $republished=$discovery->profile((string) $fixture['slug']);
+        $assert(is_array($republished) && ($republished['media'] ?? [])===[] && ($republished['primary_media_url'] ?? null)===null,
+            'republishing after consent renewal never resurrects withdrawn or deleted images');
+
         try {
             $storage->read('../outside.webp');
             $assert(false,'private media storage rejects path traversal');
