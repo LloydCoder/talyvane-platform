@@ -7,6 +7,7 @@ use PDO;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Mail\Mailer;
 use Talyvane\Infrastructure\Security\RateLimiter;
+use Talyvane\Installer\SetupKey;
 
 final class EmailVerificationService
 {
