@@ -45,7 +45,9 @@ final class StructuredLogger
             'context' => self::redact($context),
         ];
         $json = json_encode($record, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+        $previousUmask = umask(0077);
         $handle = @fopen($this->file, 'ab');
+        umask($previousUmask);
         if ($handle === false) {
             error_log('[talyvane] structured log write failed');
             return;
