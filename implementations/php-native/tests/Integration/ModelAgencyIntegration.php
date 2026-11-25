@@ -2,6 +2,9 @@
 declare(strict_types=1);
 
 use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
+use Talyvane\Application\ModelAgency\ModelAgencyAgreementService;
+use Talyvane\Application\ModelAgency\ModelApplicantRightsService;
+use Talyvane\Infrastructure\Security\RateLimiter;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Security\Principal;
 
