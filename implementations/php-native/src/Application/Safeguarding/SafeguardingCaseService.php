@@ -364,6 +364,13 @@ final class SafeguardingCaseService
         )->fetch(PDO::FETCH_ASSOC);
         if (!is_array($backup)||(int)$backup['enabled']!==1||(int)$backup['encrypted_backups']!==1||
             (int)$backup['expiry_days']<1) { return null; }
+        $approver=$this->pdo->prepare(
+            'SELECT 1 FROM users u JOIN user_roles r ON r.user_id=u.id AND r.role_key IN ("owner","super_admin")
+             JOIN admin_mfa_credentials m ON m.user_id=u.id AND m.enabled_at IS NOT NULL
+             WHERE u.id=:id AND u.status="active" AND u.email_verified_at IS NOT NULL LIMIT 1'
+        );
+        $approver->execute(['id'=>$backup['approved_by']]);
+        if ($approver->fetchColumn()===false) { return null; }
         $restore=$this->pdo->prepare(
             'SELECT 1 FROM safeguarding_restore_verifications v
              JOIN users u ON u.id=v.verified_by AND u.status="active"
