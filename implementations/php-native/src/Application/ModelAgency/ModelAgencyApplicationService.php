@@ -202,7 +202,7 @@ final class ModelAgencyApplicationService
         Authorization::require($administrator,'model_applications.manage',true);
         if (!$administrator->mfaVerified || (!$administrator->hasRole('super_admin') && !$administrator->hasRole('owner')) ||
             strlen(trim($reason)) < 15 || strlen($reason) > 500 || strlen($requestId) < 16 || strlen($requestId) > 64) {
-            throw new \\DomainException('A MFA-verified owner or Super Admin and documented legal basis are required.');
+            throw new \DomainException('A MFA-verified owner or Super Admin and documented legal basis are required.');
         }
         $this->pdo->beginTransaction();
         try {
@@ -210,10 +210,10 @@ final class ModelAgencyApplicationService
             $query->execute(['id'=>$applicationId]);
             $application = $query->fetch();
             if (!is_array($application) || $application['anonymized_at'] !== null) {
-                throw new \\DomainException('Application is unavailable for legal-hold governance.');
+                throw new \DomainException('Application is unavailable for legal-hold governance.');
             }
             if ((bool) $application['legal_hold'] === $place) {
-                throw new \\DomainException('Requested legal-hold state is already active.');
+                throw new \DomainException('Requested legal-hold state is already active.');
             }
             $this->pdo->prepare('UPDATE model_talent_applications SET legal_hold = :hold,legal_hold_reason = :reason,updated_at = UTC_TIMESTAMP() WHERE id = :id')
                 ->execute(['hold'=>$place ? 1 : 0,'reason'=>$place ? trim($reason) : null,'id'=>$applicationId]);
@@ -222,7 +222,7 @@ final class ModelAgencyApplicationService
             $this->audit->record($administrator->id,$event,'model_application',$applicationId,trim($reason),
                 ['legal_hold'=>(bool) $application['legal_hold']],['legal_hold'=>$place],$requestId,'model-legal-hold-v1');
             $this->pdo->commit();
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
