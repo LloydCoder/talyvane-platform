@@ -62,7 +62,7 @@ final class SafeguardingRestoreVerificationService
                     'orphan_keys_destroyed'=>$result['orphan_keys_destroyed'],'manifest_sha256'=>$manifestSha256],
                 $requestId,'safeguarding-restore-v1');
             $this->pdo->commit();
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
             throw $error;
         }
