@@ -28,7 +28,7 @@ final class ModelAgencyApplicationService
              FROM model_talent_applications a
              LEFT JOIN model_applicant_verifications v ON v.id = (
                  SELECT v2.id FROM model_applicant_verifications v2
-                 WHERE v2.application_id = a.id ORDER BY v2.verified_at DESC LIMIT 1
+                 WHERE v2.application_id = a.id ORDER BY v2.decision_order DESC LIMIT 1
              )
              WHERE a.anonymized_at IS NULL AND a.status IN ("submitted","under_review","accepted")
              ORDER BY a.created_at DESC LIMIT :limit'
@@ -52,7 +52,7 @@ final class ModelAgencyApplicationService
              FROM model_talent_applications a
              LEFT JOIN model_applicant_verifications v ON v.id = (
                  SELECT v2.id FROM model_applicant_verifications v2
-                 WHERE v2.application_id = a.id ORDER BY v2.verified_at DESC LIMIT 1
+                 WHERE v2.application_id = a.id ORDER BY v2.decision_order DESC LIMIT 1
              )
              WHERE a.anonymized_at IS NULL AND a.status IN ("submitted","under_review")
              ORDER BY a.created_at ASC LIMIT :limit'
@@ -218,7 +218,7 @@ final class ModelAgencyApplicationService
             if ($to === 'accepted') {
                 $verification = $this->pdo->prepare(
                     'SELECT outcome,expires_at FROM model_applicant_verifications
-                     WHERE application_id = :application ORDER BY verified_at DESC LIMIT 1 FOR UPDATE'
+                     WHERE application_id = :application ORDER BY decision_order DESC LIMIT 1 FOR UPDATE'
                 );
                 $verification->execute(['application'=>$applicationId]);
                 $latestVerification = $verification->fetch();
