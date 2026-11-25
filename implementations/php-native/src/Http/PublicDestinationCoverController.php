@@ -20,7 +20,8 @@ final class PublicDestinationCoverController
         return new Response($cover['bytes'],200,[
             'content-type'=>$cover['mime'],
             'content-length'=>(string)strlen($cover['bytes']),
-            'cache-control'=>'public, max-age=300, stale-while-revalidate=60',
+            'cache-control'=>'no-store, no-cache, must-revalidate, private',
+            'pragma'=>'no-cache',
             'x-content-type-options'=>'nosniff',
             'content-disposition'=>'inline',
             'cross-origin-resource-policy'=>'same-origin',
