@@ -35,7 +35,7 @@ final class AdminDestinationController
             $notice = ($request->query['saved'] ?? '') === '1' ? 'Destination changes have been saved.' : '';
             return $this->page($items,$catalogs['countries'],$catalogs['currencies'],$this->covers->pending($actor),$error,$notice,$status);
         } catch (DomainException) {
-            return $this->page([],[],[],'You do not have permission to manage destinations.','',403);
+            return $this->page([],[],[],[],'You do not have permission to manage destinations.','',403);
         }
     }
 
