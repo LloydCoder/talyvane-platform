@@ -37,7 +37,7 @@ final class ClientMembershipService
         string $requestId
     ): string {
         Authorization::require($actor,'clients.manage',true);
-        if (!$actor->hasRole('super_admin') && !$actor->hasRole('owner') && !$actor->hasRole('admin')) {
+        if (!$actor->hasRole('owner') && !$actor->hasRole('admin')) {
             throw new DomainException('Only an authorized agency operator can assign client membership.');
         }
         if (!$this->features->enabled('memberships')) {
@@ -73,7 +73,7 @@ final class ClientMembershipService
         try {
             $operator=$this->pdo->prepare(
                 'SELECT u.id FROM users u JOIN user_roles r ON r.user_id=u.id
-                 WHERE u.id=:id AND u.status="active" AND r.role_key IN ("super_admin","owner","admin") LIMIT 1 FOR UPDATE'
+                 WHERE u.id=:id AND u.status="active" AND r.role_key IN ("owner","admin") LIMIT 1 FOR UPDATE'
             );
             $operator->execute(['id'=>$actor->id]);
             if ($operator->fetchColumn()===false) {
@@ -222,8 +222,8 @@ final class ClientMembershipService
             throw new InvalidArgumentException('Membership status transition is invalid.');
         }
         Authorization::require($actor,'clients.manage',true);
-        if (!$actor->hasRole('super_admin') && !$actor->hasRole('owner') && !$actor->hasRole('admin')) {
-            throw new DomainException('Only an authorized agency operator can change a client membership.');
+        if (!$actor->hasRole('owner') && !$actor->hasRole('admin')) {
+            throw new DomainException('Only an MFA-protected agency owner or admin can change a client membership.');
         }
         if (!$this->features->enabled('memberships')) {
             throw new DomainException('Membership operations are disabled until the deployment Super Admin enables the feature.');
@@ -240,7 +240,7 @@ final class ClientMembershipService
             $operator=$this->pdo->prepare(
                 'SELECT u.id FROM users u JOIN user_roles r ON r.user_id=u.id
                  WHERE u.id=:id AND u.status="active" AND u.email_verified_at IS NOT NULL
-                   AND r.role_key IN ("super_admin","owner","admin") LIMIT 1 FOR UPDATE'
+                   AND r.role_key IN ("owner","admin") LIMIT 1 FOR UPDATE'
             );
             $operator->execute(['id'=>$actor->id]);
             if ($operator->fetchColumn()===false) {
