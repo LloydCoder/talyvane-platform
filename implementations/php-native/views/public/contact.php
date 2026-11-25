@@ -4,6 +4,7 @@ $brandName = is_string($brandName ?? null) && $brandName !== '' ? $brandName : '
 $csrf = is_string($csrf ?? null) ? $csrf : '';
 $error = is_string($error ?? null) ? $error : '';
 $sent = ($sent ?? false) === true;
+$privacyAvailable = ($privacyAvailable ?? false) === true;
 $values = is_array($values ?? null) ? $values : [];
 $value = static fn(string $key): string => is_scalar($values[$key] ?? null) ? (string) $values[$key] : '';
 ?>
@@ -24,6 +25,7 @@ $value = static fn(string $key): string => is_scalar($values[$key] ?? null) ? (s
 <section class="panel">
 <?php if ($sent): ?><div class="alert success" role="status">Your enquiry has been received. Thank you for contacting <?= $escape($brandName) ?>.</div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="alert error" role="alert"><?= $escape($error) ?></div><?php endif; ?>
+<?php if ($privacyAvailable): ?>
 <form method="post" action="/enquiries">
 <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
 <div class="trap" aria-hidden="true"><label for="website">Leave this field empty</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
@@ -38,6 +40,7 @@ $value = static fn(string $key): string => is_scalar($values[$key] ?? null) ? (s
 <label class="privacy"><input type="checkbox" name="privacy_acknowledged" value="1" required><span>I have read the <a href="/privacy">Privacy Notice</a> and acknowledge that my information will be used to respond to this enquiry.</span></label>
 <button class="button" type="submit">Send private enquiry</button>
 </form>
+<?php else: ?><div class="alert error" role="status">The enquiry form is temporarily unavailable. A Privacy Notice must be reviewed and published before enquiries can be accepted.</div><?php endif; ?>
 </section>
 <p class="foot">Please do not submit identity documents, payment card details, passwords or sensitive personal information through this form.</p>
 </main>
