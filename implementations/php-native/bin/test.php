@@ -193,8 +193,10 @@ $publicNavMarkup = $authViews->render('public/home', [
     'brand'=>['brand_name'=>'Maison Example','tagline'=>'A considered experience','seo_defaults'=>['title_suffix'=>'','robots'=>'index,follow']],
     'sections'=>[],
     'navigation'=>[['label'=>'About','target_type'=>'page','target_value'=>'/pages/about']],
+    'footerNavigation'=>[['label'=>'Contact','target_type'=>'url','target_value'=>'https://example.test/contact']],
 ]);
 $assert(str_contains($publicNavMarkup, 'href="/pages/about"'), 'public homepage renders enabled navigation targets');
+$assert(str_contains($publicNavMarkup, 'href="https://example.test/contact"'), 'public homepage renders footer navigation targets');
 
 
 $assert(str_contains($contentEditMarkup, 'Public readers still see version 1'), 'CMS editor distinguishes a live snapshot from newer draft content');
