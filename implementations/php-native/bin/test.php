@@ -52,6 +52,18 @@ $features = new FeatureAvailability(
 $assert(!$features->enabled('bookings.manual'), 'manual bookings fail closed without approved market policy');
 $assert(!FeatureRegistry::known('security.disable_authorization'), 'unknown feature keys are rejected');
 
+$paymentFeatures = new FeatureAvailability(
+    ['payments.configuration'=>true,'payments.crypto'=>true],
+    static fn(string $gate): bool => $gate === 'market.policy'
+);
+$assert(!$paymentFeatures->enabled('payments.crypto'), 'crypto activation fails closed without provider and legal approval');
+$approvedPaymentFeatures = new FeatureAvailability(
+    ['payments.configuration'=>true,'payments.crypto'=>true],
+    static fn(string $gate): bool => in_array($gate, ['market.policy','provider.approved','legal.approved'], true)
+);
+$assert($approvedPaymentFeatures->enabled('payments.crypto'), 'crypto feature enables only after all prerequisites pass');
+$assert(!FeatureRegistry::known('safeguarding.adult_only'), 'hard safeguarding invariant is not an ordinary feature flag');
+
 $passwordHash = PasswordHasher::hash('Correct-Horse-Battery-77!');
 $assert(PasswordHasher::verify('Correct-Horse-Battery-77!', $passwordHash), 'password hash verifies');
 $assert(!PasswordHasher::verify('wrong-password', $passwordHash), 'wrong password rejected');
