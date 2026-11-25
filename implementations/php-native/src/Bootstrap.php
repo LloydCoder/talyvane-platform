@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Talyvane;
 
 use Talyvane\Application\Companions\CompanionProfilePublicationService;
+use Talyvane\Application\Clients\ClientFavoriteService;
 use Talyvane\Application\Companions\CompanionAvailabilityService;
 use Talyvane\Application\Bookings\BookingCommandService;
 use Talyvane\Application\Bookings\BookingQueryService;
@@ -20,6 +21,7 @@ use Talyvane\Application\Identity\MfaService;
 use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Application\Identity\UserRegistrationService;
 use Talyvane\Http\AdminCompanionController;
+use Talyvane\Http\ClientFavoriteController;
 use Talyvane\Http\CompanionAvailabilityController;
 use Talyvane\Http\AdminAuthController;
 use Talyvane\Http\AdminBrandController;
@@ -123,6 +125,7 @@ final class Bootstrap
         $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $discovery, $views, $brandName);
         $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit), $views, $brandName);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery);
+        $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
         $router = new Router();
 
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
@@ -157,6 +160,9 @@ final class Bootstrap
         $router->add('GET', '/portal', static fn(Request $request): Response => $portalAuth->dashboard($request));
         $router->add('POST', '/portal/logout', static fn(Request $request): Response => $portalAuth->logout($request));
         $router->add('GET', '/portal/bookings', static fn(Request $request): Response => $portalBookings->clientIndex($request));
+        $router->add('GET', '/portal/favorites', static fn(Request $request): Response => $clientFavorites->index($request));
+        $router->add('POST', '/portal/favorites/{slug}', static fn(Request $request, array $params): Response => $clientFavorites->add($request, $params));
+        $router->add('POST', '/portal/favorites/{slug}/remove', static fn(Request $request, array $params): Response => $clientFavorites->remove($request, $params));
         $router->add('GET', '/portal/bookings/new', static fn(Request $request): Response => $portalBookings->newForm($request));
         $router->add('POST', '/portal/bookings', static fn(Request $request): Response => $portalBookings->store($request));
         $router->add('POST', '/portal/bookings/{id}/cancel', static fn(Request $request, array $params): Response => $portalBookings->cancel($request, $params));
