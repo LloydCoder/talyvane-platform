@@ -115,6 +115,21 @@ function runMembershipIntegration(PDO $pdo): int
     try { $memberships->suspend(new Principal($clientId,['client'],false),$fourthId,'Client principals cannot suspend memberships.',bin2hex(random_bytes(16))); }
     catch (DomainException) { $suspendDenied=true; }
     $assert($suspendDenied,'client principals cannot suspend membership records');
+    $superAdminAssignDenied=false;
+    try {
+        $memberships->assign(
+            new Principal($ownerId,['super_admin'],true),$clientId,'gold','Gold','Super Admin is not an agency membership operator',
+            new DateTimeImmutable('now -1 minute',new DateTimeZone('UTC')),
+            new DateTimeImmutable('now +1 day',new DateTimeZone('UTC')),
+            [],'Platform Super Admin role alone must not grant agency membership administration.',
+            bin2hex(random_bytes(16))
+        );
+    } catch (DomainException) { $superAdminAssignDenied=true; }
+    $assert($superAdminAssignDenied,'platform Super Admin role alone cannot assign agency memberships');
+    $superAdminSuspendDenied=false;
+    try { $memberships->suspend(new Principal($ownerId,['super_admin'],true),$fourthId,'Platform Super Admin role alone must not suspend agency membership.',bin2hex(random_bytes(16))); }
+    catch (DomainException) { $superAdminSuspendDenied=true; }
+    $assert($superAdminSuspendDenied,'platform Super Admin role alone cannot suspend agency memberships');
     $repeatCancelRejected=false;
     try { $memberships->cancel($actor,$thirdId,'Repeated cancellation must not create a second lifecycle transition.',bin2hex(random_bytes(16))); }
     catch (DomainException) { $repeatCancelRejected=true; }
