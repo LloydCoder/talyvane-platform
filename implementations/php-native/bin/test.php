@@ -202,12 +202,22 @@ $contactMarkup = $authViews->render('public/contact', [
     'csrf'=>'contact-csrf',
     'error'=>'',
     'sent'=>false,
+    'privacyAvailable'=>true,
     'values'=>['name'=>'<script>alert(1)</script>','email'=>'visitor@example.test'],
 ]);
 $assert(str_contains($contactMarkup, 'action="/enquiries"'), 'public contact form posts to the enquiry endpoint');
 $assert(str_contains($contactMarkup, 'name="privacy_acknowledged"'), 'public contact form requires privacy acknowledgement');
 $assert(str_contains($contactMarkup, 'name="website"'), 'public contact form includes an unobtrusive spam honeypot');
 $assert(!str_contains($contactMarkup, '<script>alert(1)</script>'), 'public contact values are escaped against reflected XSS');
+$blockedContactMarkup = $authViews->render('public/contact', [
+    'brandName'=>'Maison Example',
+    'csrf'=>'contact-csrf',
+    'error'=>'',
+    'sent'=>false,
+    'privacyAvailable'=>false,
+    'values'=>[],
+]);
+$assert(!str_contains($blockedContactMarkup, 'action="/enquiries"'), 'public enquiries are disabled until a privacy notice is published');
 $enquiryAdminMarkup = $authViews->render('admin/enquiries', [
     'brandName'=>'Maison Example',
     'csrf'=>'admin-enquiry-csrf',
