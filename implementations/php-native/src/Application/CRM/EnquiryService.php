@@ -92,7 +92,7 @@ final class EnquiryService
             $this->audit->record(null,'crm.enquiry.created','enquiry',$id,'Public enquiry submission',null,
                 ['reference'=>$reference,'status'=>'new'],'enquiry-'.$requestId,'crm-enquiry-v1');
             $this->pdo->commit();
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
