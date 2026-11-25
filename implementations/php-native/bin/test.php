@@ -29,6 +29,7 @@ use Talyvane\Security\RecoveryCodes;
 use Talyvane\Security\SecretBox;
 use Talyvane\Security\Principal;
 use Talyvane\Security\Totp;
+use Talyvane\Infrastructure\Logging\StructuredLogger;
 
 $tests = 0;
 $assert = static function (bool $condition, string $message) use (&$tests): void {
@@ -90,6 +91,10 @@ $totpCode = Totp::codeAt($totpSecret, 300);
 $assert(strlen($totpSecret) >= 32 && preg_match('/^[0-9]{6}$/D', $totpCode) === 1, 'TOTP secret and six-digit code are generated');
 $assert(Totp::verify($totpSecret, $totpCode, 300) === 10, 'TOTP verifies within the current time counter');
 $assert(Totp::verify($totpSecret, $totpCode, 300, 10) === null, 'TOTP replay counter is rejected');
+
+$redacted = StructuredLogger::redact(['smtpPassword'=>'do-not-log','nested'=>['api_key'=>'do-not-log-either','status'=>'failed']]);
+$assert($redacted['smtpPassword'] === '[REDACTED]' && $redacted['nested']['api_key'] === '[REDACTED]', 'structured logger redacts nested secrets');
+$assert($redacted['nested']['status'] === 'failed', 'structured logger preserves non-sensitive diagnostics');
 
 $box = new SecretBox(str_repeat('k', 32));
 $encrypted = $box->encrypt('sensitive-provider-secret', 'provider:payments');
