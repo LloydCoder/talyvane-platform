@@ -189,6 +189,13 @@ $assert(Authorization::allows($safeguarding, 'safeguarding.cases.assigned.view')
 $assert(!Authorization::allows($safeguarding, 'bookings.manage'), 'safeguarding specialist cannot access bookings');
 $superAdmin = new Principal('super-1', ['super_admin'], true);
 $assert(!Authorization::allows($superAdmin, 'security.authorization.bypass'), 'even Super Admin cannot bypass authorization invariant');
+$assert(Authorization::allows($superAdmin, 'site.content.manage'), 'Super Admin can manage deployment content');
+$owner = new Principal('owner-1', ['owner'], true);
+$admin = new Principal('admin-1', ['admin'], true);
+$assert(Authorization::allows($owner, 'site.content.manage'), 'Owner can manage CMS pages');
+$assert(Authorization::allows($admin, 'site.content.manage'), 'Admin can manage CMS pages');
+$assert(!Authorization::allows($finance, 'site.content.manage'), 'Finance cannot manage CMS pages');
+$assert(!Authorization::allows(new Principal('admin-2', ['admin'], false), 'site.content.manage'), 'CMS writes require administrator MFA');
 
 $now = new DateTimeImmutable('2026-11-25T12:00:00+00:00');
 $approvedMarket = new MarketPolicy('GB', true, 'approved', 'reviewer-1', $now->modify('-1 day'), $now->modify('+30 days'), 'evidence-ref-1', 'Counsel review recorded');
