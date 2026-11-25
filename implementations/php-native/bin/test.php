@@ -197,6 +197,26 @@ $publicNavMarkup = $authViews->render('public/home', [
 ]);
 $assert(str_contains($publicNavMarkup, 'href="/pages/about"'), 'public homepage renders enabled navigation targets');
 $assert(str_contains($publicNavMarkup, 'href="https://example.test/contact"'), 'public homepage renders footer navigation targets');
+$contactMarkup = $authViews->render('public/contact', [
+    'brandName'=>'Maison Example',
+    'csrf'=>'contact-csrf',
+    'error'=>'',
+    'sent'=>false,
+    'values'=>['name'=>'<script>alert(1)</script>','email'=>'visitor@example.test'],
+]);
+$assert(str_contains($contactMarkup, 'action="/enquiries"'), 'public contact form posts to the enquiry endpoint');
+$assert(str_contains($contactMarkup, 'name="privacy_acknowledged"'), 'public contact form requires privacy acknowledgement');
+$assert(str_contains($contactMarkup, 'name="website"'), 'public contact form includes an unobtrusive spam honeypot');
+$assert(!str_contains($contactMarkup, '<script>alert(1)</script>'), 'public contact values are escaped against reflected XSS');
+$enquiryAdminMarkup = $authViews->render('admin/enquiries', [
+    'brandName'=>'Maison Example',
+    'csrf'=>'admin-enquiry-csrf',
+    'error'=>'',
+    'saved'=>false,
+    'items'=>[['reference'=>'TV-0123456789','name'=>'<img src=x onerror=alert(1)>','email'=>'person@example.test','subject'=>'Hello','message'=>'Please contact me.','status'=>'new','created_at'=>'2026-11-25 10:00:00']],
+]);
+$assert(str_contains($enquiryAdminMarkup, '/admin/enquiries/TV-0123456789'), 'admin enquiry workspace exposes the status update action');
+$assert(!str_contains($enquiryAdminMarkup, '<img src=x onerror=alert(1)>'), 'admin enquiry data is escaped before rendering');
 
 
 $assert(str_contains($contentEditMarkup, 'Public readers still see version 1'), 'CMS editor distinguishes a live snapshot from newer draft content');
