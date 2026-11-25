@@ -357,7 +357,7 @@ final class SafeguardingCaseService
     /** @return array{due_at:string,policy_version:string}|null */
     private function retentionSchedule(string $category): ?array
     {
-        if (getenv('SAFEGUARDING_CASE_RETENTION_SCHEDULE_APPROVED')!=='true' ||
+        if (!$this->crypto->supportsDestruction() || getenv('SAFEGUARDING_CASE_RETENTION_SCHEDULE_APPROVED')!=='true' ||
             getenv('SAFEGUARDING_CASE_BACKUP_POLICY_APPROVED')!=='true') {
             return null;
         }
