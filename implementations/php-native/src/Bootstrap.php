@@ -71,7 +71,7 @@ use Talyvane\Infrastructure\Database\ReferenceDataImporter;
 use Talyvane\Infrastructure\Mail\SmtpMailer;
 use Talyvane\Infrastructure\Security\RateLimiter;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
-use Talyvane\Security\SecretBox;
+
 
 final class Bootstrap
 {
