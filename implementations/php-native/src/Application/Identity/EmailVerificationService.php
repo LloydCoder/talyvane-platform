@@ -168,6 +168,26 @@ final class EmailVerificationService
             hash_equals($primaryEmail,$recoveryEmail)) {
             throw new \\InvalidArgumentException('Super Admin requires two distinct valid email addresses.');
         }
+        $existingBootstrap = $this->pdo->query('SELECT user_id,activated_at,expires_at FROM super_admin_bootstrap_challenges WHERE singleton_id = 1')->fetch();
+        if (is_array($existingBootstrap)) {
+            if ($existingBootstrap['activated_at'] !== null || strtotime((string) $existingBootstrap['expires_at'] . ' UTC') > time()) {
+                throw new \\DomainException('A Super Admin bootstrap is already active or has been completed.');
+            }
+            $this->pdo->beginTransaction();
+            try {
+                $oldUser = (string) $existingBootstrap['user_id'];
+                $deleteChallenges = $this->pdo->prepare('DELETE FROM email_verification_challenges WHERE user_id = :user');
+                $deleteChallenges->execute(['user'=>$oldUser]);
+                $deleteBootstrap = $this->pdo->prepare('DELETE FROM super_admin_bootstrap_challenges WHERE singleton_id = 1 AND activated_at IS NULL');
+                $deleteBootstrap->execute();
+                $deleteUser = $this->pdo->prepare('DELETE FROM users WHERE id = :user AND status = \'pending\'');
+                $deleteUser->execute(['user'=>$oldUser]);
+                $this->pdo->commit();
+            } catch (\\Throwable $error) {
+                if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
+                throw $error;
+            }
+        }
         if ($this->pdo->query('SELECT COUNT(*) FROM super_admin_recovery')->fetchColumn() > 0 ||
             $this->pdo->query('SELECT COUNT(*) FROM super_admin_bootstrap_challenges WHERE activated_at IS NULL AND expires_at > UTC_TIMESTAMP()')->fetchColumn() > 0) {
             throw new \\DomainException('A Super Admin bootstrap is already active or has been completed.');
