@@ -6,7 +6,9 @@ use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Application\Identity\MfaService;
 use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Application\Identity\UserRegistrationService;
+use Talyvane\Application\Companions\CompanionProfilePublicationService;
 use Talyvane\Application\Companions\CompanionOnboardingService;
+use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Bookings\BookingCommandService;
 use Talyvane\Infrastructure\Database\BookingPolicyRepository;
@@ -196,7 +198,23 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(is_array($recovered) && !password_verify($password,(string) $recovered['password_hash']),'recovered account no longer accepts the previous password');
     try { $registration->register('native-forbidden-admin@example.test',$password,'super_admin','127.0.0.1',bin2hex(random_bytes(16))); $assert(false,'public registration cannot create privileged roles'); }
     catch (InvalidArgumentException) { $assert(true,'public registration cannot create privileged roles'); }
-    $pdo->prepare('UPDATE companion_profiles SET status = "published" WHERE id = :id')->execute(['id'=>$profileId]);
+    $publication = new CompanionProfilePublicationService($pdo,$audit);
+    $publisher = new Principal($id,['super_admin'],true);
+    $publication->publish($publisher,$profileId,'Independent adult verification and current publication consent reviewed',bin2hex(random_bytes(16)));
+    $discovery = new DiscoveryService($pdo);
+    $publicDestinations = $discovery->destinations();
+    $publicProfiles = $discovery->profiles('london');
+    $profileLookup = $pdo->prepare('SELECT slug FROM companion_profiles WHERE id = :id');
+    $profileLookup->execute(['id'=>$profileId]);
+    $publicSlug = (string) $profileLookup->fetchColumn();
+    $publicProfile = $discovery->profile($publicSlug);
+    $assert(count($publicDestinations) === 1 && $publicDestinations[0]['slug'] === 'london','public discovery lists only destinations in currently approved markets');
+    $assert(count($publicProfiles) === 1 && is_array($publicProfile),'public discovery exposes independently verified and consented profiles');
+    $assert(is_array($publicProfile) && !array_key_exists('user_id',$publicProfile) && !array_key_exists('verification_reference_hash',$publicProfile),'public profile projection excludes account identifiers and verification evidence');
+    $pdo->prepare('UPDATE consent_grants SET withdrawn_at = UTC_TIMESTAMP() WHERE subject_type = "companion_profile" AND subject_id = :profile AND purpose = "profile.publication" AND audience = "public"')->execute(['profile'=>$profileId]);
+    $assert($discovery->profile($publicSlug) === null,'public profile immediately disappears when publication consent is withdrawn');
+    $pdo->prepare('UPDATE consent_grants SET withdrawn_at = NULL WHERE subject_type = "companion_profile" AND subject_id = :profile AND purpose = "profile.publication" AND audience = "public"')->execute(['profile'=>$profileId]);
+    $pdo->prepare('UPDATE companion_profiles SET publication_consent_withdrawn_at = NULL WHERE id = :profile')->execute(['profile'=>$profileId]);
     $localBookingStart = new DateTimeImmutable('tomorrow 10:00:00',new DateTimeZone('Europe/London'));
     $localDate = $localBookingStart->format('Y-m-d');
     $availabilityBytes = random_bytes(16);
