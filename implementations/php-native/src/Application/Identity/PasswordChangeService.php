@@ -73,7 +73,7 @@ final class PasswordChangeService
             $rolesQuery = $this->pdo->prepare('SELECT role_key FROM user_roles WHERE user_id=:user');
             $rolesQuery->execute(['user'=>$userId]);
             $roles = array_map(static fn(array $row): string => (string) $row['role_key'],$rolesQuery->fetchAll());
-            if (!in_array('client',$roles,true) && !in_array('companion',$roles,true)) {
+            if (count(array_intersect($roles,['client','companion'])) !== 1) {
                 throw new \DomainException('Portal password self-service is restricted to client and companion accounts.');
             }
             if (array_intersect($roles,['super_admin','owner','admin','finance','verifier','safeguarding']) !== []) {
