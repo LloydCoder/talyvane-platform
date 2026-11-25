@@ -282,6 +282,8 @@ function runProfileMediaIntegration(PDO $pdo): int
         try { $galleryService->privateMediaForClient($companionClient,$membersOnlyId,'Talyvane'); }
         catch (DomainException) { $suspendedMembershipDenied=true; }
         $assert($suspendedMembershipDenied,'suspending a membership immediately blocks final private media delivery');
+        $pdo->prepare('UPDATE memberships SET status="active",updated_at=UTC_TIMESTAMP() WHERE id=:id')
+            ->execute(['id'=>$membershipId]);
         $service->withdrawMembersOnlyConsent($companion,$profileId,$membersOnlyId,'Talyvane',$requestId);
         $withdrawnGallery=$galleryService->privateGalleryForClient($companionClient,'Talyvane');
         $assert(count(array_filter($withdrawnGallery,static fn(array $item): bool => $item['id']===$membersOnlyId))===0 &&
