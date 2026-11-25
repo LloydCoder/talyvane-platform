@@ -4,12 +4,15 @@ declare(strict_types=1);
 namespace Talyvane;
 
 use Talyvane\Application\Content\ContentManagementService;
+use Talyvane\Application\CRM\EnquiryService;
 use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Application\Identity\MfaService;
 use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Http\AdminAuthController;
 use Talyvane\Http\AdminBrandController;
 use Talyvane\Http\AdminNavigationController;
+use Talyvane\Http\AdminEnquiryController;
+use Talyvane\Http\PublicEnquiryController;
 use Talyvane\Http\AdminContentController;
 use Talyvane\Http\PublicSiteController;
 use Talyvane\Http\Request;
