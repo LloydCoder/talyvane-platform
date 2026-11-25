@@ -43,22 +43,29 @@ final class SafeguardingRestoreVerificationService
         )->fetchAll(PDO::FETCH_KEY_PAIR);
         $result=$this->crypto->reconcileVault($keys);
         $id=self::uuid();
-        $insert=$this->pdo->prepare(
-            'INSERT INTO safeguarding_restore_verifications
-             (id,backup_reference_hash,manifest_sha256,policy_version,verification_status,
-              active_keys_verified,orphan_keys_destroyed,verified_by,verified_at,created_at)
-             VALUES (:id,:backup,:manifest,:version,"passed",:active,:orphans,:actor,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
-        );
-        $insert->execute([
-            'id'=>$id,'backup'=>hash('sha256',$backupReference),'manifest'=>$manifestSha256,
-            'version'=>$policyVersion,'active'=>$result['active_keys_verified'],
-            'orphans'=>$result['orphan_keys_destroyed'],'actor'=>$actor->id,
-        ]);
-        $this->audit->record($actor->id,'safeguarding.restore.verified','safeguarding_restore_verification',$id,
-            'Independent restore manifest recorded and Vault active-key reconciliation completed.',
-            null,['policy_version'=>$policyVersion,'active_keys_verified'=>$result['active_keys_verified'],
-                'orphan_keys_destroyed'=>$result['orphan_keys_destroyed'],'manifest_sha256'=>$manifestSha256],
-            $requestId,'safeguarding-restore-v1');
+        $this->pdo->beginTransaction();
+        try {
+            $insert=$this->pdo->prepare(
+                'INSERT INTO safeguarding_restore_verifications
+                 (id,backup_reference_hash,manifest_sha256,policy_version,verification_status,
+                  active_keys_verified,orphan_keys_destroyed,verified_by,verified_at,created_at)
+                 VALUES (:id,:backup,:manifest,:version,"passed",:active,:orphans,:actor,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+            );
+            $insert->execute([
+                'id'=>$id,'backup'=>hash('sha256',$backupReference),'manifest'=>$manifestSha256,
+                'version'=>$policyVersion,'active'=>$result['active_keys_verified'],
+                'orphans'=>$result['orphan_keys_destroyed'],'actor'=>$actor->id,
+            ]);
+            $this->audit->record($actor->id,'safeguarding.restore.verified','safeguarding_restore_verification',$id,
+                'Independent restore manifest recorded and Vault active-key reconciliation completed.',
+                null,['policy_version'=>$policyVersion,'active_keys_verified'=>$result['active_keys_verified'],
+                    'orphan_keys_destroyed'=>$result['orphan_keys_destroyed'],'manifest_sha256'=>$manifestSha256],
+                $requestId,'safeguarding-restore-v1');
+            $this->pdo->commit();
+        } catch (\\Throwable $error) {
+            if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
+            throw $error;
+        }
         return $result;
     }
 
