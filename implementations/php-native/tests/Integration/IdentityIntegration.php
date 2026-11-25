@@ -129,7 +129,7 @@ function runIdentityIntegration(PDO $pdo): int
     $assert($setupPrincipal instanceof Principal && $setupPrincipal->mfaVerified && $setupPrincipal->hasRole('super_admin'),'new Super Admin session is established only after password replacement and MFA');
     $bootstrapAuth->logout();
 
-    $pdo->prepare('INSERT INTO countries (alpha2,alpha3,numeric_code,name,enabled,dataset_version,updated_at) VALUES ("GB","GBR","826","United Kingdom",1,"test-iso-2026",UTC_TIMESTAMP())')->execute();
+    $pdo->prepare('INSERT INTO countries (alpha2,alpha3,numeric_code,name,enabled,dataset_version,updated_at) VALUES ("GB","GBR","826","United Kingdom",1,"test-iso-2026",UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE enabled=1,updated_at=UTC_TIMESTAMP()')->execute();
     $marketInsert = $pdo->prepare('INSERT INTO market_policies (country_code,enabled,decision,reviewer_id,reviewed_at,expires_at,evidence_reference,review_summary,policy_version,updated_at) VALUES ("GB",1,"approved",:reviewer,UTC_TIMESTAMP(),DATE_ADD(UTC_TIMESTAMP(), INTERVAL 1 DAY),"legal-review-evidence","Market counsel review completed","market-v1",UTC_TIMESTAMP())');
     $marketInsert->execute(['reviewer'=>$id]);
     $destinationIdBytes = random_bytes(16);
@@ -229,7 +229,7 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(is_array($publicProfile) && $publicProfile['time_zone'] === 'Europe/London',
         'public profile projection includes the destination IANA time zone without undefined-field warnings');
     $assert(is_array($publicProfile) && !array_key_exists('user_id',$publicProfile) && !array_key_exists('verification_reference_hash',$publicProfile),'public profile projection excludes account identifiers and verification evidence');
-    $pdo->prepare('INSERT INTO currencies (code,numeric_code,name,symbol,minor_units,enabled,dataset_version,updated_at) VALUES ("GBP","826","Pound sterling","£",2,1,"test-iso-2026",UTC_TIMESTAMP())')->execute();
+    $pdo->prepare('INSERT INTO currencies (code,numeric_code,name,symbol,minor_units,enabled,dataset_version,updated_at) VALUES ("GBP","826","Pound sterling","£",2,1,"test-iso-2026",UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE enabled=1,updated_at=UTC_TIMESTAMP()')->execute();
     $destinationManagement = new DestinationManagementService($pdo,$audit);
     $newDestinationId = $destinationManagement->save($publisher,null,[
         'slug'=>'manchester','country_code'=>'GB','city_name'=>'Manchester',
@@ -248,8 +248,8 @@ function runIdentityIntegration(PDO $pdo): int
     $updatedDestination = $pdo->prepare('SELECT display_name FROM destinations WHERE id = :id');
     $updatedDestination->execute(['id'=>$newDestinationId]);
     $assert($updatedDestination->fetchColumn() === 'Greater Manchester','destination update uses owner-scoped identity and preserves market publication gates');
-    $pdo->prepare('INSERT INTO countries (alpha2,alpha3,numeric_code,name,enabled,dataset_version,updated_at) VALUES ("DE","DEU","276","Germany",1,"test-iso-2026",UTC_TIMESTAMP())')->execute();
-    $pdo->prepare('INSERT INTO currencies (code,numeric_code,name,symbol,minor_units,enabled,dataset_version,updated_at) VALUES ("EUR","978","Euro","€",2,1,"test-iso-2026",UTC_TIMESTAMP())')->execute();
+    $pdo->prepare('INSERT INTO countries (alpha2,alpha3,numeric_code,name,enabled,dataset_version,updated_at) VALUES ("DE","DEU","276","Germany",1,"test-iso-2026",UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE enabled=1,updated_at=UTC_TIMESTAMP()')->execute();
+    $pdo->prepare('INSERT INTO currencies (code,numeric_code,name,symbol,minor_units,enabled,dataset_version,updated_at) VALUES ("EUR","978","Euro","€",2,1,"test-iso-2026",UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE enabled=1,updated_at=UTC_TIMESTAMP()')->execute();
     try { $destinationManagement->save($publisher,null,['slug'=>'berlin','country_code'=>'DE','city_name'=>'Berlin','display_name'=>'Berlin','currency_code'=>'EUR','locale'=>'de-DE','time_zone'=>'Europe/Berlin','status'=>'published'],bin2hex(random_bytes(16))); $assert(false,'destination cannot publish without market compliance approval'); }
     catch (DomainException) { $assert(true,'destination cannot publish without market compliance approval'); }
     $draftDestinationId = $destinationManagement->save($publisher,null,['slug'=>'berlin','country_code'=>'DE','city_name'=>'Berlin','display_name'=>'Berlin','currency_code'=>'EUR','locale'=>'de-DE','time_zone'=>'Europe/Berlin','status'=>'draft'],bin2hex(random_bytes(16)));
