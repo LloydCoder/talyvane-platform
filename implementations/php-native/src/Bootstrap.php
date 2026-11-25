@@ -19,6 +19,7 @@ use Talyvane\Security\SecretBox;
 use Talyvane\Http\AdminSafeguardingController;
 use Talyvane\Application\Clients\ClientMembershipService;
 use Talyvane\Application\Clients\MembershipEntitlementService;
+use Talyvane\Application\Clients\MembershipEntitlementCatalog;
 use Talyvane\Features\FeatureAvailability;
 use Talyvane\Infrastructure\Database\FeatureStateRepository;
 use Talyvane\Http\AdminClientController;
@@ -133,7 +134,9 @@ final class Bootstrap
 
         $public = new PublicSiteController($pdo, $views);
         $discovery = new DiscoveryService($pdo);
-        $membershipEligibility = static function(string $dependency) use ($pdo): bool {
+        $contentManagement = new ContentManagementService($pdo, $audit);
+        $brandName = (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane');
+        $membershipEligibility = static function(string $dependency) use ($pdo,$brandName): bool {
             try {
                 if ($dependency==='market.policy') {
                     return $pdo->query(
@@ -143,6 +146,22 @@ final class Bootstrap
                     )->fetchColumn()!==false;
                 }
                 if ($dependency==='consent.current') {
+                    $policyQuery=$pdo->prepare(
+                        'SELECT config_json FROM feature_states
+                         WHERE feature_key="memberships.private_gallery" AND enabled=1 LIMIT 1'
+                    );
+                    $policyQuery->execute();
+                    $policyJson=$policyQuery->fetchColumn();
+                    if (!is_string($policyJson)) { return false; }
+                    $policy=json_decode($policyJson,true);
+                    if (!is_array($policy) || ($policy['private_gallery_policy_approved']??false)!==true ||
+                        ($policy['private_gallery_policy_version']??null)!==MembershipEntitlementCatalog::PRIVATE_GALLERY_POLICY_VERSION ||
+                        !is_string($policy['legal_approval_reference']??null) || strlen(trim($policy['legal_approval_reference']))<8 ||
+                        !is_string($policy['private_gallery_statement_sha256']??null) ||
+                        !hash_equals(MembershipEntitlementCatalog::privateGalleryConsentStatementHash($brandName),
+                            $policy['private_gallery_statement_sha256'])) {
+                        return false;
+                    }
                     return $pdo->query(
                         'SELECT 1 FROM consent_grants
                          WHERE subject_type="companion_profile" AND purpose="profile.publication"
@@ -161,14 +180,12 @@ final class Bootstrap
         $mediaStorage = new PrivateMediaStorage((string) ($config['paths']['storage'] ?? ''),$publicRoot);
         $profileMedia = new ProfileMediaService($pdo,$mediaStorage,$discovery,$audit,$membershipEntitlements);
         $publicDiscovery = new PublicDiscoveryController($discovery, $views, $authentication);
-        $contentManagement = new ContentManagementService($pdo, $audit);
         $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
         $adminAudit = new AdminAuditController($authentication, new AuditQueryService($pdo), $views, (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane'));
         $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
         $adminBrand = new AdminBrandController($authentication, $contentManagement, $views);
         $adminNavigation = new AdminNavigationController($pdo, $authentication, $contentManagement, $views);
         $enquiries = new EnquiryService($pdo, $rateLimiter, $audit);
-        $brandName = (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane');
         $companionMedia = new CompanionMediaController($authentication,$profileMedia,$views,$brandName);
         $adminProfileMedia = new AdminProfileMediaController($authentication,$profileMedia,$views,$brandName);
         $publicProfileMedia = new PublicProfileMediaController($profileMedia);
