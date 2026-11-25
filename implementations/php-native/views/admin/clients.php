@@ -9,7 +9,7 @@ $e=static fn(mixed $v):string=>htmlspecialchars((string)$v,ENT_QUOTES|ENT_SUBSTI
 <?php if($error!==''):?><p class="error" role="alert"><?= $e($error) ?></p><?php endif;?>
 <?php if($notice!==''):?><p class="notice" role="status"><?= $e($notice) ?></p><?php endif;?>
 <section class="panel"><div class="table"><table><thead><tr><th>Client</th><th>Verification</th><th>Membership</th><th>Actions</th></tr></thead><tbody>
-<?php foreach($clients as $client):?><tr><td><?= $e($client['email']) ?></td><td><?= $client['email_verified_at']!==null?'Verified':'Unverified' ?></td><td><?php if($client['membership_id']!==null):?><?= $e($client['tier_name']) ?> · <?= $e($client['plan_key']) ?><?php else:?>None<?php endif;?></td><td><details><summary>Assign / replace</summary>
+<?php foreach($clients as $client):?><tr><td><?= $e($client['email']) ?></td><td><?= $client['email_verified_at']!==null?'Verified':'Unverified' ?></td><td><?php if($client['membership_id']!==null):?><?= $e($client['tier_name']) ?> · <?= $e($client['plan_key']) ?> · <?= $e($client['membership_status']) ?><?php else:?>None<?php endif;?></td><td><details><summary>Assign / replace</summary>
 <form method="post" action="/admin/clients/<?= $e($client['id']) ?>/membership"><input type="hidden" name="_csrf" value="<?= $e($csrf) ?>"><div class="grid">
 <div><label>Plan key</label><input name="plan_key" maxlength="80" pattern="[a-z0-9][a-z0-9._-]{1,79}" required></div><div><label>Tier name</label><input name="tier_name" maxlength="120" required></div>
 <div><label>Starts (UTC)</label><input type="datetime-local" name="starts_at" required></div><div><label>Ends (UTC, optional)</label><input type="datetime-local" name="ends_at"></div></div>
