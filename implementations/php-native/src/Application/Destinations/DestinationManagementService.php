@@ -63,7 +63,7 @@ final class DestinationManagementService
         if (!preg_match('/^[A-Z]{2}$/D',$countryCode) || !preg_match('/^[A-Z]{3}$/D',$currencyCode)) {
             throw new InvalidArgumentException('Choose a valid ISO country and currency code.');
         }
-        if (!preg_match('/^[a-z]{2,3}(?:-[A-Z]{2})?$/D',$locale)) {
+        if (!preg_match('/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/D',$locale)) {
             throw new InvalidArgumentException('Locale must use a supported language or language-region tag.');
         }
         if (!in_array($timeZone,DateTimeZone::listIdentifiers(DateTimeZone::ALL_WITH_BC),true) && $timeZone !== 'UTC') {
