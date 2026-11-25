@@ -57,7 +57,7 @@ final class PublicModelAgencyRightsController
             $_SESSION['model_rights_id']=$id;
             SessionManager::rotateAfterAuthentication();
             return match ($context['type']) {
-                'access'=>$this->showAccess($id),
+                'access'=>$this->showAccess($id,$request->requestId),
                 'correction'=>$this->page('correction'),
                 default=>$this->page('confirm',['requestType'=>$context['type']]),
             };
@@ -118,10 +118,10 @@ final class PublicModelAgencyRightsController
     }
 
     /** @param array<string,mixed> $data */
-    private function showAccess(string $id): Response
+    private function showAccess(string $id,string $requestId): Response
     {
         try {
-            $data=$this->rights?->read($id,bin2hex(random_bytes(16)))??[];
+            $data=$this->rights?->read($id,$requestId)??[];
             $this->rights?->finish($id);
             $this->clearContext();
             return $this->page('access',['record'=>$data]);
