@@ -89,6 +89,12 @@ try {
   const setupKey = fs.readFileSync(setupKeyPath, 'utf8').trim();
   assert.match(setupKey, /^[A-Za-z0-9_-]{43}$/, 'Setup key must contain 256 bits of entropy.');
   assert.equal((await page.locator('body').innerText()).includes(setupKey), false, 'Setup key must never be rendered into the browser.');
+  const requiredChecks = await page.locator('.check').evaluateAll((items) =>
+    items.filter((item) => item.querySelector('strong')?.innerText === 'Required').map((item) => item.innerText),
+  );
+  assert.deepEqual(requiredChecks, [], `Native installer preflight must be green: ${requiredChecks.join('; ')}`);
+  assert.equal(await page.getByRole('button', { name: /Test services and send verification codes/i }).isDisabled(), false,
+    'The installer submit button must be enabled after preflight.');
 
   const fields = {
     setup_key: setupKey,
