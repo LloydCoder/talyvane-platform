@@ -537,7 +537,7 @@ final class PortalPrivacyRightsAdminService
         }
         $legalBasisReference=trim((string)$legalBasisReference);
         if($legalBasisReference!=='' && preg_match('/^[A-Za-z0-9][A-Za-z0-9._:\/()\\-]{7,189}$/D',$legalBasisReference)!==1) {
-            throw new \\InvalidArgumentException('Legal-basis references must be opaque identifiers, not URLs or free-form personal data.');
+            throw new \InvalidArgumentException('Legal-basis references must be opaque identifiers, not URLs or free-form personal data.');
         }
         if($decision==='retained') {
             if(preg_match('/^[A-Za-z0-9][A-Za-z0-9._:\/()\-]{7,189}$/D',$legalBasisReference)!==1 ||
