@@ -911,6 +911,44 @@ $assert(is_file($logRoot . DIRECTORY_SEPARATOR . '.application-error.lock') &&
     (fileperms($logRoot . DIRECTORY_SEPARATOR . '.application-error.lock') & 0777) === 0600,
     'private error logging serializes concurrent writers with a private stable lock');
 
+
+$healthRoot = $tempRoot . DIRECTORY_SEPARATOR . 'healthcheck-fixture';
+$healthConfigDir = $healthRoot . DIRECTORY_SEPARATOR . 'config';
+$healthStorage = $healthRoot . DIRECTORY_SEPARATOR . 'storage';
+$healthLogs = $healthRoot . DIRECTORY_SEPARATOR . 'logs';
+$healthBackups = $healthRoot . DIRECTORY_SEPARATOR . 'backups';
+foreach ([$healthConfigDir,$healthStorage,$healthLogs,$healthBackups] as $directory) {
+    mkdir($directory,0700,true);
+}
+$healthConfig = $healthConfigDir . DIRECTORY_SEPARATOR . 'app.php';
+file_put_contents($healthConfig, "<?php\\nreturn " . var_export([
+    'app_key'=>str_repeat('K',32),
+    'database'=>[],
+    'paths'=>['storage'=>$healthStorage,'logs'=>$healthLogs,'backups'=>$healthBackups],
+],true) . ";\\n");
+chmod($healthConfig,0600);
+$healthCommand = [PHP_BINARY,dirname(__DIR__) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'healthcheck.php','--json'];
+$healthProcess = proc_open($healthCommand,[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$healthPipes,null,['TALYVANE_CONFIG'=>$healthConfig]);
+if (!is_resource($healthProcess)) {
+    throw new RuntimeException('Could not start native health-check regression test process.');
+}
+fclose($healthPipes[0]);
+$healthOutput = stream_get_contents($healthPipes[1]);
+$healthError = stream_get_contents($healthPipes[2]);
+fclose($healthPipes[1]);
+fclose($healthPipes[2]);
+$healthExit = proc_close($healthProcess);
+$healthResult = json_decode((string)$healthOutput,true);
+$healthStatuses = [];
+foreach (($healthResult['checks'] ?? []) as $healthCheck) {
+    $healthStatuses[$healthCheck['check']] = $healthCheck['status'];
+}
+$assert($healthExit===1 && ($healthStatuses['private_storage']??null)==='failed' &&
+    ($healthStatuses['private_logs']??null)==='failed' && ($healthStatuses['private_backups']??null)==='failed',
+    'CLI health check fails closed when the configured document root is absent');
+$assert($healthError==='' && is_array($healthResult) && ($healthResult['status']??'')==='degraded',
+    'CLI health check emits machine-readable degraded status without diagnostic leakage');
+
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($iterator as $entry) {
     $entry->isDir() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
