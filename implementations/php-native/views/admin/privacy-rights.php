@@ -58,7 +58,17 @@ $escape=static fn(mixed $value):string=>htmlspecialchars((string)$value,ENT_QUOT
 </form>
 <?php endif;?>
 <?php else:?>
-<p>The account holder requested erasure. No account data has been erased automatically.</p>
+<p>The account holder requested erasure. No account data has been erased automatically. The fulfilment action anonymizes account credentials and contact identifiers only when automated dependency checks pass. It does not erase retained financial/booking records, backups, provider copies or independently held evidence.</p>
+<?php if(($item['account_type']??'')==='client' || ($item['account_type']??'')==='companion'):?>
+<form method="post" action="/admin/privacy/requests/review" class="correction-form">
+<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<input type="hidden" name="request_id" value="<?= $escape($item['id']??'') ?>">
+<input type="hidden" name="decision" value="<?= ($item['account_type']??'')==='client'?'fulfill_client_erasure':'fulfill_companion_erasure' ?>">
+<label>Retention and dependency review rationale<textarea name="reason" minlength="20" maxlength="500" required></textarea></label>
+<label style="display:flex;grid-template-columns:auto 1fr;align-items:start;gap:10px"><input type="checkbox" name="confirm_erasure" value="yes" required style="width:auto"> I have reviewed the request and authorize this account anonymization. I understand blocked dependencies cause the transaction to roll back.</label>
+<button class="button danger" type="submit">Fulfil verified erasure and anonymize account</button>
+</form>
+<?php endif;?>
 <?php endif;?>
 <div class="actions">
 <form method="post" action="/admin/privacy/requests/review">
