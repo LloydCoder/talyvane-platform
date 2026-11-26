@@ -15,14 +15,129 @@ const TALYVANE_PAYLOAD_FILE = '.talyvane-payload.zip';
 const TALYVANE_MAX_ARCHIVE_ENTRIES = 20000;
 const TALYVANE_MAX_EXPANDED_BYTES = 1073741824; // 1 GiB
 
+$GLOBALS['talyvane_diagnostic_id'] = bin2hex(random_bytes(8));
+$GLOBALS['talyvane_installer_log'] = null;
+$GLOBALS['talyvane_installer_log_root'] = null;
+
+function talyvane_log(string $event, array $context = []): void
+{
+    // Installer diagnostics deliberately contain no request values, exception
+    // messages, paths, email addresses, credentials or submitted form data.
+    $record = [
+        'timestamp' => gmdate('c'),
+        'diagnostic_id' => (string) ($GLOBALS['talyvane_diagnostic_id'] ?? 'unavailable'),
+        'level' => 'error',
+        'event' => preg_replace('/[^a-zA-Z0-9_.-]/', '_', $event),
+        'context' => [],
+    ];
+    foreach ($context as $key => $value) {
+        $name = strtolower((string) $key);
+        if ($name === 'http_status' && is_int($value) && $value >= 400 && $value <= 599) {
+            $record['context']['http_status'] = $value;
+        }
+    }
+
+    $line = json_encode($record, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+    $path = $GLOBALS['talyvane_installer_log'] ?? null;
+    $root = $GLOBALS['talyvane_installer_log_root'] ?? null;
+    if (! is_string($path) || $path === '' || ! is_string($root) || $root === ''
+        || is_link($root) || ! is_dir($root)) {
+        error_log('Talyvane installer diagnostic '.$record['diagnostic_id'].' (private logger unavailable).');
+        return;
+    }
+
+    $resolvedRoot = realpath($root);
+    $rootStat = $resolvedRoot !== false ? @stat($resolvedRoot) : false;
+    $rootMode = $resolvedRoot !== false ? @fileperms($resolvedRoot) : false;
+    if ($resolvedRoot === false || $rootStat === false || $rootMode === false
+        || ($rootMode & 0777) !== 0700 || is_link($path)) {
+        error_log('Talyvane installer diagnostic '.$record['diagnostic_id'].' (private logger rejected unsafe storage).');
+        return;
+    }
+
+    $directory = dirname($path);
+    if (is_link($directory)) {
+        error_log('Talyvane installer diagnostic '.$record['diagnostic_id'].' (private logger rejected a symbolic link).');
+        return;
+    }
+    if (! is_dir($directory) && ! @mkdir($directory, 0700)) {
+        error_log('Talyvane installer diagnostic '.$record['diagnostic_id'].' (private log directory unavailable).');
+        return;
+    }
+
+    $resolvedDirectory = realpath($directory);
+    $directoryStat = $resolvedDirectory !== false ? @lstat($directory) : false;
+    $directoryMode = $resolvedDirectory !== false ? @fileperms($resolvedDirectory) : false;
+    if ($resolvedDirectory === false || ! talyvane_inside($resolvedDirectory, $resolvedRoot)
+        || $resolvedDirectory === $resolvedRoot || $directoryStat === false
+        || (($directoryStat['mode'] ?? 0) & 0170000) !== 0040000
+        || ($directoryStat['uid'] ?? -1) !== ($rootStat['uid'] ?? -2)
+        || $directoryMode === false || ($directoryMode & 0777) !== 0700) {
+        error_log('Talyvane installer diagnostic '.$record['diagnostic_id'].' (private log directory failed validation).');
+        return;
+    }
+
+    // Reject symlinks, non-regular files, files owned by another account and
+    // permissive existing logs. Compare lstat/fstat inode data after opening
+    // to detect path substitution between the checks and the open.
+    $before = @lstat($path);
+    if ($before !== false && (int) ($before['size'] ?? 0) > 1048576) {
+        error_log('Talyvane installer diagnostic '.$record['diagnostic_id'].' (private log reached its size limit).');
+        return;
+    }
+    if ($before !== false && (
+        (($before['mode'] ?? 0) & 0170000) !== 0100000
+        || ($before['uid'] ?? -1) !== ($directoryStat['uid'] ?? -2)
+        || ((($before['mode'] ?? 0) & 0777) !== 0600)
+    )) {
+        error_log('Talyvane installer diagnostic '.$record['diagnostic_id'].' (private log file failed validation).');
+        return;
+    }
+
+    $handle = @fopen($path, $before === false ? 'x+b' : 'ab');
+    if ($handle === false) {
+        error_log('Talyvane installer diagnostic '.$record['diagnostic_id'].' (private log could not be opened).');
+        return;
+    }
+    if ($before === false) {
+        @chmod($path, 0600);
+    }
+    $after = @fstat($handle);
+    $pathAfter = @lstat($path);
+    $validFile = $after !== false && $pathAfter !== false
+        && (($after['mode'] ?? 0) & 0170000) === 0100000
+        && ($after['uid'] ?? -1) === ($directoryStat['uid'] ?? -2)
+        && ((($after['mode'] ?? 0) & 0777) === 0600)
+        && (($after['dev'] ?? null) === ($pathAfter['dev'] ?? null))
+        && (($after['ino'] ?? null) === ($pathAfter['ino'] ?? null));
+    if ($before !== false) {
+        $validFile = $validFile
+            && (($before['dev'] ?? null) === ($after['dev'] ?? null))
+            && (($before['ino'] ?? null) === ($after['ino'] ?? null));
+    }
+    if (! $validFile) {
+        fclose($handle);
+        error_log('Talyvane installer diagnostic '.$record['diagnostic_id'].' (private log changed during validation).');
+        return;
+    }
+
+    if (flock($handle, LOCK_EX)) {
+        fwrite($handle, ($line ?: '{}').PHP_EOL);
+        fflush($handle);
+        flock($handle, LOCK_UN);
+    }
+    fclose($handle);
+}
+
 function talyvane_fail(int $status, string $message): never
 {
+    talyvane_log('installer.failure', ['http_status' => $status]);
     http_response_code($status);
     header('Content-Type: text/html; charset=UTF-8');
     header('Cache-Control: no-store, private');
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: DENY');
-    echo '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Talyvane setup</title><body style="font:16px/1.6 system-ui;max-width:720px;margin:8vh auto;padding:24px;color:#172033"><h1>Talyvane setup could not continue</h1><p>'.htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</p><p>Correct the stated hosting or file-permission issue and reload this page. Your existing files have not been overwritten.</p></body></html>';
+    echo '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Talyvane setup</title><body style="font:16px/1.6 system-ui;max-width:720px;margin:8vh auto;padding:24px;color:#172033"><h1>Talyvane setup could not continue</h1><p>'.htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</p><p>Diagnostic ID: '.htmlspecialchars((string) ($GLOBALS['talyvane_diagnostic_id'] ?? 'unavailable'), ENT_QUOTES, 'UTF-8').'<br>Correct the stated hosting or file-permission issue and reload this page. Your existing files have not been overwritten.</p></body></html>';
     exit;
 }
 
@@ -310,6 +425,8 @@ if ($accountDirectory === null || $accountDirectory === $documentRoot) {
 // HTTP Host header and prevents host-header-driven directory creation.
 $siteKey = substr(hash('sha256', $documentRoot), 0, 32);
 $privateRoot = $accountDirectory.DIRECTORY_SEPARATOR.'.talyvane';
+$GLOBALS['talyvane_installer_log_root'] = $privateRoot;
+$GLOBALS['talyvane_installer_log'] = $privateRoot.DIRECTORY_SEPARATOR.'logs'.DIRECTORY_SEPARATOR.'installer.log';
 $privateAppsRoot = $privateRoot.DIRECTORY_SEPARATOR.'apps';
 $privateApplicationParent = $privateAppsRoot.DIRECTORY_SEPARATOR.$siteKey;
 

@@ -148,6 +148,13 @@ PY
     exit 1
   fi
   grep -Fq "$expected" "$tmp/$attack-response.html"
+  diagnostic_log="$attack_account/.talyvane/logs/installer.log"
+  test -f "$diagnostic_log"
+  test "$(stat -c '%a' "$diagnostic_log")" = '600'
+  test "$(stat -c '%a' "$(dirname "$diagnostic_log")")" = '700'
+  grep -Fq '"diagnostic_id"' "$diagnostic_log"
+  grep -Fq '"event":"installer.failure"' "$diagnostic_log"
+  ! grep -Eq '"message"|unsafe path|SHOULD_NOT_RUN' "$diagnostic_log"
   test -z "$(find "$attack_account/.talyvane/apps" -type f -path "*/talyvane-app/public/index.php" -print -quit 2>/dev/null)"
   if [[ "$attack" == "incomplete" ]]; then
     staging_directories="$(find "$attack_account/.talyvane/apps" -type d -name '.talyvane-stage-*' -print 2>/dev/null)"
@@ -162,6 +169,43 @@ PY
 assert_malicious_archive_rejected "traversal" "unsafe path"
 assert_malicious_archive_rejected "symlink" "unsafe path"
 assert_malicious_archive_rejected "incomplete" "incomplete"
+
+# A pre-existing symlink at the diagnostic log path must never be followed.
+log_attack_account="$tmp/attack-log-symlink"
+log_attack_root="$log_attack_account/public_html"
+log_attack_directory="$log_attack_account/.talyvane/logs"
+log_sentinel="$tmp/private-log-sentinel.txt"
+mkdir -p "$log_attack_root" "$log_attack_directory"
+chmod 0700 "$log_attack_account/.talyvane" "$log_attack_directory"
+printf '%s\\n' 'DO_NOT_MODIFY_PRIVATE_SENTINEL' > "$log_sentinel"
+ln -s "$log_sentinel" "$log_attack_directory/installer.log"
+python3 - "$log_attack_root/.talyvane-payload.zip" <<'PY'
+import sys
+import zipfile
+with zipfile.ZipFile(sys.argv[1], "w", compression=zipfile.ZIP_DEFLATED) as archive:
+    archive.writestr("talyvane/public/index.php", '<?php echo "SHOULD_NOT_RUN";')
+    archive.writestr("talyvane/vendor/autoload.php", "<?php")
+    archive.writestr("talyvane/../../outside.txt", "outside")
+PY
+chmod 0600 "$log_attack_root/.talyvane-payload.zip"
+cp "$repo_root/cpanel-installer/index.php" "$log_attack_root/index.php"
+cp "$repo_root/cpanel-installer/.htaccess" "$log_attack_root/.htaccess"
+log_attack_port="$((20000 + RANDOM % 20000))"
+php -S "127.0.0.1:$log_attack_port" -t "$log_attack_root" > "$tmp/log-symlink-server.log" 2>&1 &
+server_pid=$!
+log_attack_status=""
+for _ in $(seq 1 40); do
+  log_attack_status="$(curl --silent --show-error -o "$tmp/log-symlink-response.html" -w '%{http_code}' "http://127.0.0.1:$log_attack_port/" || true)"
+  if [[ "$log_attack_status" == "500" ]]; then break; fi
+  sleep 0.25
+done
+test "$log_attack_status" = '500'
+test -L "$log_attack_directory/installer.log"
+grep -Fq 'DO_NOT_MODIFY_PRIVATE_SENTINEL' "$log_sentinel"
+kill "$server_pid" 2>/dev/null || true
+wait "$server_pid" 2>/dev/null || true
+server_pid=""
+echo "Installer diagnostic logger rejected a symlink without modifying its target."
 
 # A domain document root nested inside an existing Laravel public/ directory
 # must bootstrap into a separate private per-domain path and preserve the
