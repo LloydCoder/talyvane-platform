@@ -172,6 +172,7 @@ final class PublicModelAgencyRightsController
                 $applicationId,
                 (string)($params['id']??''),
                 $this->field($request,'decision'),
+                $this->field($request,'assignment_attestation')==='yes',
                 $this->field($request,'statement'),
                 $request->requestId
             );
