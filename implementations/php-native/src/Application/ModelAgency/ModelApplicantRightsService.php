@@ -72,7 +72,7 @@ final class ModelApplicantRightsService
                 'INSERT INTO model_applicant_rights_requests
                  (id,application_id,related_asset_id,request_type,status,otp_hash,expires_at,attempts,verified_at,completed_at,created_at)
                  VALUES (:id,:application,:asset,:type,"pending",:hash,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 10 MINUTE),0,NULL,NULL,UTC_TIMESTAMP())'
-            )->execute(['id'=>$rightsId,'application'=>$application['id'],'type'=>$requestType,'hash'=>$codeHash]);
+            )->execute(['id'=>$rightsId,'application'=>$application['id'],'asset'=>$assetId,'type'=>$requestType,'hash'=>$codeHash]);
             $this->pdo->prepare(
                 'INSERT INTO model_talent_application_events
                  (id,application_id,actor_user_id,actor_type,from_status,to_status,reason,policy_version,created_at)
