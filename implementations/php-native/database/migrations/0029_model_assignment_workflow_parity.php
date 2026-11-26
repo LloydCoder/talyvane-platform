@@ -68,13 +68,15 @@ return [
         MODIFY occurred_at DATETIME NOT NULL",
     "ALTER TABLE model_assignment_expenses
         ADD COLUMN settlement_id CHAR(36) NULL AFTER assignment_id,
-        ADD COLUMN submitted_by CHAR(36) NULL AFTER private_evidence_key,
+        ADD COLUMN created_by CHAR(36) NULL AFTER private_evidence_key,
+        ADD COLUMN submitted_by CHAR(36) NULL AFTER created_by,
         ADD COLUMN review_note TEXT NULL AFTER reviewed_at,
         ADD COLUMN updated_at DATETIME NULL AFTER created_at,
         MODIFY status VARCHAR(24) NOT NULL DEFAULT 'pending',
         MODIFY description TEXT NOT NULL,
         MODIFY private_evidence_key TEXT NULL,
         ADD KEY model_assignment_expense_settlement_idx (settlement_id,status),
+        ADD CONSTRAINT model_assignment_expense_creator_fk FOREIGN KEY (created_by) REFERENCES users(id),
         ADD CONSTRAINT model_assignment_expense_submitter_fk FOREIGN KEY (submitted_by) REFERENCES users(id),
         ADD CONSTRAINT model_assignment_expense_settlement_fk FOREIGN KEY (settlement_id) REFERENCES model_settlements(id)",
     "ALTER TABLE model_settlements
