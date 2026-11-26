@@ -214,6 +214,69 @@ final class EnquiryService
         }
     }
 
+    public function scheduleReminder(Principal $actor,string $reference,string $dueAt,string $reason,string $requestId): string
+    {
+        Authorization::require($actor,'enquiries.manage',true);
+        $reason=trim($reason);
+        $due=\\DateTimeImmutable::createFromFormat('!Y-m-d H:i:s',$dueAt,new \\DateTimeZone('UTC'));
+        $errors=\\DateTimeImmutable::getLastErrors();
+        if(!preg_match('/^TV-[A-F0-9]{10}$/D',$reference) || $due===false ||
+            ($errors!==false && ($errors['warning_count']>0 || $errors['error_count']>0)) ||
+            $due->format('Y-m-d H:i:s')!==$dueAt || $due<=new \\DateTimeImmutable('now',new \\DateTimeZone('UTC')) ||
+            $due>new \\DateTimeImmutable('+365 days',new \\DateTimeZone('UTC')) ||
+            mb_strlen($reason,'UTF-8')<8 || mb_strlen($reason,'UTF-8')>500 ||
+            strlen($requestId)<16 || strlen($requestId)>190) {
+            throw new \\InvalidArgumentException('CRM reminder details are invalid.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare('SELECT id,status FROM enquiries WHERE reference=:reference FOR UPDATE');
+            $query->execute(['reference'=>$reference]);
+            $enquiry=$query->fetch();
+            if(!is_array($enquiry) || in_array($enquiry['status'],['closed','spam'],true)) {
+                throw new \\DomainException('A reminder requires an open enquiry.');
+            }
+            $id=self::uuid();
+            $this->pdo->prepare('INSERT INTO crm_enquiry_reminders (id,enquiry_id,created_by,due_at,created_at) VALUES (:id,:enquiry,:actor,:due,UTC_TIMESTAMP())')
+                ->execute(['id'=>$id,'enquiry'=>$enquiry['id'],'actor'=>$actor->id,'due'=>$dueAt]);
+            $this->audit->record($actor->id,'crm.enquiry.reminder_scheduled','enquiry',(string)$enquiry['id'],$reason,
+                null,['reminder_id'=>$id,'due_at'=>$dueAt],$requestId,'crm-enquiry-reminder-v1');
+            $this->pdo->commit();
+            return $id;
+        } catch(\\Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    public function completeReminder(Principal $actor,string $reminderId,string $reason,string $requestId): void
+    {
+        Authorization::require($actor,'enquiries.manage',true);
+        $reason=trim($reason);
+        if(!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iD',$reminderId) ||
+            mb_strlen($reason,'UTF-8')<8 || mb_strlen($reason,'UTF-8')>500 ||
+            strlen($requestId)<16 || strlen($requestId)>190) {
+            throw new \\InvalidArgumentException('CRM reminder completion is invalid.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare('SELECT r.id,r.enquiry_id,r.completed_at FROM crm_enquiry_reminders r WHERE r.id=:id FOR UPDATE');
+            $query->execute(['id'=>$reminderId]);
+            $reminder=$query->fetch();
+            if(!is_array($reminder) || $reminder['completed_at']!==null) {
+                throw new \\DomainException('Reminder does not exist or is already complete.');
+            }
+            $this->pdo->prepare('UPDATE crm_enquiry_reminders SET completed_at=UTC_TIMESTAMP(),completed_by=:actor WHERE id=:id')
+                ->execute(['actor'=>$actor->id,'id'=>$reminderId]);
+            $this->audit->record($actor->id,'crm.enquiry.reminder_completed','enquiry',(string)$reminder['enquiry_id'],$reason,
+                ['completed'=>false],['completed'=>true,'reminder_id'=>$reminderId],$requestId,'crm-enquiry-reminder-v1');
+            $this->pdo->commit();
+        } catch(\\Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
     /** @return list<array{id:string,email:string,role_key:string}> */
     public function eligibleAssignees(Principal $actor): array
     {
@@ -267,6 +330,28 @@ final class EnquiryService
             unset($item);
         } else {
             foreach($items as &$item) $item['internal_notes']=[];
+            unset($item);
+        }
+        if($items!==[]) {
+            $references=array_column($items,'reference');
+            $placeholders=[];$params=[];
+            foreach($references as $index=>$reference){$key='r'.$index;$placeholders[]=':'.$key;$params[$key]=$reference;}
+            $reminderQuery=$this->pdo->prepare(
+                'SELECT r.id,e.reference,r.due_at,r.completed_at,r.created_at
+                 FROM crm_enquiry_reminders r INNER JOIN enquiries e ON e.id=r.enquiry_id
+                 WHERE e.reference IN ('.implode(',',$placeholders).')
+                 ORDER BY r.due_at ASC,r.created_at DESC'
+            );
+            $reminderQuery->execute($params);
+            $byReference=[];
+            foreach($reminderQuery->fetchAll() as $reminder) {
+                $reference=(string)$reminder['reference'];
+                $byReference[$reference]??=[];
+                if(count($byReference[$reference])>=10) continue;
+                unset($reminder['reference']);
+                $byReference[$reference][]=$reminder;
+            }
+            foreach($items as &$item) $item['reminders']=$byReference[$item['reference']]??[];
             unset($item);
         }
         return $items;
