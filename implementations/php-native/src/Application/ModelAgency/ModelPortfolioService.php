@@ -306,7 +306,7 @@ final class ModelPortfolioService
                 $this->pdo->prepare(
                     'UPDATE model_casting_submissions SET status="invalidated",invalidated_at=UTC_TIMESTAMP(),
                      invalidation_reason=:reason,updated_at=UTC_TIMESTAMP() WHERE id=:id'
-                )->execute(['reason'=>'Underlying portfolio consent was withdrawn.','id'=>$submission['id']]);
+                )->execute(['reason'=>$this->cipher->encrypt('Underlying portfolio consent was withdrawn.','model-casting-submission-v1:'.$submission['id'].':invalidation_reason'),'id'=>$submission['id']]);
                 $this->insertCastingEvent((string)$submission['casting_call_id'],(string)$submission['id'],$actorId,
                     'casting.submission_invalidated','Submission invalidated because underlying portfolio consent was withdrawn.');
             }
