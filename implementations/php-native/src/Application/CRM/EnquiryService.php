@@ -192,14 +192,14 @@ final class EnquiryService
         if(!preg_match('/^TV-[A-F0-9]{10}$/D',$reference) || mb_strlen($note,'UTF-8')<10 ||
             mb_strlen($note,'UTF-8')>3000 || strlen($requestId)<16 || strlen($requestId)>190 ||
             $this->notesCipher===null) {
-            throw new \\InvalidArgumentException('Internal note details are invalid or encryption is unavailable.');
+            throw new \InvalidArgumentException('Internal note details are invalid or encryption is unavailable.');
         }
         $this->pdo->beginTransaction();
         try {
             $query=$this->pdo->prepare('SELECT id FROM enquiries WHERE reference=:reference FOR UPDATE');
             $query->execute(['reference'=>$reference]);
             $enquiryId=$query->fetchColumn();
-            if(!is_string($enquiryId)) throw new \\DomainException('Enquiry does not exist.');
+            if(!is_string($enquiryId)) throw new \DomainException('Enquiry does not exist.');
             $id=self::uuid();
             $ciphertext=$this->notesCipher->encrypt($note,'crm-enquiry-note-v1:'.$enquiryId);
             $this->pdo->prepare('INSERT INTO crm_enquiry_notes (id,enquiry_id,author_user_id,ciphertext,created_at) VALUES (:id,:enquiry,:author,:ciphertext,UTC_TIMESTAMP())')
@@ -208,7 +208,7 @@ final class EnquiryService
                 'Private internal note appended to enquiry',null,['note_id'=>$id,'character_count'=>mb_strlen($note,'UTF-8')],
                 $requestId,'crm-enquiry-v1');
             $this->pdo->commit();
-        } catch(\\Throwable $error) {
+        } catch(\Throwable $error) {
             if($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $error;
         }
