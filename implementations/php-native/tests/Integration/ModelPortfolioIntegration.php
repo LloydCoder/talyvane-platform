@@ -219,6 +219,12 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'compensation_amount'=>'800.00','currency_code'=>'GBP','expense_cap_amount'=>'75.00',
     ],bin2hex(random_bytes(16)));
     $assignments->offer($admin,$assignmentId,bin2hex(random_bytes(16)));
+    try {
+        $assignments->confirm($admin,$assignmentId,bin2hex(random_bytes(16)));
+        $assert(false,'assignment cannot be confirmed before external execution and model-acceptance evidence are recorded');
+    } catch(DomainException) {
+        $assert(true,'assignment cannot be confirmed before external execution and model-acceptance evidence are recorded');
+    }
     $assignments->recordAcceptance($admin,$assignmentId,'private/model-assignments/executed-document-0001',
         'private/model-consent/assignment-acceptance-0001',bin2hex(random_bytes(16)));
     $assignments->confirm($admin,$assignmentId,bin2hex(random_bytes(16)));
