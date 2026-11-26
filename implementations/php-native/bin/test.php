@@ -46,6 +46,7 @@ use Talyvane\Installer\EnvironmentPreflight;
 use Talyvane\Installer\SetupKey;
 use Talyvane\Installer\InstallerLock;
 use Talyvane\Installer\PrivateConfigStore;
+use Talyvane\Installer\PrivateCliConfig;
 use Talyvane\Installer\SafeZipExtractor;
 
 $tests = 0;
@@ -726,6 +727,16 @@ $assert(!str_starts_with($privatePaths['application'], $privatePaths['document_r
 $configStore = new PrivateConfigStore($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',$privatePaths['document_root']);
 $configStore->create(['app_key'=>str_repeat('A',32),'database'=>['host'=>'127.0.0.1','database'=>'test']]);
 $loadedConfig = $configStore->load();
+$cliConfig = PrivateCliConfig::load($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',$privatePaths['document_root']);
+$assert(($cliConfig['database']['database'] ?? '') === 'test', 'notification CLI loads installer-generated config using an explicit public document root');
+try { PrivateCliConfig::load($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',$documentRoot . DIRECTORY_SEPARATOR . 'missing'); $assert(false, 'notification CLI rejects an unresolved public document root'); }
+catch (RuntimeException) { $assert(true, 'notification CLI rejects an unresolved public document root'); }
+$publicConfig = $documentRoot . DIRECTORY_SEPARATOR . 'public-app.php';
+file_put_contents($publicConfig,"<?php return " . var_export(['app_key'=>str_repeat('P',32),'database'=>['database'=>'public']],true) . ";");
+chmod($publicConfig,0600);
+try { PrivateCliConfig::load($publicConfig,$documentRoot); $assert(false, 'notification CLI rejects configuration inside public document root'); }
+catch (RuntimeException) { $assert(true, 'notification CLI rejects configuration inside public document root'); }
+unlink($publicConfig);
 $assert(($loadedConfig['database']['database'] ?? '') === 'test', 'private config is written and loaded outside the public root');
 try { $configStore->create(['app_key'=>str_repeat('B',32),'database'=>[]]); $assert(false, 'private config cannot be overwritten'); }
 catch (RuntimeException) { $assert(true, 'private config cannot be overwritten'); }
