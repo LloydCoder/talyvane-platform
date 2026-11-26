@@ -9,6 +9,8 @@ use PDO;
 use Throwable;
 use Talyvane\Domain\ModelAgency\CastingStateMachine;
 use Talyvane\Infrastructure\Audit\AuditLogger;
+use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
+use Talyvane\Security\SecretBox;
 use Talyvane\Security\Authorization;
 use Talyvane\Security\Principal;
 
@@ -18,8 +20,13 @@ final class ModelCastingWorkflowService
     private readonly \Closure $castingFeatureEnabled;
 
     /** @param callable():bool $castingFeatureEnabled */
-    public function __construct(private PDO $pdo,private AuditLogger $audit,callable $castingFeatureEnabled)
-    {
+    public function __construct(
+        private PDO $pdo,
+        private AuditLogger $audit,
+        private PrivateMediaStorage $storage,
+        private SecretBox $cipher,
+        callable $castingFeatureEnabled
+    ) {
         $this->castingFeatureEnabled = \Closure::fromCallable($castingFeatureEnabled);
     }
 
@@ -54,9 +61,9 @@ final class ModelCastingWorkflowService
                   :policy,NULL,"draft",:actor,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
             );
             $insert->execute([
-                'id'=>$id,'reference'=>$reference,'title'=>$normalized['title'],'client'=>$normalized['client_name'],
-                'client_reference'=>$normalized['client_reference'],'purpose'=>$normalized['project_purpose'],
-                'description'=>$normalized['description'],'requirements'=>$normalized['requirements'],'brief'=>$brief,
+                'id'=>$id,'reference'=>$reference,'title'=>$normalized['title'],'client'=>$this->encryptField($id,'client_name',$normalized['client_name']),
+                'client_reference'=>$normalized['client_reference']===null?null:$this->encryptField($id,'client_reference',$normalized['client_reference']),'purpose'=>$normalized['project_purpose'],
+                'description'=>$this->encryptField($id,'description',$normalized['description']),'requirements'=>$this->encryptField($id,'requirements',$normalized['requirements']),'brief'=>$this->encryptField($id,'private_brief',$brief),
                 'country'=>$normalized['country_code'],'opens'=>$normalized['opens_at'],'closes'=>$normalized['closes_at'],
                 'shoot_start'=>$normalized['shoot_starts_at'],'shoot_end'=>$normalized['shoot_ends_at'],
                 'amount'=>$normalized['compensation_amount'],'currency'=>$currency,
@@ -122,7 +129,7 @@ final class ModelCastingWorkflowService
             )->execute(['actor'=>$actor->id,'id'=>$callId]);
             $this->event($callId,null,$actor->id,'administrator','casting.call_closed',$reason);
             $this->audit->record($actor->id,'model_casting.call_closed','model_casting_call',$callId,
-                'Closed a private casting call',['status'=>'open'],['status'=>'closed','reason'=>$reason],$requestId,'model-casting-v1');
+                'Closed a private casting call',['status'=>'open'],['status'=>'closed','reason_sha256'=>hash('sha256',$reason)],$requestId,'model-casting-v1');
             $this->pdo->commit();
         } catch(Throwable $error) {
             if($this->pdo->inTransaction()) $this->pdo->rollBack();
@@ -151,13 +158,13 @@ final class ModelCastingWorkflowService
                 $this->pdo->prepare(
                     'UPDATE model_casting_submissions SET status="invalidated",invalidated_at=UTC_TIMESTAMP(),
                      invalidation_reason=:reason,updated_at=UTC_TIMESTAMP() WHERE id=:id'
-                )->execute(['reason'=>'The casting call was cancelled: '.$reason,'id'=>$submission['id']]);
+                )->execute(['reason'=>$this->cipher->encrypt('Casting call cancelled.','model-casting-submission-v1:'.$submission['id'].':invalidation_reason'),'id'=>$submission['id']]);
                 $this->event($callId,(string)$submission['id'],$actor->id,'administrator',
                     'casting.submission_invalidated','Submission invalidated because its casting call was cancelled.');
             }
-            $this->event($callId,null,$actor->id,'administrator','casting.call_cancelled',$reason);
+            $this->event($callId,null,$actor->id,'administrator','casting.call_cancelled','Private casting call cancelled.');
             $this->audit->record($actor->id,'model_casting.call_cancelled','model_casting_call',$callId,
-                'Cancelled a private casting call',['status'=>$call['status']],['status'=>'cancelled','reason'=>$reason],
+                'Cancelled a private casting call',['status'=>$call['status']],['status'=>'cancelled','reason_sha256'=>hash('sha256',$reason)],
                 $requestId,'model-casting-v1');
             $this->pdo->commit();
         } catch(Throwable $error) {
