@@ -10,6 +10,7 @@ use Talyvane\Domain\Money\QuoteSnapshot;
 use Talyvane\Domain\Payments\PaymentStateMachine;
 use Talyvane\Domain\Booking\BookingStateMachine;
 use Talyvane\Domain\Booking\BookingCancellationPolicy;
+use Talyvane\Domain\Booking\LocalDateTimeResolver;
 use Talyvane\Application\Bookings\BookingCalendarService;
 use Talyvane\Domain\Consent\ConsentGrant;
 use Talyvane\Domain\Market\MarketPolicy;
@@ -52,6 +53,24 @@ $assert = static function (bool $condition, string $message) use (&$tests): void
         throw new RuntimeException('FAIL: ' . $message);
     }
 };
+
+
+$ambiguousLondon = LocalDateTimeResolver::candidates('2026-10-25T01:30',new DateTimeZone('Europe/London'));
+$assert(count($ambiguousLondon)===2 && $ambiguousLondon[0]['utc']->format('Y-m-d H:i:s')==='2026-10-25 00:30:00' &&
+    $ambiguousLondon[1]['utc']->format('Y-m-d H:i:s')==='2026-10-25 01:30:00',
+    'DST fall-back local time exposes both distinct UTC instants in chronological order');
+try { LocalDateTimeResolver::resolve('2026-10-25T01:30',new DateTimeZone('Europe/London')); $assert(false,'ambiguous destination local time requires explicit offset selection'); }
+catch (Talyvane\Domain\Booking\AmbiguousLocalTimeException $error) {
+    $assert(count($error->candidates)===2,'ambiguous local time returns both explicit offset choices');
+}
+$selectedLondon = LocalDateTimeResolver::resolve('2026-10-25T01:30',new DateTimeZone('Europe/London'),0);
+$assert($selectedLondon->format('Y-m-d H:i:s')==='2026-10-25 01:30:00' && $selectedLondon->getOffset()===0,
+    'explicit standard-time offset selects the second fall-back occurrence');
+try { LocalDateTimeResolver::resolve('2026-03-29T01:30',new DateTimeZone('Europe/London')); $assert(false,'DST spring-forward nonexistent local time is rejected'); }
+catch (InvalidArgumentException) { $assert(true,'DST spring-forward nonexistent local time is rejected'); }
+$unambiguousLondon = LocalDateTimeResolver::resolve('2026-11-26T09:30',new DateTimeZone('Europe/London'));
+$assert($unambiguousLondon->format('Y-m-d H:i:s')==='2026-11-26 09:30:00' && $unambiguousLondon->getOffset()===0,
+    'unambiguous destination local time resolves without an offset override');
 
 $cancelPolicy = new BookingCancellationPolicy(true, 120);
 $cancelPolicy->assertAllowed('client','confirmed',new DateTimeImmutable('2026-12-01T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00'));
