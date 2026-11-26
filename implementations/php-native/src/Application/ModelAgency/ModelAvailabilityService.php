@@ -162,8 +162,8 @@ final class ModelAvailabilityService
         $this->pdo->prepare(
             'INSERT INTO model_talent_application_events
              (id,application_id,actor_user_id,actor_type,from_status,to_status,reason,policy_version,created_at)
-             VALUES (:id,:application,NULL,"applicant",:status,:status,:reason,"model-availability-v1",UTC_TIMESTAMP())'
-        )->execute(['id'=>self::uuid(),'application'=>$applicationId,'status'=>$status,'reason'=>substr($event.': '.$reason,0,500)]);
+             VALUES (:id,:application,NULL,"applicant",:from_status,:to_status,:reason,"model-availability-v1",UTC_TIMESTAMP())'
+        )->execute(['id'=>self::uuid(),'application'=>$applicationId,'from_status'=>$status,'to_status'=>$status,'reason'=>substr($event.': '.$reason,0,500)]);
     }
 
     private function assertUuid(string $value): void
