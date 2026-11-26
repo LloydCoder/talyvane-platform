@@ -142,6 +142,60 @@ final class EnquiryService
         }
     }
 
+    public function assign(Principal $actor,string $reference,?string $assigneeId,string $reason,string $requestId): void
+    {
+        Authorization::require($actor,'enquiries.manage',true);
+        $assigneeId = $assigneeId === null || trim($assigneeId) === '' ? null : trim($assigneeId);
+        $reason = trim($reason);
+        if (!preg_match('/^TV-[A-F0-9]{10}$/D',$reference) ||
+            ($assigneeId !== null && !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iD',$assigneeId)) ||
+            mb_strlen($reason,'UTF-8') < 8 || mb_strlen($reason,'UTF-8') > 500 ||
+            strlen($requestId) < 16 || strlen($requestId) > 190) {
+            throw new \\InvalidArgumentException('Enquiry assignment is invalid.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare('SELECT id,assigned_to FROM enquiries WHERE reference=:reference FOR UPDATE');
+            $query->execute(['reference'=>$reference]);
+            $before=$query->fetch();
+            if (!is_array($before)) {
+                throw new \\DomainException('Enquiry does not exist.');
+            }
+            if ($assigneeId !== null) {
+                $eligible=$this->pdo->prepare(
+                    "SELECT u.id FROM users u INNER JOIN user_roles ur ON ur.user_id=u.id
+                     WHERE u.id=:id AND u.status='active' AND ur.role_key IN ('super_admin','owner','admin')
+                     LIMIT 1"
+                );
+                $eligible->execute(['id'=>$assigneeId]);
+                if ($eligible->fetchColumn() === false) {
+                    throw new \\InvalidArgumentException('Choose an active administrator or owner.');
+                }
+            }
+            $update=$this->pdo->prepare('UPDATE enquiries SET assigned_to=:assignee,updated_at=UTC_TIMESTAMP() WHERE id=:id');
+            $update->execute(['assignee'=>$assigneeId,'id'=>$before['id']]);
+            $this->audit->record($actor->id,'crm.enquiry.assigned','enquiry',(string)$before['id'],$reason,
+                ['assigned_to'=>$before['assigned_to']],['assigned_to'=>$assigneeId],$requestId,'crm-enquiry-v1');
+            $this->pdo->commit();
+        } catch (\\Throwable $error) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    /** @return list<array{id:string,email:string,role_key:string}> */
+    public function eligibleAssignees(Principal $actor): array
+    {
+        Authorization::require($actor,'enquiries.manage',true);
+        $query=$this->pdo->query(
+            "SELECT u.id,u.email,MIN(ur.role_key) AS role_key
+             FROM users u INNER JOIN user_roles ur ON ur.user_id=u.id
+             WHERE u.status='active' AND ur.role_key IN ('super_admin','owner','admin')
+             GROUP BY u.id,u.email ORDER BY u.email"
+        );
+        return $query->fetchAll();
+    }
+
     /** @return list<array<string,mixed>> */
     public function list(Principal $actor,int $limit = 50,int $offset = 0): array
     {
@@ -149,8 +203,8 @@ final class EnquiryService
         $limit = max(1,min(100,$limit));
         $offset = max(0,min(100000,$offset));
         $query = $this->pdo->prepare(
-            'SELECT reference,name,email,phone,city,subject,status,created_at,responded_at,closed_at
-             FROM enquiries ORDER BY created_at DESC,id DESC LIMIT :limit OFFSET :offset'
+            'SELECT e.reference,e.name,e.email,e.phone,e.city,e.subject,e.status,e.created_at,e.responded_at,e.closed_at,e.assigned_to,u.email AS assignee_email
+             FROM enquiries e LEFT JOIN users u ON u.id=e.assigned_to ORDER BY created_at DESC,id DESC LIMIT :limit OFFSET :offset'
         );
         $query->bindValue(':limit',$limit,PDO::PARAM_INT);
         $query->bindValue(':offset',$offset,PDO::PARAM_INT);
