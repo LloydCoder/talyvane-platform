@@ -119,7 +119,7 @@ final class ModelAssignmentService
             )->execute(['evidence'=>$this->encryptField($assignmentId,'executed_document_reference',$executedDocumentReference),
                 'actor'=>$actor->id,'id'=>$assignmentId]);
             $this->event($assignmentId,$actor->id,'assignment.execution_evidence_recorded','offered','offered',
-                'External assignment execution evidence was recorded before applicant response.',$this->policyVersionOrLegacy($assignment)['assignment_policy_version']);
+                'External assignment execution evidence was recorded before applicant response.',$this->policyVersionOrLegacy($assignment));
             $this->audit->record($actor->id,'model_assignment.execution_evidence_recorded','model_assignment',$assignmentId,
                 'Recorded external assignment execution evidence',null,['evidence_sha256'=>hash('sha256',$executedDocumentReference)],
                 $requestId,'model-assignment-v1');
@@ -153,7 +153,7 @@ final class ModelAssignmentService
             $call=$this->lock('model_casting_calls',(string)$submission['casting_call_id']);
             $agreement=$this->lock('model_representation_agreements',(string)$assignment['representation_agreement_id']);
             $this->assertCurrentEligibility($assignment,$submission,$application,$asset,$licence,$call,$agreement);
-            $policyVersion=$this->policyVersionOrLegacy($assignment)['assignment_policy_version'];
+            $policyVersion=$this->policyVersionOrLegacy($assignment);
             if($decision==='accept') {
                 $stored=$assignment['executed_document_reference']??null;
                 if(!is_string($stored) || $stored==='') throw new \DomainException('The executed assignment document must be recorded before the model can accept.');
