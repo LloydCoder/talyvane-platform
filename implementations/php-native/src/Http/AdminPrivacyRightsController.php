@@ -24,7 +24,7 @@ final class AdminPrivacyRightsController
         $actor=$this->authentication->currentPrincipal();
         if($actor===null) return Response::redirect('/admin/login');
         try {
-            $items=$this->rights->queue($actor);
+            $items=$this->rights->queue($actor,$request->requestId);
             return Response::html($this->views->render('admin/privacy-rights',[
                 'items'=>$items,'notice'=>$notice,'error'=>$error,
                 'csrf'=>Csrf::issue(),'brandName'=>$this->brandName,
