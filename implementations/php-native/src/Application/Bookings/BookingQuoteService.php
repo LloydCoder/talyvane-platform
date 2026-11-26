@@ -124,7 +124,7 @@ final class BookingQuoteService
             $query->execute(['id'=>$quoteId]);$row=$query->fetch(PDO::FETCH_ASSOC);
             if(!is_array($row) || $row['client_user_id']!==$client->id) throw new \DomainException('Quote is not available to this client.');
             if($row['accepted_at']!==null) {
-                if($row['accepted_by']===$client->id && $row['consumed_at']===null) {
+                if($row['accepted_by']===$client->id && $row['consumed_at']===null && $row['consumed_booking_id']===null) {
                     $this->pdo->commit();return;
                 }
                 throw new \DomainException('Quote has already been accepted or consumed.');
