@@ -38,7 +38,7 @@ final class ModelSettlementService
             $priorRow=$prior->fetch(PDO::FETCH_ASSOC);
             if(is_array($priorRow)) {
                 if($priorRow['assignment_id']!==$assignmentId || $priorRow['submitted_by']!==$actor->id) {
-                    throw new \\DomainException('Expense submission idempotency key was already used for a different operation.');
+                    throw new \DomainException('Expense submission idempotency key was already used for a different operation.');
                 }
                 $this->pdo->commit();
                 return (string)$priorRow['id'];
