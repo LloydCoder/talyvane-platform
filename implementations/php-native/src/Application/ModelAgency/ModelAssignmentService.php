@@ -29,7 +29,8 @@ final class ModelAssignmentService
     /** @param array<string,mixed> $terms */
     public function createDraft(Principal $actor,string $submissionId,array $terms,string $requestId): string
     {
-        $this->authorize($actor);$this->assertFeature();$this->assertRequestId($requestId);$this->validateTerms($terms);
+        $this->authorize($actor);if($decision==='accept') $this->assertFeature();
+        $this->assertRequestId($requestId);$this->validateTerms($terms);
         $this->pdo->beginTransaction();
         try {
             $submission=$this->lock('model_casting_submissions',$submissionId);
