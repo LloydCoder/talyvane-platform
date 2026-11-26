@@ -9,7 +9,7 @@ final class Authorization
         'super_admin' => ['*'],
         'owner' => ['dashboard.view','site.content.manage','profiles.manage','media.review','enquiries.manage','clients.manage','bookings.manage','model_applications.manage','model_agreements.manage','model_portfolio.manage','model_castings.manage','model_assignments.manage','model_settlements.manage','safeguarding.report','safeguarding.governance','privacy.requests.review'],
         'admin' => ['dashboard.view','site.content.manage','profiles.manage','media.review','enquiries.manage','clients.manage','bookings.manage','model_applications.manage','model_agreements.manage','model_portfolio.manage','model_castings.manage','model_assignments.manage','safeguarding.report','privacy.requests.review'],
-        'finance' => ['model_settlements.view','model_settlements.expense.review','model_settlements.approve','model_settlements.payment.attest','model_settlements.reverse.attest','model_settlements.dispute'],
+        'finance' => ['model_settlements.view','model_settlements.expense.submit','model_settlements.expense.review','model_settlements.create','model_settlements.approve','model_settlements.payment.attest','model_settlements.reverse.attest','model_settlements.dispute'],
         'verifier' => ['model_applications.adult_eligibility.verify','companion.adult_eligibility.verify'],
         'safeguarding' => ['safeguarding.cases.assigned.view','safeguarding.cases.assigned.update'],
         'client' => ['client.self.view','client.self.update','client.booking.create','client.booking.manage','client.favorites.manage','client.privacy.manage'],
