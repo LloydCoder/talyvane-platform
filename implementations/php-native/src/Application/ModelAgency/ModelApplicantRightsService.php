@@ -270,6 +270,45 @@ final class ModelApplicantRightsService
                 $this->pdo->commit();
                 return false;
             }
+            // Match the Laravel lifecycle gate: contractual records require a separate
+            // retention review, and private portfolio bytes must be removed before PII erasure.
+            $agreement = $this->pdo->prepare(
+                'SELECT id FROM model_representation_agreements WHERE application_id = :application LIMIT 1 FOR UPDATE'
+            );
+            $agreement->execute(['application'=>$application['id']]);
+            if ($agreement->fetchColumn() !== false) {
+                $this->pdo->prepare(
+                    'UPDATE model_applicant_rights_requests SET status = "rejected",otp_hash = "",completed_at = UTC_TIMESTAMP() WHERE id = :id'
+                )->execute(['id'=>$rightsRequestId]);
+                $this->recordApplicantEvent($application['id'],'application.erasure_deferred_contract_retention',(string) $application['status']);
+                $this->audit->record(null,'model_application.erasure.deferred','model_application',(string) $application['id'],
+                    'Erasure deferred because representation-agreement records require a separate documented retention review',
+                    null,['blocker'=>'representation_agreement'], $requestId,'applicant-rights-v1');
+                $this->pdo->commit();
+                return false;
+            }
+
+            $privateAssets = $this->pdo->prepare(
+                'SELECT id FROM model_portfolio_assets WHERE application_id = :application AND private_storage_key IS NOT NULL LIMIT 1 FOR UPDATE'
+            );
+            $privateAssets->execute(['application'=>$application['id']]);
+            if ($privateAssets->fetchColumn() !== false) {
+                $this->pdo->prepare(
+                    'UPDATE model_applicant_rights_requests SET status = "rejected",otp_hash = "",completed_at = UTC_TIMESTAMP() WHERE id = :id'
+                )->execute(['id'=>$rightsRequestId]);
+                $this->recordApplicantEvent($application['id'],'application.erasure_deferred_private_media',(string) $application['status']);
+                $this->audit->record(null,'model_application.erasure.deferred','model_application',(string) $application['id'],
+                    'Erasure deferred until private portfolio files have been withdrawn and physically removed',
+                    null,['blocker'=>'private_portfolio_media'], $requestId,'applicant-rights-v1');
+                $this->pdo->commit();
+                return false;
+            }
+
+            // Only metadata with no remaining private bytes can be removed. Agreement
+            // and licence foreign keys are protected by the earlier contract gate.
+            $this->pdo->prepare('DELETE FROM model_portfolio_assets WHERE application_id = :application')
+                ->execute(['application'=>$application['id']]);
+
             $replacementEmail = 'erased+' . bin2hex(random_bytes(12)) . '@invalid.example';
             $this->pdo->prepare(
                 'UPDATE model_talent_applications SET applicant_name = "Erased applicant",email = :email,phone = NULL,
