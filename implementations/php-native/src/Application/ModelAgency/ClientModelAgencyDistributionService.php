@@ -135,7 +135,8 @@ final class ClientModelAgencyDistributionService
         $this->assertClient($client);
         $query=$this->pdo->prepare(
             'SELECT id,casting_reference,title,project_purpose,country_code,opens_at,closes_at,
-                    shoot_starts_at,shoot_ends_at,status,published_at
+                    shoot_starts_at,shoot_ends_at,compensation_amount,currency_code,
+                    description,requirements,status,published_at
              FROM model_casting_calls
              WHERE client_user_id=:client AND status IN ("open","closed")
                AND published_at IS NOT NULL
@@ -145,8 +146,13 @@ final class ClientModelAgencyDistributionService
         $rows=$query->fetchAll(PDO::FETCH_ASSOC);
         $visible=[];
         foreach($rows as $row) {
-            try { $this->assertCallPolicy($row); $visible[]=$row; }
-            catch(\DomainException) { continue; }
+            try {
+                $this->assertCallPolicy($row);
+                if(!is_string($row['description']??null) || !is_string($row['requirements']??null)) continue;
+                $row['description']=$this->cipher->decrypt((string)$row['description'],'model-casting-call-v1:'.$row['id'].':description');
+                $row['requirements']=$this->cipher->decrypt((string)$row['requirements'],'model-casting-call-v1:'.$row['id'].':requirements');
+                $visible[]=$row;
+            } catch(\DomainException) { continue; }
         }
         return $visible;
     }
