@@ -184,8 +184,9 @@ final class BookingQuoteService
         if(!$client->hasRole('client')) throw new \DomainException('Client role is required.');
         $query=$this->pdo->prepare(
             'SELECT q.id,q.quote_reference,q.original_amount_minor,q.original_currency,q.fees_json,q.expires_at,
-                    q.accepted_at,q.consumed_at,p.slug AS profile_slug,p.display_name AS profile_name
+                    q.accepted_at,q.consumed_at,p.slug AS profile_slug,p.display_name AS profile_name,c.minor_units AS currency_precision
              FROM quote_snapshots q JOIN companion_profiles p ON p.id=q.profile_id
+             JOIN currencies c ON c.code=q.original_currency
              WHERE q.client_user_id=:client AND q.profile_id=:profile
              ORDER BY q.created_at DESC LIMIT 50'
         );
