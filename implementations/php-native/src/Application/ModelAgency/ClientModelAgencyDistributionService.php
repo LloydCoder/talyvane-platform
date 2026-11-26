@@ -23,7 +23,8 @@ final class ClientModelAgencyDistributionService
     public function __construct(
         private PDO $pdo,
         private PrivateMediaStorage $storage,
-        private AuditLogger $audit
+        private AuditLogger $audit,
+        private SecretBox $cipher
     ) {}
 
     /** @return list<array{id:string,email:string}> */
@@ -87,6 +88,7 @@ final class ClientModelAgencyDistributionService
                 throw new \DomainException('The source casting call must be linked to a verified client before assignment distribution.');
             }
             $this->assertVerifiedClient((string)$call['client_user_id'],true);
+            if(in_array((string)$assignment['status'],['declined','cancelled','disputed'],true)) throw new \\DomainException('Closed or disputed assignments cannot be newly distributed.');
             if(is_string($assignment['client_user_id']??null) && $assignment['client_user_id']!=='' &&
                 !hash_equals((string)$assignment['client_user_id'],(string)$call['client_user_id'])) {
                 throw new \DomainException('An assignment cannot be reassigned to a different client.');
@@ -149,7 +151,7 @@ final class ClientModelAgencyDistributionService
         $query=$this->pdo->prepare(
             'SELECT id,assignment_reference,status,project_purpose,country_code,
                     shoot_starts_at,shoot_ends_at,compensation_minor,currency_code,
-                    expense_cap_minor,commission_basis_points,created_at,updated_at
+                    created_at,updated_at
              FROM model_assignments
              WHERE client_user_id=:client
              ORDER BY created_at DESC LIMIT 100'
@@ -166,7 +168,7 @@ final class ClientModelAgencyDistributionService
         if(!in_array($call['status'],['open','closed'],true)) return [];
         $this->assertCallPolicy($call);
         $query=$this->pdo->prepare(
-            'SELECT s.id,s.submission_reference,s.status
+            'SELECT s.id,s.submission_reference,s.status,lic.id AS licence_id,lic.licensee_name
              FROM model_casting_submissions s
              INNER JOIN model_talent_applications a ON a.id=s.application_id
              INNER JOIN model_portfolio_assets asset ON asset.id=s.portfolio_asset_id
@@ -205,9 +207,16 @@ final class ClientModelAgencyDistributionService
             'agreement_start'=>$call['shoot_starts_at'],'agreement_end'=>$call['shoot_ends_at'],
         ]);
         $rows=$query->fetchAll(PDO::FETCH_ASSOC);
-        return array_map(static fn(array $row):array=>[
-            'id'=>(string)$row['id'],'reference'=>(string)$row['submission_reference'],'status'=>(string)$row['status']
-        ],$rows);
+        $callClientName=$this->cipher->decrypt((string)$call['client_name'],'model-casting-call-v1:'.$call['id'].':client_name');
+        $clientNameKey=mb_strtolower(trim($callClientName));
+        $visible=[];
+        foreach($rows as $row) {
+            $licenseeName=$this->cipher->decrypt((string)$row['licensee_name'],'model-image-licence-v1:'.$row['licence_id'].':licensee_name');
+            if(hash_equals($clientNameKey,mb_strtolower(trim($licenseeName)))) {
+                $visible[]=['id'=>(string)$row['id'],'reference'=>(string)$row['submission_reference'],'status'=>(string)$row['status']];
+            }
+        }
+        return $visible;
     }
 
     /** @return array{bytes:string,mime:string} */
@@ -218,7 +227,7 @@ final class ClientModelAgencyDistributionService
         if(!in_array($call['status'],['open','closed'],true)) throw new \DomainException('Casting call is not available for client distribution.');
         $this->assertCallPolicy($call);
         $query=$this->pdo->prepare(
-            'SELECT asset.private_storage_key,asset.sha256,asset.mime_type
+            'SELECT asset.private_storage_key,asset.sha256,asset.mime_type,lic.id AS licence_id,lic.licensee_name
              FROM model_casting_submissions s
              INNER JOIN model_talent_applications a ON a.id=s.application_id
              INNER JOIN model_portfolio_assets asset ON asset.id=s.portfolio_asset_id
@@ -262,6 +271,11 @@ final class ClientModelAgencyDistributionService
         if(!is_array($asset) || !is_string($asset['private_storage_key']) || $asset['private_storage_key']==='' ||
             $asset['mime_type']!=='image/webp') {
             throw new \DomainException('The client-authorized casting image is unavailable.');
+        }
+        $callClientName=$this->cipher->decrypt((string)$call['client_name'],'model-casting-call-v1:'.$call['id'].':client_name');
+        $licenseeName=$this->cipher->decrypt((string)$asset['licensee_name'],'model-image-licence-v1:'.$asset['licence_id'].':licensee_name');
+        if(!hash_equals(mb_strtolower(trim($callClientName)),mb_strtolower(trim($licenseeName)))) {
+            throw new \\DomainException('The active image licence does not name this casting client as its licensee.');
         }
         $bytes=$this->storage->read((string)$asset['private_storage_key'],8_388_608);
         if(!hash_equals((string)$asset['sha256'],hash('sha256',$bytes))) {
