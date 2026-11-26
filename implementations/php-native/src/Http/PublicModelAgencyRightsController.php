@@ -183,6 +183,26 @@ final class PublicModelAgencyRightsController
         }
     }
 
+    public function portalRespondAssignment(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
+        $rightsId=$this->rightsId();
+        if($rightsId===null || $this->rights===null || $this->assignments===null) return Response::redirect('/model-agency/privacy');
+        try {
+            $applicationId=$this->rights->portalApplicationId($rightsId);
+            $this->assignments->respondByApplicant(
+                $applicationId,(string)($params['id']??''),$this->field($request,'decision'),
+                $this->field($request,'statement'),$request->requestId
+            );
+            return $this->showPortal($rightsId,$request->requestId,'Your assignment response has been recorded.');
+        } catch(\InvalidArgumentException|\DomainException $error) {
+            return $this->showPortal($rightsId,$request->requestId,$error->getMessage(),422);
+        } catch(\Throwable) {
+            return $this->showPortal($rightsId,$request->requestId,'The assignment response could not be completed securely.',503);
+        }
+    }
+
     public function portalPreview(Request $request,array $params): Response
     {
         SessionManager::start();
