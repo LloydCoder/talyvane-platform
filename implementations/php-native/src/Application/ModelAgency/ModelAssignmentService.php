@@ -306,6 +306,7 @@ final class ModelAssignmentService
         );
         $query->execute(['application'=>$applicationId]);$rows=$query->fetchAll(PDO::FETCH_ASSOC);
         foreach($rows as &$row) {
+            $row['response_enabled']=($this->assignmentsEnabled)();
             $snapshot=json_decode((string)$row['terms_snapshot'],true);
             $precision=is_array($snapshot)?(int)($snapshot['currency_precision']??0):0;
             $row['compensation_amount']=$row['compensation_minor']===null?null:$this->minorToDecimal((int)$row['compensation_minor'],$precision);
