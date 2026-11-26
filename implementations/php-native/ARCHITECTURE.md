@@ -95,9 +95,10 @@ Client and companion accounts can request a self-service JSON export from their 
 ## Client and companion privacy-rights request handling
 
 - Signed-in client and companion accounts can initiate correction or erasure requests. The service requires an active, email-verified account, role-scoped permission, per-account/IP rate limiting and an eight-digit one-time code with a ten-minute expiry and five-attempt lockout.
+- Administrator review, correction and erasure fulfilment fail closed if the encrypted privacy-outcome outbox is unavailable. Before correction/erasure completes, the service rechecks that the account is active and the current notification destination is still email-verified; the outcome notice is queued in the same database transaction as the privacy operation.
 - Correction explanations are encrypted with the application SecretBox and a request-specific context string. OTPs are stored only as keyed HMAC digests. The user-facing history exposes request metadata and decisions, never the encrypted explanation.
 - Verification moves the request into the restricted in_review queue. Owner/admin review requires an MFA-verified principal and the dedicated privacy.requests.review permission. Reviewers can defer or reject with a mandatory reason and an audit event.
-- This workflow intentionally does not claim fulfilment. A verified erasure request never automatically disables or deletes an account. Active bookings, financial records, safeguarding duties, legal holds, retention periods and backup expiry must be evaluated before an approved erasure/anonymization workflow is implemented. Correction fulfilment, user notifications on review decisions and retention/backup expiry proof remain outstanding.
+- This workflow intentionally does not claim complete global erasure. A verified erasure request never automatically disables or deletes an account. Active bookings, financial records, safeguarding duties, legal holds, retention periods and backup expiry must be evaluated before anonymization. The current fulfilment path requires a current verified notification destination and encrypted outcome outbox, but linked-data legal-hold/retention reconciliation, external storage/provider propagation and backup-expiry proof remain outstanding.
 
 
 ## CRM response templates and delivery
