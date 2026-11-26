@@ -992,7 +992,7 @@ foreach ([$healthStorage,$healthLogs,$healthBackups] as $directory) {
     chmod($directory,0700);
 }
 $publicConfig = $healthPublic . DIRECTORY_SEPARATOR . 'private-config.php';
-file_put_contents($publicConfig, "<?php\\nreturn " . var_export([
+file_put_contents($publicConfig, "<?php\nreturn " . var_export([
     'app_key'=>str_repeat('P',32),
     'database'=>[],
     'paths'=>[
@@ -1001,7 +1001,7 @@ file_put_contents($publicConfig, "<?php\\nreturn " . var_export([
         'logs'=>$healthLogs,
         'backups'=>$healthBackups,
     ],
-],true) . ";\\n");
+],true) . ";\n");
 chmod($publicConfig,0600);
 $publicConfigProcess = proc_open($healthCommand,[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$publicConfigPipes,null,['TALYVANE_CONFIG'=>$publicConfig]);
 if (!is_resource($publicConfigProcess)) {
