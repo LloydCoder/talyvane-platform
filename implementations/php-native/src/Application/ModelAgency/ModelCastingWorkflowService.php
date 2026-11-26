@@ -15,8 +15,13 @@ use Talyvane\Security\Principal;
 /** Private casting-call lifecycle; no public listing or client distribution. */
 final class ModelCastingWorkflowService
 {
+    private readonly \Closure $castingFeatureEnabled;
+
     /** @param callable():bool $castingFeatureEnabled */
-    public function __construct(private PDO $pdo,private AuditLogger $audit,private $castingFeatureEnabled) {}
+    public function __construct(private PDO $pdo,private AuditLogger $audit,callable $castingFeatureEnabled)
+    {
+        $this->castingFeatureEnabled = \Closure::fromCallable($castingFeatureEnabled);
+    }
 
     /** @param array<string,mixed> $terms */
     public function createDraft(Principal $actor,array $terms,string $requestId): string
@@ -274,7 +279,7 @@ final class ModelCastingWorkflowService
 
     private function authorize(Principal $actor): void
     {
-        Authorization::require($actor,'model_casting.manage',true);
+        Authorization::require($actor,'model_castings.manage',true);
         if(!$actor->hasRole('admin') && !$actor->hasRole('owner') && !$actor->hasRole('super_admin')) {
             throw new \DomainException('Agency administrator role is required for casting management.');
         }
