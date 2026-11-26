@@ -202,24 +202,101 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'ends_on'=>(new DateTimeImmutable('+14 days',new DateTimeZone('UTC')))->format('Y-m-d'),
         'exclusivity'=>false,'compensation_amount'=>null,'currency_code'=>null,
     ];
+    $licenceTerms['compensation_amount']='125.50';$licenceTerms['currency_code']='GBP';
     $licenceId=$licences->createDraft($admin,$licensedAsset['id'],$agreementId,$licenceTerms,bin2hex(random_bytes(16)));
     $draft=$pdo->prepare('SELECT status,licensee_name,licence_policy_version,consent_grant_id FROM model_image_licences WHERE id=:id');
     $draft->execute(['id'=>$licenceId]);$draftRow=$draft->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($draftRow) && $draftRow['status']==='draft' && $draftRow['licence_policy_version']==='image-licence-policy-test-v1','image licence draft snapshots the current policy');
     $assert(is_array($draftRow) && $draftRow['licensee_name']!=='Verified editorial commissioning client','licensee identity is encrypted at rest');
-    $grant=$pdo->prepare('SELECT granted FROM consent_grants WHERE id=:id');$grant->execute(['id'=>$draftRow['consent_grant_id']]);
-    $assert((int)$grant->fetchColumn()===0,'draft licence does not imply model consent');
-    $licences->activate($admin,$licenceId,'private/model-licences/execution-evidence-0001','private/model-consent/model-consent-evidence-0001',bin2hex(random_bytes(16)));
-    $active=$pdo->prepare('SELECT status,execution_evidence_reference FROM model_image_licences WHERE id=:id');$active->execute(['id'=>$licenceId]);$activeRow=$active->fetch(PDO::FETCH_ASSOC);
-    $grant->execute(['id'=>$draftRow['consent_grant_id']]);
-    $assert(is_array($activeRow) && $activeRow['status']==='active' && $activeRow['execution_evidence_reference']!=='','activation records external execution evidence');
-    $assert((int)$grant->fetchColumn()===1,'activation records separate purpose-specific model consent');
+    $grant=$pdo->prepare('SELECT granted,granted_at,evidence_reference FROM consent_grants WHERE id=:id');$grant->execute(['id'=>$draftRow['consent_grant_id']]);
+    $grantDraft=$grant->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($grantDraft) && (int)$grantDraft['granted']===0 && $grantDraft['granted_at']===null,'draft licence does not imply model consent or record a grant timestamp');
+    $assert($licences->applicantLicences($applicationId)===[],'unexecuted licence drafts are not exposed in the applicant workspace');
+    try {
+        $licences->respondByApplicant($applicationId,$licenceId,'accept',true,
+            'I have reviewed and voluntarily accept this image usage licence.',$requestId=bin2hex(random_bytes(16)));
+        $assert(false,'applicant cannot accept a licence before external execution evidence is recorded');
+    } catch(DomainException) {
+        $assert(true,'applicant cannot accept a licence before external execution evidence is recorded');
+    }
+    $licences->recordExecutionEvidence($admin,$licenceId,'private/model-licences/execution-evidence-0001',bin2hex(random_bytes(16)));
+    $pendingLicences=$licences->applicantLicences($applicationId);
+    $pendingLicence=array_values(array_filter($pendingLicences,static fn(array $item):bool=>$item['id']===$licenceId));
+    $assert(count($pendingLicence)===1 && $pendingLicence[0]['execution_evidence_ready']===true &&
+        $pendingLicence[0]['compensation_amount']==='125.50' && $pendingLicence[0]['currency_code']==='GBP' &&
+        !array_key_exists('licensee_reference',$pendingLicence[0]) && !array_key_exists('private_storage_key',$pendingLicence[0]),
+        'verified applicant sees only their executed licence offer with formatted terms and no internal references');
+    try {
+        $licences->activate($admin,$licenceId,'private/model-licences/execution-evidence-0001','private/model-consent/model-consent-evidence-0001',bin2hex(random_bytes(16)));
+        $assert(false,'agency administrators cannot attest model image-licence consent');
+    } catch(DomainException) {
+        $assert(true,'agency administrators cannot attest model image-licence consent');
+    }
+    try {
+        $licences->respondByApplicant($applicationId,$licenceId,'accept',false,
+            'I have reviewed and voluntarily accept this image usage licence.',bin2hex(random_bytes(16)));
+        $assert(false,'model image-licence response requires explicit attestation');
+    } catch(DomainException) {
+        $assert(true,'model image-licence response requires explicit attestation');
+    }
+    $licenceConsentStatement='I reviewed the purpose, channels, territory, dates and compensation and voluntarily consent to this specific image use.';
+    $licenceConsentRequest=bin2hex(random_bytes(16));
+    $licences->respondByApplicant($applicationId,$licenceId,'accept',true,$licenceConsentStatement,$licenceConsentRequest);
+    $licences->respondByApplicant($applicationId,$licenceId,'accept',true,$licenceConsentStatement,$licenceConsentRequest);
+    try {
+        $licences->respondByApplicant($applicationId,$licenceId,'decline',true,
+            'I decline this image usage licence after reviewing its terms.',$licenceConsentRequest);
+        $assert(false,'licence response idempotency key cannot be reused for a different decision');
+    } catch(DomainException) {
+        $assert(true,'licence response idempotency key cannot be reused for a different decision');
+    }
+    $active=$pdo->prepare('SELECT status,activated_by,execution_evidence_reference,model_consent_evidence_reference,applicant_response_decision,applicant_response_evidence,applicant_response_version,applicant_response_request_fingerprint,applicant_response_terms_hash FROM model_image_licences WHERE id=:id');
+    $active->execute(['id'=>$licenceId]);$activeRow=$active->fetch(PDO::FETCH_ASSOC);
+    $grant->execute(['id'=>$draftRow['consent_grant_id']]);$grantActive=$grant->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($activeRow) && $activeRow['status']==='active' && $activeRow['activated_by']===null &&
+        is_string($activeRow['execution_evidence_reference']) && $activeRow['execution_evidence_reference']!=='' &&
+        is_string($activeRow['model_consent_evidence_reference']) && $activeRow['model_consent_evidence_reference']!=='' &&
+        is_string($activeRow['applicant_response_evidence']) && $activeRow['applicant_response_evidence']!==$licenceConsentStatement &&
+        $activeRow['applicant_response_decision']==='accepted' &&
+        $activeRow['applicant_response_version']==='model-image-licence-applicant-response-v1' &&
+        preg_match('/^[a-f0-9]{64}$/D',(string)$activeRow['applicant_response_request_fingerprint'])===1 &&
+        preg_match('/^[a-f0-9]{64}$/D',(string)$activeRow['applicant_response_terms_hash'])===1,
+        'applicant acceptance activates only after execution evidence and stores encrypted, versioned response provenance');
+    $assert(is_array($grantActive) && (int)$grantActive['granted']===1 && $grantActive['granted_at']!==null &&
+        $grantActive['evidence_reference']===hash('sha256',$licenceConsentStatement),
+        'applicant acceptance grants the exact purpose-specific consent with hashed evidence');
     try {
         $licences->createDraft($admin,$licensedAsset['id'],$agreementId,$licenceTerms,bin2hex(random_bytes(16)));
         $assert(false,'overlapping active same-purpose licence is rejected');
     } catch(DomainException) {
         $assert(true,'overlapping active same-purpose licence is rejected');
     }
+    $declineAsset=$makeAsset('licence-decline');
+    $service->review($admin,$declineAsset['id'],'approved','Asset rights and model consent evidence reviewed for private usage licensing.',bin2hex(random_bytes(16)));
+    $declineLicence=$licences->createDraft($admin,$declineAsset['id'],$agreementId,$licenceTerms,bin2hex(random_bytes(16)));
+    $licences->recordExecutionEvidence($admin,$declineLicence,'private/model-licences/execution-evidence-0002',bin2hex(random_bytes(16)));
+    $pausedLicences=new ModelImageLicenceService($pdo,new AuditLogger($pdo),$secretBox,$storage,static fn():bool=>false);
+    try {
+        $pausedLicences->respondByApplicant($applicationId,$declineLicence,'accept',true,
+            'I have reviewed and voluntarily accept this image usage licence.',bin2hex(random_bytes(16)));
+        $assert(false,'licence acceptance is disabled while usage-rights operations are paused');
+    } catch(DomainException) {
+        $assert(true,'licence acceptance is disabled while usage-rights operations are paused');
+    }
+    $declineStatement='I reviewed this licence offer and voluntarily decline this specific image use.';
+    $declineRequest=bin2hex(random_bytes(16));
+    $pausedLicences->respondByApplicant($applicationId,$declineLicence,'decline',true,$declineStatement,$declineRequest);
+    $pausedLicences->respondByApplicant($applicationId,$declineLicence,'decline',true,$declineStatement,$declineRequest);
+    $declined=$pdo->prepare('SELECT status,applicant_response_decision,applicant_response_evidence,applicant_response_version,applicant_response_request_fingerprint,applicant_response_terms_hash FROM model_image_licences WHERE id=:id');
+    $declined->execute(['id'=>$declineLicence]);$declinedRow=$declined->fetch(PDO::FETCH_ASSOC);
+    $declineGrant=$pdo->prepare('SELECT granted,granted_at FROM consent_grants WHERE subject_id=:subject');$declineGrant->execute(['subject'=>$declineLicence]);$declineGrantRow=$declineGrant->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($declinedRow) && $declinedRow['status']==='declined' && $declinedRow['applicant_response_decision']==='declined' &&
+        is_string($declinedRow['applicant_response_evidence']) && $declinedRow['applicant_response_evidence']!==$declineStatement &&
+        $declinedRow['applicant_response_version']==='model-image-licence-applicant-response-v1' &&
+        preg_match('/^[a-f0-9]{64}$/D',(string)$declinedRow['applicant_response_request_fingerprint'])===1 &&
+        preg_match('/^[a-f0-9]{64}$/D',(string)$declinedRow['applicant_response_terms_hash'])===1 &&
+        is_array($declineGrantRow) && (int)$declineGrantRow['granted']===0 && $declineGrantRow['granted_at']===null,
+        'applicant decline is encrypted, idempotent and never creates a consent grant');
     $casting=new ModelCastingWorkflowService($pdo,new AuditLogger($pdo),$storage,$secretBox,static fn():bool=>true);
     $now=new DateTimeImmutable('now',new DateTimeZone('UTC'));
     $callId=$casting->createDraft($admin,[
