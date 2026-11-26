@@ -91,11 +91,11 @@ final class ModelApplicantRightsService
             throw $error;
         }
         try {
-            $this->mailer->send(
-                $email,
-                'Your Talyvane applicant privacy request',
-                "A privacy request was started for application {$reference}.\n\nYour one-time verification code is: {$code}\n\nThe code expires in 10 minutes and can be used once. If you did not request this, ignore this email."
-            );
+            $subject=$requestType==='portal_access'?'Your Talyvane model workspace sign-in':'Your Talyvane applicant privacy request';
+            $message=$requestType==='portal_access'
+                ? "A secure model workspace sign-in was requested for application {$reference}.\n\nYour one-time verification code is: {$code}\n\nThe code expires in 10 minutes and can be used once. The verified workspace session lasts up to 30 minutes. If you did not request this, ignore this email."
+                : "A privacy request was started for application {$reference}.\n\nYour one-time verification code is: {$code}\n\nThe code expires in 10 minutes and can be used once. If you did not request this, ignore this email.";
+            $this->mailer->send($email,$subject,$message);
         } catch (Throwable) {
             $this->pdo->prepare(
                 'UPDATE model_applicant_rights_requests SET status = "delivery_failed",otp_hash = "",completed_at = UTC_TIMESTAMP()
