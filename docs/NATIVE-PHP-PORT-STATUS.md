@@ -31,7 +31,7 @@ These are repository-level checks only. They do not establish actual HostSailor 
 
 ## Current implementation phase
 
-Branch `feat/native-crm-communications` adds versioned locale-specific CRM response templates, MFA-authorized reply queueing, encrypted recipient/payload outbox records, idempotency and delivery-state reconciliation. This phase remains unverified until its exact-head PHP, MySQL, security, package and browser workflows pass. No production mail delivery is implied until the private cPanel cron and target SMTP are configured and accepted.
+Branch `feat/native-crm-communications` adds migration 0039 for replay-safe template publication plus versioned locale-specific CRM response templates, MFA-authorized reply queueing, encrypted recipient/payload outbox records, idempotency and delivery-state reconciliation. This phase remains unverified until its exact-head PHP, MySQL, security, package and browser workflows pass. No production mail delivery is implied until the private cPanel cron and target SMTP are configured and accepted.
 
 ## Implemented native domains — partial vertical slices
 
