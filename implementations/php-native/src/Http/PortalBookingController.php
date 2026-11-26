@@ -25,6 +25,7 @@ final class PortalBookingController
         private BookingCommandService $commands,
         private BookingQueryService $queries,
         private \Talyvane\Application\Bookings\BookingCalendarService $calendar,
+        private BookingQuoteService $quotes,
         private DiscoveryService $discovery,
         private ViewRenderer $views,
         private string $brandName
