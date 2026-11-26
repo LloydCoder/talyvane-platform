@@ -25,7 +25,14 @@ final class AdminModelCastingController
         $actor=$this->authentication->currentPrincipal();
         if($actor===null) return Response::redirect('/admin/login');
         try {
-            return $this->page($this->casting->list($actor),$error,$status);
+            $items=$this->casting->list($actor);
+            $submissions=[];$candidates=[];
+            foreach($items as $item) {
+                $id=(string)$item['id'];
+                $submissions[$id]=$this->casting->submissionsForCall($actor,$id);
+                if($item['status']==='open') $candidates[$id]=$this->casting->eligibleCandidates($actor,$id);
+            }
+            return $this->page($items,$error,$status,$submissions,$candidates);
         } catch(DomainException) {
             return $this->page([],'You do not have permission to view private casting operations.',403);
         }
@@ -93,6 +100,60 @@ final class AdminModelCastingController
         }
     }
 
+    /** @param array<string,string> $params */
+    public function submit(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->index($request,'Your session expired. Refresh this page and try again.',419);
+        $actor=$this->authentication->currentPrincipal();
+        if($actor===null) return Response::redirect('/admin/login');
+        try {
+            $this->casting->submit($actor,(string)($params['id']??''),$this->field($request,'application_id'),
+                $this->field($request,'asset_id'),$this->field($request,'licence_id'),$request->requestId);
+            return Response::redirect('/admin/model-agency/casting');
+        } catch(InvalidArgumentException|DomainException $error) {
+            return $this->index($request,$error->getMessage(),422);
+        } catch(\Throwable) {
+            return $this->index($request,'Eligible model submission could not be completed securely.',503);
+        }
+    }
+
+    /** @param array<string,string> $params */
+    public function decide(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->index($request,'Your session expired. Refresh this page and try again.',419);
+        $actor=$this->authentication->currentPrincipal();
+        if($actor===null) return Response::redirect('/admin/login');
+        try {
+            $this->casting->decide($actor,(string)($params['id']??''),$this->field($request,'decision'),
+                $this->field($request,'note'),$request->requestId);
+            return Response::redirect('/admin/model-agency/casting');
+        } catch(InvalidArgumentException|DomainException $error) {
+            return $this->index($request,$error->getMessage(),422);
+        } catch(\Throwable) {
+            return $this->index($request,'Casting decision could not be completed securely.',503);
+        }
+    }
+
+    /** @param array<string,string> $params */
+    public function withdraw(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->index($request,'Your session expired. Refresh this page and try again.',419);
+        $actor=$this->authentication->currentPrincipal();
+        if($actor===null) return Response::redirect('/admin/login');
+        try {
+            $this->casting->withdraw($actor,(string)($params['id']??''),$this->field($request,'reason'),
+                $this->field($request,'evidence_reference'),$request->requestId);
+            return Response::redirect('/admin/model-agency/casting');
+        } catch(InvalidArgumentException|DomainException $error) {
+            return $this->index($request,$error->getMessage(),422);
+        } catch(\Throwable) {
+            return $this->index($request,'Casting submission withdrawal could not be completed securely.',503);
+        }
+    }
+
     private function field(Request $request,string $name): string
     {
         $value=$request->body[$name]??'';
@@ -108,10 +169,11 @@ final class AdminModelCastingController
     }
 
     /** @param list<array<string,mixed>> $items */
-    private function page(array $items,string $error,int $status): Response
+    private function page(array $items,string $error,int $status,array $submissions=[],array $candidates=[]): Response
     {
         return Response::html($this->views->render('admin/model-casting',[
-            'items'=>$items,'error'=>$error,'csrf'=>Csrf::issue(),'brandName'=>$this->brandName,
+            'items'=>$items,'submissions'=>$submissions,'candidates'=>$candidates,
+            'error'=>$error,'csrf'=>Csrf::issue(),'brandName'=>$this->brandName,
         ]),$status);
     }
 }
