@@ -2,6 +2,9 @@
 declare(strict_types=1);
 
 use Talyvane\Application\Discovery\DiscoveryService;
+use Talyvane\Application\Bookings\BookingQuoteService;
+use Talyvane\Application\Bookings\BookingService;
+use Talyvane\Infrastructure\Database\BookingPolicyRepository;
 use Talyvane\Application\Clients\MembershipEntitlementService;
 use Talyvane\Application\Clients\MembershipEntitlementCatalog;
 use Talyvane\Application\Clients\MembershipGalleryPolicyReadiness;
@@ -214,6 +217,38 @@ function runProfileMediaIntegration(PDO $pdo): int
         $galleryEntitlements=new MembershipEntitlementService($pdo,$galleryFeatures);
         $galleryService=new ProfileMediaService($pdo,$storage,$discovery,$audit,$galleryEntitlements);
         $companionClient=new Principal($clientId,['client'],false);
+        $bookingPolicies=new BookingPolicyRepository($pdo);
+        $bookingQuotes=new BookingQuoteService($pdo,$audit,$bookingPolicies);
+        $quoteExpires=(new DateTimeImmutable('now',new DateTimeZone('UTC')))->modify('+1 day');
+        $quoteId=$bookingQuotes->create($admin,$clientId,$profileId,12000,'GBP',['service_fee'=>1000],$quoteExpires,bin2hex(random_bytes(16)));
+        $quoteRows=$bookingQuotes->clientQuotes($companionClient,$profileId);
+        $assert(count($quoteRows)===1 && $quoteRows[0]['id']===$quoteId && $quoteRows[0]['accepted_at']===null,
+            'booking quotes are issued to one verified client and the exact companion profile');
+        $bookingQuotes->accept($companionClient,$quoteId,bin2hex(random_bytes(16)));
+        $bookingQuotes->accept($companionClient,$quoteId,bin2hex(random_bytes(16)));
+        $acceptedQuote=$pdo->prepare('SELECT accepted_at,accepted_by,client_user_id,profile_id,policy_version FROM quote_snapshots WHERE id=:id');
+        $acceptedQuote->execute(['id'=>$quoteId]);$acceptedQuoteRow=$acceptedQuote->fetch(PDO::FETCH_ASSOC);
+        $assert(is_array($acceptedQuoteRow) && $acceptedQuoteRow['accepted_at']!==null &&
+            $acceptedQuoteRow['accepted_by']===$clientId && $acceptedQuoteRow['client_user_id']===$clientId &&
+            $acceptedQuoteRow['profile_id']===$profileId,
+            'client acceptance is idempotent and permanently records the accepting client and quote binding');
+        $bookingService=new BookingService($pdo,$bookingPolicies,$audit);
+        $bookingStart=(new DateTimeImmutable('now',new DateTimeZone('UTC')))->modify('+10 days');
+        $bookingEnd=$bookingStart->modify('+2 hours');
+        $bookingId=$bookingService->request($companionClient,$profileId,$bookingStart,$bookingEnd,$quoteId,
+            'Booking quote integration acceptance test.',bin2hex(random_bytes(16)));
+        $consumedQuote=$pdo->prepare('SELECT consumed_at,consumed_booking_id FROM quote_snapshots WHERE id=:id');
+        $consumedQuote->execute(['id'=>$quoteId]);$consumedQuoteRow=$consumedQuote->fetch(PDO::FETCH_ASSOC);
+        $assert(is_array($consumedQuoteRow) && $consumedQuoteRow['consumed_at']!==null &&
+            $consumedQuoteRow['consumed_booking_id']===$bookingId,
+            'accepted quote is consumed atomically by exactly one matching booking');
+        try {
+            $bookingService->request($companionClient,$profileId,$bookingStart->modify('+3 days'),$bookingEnd->modify('+3 days'),
+                $quoteId,'Attempt to reuse a consumed booking quote.',bin2hex(random_bytes(16)));
+            $assert(false,'a consumed quote cannot be reused for a second booking');
+        } catch(DomainException) {
+            $assert(true,'a consumed quote cannot be reused for a second booking');
+        }
         $assert(MembershipEntitlementCatalog::privateGalleryConsentStatement('Talyvane')===
             'I separately agree that Talyvane may display this image only in its members-only gallery to eligible clients with a current agency-approved membership, as described in the current privacy notice. This permission is separate from public profile publication and may be withdrawn at any time.',
             'native consent catalogue preserves the canonical Laravel members-only consent statement exactly');
