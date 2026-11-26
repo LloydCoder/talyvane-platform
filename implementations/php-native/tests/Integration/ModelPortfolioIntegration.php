@@ -242,6 +242,14 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $replayedExpenseId=$settlements->addExpense($owner,$assignmentId,'25.00','GBP',
         'Pre-approved local transport expense for the defined shoot.','private/model-expenses/expense-evidence-0001',$expenseRequestId);
     $assert($replayedExpenseId===$expenseId,'replayed expense submission returns the original expense without duplicating the ledger');
+
+    try {
+        $settlements->addExpense($owner,$assignmentId,'60.00','GBP',
+            'Additional transport and equipment expense exceeding the remaining agreed cap.','private/model-expenses/expense-evidence-over-cap-0001',bin2hex(random_bytes(16)));
+        $assert(false,'expense claims exceeding the remaining assignment cap are rejected');
+    } catch(DomainException) {
+        $assert(true,'expense claims exceeding the remaining assignment cap are rejected');
+    }
     $expenseRows=$settlements->expenses($finance,$assignmentId);
     $assert(count($expenseRows)===1 && $expenseRows[0]['description']==='Pre-approved local transport expense for the defined shoot.' &&
         $expenseRows[0]['evidence_reference']==='private/model-expenses/expense-evidence-0001',
@@ -305,6 +313,21 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert((int)$grant->fetchColumn()===0,'revocation withdraws model consent even when new licences are disabled');
     $submissionState=$pdo->prepare('SELECT status,invalidation_reason FROM model_casting_submissions WHERE id=:id');$submissionState->execute(['id'=>$submissionId]);$submissionStateRow=$submissionState->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($submissionStateRow) && $submissionStateRow['status']==='invalidated' && $submissionStateRow['invalidation_reason']!=='Underlying image licence was revoked or expired.','licence revocation invalidates selected casting submissions and encrypts the reason');
+
+    try {
+        $assignments->createDraft($admin,$submissionId,[
+            'project_purpose'=>'editorial','client_name'=>'Verified editorial commissioning client',
+            'client_reference'=>'editorial-client-ref-001',
+            'brief'=>'A defined editorial assignment brief for the model and commissioning client.',
+            'location_city'=>'London',
+            'shoot_starts_at'=>$shootStart,'shoot_ends_at'=>$shootEnd,
+            'deliverables'=>'One editorial shoot with the agreed image selection and usage scope.',
+            'compensation_amount'=>'800.00','currency_code'=>'GBP','expense_cap_amount'=>'75.00',
+        ],bin2hex(random_bytes(16)));
+        $assert(false,'revoked image-use consent prevents a new assignment from an invalidated casting submission');
+    } catch(DomainException) {
+        $assert(true,'revoked image-use consent prevents a new assignment from an invalidated casting submission');
+    }
 
     $disabled=new ModelPortfolioService($pdo,$storage,new AuditLogger($pdo),$secretBox,static fn():bool=>false);
     try {
