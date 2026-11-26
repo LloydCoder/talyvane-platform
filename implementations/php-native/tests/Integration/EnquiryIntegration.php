@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 use Talyvane\Application\CRM\EnquiryService;
+use Talyvane\Application\CRM\CrmCommunicationDispatcher;
+use Talyvane\Infrastructure\Mail\Mailer;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Security\RateLimiter;
 use Talyvane\Security\Principal;
