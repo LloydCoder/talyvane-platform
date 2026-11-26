@@ -315,7 +315,7 @@ final class SafeguardingCaseService
                 ['assigned_specialist_id'=>$specialistId,'status'=>$case['status']],
                 $requestId,'safeguarding-case-v1');
             $this->pdo->commit();
-        } catch(\\Throwable $error) {
+        } catch(\Throwable $error) {
             if($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $error;
         }
