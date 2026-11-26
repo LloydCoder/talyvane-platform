@@ -73,6 +73,35 @@ final class PortalPrivacyOutcomeOutbox
         ]);
     }
 
+    /** Queue a generic completion notice for a fulfilled correction request. */
+    public function enqueueCorrectionFulfilled(string $requestId,string $recipient,string $accountType): void
+    {
+        if(!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iD',$requestId) ||
+            !filter_var($recipient,FILTER_VALIDATE_EMAIL) || !in_array($accountType,['client','companion'],true)) {
+            throw new \\InvalidArgumentException('Privacy correction notification details are invalid.');
+        }
+        $id=self::uuid();
+        $body=$accountType==='companion'
+            ? "Your verified privacy correction request has been completed. The approved profile fields were updated and your public profile was returned to draft for a separate publication review. Contact details were not changed."
+            : "Your verified privacy correction request has been completed. The approved account name was updated. Contact details and account access were not changed.";
+        $payload=json_encode([
+            'subject'=>'Your Talyvane privacy correction is complete',
+            'body'=>$body,
+        ],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+        $this->pdo->prepare(
+            'INSERT INTO communication_outbox
+             (id,idempotency_key,related_type,related_id,channel,recipient_ciphertext,
+              payload_ciphertext,status,attempts,available_at,created_at)
+             VALUES (:id,:dedupe,"portal_privacy",:related,"email",:recipient,:payload,
+                     "pending",0,UTC_TIMESTAMP(),UTC_TIMESTAMP())
+             ON DUPLICATE KEY UPDATE id=id'
+        )->execute([
+            'id'=>$id,'dedupe'=>'portal-privacy-correction-v1:'.$requestId,'related'=>$requestId,
+            'recipient'=>$this->box->encrypt($recipient,'communication-outbox-v1:recipient:'.$id),
+            'payload'=>$this->box->encrypt($payload,'communication-outbox-v1:payload:'.$id),
+        ]);
+    }
+
     private static function uuid(): string
     {
         $bytes=random_bytes(16);$bytes[6]=chr((ord($bytes[6])&15)|64);$bytes[8]=chr((ord($bytes[8])&63)|128);$hex=bin2hex($bytes);
