@@ -380,7 +380,7 @@ final class EnquiryService
         Principal $actor,string $locale,string $subjectTemplate,string $bodyTemplate,string $reason,string $requestId
     ): int {
         Authorization::require($actor,'enquiries.manage',true);
-        $locale=trim($locale);
+        $locale=strtolower(trim($locale));
         $subjectTemplate=trim($subjectTemplate);
         $bodyTemplate=trim($bodyTemplate);
         $reason=trim($reason);
