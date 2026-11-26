@@ -1,5 +1,7 @@
 # Delivery Roadmap
 
+> **Native PHP port status:** Native PHP is a separate implementation track on draft PR #93; it is not the Laravel application's deployment target and is not production-approved. Its exact-head evidence, partial domain coverage and external blockers are maintained in [NATIVE-PHP-PORT-STATUS.md](NATIVE-PHP-PORT-STATUS.md) and [the native parity tracker](../implementations/php-native/PORTING-TRACKER.md). Roadmap checkboxes below describe the broader product delivery history and must not be interpreted as proof that every native PHP workflow is complete.
+
 
 ## Phase 0 — Foundation
 - [x] Verify repository ownership, public visibility and default branch.
