@@ -89,6 +89,8 @@ final class FeatureManagementService
                 throw new \DomainException('Authenticator code has already been consumed.');
             }
 
+            $featureLock=$this->pdo->prepare('SELECT feature_key FROM feature_states WHERE feature_key=:key FOR UPDATE');
+            $featureLock->execute(['key'=>$key]);
             $before=$this->states->enabledStates();
             $definition=FeatureRegistry::definitions()[$key];
             $current=$before[$key]??$definition['default'];
