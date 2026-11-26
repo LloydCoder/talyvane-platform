@@ -65,6 +65,22 @@ final class AdminEnquiryController
         }
     }
 
+    public function addNote(Request $request,?array $params = null): Response
+    {
+        $principal=$this->principal();
+        if($principal instanceof Response) return $principal;
+        if(!Csrf::verify($this->field($request,'_csrf'))) {
+            return $this->page('Your session expired. Refresh and try again.',419,false,$principal);
+        }
+        try {
+            $this->enquiries->addInternalNote($principal,(string)($params['reference']??''),
+                $this->field($request,'note'),$request->requestId);
+            return $this->page('',200,true,$principal);
+        } catch (InvalidArgumentException|DomainException $error) {
+            return $this->page($error->getMessage(),422,false,$principal);
+        }
+    }
+
     private function principal(): Principal|Response
     {
         SessionManager::start();
