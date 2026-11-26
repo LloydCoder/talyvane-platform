@@ -169,6 +169,48 @@ final class ModelImageLicenceService
         }
     }
 
+    /**
+     * Withdraw a model's consent for one specific image licence from the OTP-verified portal.
+     * No agency feature flag or legal-hold status may prevent the consent withdrawal itself.
+     */
+    public function withdrawConsentByApplicant(string $applicationId,string $licenceId,string $requestId): void
+    {
+        $this->assertRequestId($requestId);
+        if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId)) throw new \InvalidArgumentException('Model application identifier is invalid.');
+        $reason='Model applicant withdrew consent for this specific image usage.';
+        $this->pdo->beginTransaction();
+        try {
+            $licence=$this->lockRow('model_image_licences',$licenceId);
+            if(!hash_equals($applicationId,(string)$licence['application_id'])) {
+                throw new \DomainException('This image licence does not belong to the verified model workspace.');
+            }
+            if(in_array($licence['status'],['revoked','expired'],true)) {
+                $this->pdo->commit();
+                return;
+            }
+            if($licence['status']!=='active' && $licence['status']!=='draft') {
+                throw new \DomainException('This image licence cannot be withdrawn from the model workspace.');
+            }
+            $this->pdo->prepare(
+                'UPDATE model_image_licences SET status="revoked",revoked_by=NULL,revoked_at=UTC_TIMESTAMP(),
+                 revocation_reason=:reason,updated_at=UTC_TIMESTAMP() WHERE id=:id'
+            )->execute(['reason'=>$this->encrypt($licenceId,'revocation_reason',$reason),'id'=>$licenceId]);
+            $this->pdo->prepare('UPDATE consent_grants SET granted=0,withdrawn_at=UTC_TIMESTAMP() WHERE id=:id AND granted=1')
+                ->execute(['id'=>$licence['consent_grant_id']]);
+            $this->invalidateSubmissions($licenceId,null,$reason,'applicant');
+            $this->event((string)$licence['application_id'],null,'application.image_licence_consent_withdrawn',
+                'Model applicant withdrew consent for this image usage; dependent casting submissions were invalidated.',
+                $this->policyVersionOrLegacy($licence),'applicant');
+            $this->audit->record(null,'model_licence.applicant_consent_withdrawn','model_image_licence',$licenceId,
+                'Model applicant withdrew consent for a specific image usage',['status'=>$licence['status']],
+                ['status'=>'revoked','reason_hash'=>hash('sha256',$reason)],$requestId,'model-image-licence-v1');
+            $this->pdo->commit();
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
     public function revoke(Principal $actor,string $licenceId,string $reason,string $requestId): void
     {
         $this->authorize($actor);$this->assertRequestId($requestId);$reason=trim($reason);
@@ -348,7 +390,7 @@ final class ModelImageLicenceService
         return ['policy_version'=>trim($policy['policy_version'])];
     }
 
-    private function invalidateSubmissions(string $licenceId,?string $actorId,string $reason): void
+    private function invalidateSubmissions(string $licenceId,?string $actorId,string $reason,?string $actorType=null): void
     {
         $q=$this->pdo->prepare('SELECT id,casting_call_id FROM model_casting_submissions WHERE image_licence_id=:licence AND status IN ("submitted","shortlisted","selected") FOR UPDATE');
         $q->execute(['licence'=>$licenceId]);
@@ -358,17 +400,17 @@ final class ModelImageLicenceService
             $this->pdo->prepare(
                 'INSERT INTO model_casting_events (id,call_id,submission_id,actor_id,actor_type,event_type,reason,occurred_at,created_at,updated_at)
                  VALUES (:id,:call,:submission,:actor,:actor_type,"casting.submission_invalidated","Submission invalidated because its image licence is no longer active.",UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
-            )->execute(['id'=>self::uuid(),'call'=>$submission['casting_call_id'],'submission'=>$submission['id'],'actor'=>$actorId,'actor_type'=>$actorId===null?'system':'administrator']);
+            )->execute(['id'=>self::uuid(),'call'=>$submission['casting_call_id'],'submission'=>$submission['id'],'actor'=>$actorId,'actor_type'=>$actorType??($actorId===null?'system':'administrator')]);
         }
     }
 
-    private function event(string $applicationId,?string $actorId,string $type,string $reason,string $policyVersion): void
+    private function event(string $applicationId,?string $actorId,string $type,string $reason,string $policyVersion,?string $actorType=null): void
     {
         $q=$this->pdo->prepare('SELECT status FROM model_talent_applications WHERE id=:id LIMIT 1');$q->execute(['id'=>$applicationId]);$status=(string)$q->fetchColumn();
         $this->pdo->prepare(
             'INSERT INTO model_talent_application_events (id,application_id,actor_user_id,actor_type,from_status,to_status,reason,policy_version,created_at)
              VALUES (:id,:application,:actor,:actor_type,:from_status,:to_status,:reason,:policy,UTC_TIMESTAMP())'
-        )->execute(['id'=>self::uuid(),'application'=>$applicationId,'actor'=>$actorId,'actor_type'=>$actorId===null?'system':'administrator',
+        )->execute(['id'=>self::uuid(),'application'=>$applicationId,'actor'=>$actorId,'actor_type'=>$actorType??($actorId===null?'system':'administrator'),
             'from_status'=>$status,'to_status'=>$status,'reason'=>substr($reason,0,500),'policy'=>$policyVersion]);
     }
 
