@@ -392,7 +392,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $acceptedAssignment->execute(['id'=>$assignmentId]);$acceptedAssignmentRow=$acceptedAssignment->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($acceptedAssignmentRow) && $acceptedAssignmentRow['status']==='accepted' &&
         $acceptedAssignmentRow['acceptance_recorded_by']===null &&
-        $acceptedAssignmentRow['model_acceptance_evidence_reference']!==$acceptanceStatement &&
+        is_string($acceptedAssignmentRow['model_acceptance_evidence_reference']) && $acceptedAssignmentRow['model_acceptance_evidence_reference']!==$acceptanceStatement &&
         $acceptedAssignmentRow['applicant_response_version']==='model-assignment-applicant-response-v1' &&
         preg_match('/^[a-f0-9]{64}$/D',(string)$acceptedAssignmentRow['applicant_response_request_fingerprint'])===1 &&
         preg_match('/^[a-f0-9]{64}$/D',(string)$acceptedAssignmentRow['applicant_response_terms_hash'])===1,
@@ -460,8 +460,9 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $declinedRow=$pdo->prepare('SELECT status,declined_by,decline_reason,model_decline_evidence_reference,applicant_response_version,applicant_response_request_fingerprint,applicant_response_terms_hash FROM model_assignments WHERE id=:id');
     $declinedRow->execute(['id'=>$declineAssignment]);$declinedAssignmentRow=$declinedRow->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($declinedAssignmentRow) && $declinedAssignmentRow['status']==='declined' &&
-        $declinedAssignmentRow['declined_by']===null && $declinedAssignmentRow['decline_reason']!==$declineStatement &&
-        $declinedAssignmentRow['model_decline_evidence_reference']!=='' &&
+        $declinedAssignmentRow['declined_by']===null && is_string($declinedAssignmentRow['decline_reason']) &&
+        $declinedAssignmentRow['decline_reason']!==$declineStatement &&
+        is_string($declinedAssignmentRow['model_decline_evidence_reference']) && $declinedAssignmentRow['model_decline_evidence_reference']!=='' &&
         $declinedAssignmentRow['applicant_response_version']==='model-assignment-applicant-response-v1' &&
         preg_match('/^[a-f0-9]{64}$/D',(string)$declinedAssignmentRow['applicant_response_request_fingerprint'])===1 &&
         preg_match('/^[a-f0-9]{64}$/D',(string)$declinedAssignmentRow['applicant_response_terms_hash'])===1,
