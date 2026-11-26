@@ -432,6 +432,17 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(count($clientHistory) === 3 && count($companionHistory) === 3,'client and companion booking histories are scoped to their own identities');
     $assert(count($adminBookingQueue) === 3 && array_key_exists('client_user_id',$adminBookingQueue[0]),'MFA-authorized administrators can inspect the booking operations queue');
     $assert(!array_key_exists('client_user_id',$companionHistory[0]) && !array_key_exists('client_user_id',$clientHistory[0]),'client and companion booking read models omit internal account identifiers');
+
+    $bookingCalendar = new \Talyvane\Application\Bookings\BookingCalendarService($pdo,str_repeat('C',32));
+    $clientCalendarEvents = $bookingCalendar->clientEvents($clientPrincipal);
+    $companionCalendarEvents = $bookingCalendar->companionEvents($companionPrincipal);
+    $assert(count($clientCalendarEvents) === 2 && count($companionCalendarEvents) === 2,
+        'client and companion calendars contain only their own active or recently changed bookings');
+    $companionCalendarIcs = $bookingCalendar->toIcalendar($companionPrincipal,$companionCalendarEvents,new DateTimeImmutable('now',new DateTimeZone('UTC')));
+    $assert(!str_contains($companionCalendarIcs,'native-client@example.test') && !str_contains($companionCalendarIcs,'client_user_id'),
+        'companion iCalendar export excludes client identity and account identifiers');
+    $assert(str_contains($companionCalendarIcs,'STATUS:CANCELLED'),
+        'calendar export preserves cancellation tombstones for downstream calendar reconciliation');
     $privacyExports=new \Talyvane\Application\Identity\PortalPrivacyExportService($pdo,$audit,$limiter);
     $clientPrivacyExport=$privacyExports->export($clientPrincipal,bin2hex(random_bytes(16)));
     $companionPrivacyExport=$privacyExports->export($companionPrincipal,bin2hex(random_bytes(16)));
