@@ -235,6 +235,7 @@ final class ClientModelAgencyDistributionService
         $this->assertClient($client);
         $call=$this->clientCall($client,$callId);
         if(!in_array($call['status'],['open','closed'],true)) throw new \DomainException('Casting call is not available for client distribution.');
+        $this->assertCandidateWindow($call);
         $this->assertCallPolicy($call);
         $query=$this->pdo->prepare(
             'SELECT asset.private_storage_key,asset.sha256,asset.mime_type,lic.id AS licence_id,lic.licensee_name
