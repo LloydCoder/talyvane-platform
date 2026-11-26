@@ -235,6 +235,14 @@ function runModelPortfolioIntegration(PDO $pdo): int
         (int)$assignmentDraft['expense_cap_minor']===7500 && (int)$assignmentDraft['commission_basis_points']===1500,'assignment lifecycle snapshots agreed compensation, expense cap and executed-agreement commission');
     $assert(is_array($assignmentDraft) && $assignmentDraft['client_name']!=='Verified editorial commissioning client','assignment client identity is encrypted at rest');
 
+    $assignmentEventId=(string)$pdo->query('SELECT id FROM model_assignment_events WHERE assignment_id='.$pdo->quote($assignmentId).' ORDER BY occurred_at LIMIT 1')->fetchColumn();
+    try {
+        $pdo->prepare('UPDATE model_assignment_events SET reason="tampered" WHERE id=:id')->execute(['id'=>$assignmentEventId]);
+        $assert(false,'assignment lifecycle events reject database-level mutation');
+    } catch(PDOException) {
+        $assert(true,'assignment lifecycle events reject database-level mutation');
+    }
+
     $settlements=new ModelSettlementService($pdo,new AuditLogger($pdo),$secretBox,static fn():bool=>true);
     $expenseRequestId=bin2hex(random_bytes(16));
     $expenseId=$settlements->addExpense($owner,$assignmentId,'25.00','GBP',
@@ -268,6 +276,14 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert(is_array($settlementDraft) && $settlementDraft['status']==='draft' && (int)$settlementDraft['gross_minor']===80000 &&
         (int)$settlementDraft['approved_expenses_minor']===2500 && (int)$settlementDraft['commission_minor']===12000 &&
         (int)$settlementDraft['model_net_minor']===70500,'settlement reconciles gross, 15 percent commission and reimbursable approved expenses using integer minor units');
+
+    $settlementEventId=(string)$pdo->query('SELECT id FROM model_settlement_events WHERE settlement_id='.$pdo->quote($settlementId).' ORDER BY occurred_at LIMIT 1')->fetchColumn();
+    try {
+        $pdo->prepare('DELETE FROM model_settlement_events WHERE id=:id')->execute(['id'=>$settlementEventId]);
+        $assert(false,'settlement lifecycle events reject database-level deletion');
+    } catch(PDOException) {
+        $assert(true,'settlement lifecycle events reject database-level deletion');
+    }
     try {
         $settlements->approve($finance,$settlementId,bin2hex(random_bytes(16)));
         $assert(false,'settlement creator cannot approve their own settlement');
