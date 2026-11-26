@@ -101,7 +101,7 @@ final class ModelPortfolioService
         foreach(['source_description','consent_scope'] as $field) {
             $value=$evidence[$field]??null;
             if(!is_string($value) || strlen(trim($value))<20 || strlen(trim($value))>2000) {
-                throw new \\InvalidArgumentException('Portfolio source description and consent scope must each contain 20 to 2000 characters.');
+                throw new \InvalidArgumentException('Portfolio source description and consent scope must each contain 20 to 2000 characters.');
             }
         }
         $image=$this->storage->storeImage($upload,'model-portfolio',8_388_608);
@@ -118,15 +118,15 @@ final class ModelPortfolioService
             $rightsQuery->execute(['rights'=>$rightsRequestId]);$rights=$rightsQuery->fetch(PDO::FETCH_ASSOC);
             if(!is_array($rights) || $rights['status']!=='verified' || $rights['request_type']!=='portal_access' ||
                 $rights['completed_at']!==null || $rights['anonymized_at']!==null ||
-                new \\DateTimeImmutable((string)$rights['expires_at'],new \\DateTimeZone('UTC'))<=new \\DateTimeImmutable('now',new \\DateTimeZone('UTC'))) {
-                throw new \\DomainException('The verified model workspace session is invalid or expired.');
+                new \DateTimeImmutable((string)$rights['expires_at'],new \DateTimeZone('UTC'))<=new \DateTimeImmutable('now',new \DateTimeZone('UTC'))) {
+                throw new \DomainException('The verified model workspace session is invalid or expired.');
             }
-            if((int)$rights['legal_hold']===1) throw new \\DomainException('Portfolio uploads are paused while safeguarding/legal-hold review is active.');
+            if((int)$rights['legal_hold']===1) throw new \DomainException('Portfolio uploads are paused while safeguarding/legal-hold review is active.');
             $application=$this->assertEligible((string)$rights['application_id'],true);
             $policy=$this->approvedPolicy();
             $duplicate=$this->pdo->prepare('SELECT id FROM model_portfolio_assets WHERE application_id=:application AND sha256=:hash LIMIT 1 FOR UPDATE');
             $duplicate->execute(['application'=>$rights['application_id'],'hash'=>$image['sha256']]);
-            if($duplicate->fetchColumn()!==false) throw new \\DomainException('This exact image is already recorded in your portfolio.');
+            if($duplicate->fetchColumn()!==false) throw new \DomainException('This exact image is already recorded in your portfolio.');
             $attestation='applicant-portal-attestation:'.$assetId;
             $this->pdo->prepare(
                 'INSERT INTO consent_grants
@@ -184,12 +184,12 @@ final class ModelPortfolioService
             $row['completed_at']!==null || $row['consent_withdrawn_at']!==null ||
             !in_array($row['status'],['pending_review','approved'],true) ||
             !is_string($row['private_storage_key']) || $row['private_storage_key']==='' ||
-            new \\DateTimeImmutable((string)$row['expires_at'],new \\DateTimeZone('UTC'))<=new \\DateTimeImmutable('now',new \\DateTimeZone('UTC'))) {
-            throw new \\DomainException('The applicant portfolio preview is unavailable.');
+            new \DateTimeImmutable((string)$row['expires_at'],new \DateTimeZone('UTC'))<=new \DateTimeImmutable('now',new \DateTimeZone('UTC'))) {
+            throw new \DomainException('The applicant portfolio preview is unavailable.');
         }
         $bytes=$this->storage->read((string)$row['private_storage_key'],8_388_608);
         if($row['mime_type']!=='image/webp' || !hash_equals((string)$row['sha256'],hash('sha256',$bytes))) {
-            throw new \\DomainException('Applicant portfolio preview failed integrity verification.');
+            throw new \DomainException('Applicant portfolio preview failed integrity verification.');
         }
         $this->audit->record(null,'model_portfolio.applicant_asset_viewed','model_portfolio_asset',$assetId,
             'Applicant viewed their own private portfolio image',null,['sha256'=>(string)$row['sha256']],
