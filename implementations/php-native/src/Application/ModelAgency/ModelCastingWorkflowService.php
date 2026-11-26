@@ -244,10 +244,10 @@ final class ModelCastingWorkflowService
                AND asset_consent.granted=1 AND asset_consent.withdrawn_at IS NULL
                AND lic.status="active" AND lic.purpose="casting_distribution"
                AND lic.territory_code=:country AND JSON_CONTAINS(lic.channels,JSON_QUOTE("casting_platform"))
-               AND lic.starts_on<=DATE(:shoot_start) AND lic.ends_on>=DATE(:shoot_end_licence)
+               AND lic.starts_on<=DATE(:shoot_start_licence) AND lic.ends_on>=DATE(:shoot_end_licence)
                AND lic.licence_policy_version=:licence_policy
                AND licence_consent.granted=1 AND licence_consent.withdrawn_at IS NULL AND lic.model_consent_evidence_reference IS NOT NULL
-               AND agreement.status="executed" AND agreement.effective_from<=:shoot_start AND agreement.effective_until>=:shoot_end_agreement
+               AND agreement.status="executed" AND agreement.effective_from<=:shoot_start_agreement AND agreement.effective_until>=:shoot_end_agreement
                AND JSON_CONTAINS(agreement.terms_snapshot,JSON_QUOTE("casting_submissions"),"$.service_scope")
                AND NOT EXISTS (SELECT 1 FROM model_casting_submissions existing
                                WHERE existing.casting_call_id=:call AND existing.application_id=a.id)
@@ -257,7 +257,8 @@ final class ModelCastingWorkflowService
         );
         $query->bindValue(':portfolio_policy',$portfolioPolicy['policy_version']);
         $query->bindValue(':country',$row['country_code']);
-        $query->bindValue(':shoot_start',$row['shoot_starts_at']);
+        $query->bindValue(':shoot_start_licence',$row['shoot_starts_at']);
+        $query->bindValue(':shoot_start_agreement',$row['shoot_starts_at']);
         $query->bindValue(':shoot_end_licence',$row['shoot_ends_at']);
         $query->bindValue(':shoot_end_agreement',$row['shoot_ends_at']);
         $query->bindValue(':licence_policy',$licencePolicy['policy_version']);
