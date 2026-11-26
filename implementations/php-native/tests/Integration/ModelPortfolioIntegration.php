@@ -340,6 +340,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'deliverables'=>'One editorial shoot with the agreed image selection and usage scope.',
         'compensation_amount'=>'800.00','currency_code'=>'GBP','expense_cap_amount'=>'75.00',
     ],bin2hex(random_bytes(16)));
+    $assignments->offer($admin,$assignmentId,bin2hex(random_bytes(16)));
     $modelAssignmentTerms=$assignments->applicantAssignments($applicationId);
     $modelAssignmentTerm=array_values(array_filter($modelAssignmentTerms,static fn(array $item):bool=>$item['id']===$assignmentId));
     $assert(count($modelAssignmentTerm)===1 &&
@@ -351,7 +352,6 @@ function runModelPortfolioIntegration(PDO $pdo): int
         (int)$modelAssignmentTerm[0]['execution_evidence_ready']===0 && $modelAssignmentTerm[0]['response_enabled']===true &&
         !array_key_exists('commission_basis_points',$modelAssignmentTerm[0]),
         'verified model workspace receives decrypted assignment terms while internal agency commission remains private');
-    $assignments->offer($admin,$assignmentId,bin2hex(random_bytes(16)));
     try {
         $assignments->confirm($admin,$assignmentId,bin2hex(random_bytes(16)));
         $assert(false,'assignment cannot be confirmed before external execution and model-consent evidence are recorded');
