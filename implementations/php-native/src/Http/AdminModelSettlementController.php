@@ -26,10 +26,14 @@ final class AdminModelSettlementController
         if($actor===null) return Response::redirect('/admin/login');
         try {
             $assignments=$this->settlements->assignments($actor);
-            $expenses=[];
-            foreach($assignments as $assignment) $expenses[$assignment['id']]=$this->settlements->expenses($actor,(string)$assignment['id']);
+            $expenses=[];$expenseIdempotencyKeys=[];
+            foreach($assignments as $assignment) {
+                $expenses[$assignment['id']]=$this->settlements->expenses($actor,(string)$assignment['id']);
+                $expenseIdempotencyKeys[$assignment['id']]=bin2hex(random_bytes(16));
+            }
             return Response::html($this->views->render('admin/model-settlements',[
                 'assignments'=>$assignments,'expenses'=>$expenses,'settlements'=>$this->settlements->list($actor),
+                'expenseIdempotencyKeys'=>$expenseIdempotencyKeys,
                 'error'=>$error,'csrf'=>Csrf::issue(),'brandName'=>$this->brandName,
             ]),$status);
         } catch(DomainException) {
@@ -42,7 +46,7 @@ final class AdminModelSettlementController
         return $this->mutate($request,function($actor) use($request,$params):void {
             $this->settlements->addExpense($actor,(string)($params['id']??''),$this->field($request,'amount'),
                 strtoupper($this->field($request,'currency')),$this->field($request,'description'),
-                $this->field($request,'evidence_reference'),$request->requestId);
+                $this->field($request,'evidence_reference'),$this->field($request,'idempotency_key'));
         });
     }
 
