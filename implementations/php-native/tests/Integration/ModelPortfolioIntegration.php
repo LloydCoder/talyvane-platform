@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 use Talyvane\Application\ModelAgency\ModelPortfolioService;
-use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
 use Talyvane\Application\ModelAgency\ModelAgencyAgreementService;
 use Talyvane\Application\ModelAgency\ModelImageLicenceService;
 use Talyvane\Infrastructure\Audit\AuditLogger;
@@ -20,15 +19,24 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $adminId=(string)$pdo->query('SELECT id FROM users WHERE email="native-admin@example.test"')->fetchColumn();
     if($adminId==='') throw new RuntimeException('Model portfolio integration requires the identity integration administrator.');
     $admin=new Principal($adminId,['super_admin'],true);
-    $applications=new ModelAgencyApplicationService($pdo,new AuditLogger($pdo));
-    $applicationId=$applications->submit(
-        'Portfolio Test Applicant','portfolio-applicant@example.test','+441234567891','GB','London',null,
-        'Private portfolio integration test applicant summary.',true,true,'model-privacy-v1',bin2hex(random_bytes(16))
-    );
-    $verifier=new Principal($adminId,['super_admin','verifier'],true);
-    $applications->review($admin,$applicationId,'under_review','Portfolio integration applicant entered review.',bin2hex(random_bytes(16)));
-    $applications->verifyAdultEligibility($verifier,$applicationId,'independent_provider_check','portfolio-provider-reference-verified','verified',365,bin2hex(random_bytes(16)));
-    $applications->review($admin,$applicationId,'accepted','Portfolio integration applicant accepted after independent verification.',bin2hex(random_bytes(16)));
+    $applicationId=sprintf('%08x-%04x-4%03x-8%03x-%012x',random_int(0,0xffffffff),random_int(0,0xffff),random_int(0,0xfff),random_int(0,0xfff),random_int(0,0xffffffffffff));
+    $pdo->prepare(
+        'INSERT INTO model_talent_applications
+         (id,application_reference,applicant_name,email,phone,country_code,city,portfolio_url,experience_summary,
+          adult_eligibility_attested_at,privacy_acknowledged_at,privacy_notice_version,status,legal_hold,created_at,updated_at)
+         VALUES (:id,:reference,"Portfolio Test Applicant","portfolio-applicant@example.test",NULL,"GB","London",NULL,
+          "Synthetic integration fixture for private model portfolio testing.",UTC_TIMESTAMP(),UTC_TIMESTAMP(),
+          "model-privacy-test-v1","accepted",0,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+    )->execute(['id'=>$applicationId,'reference'=>'APP-PORTFOLIO-'.strtoupper(bin2hex(random_bytes(4)))]);
+    $pdo->prepare(
+        'INSERT INTO model_applicant_verifications
+         (id,application_id,verifier_user_id,verification_method,provider_reference_hash,outcome,policy_version,verified_at,expires_at,created_at)
+         VALUES (:id,:application,:verifier,"independent_provider_check",:reference,"verified","adult-check-v1",
+          UTC_TIMESTAMP(),DATE_ADD(UTC_TIMESTAMP(),INTERVAL 365 DAY),UTC_TIMESTAMP())'
+    )->execute([
+        'id'=>sprintf('%08x-%04x-4%03x-8%03x-%012x',random_int(0,0xffffffff),random_int(0,0xffff),random_int(0,0xfff),random_int(0,0xfff),random_int(0,0xffffffffffff)),
+        'application'=>$applicationId,'verifier'=>$adminId,'reference'=>hash('sha256','portfolio-verification-fixture'),
+    ]);
     $pdo->prepare(
         'INSERT INTO deployment_settings (setting_key,setting_json,version,updated_by,updated_at)
          VALUES ("model_agency.portfolio",:settings,1,:actor,UTC_TIMESTAMP())
