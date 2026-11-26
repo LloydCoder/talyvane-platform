@@ -201,7 +201,11 @@ final class BookingService
                 $this->recordEvent($bookingId,null,'system','requested','confirmed','Automatic rules and companion opt-in satisfied',$policy->version);
             }
             if ($this->notifications !== null) {
-                $this->notifications->enqueue($bookingId,(string)$profile['companion_user_id'],$autoEligible?'booking.confirmed':'booking.requested');
+                $eventKey=$autoEligible?'booking.confirmed':'booking.requested';
+                $this->notifications->enqueue($bookingId,(string)$profile['companion_user_id'],$eventKey);
+                if ($autoEligible) {
+                    $this->notifications->enqueue($bookingId,$client->id,'booking.confirmed');
+                }
             }
             $this->audit->record($client->id,'booking.requested','booking',$bookingId,'Client booking request created',null,[
                 'status'=>$autoEligible ? 'confirmed' : 'requested',
