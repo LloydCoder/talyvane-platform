@@ -221,6 +221,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
         !str_contains((string)($noticePayload['body']??''),'Verified editorial commissioning client') &&
         !str_contains((string)($noticePayload['body']??''),'private/model-licences/'),
         'model consent notice is encrypted at rest and omits licence terms and internal evidence references');
+    $pdo->prepare('UPDATE communication_outbox SET status="delivered",delivered_at=UTC_TIMESTAMP() WHERE id=:id')->execute(['id'=>$noticeRow['id']]);
     $offered=$pdo->prepare('SELECT status,execution_evidence_reference,applicant_consent_terms_hash FROM model_image_licences WHERE id=:id');$offered->execute(['id'=>$licenceId]);$offeredRow=$offered->fetch(PDO::FETCH_ASSOC);
     $grant->execute(['id'=>$draftRow['consent_grant_id']]);
     $portalLicence=array_values(array_filter($licences->applicantPortalLicences($applicationId),static fn(array $item):bool=>$item['id']===$licenceId));
