@@ -79,6 +79,7 @@ $escape=static fn(mixed $value):string=>htmlspecialchars((string)$value,ENT_QUOT
 <label>Evidence reference<input name="evidence_reference" minlength="8" maxlength="190" required value="<?= $escape($evidenceItem['evidence_reference']??'') ?>" placeholder="Vault ticket, backup job, provider case ID"></label>
 <label>Legal-basis reference (required for retained records)<input name="legal_basis_reference" maxlength="190" value="<?= $escape($evidenceItem['legal_basis_reference']??'') ?>"></label>
 <label>Retention expiry (required for retained records)<input type="date" name="retention_until" value="<?= $escape(is_string($evidenceItem['retention_until']??null)?substr($evidenceItem['retention_until'],0,10):'') ?>"></label>
+<p class="meta">Clear the retention date before changing a previously retained system to Cleared or Not applicable. Do not include personal data, credentials or secret URLs in evidence references or rationale.</p>
 <label>Review rationale<textarea name="reason" minlength="10" maxlength="500" required></textarea></label>
 <button class="button" type="submit">Record Owner attestation</button>
 </form>
