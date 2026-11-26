@@ -105,6 +105,7 @@ final class PublicModelAgencyRightsController
         $id=$this->rightsId();
         if($id===null || $this->portfolio===null) return Response::redirect('/model-agency/privacy');
         $upload=$request->files['portfolio_image']??null;
+        if($this->field($request,'applicant_attestation')!=='yes') return $this->showPortal($id,$request->requestId,'Confirm the private portfolio rights and consent attestation before uploading.',422);
         if(!is_array($upload)) return $this->showPortal($id,$request->requestId,'Choose a portfolio image before uploading.',422);
         try {
             $assetId=$this->portfolio->storeByVerifiedApplicantPortal($id,$upload,[
@@ -154,6 +155,7 @@ final class PublicModelAgencyRightsController
     public function portalLogout(Request $request): Response
     {
         SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
         $this->clearContext();
         return Response::redirect('/model-agency/privacy');
     }
