@@ -227,6 +227,100 @@ final class PortalPrivacyRightsAdminService
         }
     }
 
+    /**
+     * Fulfil a verified client erasure request by anonymizing the account record.
+     * Financial, booking, safeguarding, support and enquiry records are retained
+     * only when absent; any dependency that requires separate retention review
+     * fails closed. This does not claim to erase backups or third-party copies.
+     */
+    public function fulfillClientErasure(
+        Principal $actor,string $requestId,string $reason,string $correlationId
+    ): void {
+        Authorization::require($actor,'privacy.requests.review');
+        $reason=trim($reason);
+        if(!self::isUuid($requestId) || strlen($reason)<20 || strlen($reason)>500 ||
+            strlen($correlationId)<16 || strlen($correlationId)>64) {
+            throw new \InvalidArgumentException('Client erasure review details are invalid.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare(
+                'SELECT id,user_id,account_type,request_type,status
+                 FROM portal_privacy_requests WHERE id=:id FOR UPDATE'
+            );
+            $query->execute(['id'=>$requestId]);
+            $request=$query->fetch(PDO::FETCH_ASSOC);
+            if(!is_array($request) || $request['status']!=='in_review' ||
+                $request['request_type']!=='erasure' || $request['account_type']!=='client') {
+                throw new \DomainException('Only a verified client erasure request awaiting review can be fulfilled.');
+            }
+            $userQuery=$this->pdo->prepare(
+                'SELECT id,email,status FROM users WHERE id=:id FOR UPDATE'
+            );
+            $userQuery->execute(['id'=>$request['user_id']]);
+            $user=$userQuery->fetch(PDO::FETCH_ASSOC);
+            $rolesQuery=$this->pdo->prepare(
+                'SELECT role_key FROM user_roles WHERE user_id=:id ORDER BY role_key'
+            );
+            $rolesQuery->execute(['id'=>$request['user_id']]);
+            $roles=$rolesQuery->fetchAll(PDO::FETCH_COLUMN);
+            if(!is_array($user) || $user['status']!=='active' || $roles!==['client']) {
+                throw new \DomainException('Only an active account with an exclusive client role can be anonymized.');
+            }
+
+            $blockers=[
+                ['SELECT COUNT(*) FROM bookings WHERE client_user_id=:id','client_user_id'],
+                ['SELECT COUNT(*) FROM memberships WHERE client_user_id=:id','client_user_id'],
+                ['SELECT COUNT(*) FROM payment_invoices WHERE client_user_id=:id','client_user_id'],
+                ['SELECT COUNT(*) FROM support_tickets WHERE client_user_id=:id','client_user_id'],
+                ['SELECT COUNT(*) FROM safeguarding_cases WHERE reporter_user_id=:id','reporter_user_id'],
+                ['SELECT COUNT(*) FROM enquiries WHERE email=:email','email'],
+            ];
+            foreach($blockers as [$sql,$field]) {
+                $check=$this->pdo->prepare($sql);
+                $check->execute([$field==='email'?'email':'id'=>$field==='email'?$user['email']:$user['id']]);
+                if((int)$check->fetchColumn()>0) {
+                    throw new \DomainException('Client erasure is blocked by retained booking, membership, financial, support, safeguarding or enquiry records; complete a documented retention review first.');
+                }
+            }
+
+            $this->pdo->prepare('DELETE FROM client_favorites WHERE client_user_id=:id')
+                ->execute(['id'=>$user['id']]);
+            $this->pdo->prepare('DELETE FROM auth_challenges WHERE user_id=:id')
+                ->execute(['id'=>$user['id']]);
+            $this->pdo->prepare(
+                'UPDATE portal_privacy_requests
+                 SET payload_ciphertext=NULL,otp_hash="",status=IF(id=:request,"fulfilled","superseded"),
+                     decision_reason=IF(id=:request,:reason,decision_reason),
+                     reviewed_by=IF(id=:request,:reviewer,reviewed_by),
+                     reviewed_at=IF(id=:request,UTC_TIMESTAMP(),reviewed_at),
+                     completed_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP()
+                 WHERE user_id=:user AND status IN ("pending","in_review")'
+            )->execute(['request'=>$requestId,'reason'=>$reason,'reviewer'=>$actor->id,'user'=>$user['id']]);
+
+            $pseudonym='erased+'.str_replace('-','',(string)$user['id']).'@privacy.invalid';
+            $this->pdo->prepare(
+                'UPDATE users SET email=:email,password_hash=:password,status="erased",
+                    email_verified_at=NULL,first_login_required=0,remember_token_hash=NULL,
+                    admin_session_version=admin_session_version+1,updated_at=UTC_TIMESTAMP()
+                 WHERE id=:id AND status="active"'
+            )->execute([
+                'email'=>$pseudonym,'password'=>password_hash(bin2hex(random_bytes(48)),PASSWORD_DEFAULT),
+                'id'=>$user['id'],
+            ]);
+            $this->pdo->prepare('DELETE FROM user_roles WHERE user_id=:id')
+                ->execute(['id'=>$user['id']]);
+            $this->audit->record($actor->id,'portal.privacy.client.erasure.fulfilled','portal_privacy_request',$requestId,
+                'Verified client account anonymized after dependency and retention checks',
+                ['account_status'=>'active'],['account_status'=>'erased','fields'=>['email','credentials','roles','favorites'],'reason'=>$reason],
+                $correlationId,'portal-privacy-rights-v1');
+            $this->pdo->commit();
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
     private static function isUuid(string $value): bool
     {
         return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iD',$value)===1;
