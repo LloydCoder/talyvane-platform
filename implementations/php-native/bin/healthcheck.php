@@ -69,12 +69,14 @@ foreach (['storage', 'logs', 'backups'] as $key) {
     $path = $paths[$key] ?? null;
     $private = is_string($path) && $path !== '' && !is_link($path) &&
         is_dir($path) && is_writable($path) ? realpath($path) : false;
-    $valid = $documentRoot !== false && $private !== false &&
+    $mode = $private === false ? false : fileperms($private);
+    $restricted = $mode !== false && (($mode & 0077) === 0) && (($mode & 0200) !== 0);
+    $valid = $documentRoot !== false && $private !== false && $restricted &&
         $private !== $documentRoot &&
         !str_starts_with($private . DIRECTORY_SEPARATOR, rtrim($documentRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR);
     $record('private_' . $key, $valid, $valid
-        ? 'Directory exists, is writable, and is outside the configured document root.'
-        : 'Directory is missing, not writable, linked, or its public-root separation cannot be proven.');
+        ? 'Directory exists, is owner-writable, has no group/world permissions, and is outside the configured document root.'
+        : 'Directory is missing, not owner-writable, group/world-accessible, linked, or its public-root separation cannot be proven.');
 }
 
 $dbConfig = $config['database'] ?? null;
