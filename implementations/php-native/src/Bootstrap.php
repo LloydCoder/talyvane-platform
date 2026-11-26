@@ -231,7 +231,7 @@ final class Bootstrap
         $publicModelAgency = new PublicModelAgencyController($pdo, $modelApplications, $contentManagement, $rateLimiter, $modelApplicantRights, $views);
         $adminModelAgency = new AdminModelAgencyController($authentication, $modelApplications, $views, $brandName);
         $adminModelCasting = new AdminModelCastingController($authentication,$modelCasting,$views,$brandName);
-        $clientModelDistribution = new ClientModelAgencyDistributionService($pdo,$mediaStorage,$audit);
+        $clientModelDistribution = new ClientModelAgencyDistributionService($pdo,$mediaStorage,$audit,$modelAgencyCipher);
         $adminModelClientDistribution = new AdminModelClientDistributionController($authentication,$clientModelDistribution,$views,$brandName);
         $clientModelAgency = new ClientModelAgencyController($authentication,$clientModelDistribution,$views,$brandName);
         $modelAssignments = new ModelAssignmentService($pdo,$audit,$modelAgencyCipher,$mediaStorage,static fn():bool=>$castingAvailability->enabled('model-agency.assignments'));
