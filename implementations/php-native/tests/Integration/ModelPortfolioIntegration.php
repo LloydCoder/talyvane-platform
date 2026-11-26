@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use Talyvane\Application\ModelAgency\ModelPortfolioService;
+use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
 use Talyvane\Security\Principal;
@@ -15,8 +16,17 @@ function runModelPortfolioIntegration(PDO $pdo): int
         if(!$ok) throw new RuntimeException('Model portfolio integration failed: '.$message);
     };
     $adminId=(string)$pdo->query('SELECT id FROM users WHERE email="native-admin@example.test"')->fetchColumn();
-    $applicationId=(string)$pdo->query('SELECT id FROM model_talent_applications WHERE status="accepted" AND legal_hold=0 ORDER BY updated_at DESC LIMIT 1')->fetchColumn();
-    if($adminId==='' || $applicationId==='') throw new RuntimeException('Model portfolio integration requires an accepted, independently verified applicant and administrator.');
+    if($adminId==='') throw new RuntimeException('Model portfolio integration requires the identity integration administrator.');
+    $admin=new Principal($adminId,['super_admin'],true);
+    $applications=new ModelAgencyApplicationService($pdo,new AuditLogger($pdo));
+    $applicationId=$applications->submit(
+        'Portfolio Test Applicant','portfolio-applicant@example.test','+441234567891','GB','London',null,
+        'Private portfolio integration test applicant summary.',true,true,'model-privacy-v1',bin2hex(random_bytes(16))
+    );
+    $verifier=new Principal($adminId,['super_admin','verifier'],true);
+    $applications->review($admin,$applicationId,'under_review','Portfolio integration applicant entered review.',bin2hex(random_bytes(16)));
+    $applications->verifyAdultEligibility($verifier,$applicationId,'independent_provider_check','portfolio-provider-reference-verified','verified',365,bin2hex(random_bytes(16)));
+    $applications->review($admin,$applicationId,'accepted','Portfolio integration applicant accepted after independent verification.',bin2hex(random_bytes(16)));
     $pdo->prepare(
         'INSERT INTO deployment_settings (setting_key,setting_json,version,updated_by,updated_at)
          VALUES ("model_agency.portfolio",:settings,1,:actor,UTC_TIMESTAMP())
@@ -31,8 +41,6 @@ function runModelPortfolioIntegration(PDO $pdo): int
     mkdir($publicRoot,0700,true);mkdir($privateRoot,0700,true);
     $storage=new PrivateMediaStorage($privateRoot,$publicRoot);
     $service=new ModelPortfolioService($pdo,$storage,new AuditLogger($pdo),new SecretBox(str_repeat('P',32)),static fn():bool=>true);
-    $admin=new Principal($adminId,['super_admin'],true);
-
     $makeAsset=static function(string $suffix) use ($pdo,$adminId,$applicationId,$privateRoot): array {
         if(!function_exists('imagewebp')) throw new RuntimeException('Model portfolio integration requires GD WebP support.');
         $id=sprintf('%08x-%04x-4%03x-8%03x-%012x',random_int(0,0xffffffff),random_int(0,0xffff),random_int(0,0xfff),random_int(0,0xfff),random_int(0,0xffffffffffff));
