@@ -185,7 +185,11 @@ final class ModelAssignmentService
              FROM model_assignments ORDER BY created_at DESC LIMIT :limit'
         );
         $query->bindValue(':limit',$limit,PDO::PARAM_INT);$query->execute();$rows=$query->fetchAll(PDO::FETCH_ASSOC);
-        foreach($rows as &$row) $row['client_name']=$this->cipher->decrypt((string)$row['client_name'],'model-assignment-v1:'.$row['id'].':client_name');
+        foreach($rows as &$row) {
+            $stored=$row['client_name']??null;
+            $row['client_name']=is_string($stored) && $stored!==''?
+                $this->cipher->decrypt($stored,'model-assignment-v1:'.$row['id'].':client_name'):'Legacy assignment';
+        }
         unset($row);return $rows;
     }
 
