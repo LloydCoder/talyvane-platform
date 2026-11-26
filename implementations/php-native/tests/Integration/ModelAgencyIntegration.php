@@ -155,9 +155,21 @@ function runModelAgencyIntegration(PDO $pdo): int
     $rights->request($applicationReference,'model-applicant@example.test','erasure','203.0.113.18',bin2hex(random_bytes(16)));
     preg_match('/one-time verification code is: ([0-9]{8})/',$rightsMailer->messages[4]['body'],$eraseMatch);
     $eraseId = $rights->verify($applicationReference,'model-applicant@example.test',$eraseMatch[1] ?? '','203.0.113.19',bin2hex(random_bytes(16)));
-    $assert($rights->erase((string) $eraseId,bin2hex(random_bytes(16))),'verified erasure proceeds after legal hold is released');
+    $assert(!$rights->erase((string) $eraseId,bin2hex(random_bytes(16))),
+        'applicant erasure is deferred when a representation agreement exists, even after legal-hold release');
+
+    $eraseApplicationId = $service->submit(
+        'Erasure Candidate','erase-candidate@example.test',null,'GB','Bristol',null,null,
+        true,true,'model-privacy-v1',bin2hex(random_bytes(16))
+    );
+    $eraseReference = (string) $pdo->query('SELECT application_reference FROM model_talent_applications WHERE id = '.$pdo->quote($eraseApplicationId))->fetchColumn();
+    $rights->request($eraseReference,'erase-candidate@example.test','erasure','203.0.113.20',bin2hex(random_bytes(16)));
+    preg_match('/one-time verification code is: ([0-9]{8})/',$rightsMailer->messages[5]['body'],$cleanEraseMatch);
+    $cleanEraseId = $rights->verify($eraseReference,'erase-candidate@example.test',$cleanEraseMatch[1] ?? '','203.0.113.21',bin2hex(random_bytes(16)));
+    $assert($rights->erase((string) $cleanEraseId,bin2hex(random_bytes(16))),
+        'verified applicant erasure proceeds only after legal hold, agreement and private-media blockers are absent');
     $erased = $pdo->prepare('SELECT applicant_name,email,phone,country_code,city,portfolio_url,experience_summary,anonymized_at,status FROM model_talent_applications WHERE id = :id');
-    $erased->execute(['id'=>$applicationId]);
+    $erased->execute(['id'=>$eraseApplicationId]);
     $erasedRow = $erased->fetch();
     $assert(is_array($erasedRow) && $erasedRow['status'] === 'anonymized' && $erasedRow['anonymized_at'] !== null &&
         $erasedRow['applicant_name'] === 'Erased applicant' && $erasedRow['country_code'] === null &&
