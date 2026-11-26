@@ -1,5 +1,7 @@
 # cPanel customer installation
 
+This guide describes the Laravel cPanel deployment path. The parallel native PHP candidate has a separate installer, package and operator guide; its exact validation and release blockers are recorded in [NATIVE-PHP-PORT-STATUS.md](NATIVE-PHP-PORT-STATUS.md) and [the native cPanel guide](../implementations/php-native/README.md). Do not substitute one package or document root layout for the other.
+
 This is the customer-facing installation procedure for the single-ZIP cPanel package. It replaces the older multi-archive/public-root bundle procedure. The ZIP must come from an approved, versioned Talyvane release; a GitHub source archive or CI test artifact is not a customer installer.
 
 ## Hosting requirements
