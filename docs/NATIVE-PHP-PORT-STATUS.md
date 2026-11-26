@@ -1,13 +1,12 @@
 # Native PHP port — reconciled implementation status
 
 **Repository:** `LloydCoder/talyvane-platform`  
-**Branch:** `feat/native-private-gallery`  
-**Pull request:** [#93](https://github.com/LloydCoder/talyvane-platform/pull/93) — open, draft, unmerged  
-**Status:** substantial implementation in progress; not complete, not a production release, and not yet approved for deployment.
+**Main baseline:** `9df1a0f7a50f71bf1f4f2a0a81c519cc4db2ddff`  
+**Status:** substantial native implementation in progress; not complete, not a production release, and not approved for deployment.
 
 ## Authority and how to read this status
 
-The Laravel application and the product/security/compliance documents in `/docs` remain the behavioral and requirements reference. The native PHP implementation is a separate implementation track. Do not infer that a native-only feature has been merged into Laravel or deployed merely because it exists on this branch.
+The Laravel application and the product/security/compliance documents in `/docs` remain the behavioral and requirements reference. The native PHP implementation is a separate implementation track. Do not infer that a native-only feature has been merged into Laravel or deployed merely because it exists in the native application.
 
 Use the following order when determining native parity:
 
@@ -19,24 +18,21 @@ Use the following order when determining native parity:
 
 A route, view, table, stub, static test or successful package build is not by itself feature parity.
 
-**Latest runtime change (2026-11-26):** fulfilled client-name and companion-profile corrections enqueue encrypted generic completion notices; notices exclude corrected personal values and companion profiles remain draft for independent republication review. Validation at head `d9ae917d06f0834c088f13112c055c0ff32539a` is pending; prior results do not validate this change. A feature is verified only when positive and negative behavior, authorization, audit, data handling, integration and operational acceptance are evidenced.
+## Merged implementation and validation baseline
 
-## Current head and validation
+- PR #90 merged initial native runtime/installer foundations into `main` as `9123d08c4dc47b52a943c5531c6365e9e0d59810`.
+- PR #93 merged the 38-migration native booking, privacy, casting, assignment, membership/gallery and safeguarding increment as `b6fd78e342b47e1bbbee9b5e80801a00baa977f8`.
+- PR #87 merged hardened private cPanel installer diagnostics as `9df1a0f7a50f71bf1f4f2a0a81c519cc4db2ddff`.
+- PR #91 was closed as superseded. There were no open PRs from that set after those actions.
 
-Latest runtime-affecting implementation includes privacy correction completion notices (client and companion) with encrypted generic messages and regression coverage. Runtime commit: `d9ae917d06f0834c088f13112c055c0ff32539a6`; current branch head: `1b713deff01c97e14e5dba770f159da9f6eaa290` (docs-only follow-up). Current-head results observed during this reconciliation: PHP 8.3/8.4/8.5 native tests passed; MySQL migration/integration passed; Semgrep security analysis passed; native cPanel package verification passed; single-ZIP package build passed. General CI and standalone release package smoke passed at `1b713de`; both browser-installation E2E runs were cancelled when newer commits superseded them. Fresh native/MySQL checks are running at `eef19b7`. Results are repository-level only, not live-host acceptance. The table below records historical passes at their stated refs and must not be read as current-head browser/CI evidence:
+Exact native parity head `0d836a9cf7c051ef31f9f42b7d6b2ad3a7662ac3` passed native PHP 8.3/8.4/8.5 tests, MySQL migration/integration, Semgrep, native package verification, single-ZIP cPanel package, native installer browser E2E, Laravel feature CI and standalone release-package smoke (workflow runs 45830668363, 45830668306, 45830668346, 45830668297, 45830668209, 45830668238 and 45830668285). The later private-installer diagnostics head `f6b14f37ebd8ea936e638de91189d8478fa683ab` passed PHP matrix, Semgrep, package, installer browser E2E and standalone package smoke (runs 45832598812, 45832599142, 45832599029 and 45832598827).
 
-| Check | Exact-head result |
-|---|---|
-| PHP 8.3/8.4/8.5 native implementation tests | Passed |
-| MySQL 8.0 migrations/integration | Passed |
-| Security analysis | Passed |
-| Native cPanel package contract | Passed |
-| Single-ZIP cPanel package build | Passed |
-| Native installer browser E2E | Passed |
-| Laravel installer browser E2E | Passed at exact validated branch head `37a4c72` |
-| General CI / Laravel release smoke | Passed at exact validated branch head `37a4c72` |
+These are repository-level checks only. They do not establish actual HostSailor cPanel/LiteSpeed acceptance, SMTP operation on the target host, external Vault/key custody, legal/provider approval, independent security certification or production readiness. Any later runtime change requires fresh exact-head validation.
 
-The PR remains open, draft and unmerged. The current native branch has 38 ordered migrations. At `1b713de`, general CI and standalone release package smoke passed; browser-installation E2E runs were cancelled by superseding commits. Fresh native/MySQL checks are running at `eef19b7`; no current-head browser E2E result is available. Real-host acceptance and external release gates remain open. Any later runtime change requires fresh exact-head validation.
+## Current implementation phase
+
+Branch `feat/native-crm-communications` adds versioned locale-specific CRM response templates, MFA-authorized reply queueing, encrypted recipient/payload outbox records, idempotency and delivery-state reconciliation. This phase remains unverified until its exact-head PHP, MySQL, security, package and browser workflows pass. No production mail delivery is implied until the private cPanel cron and target SMTP are configured and accepted.
+
 ## Implemented native domains — partial vertical slices
 
 | Domain | Implemented on this branch | Remaining parity / acceptance |
@@ -49,7 +45,7 @@ The PR remains open, draft and unmerged. The current native branch has 38 ordere
 | Model agency | Separate applicant intake/rights, human verification, representation agreements, private portfolio, purpose-bound image licences, private casting calls/submissions/shortlist/selection, admin assignment lifecycle and settlement ledger; OTP-verified applicant portfolio inventory and single-asset withdrawal now revokes consent/licences and invalidates dependent casting submissions | Broader model self-service, client casting/assignment distribution, e-signature/evidence custody, assignment booking/calendar, usage monitoring, tax/invoices/statutory reports |
 | Payments | Payment configuration foundations and model settlement calculations/approvals/external payment attestations | No full customer payment provider integration, chain watchers, card underwriting, invoice/reconciliation/refund/dispute automation or actual funds movement |
 | Safeguarding | Restricted case intake/access, encrypted case content, assigned specialists, MFA Owner/Super Admin legal-hold governance, retention policy and restore-verification controls, encrypted notification outbox and dispatch path | External Vault/key custody and real restore drill; external-system holds; full incident/appeal/correction operations; operational escalation/response exercises and backup expiry evidence |
-| CRM and communications | Enquiry intake/pipeline/assignment, encrypted internal notes, follow-up reminders, bounded inbox pagination, shared notification transport for booking, safeguarding and privacy outcomes | CRM-specific templates/outbox delivery, response workflows, provider breadth, delivery diagnostics/monitoring and browser acceptance |
+| CRM and communications | Enquiry intake/pipeline/assignment, encrypted internal notes, follow-up reminders, bounded inbox pagination; current phase adds versioned response templates, MFA-gated reply queueing, encrypted idempotent outbox and SMTP delivery attempts | Exact-head test/HTTP acceptance; bounce/complaint reconciliation, delivery monitoring/alerting, template approval lifecycle, provider breadth and broader CRM workflows |
 | Globalization/content | ISO country/currency reference snapshots, markets, destinations, CMS, branding and baseline locale/time-zone fields | Translation management/fallback, full locale formatting, market-specific pricing/tax, reports and external integrations |
 | Audit and operations | Append-only application audit controls, private error logs, healthcheck, bounded notification CLI and file-level SPDX SBOM | Independent DB immutability/security review, monitoring/alerting, full dependency SBOM, signing/provenance, tested backups and recovery |
 
