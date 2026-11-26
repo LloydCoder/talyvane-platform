@@ -192,6 +192,23 @@ function runIdentityIntegration(PDO $pdo): int
     $profile = $profileQuery->fetch();
     $assert(is_array($profile) && $profile['status'] === 'pending_review' && $profile['adult_eligibility_status'] === 'verified','companion profile requires independent age assurance and remains pending human publication review');
     $assert(is_array($profile) && !(bool) $profile['auto_booking_opt_in'] && $profile['adult_verified_by'] === $id,'companion onboarding never enables automatic booking and records verifier');
+    $companionActor=new Principal($companionId,['companion'],false);
+    $availabilityService=new CompanionAvailabilityService($pdo,$audit,new FeatureAvailability([],static fn(string $dependency):bool=>false));
+    $pdo->prepare('UPDATE companion_profiles SET auto_booking_opt_in=1 WHERE id=:id')->execute(['id'=>$profileId]);
+    $availabilityService->setAutomaticBookingPreference($companionActor,$profileId,false,false,bin2hex(random_bytes(16)));
+    $autoPreference=$pdo->prepare('SELECT auto_booking_opt_in FROM companion_profiles WHERE id=:id');
+    $autoPreference->execute(['id'=>$profileId]);
+    $assert(!(bool)$autoPreference->fetchColumn(),'companion can immediately opt out of automatic booking while deployment feature gates are closed');
+    $optOutAudit=$pdo->prepare('SELECT event_key FROM audit_events WHERE actor_user_id=:actor AND subject_id=:subject AND event_key="companion.automatic_booking.opted_out"');
+    $optOutAudit->execute(['actor'=>$companionId,'subject'=>$profileId]);
+    $assert($optOutAudit->fetchColumn()==='companion.automatic_booking.opted_out','companion automatic-booking opt-out is audited');
+    try {
+        $availabilityService->setAutomaticBookingPreference($companionActor,$profileId,true,true,bin2hex(random_bytes(16)));
+        $assert(false,'companion cannot opt in while automatic-booking deployment prerequisites are disabled');
+    } catch (DomainException) {
+        $assert(true,'companion cannot opt in while automatic-booking deployment prerequisites are disabled');
+    }
+
     $consentCount = $pdo->prepare('SELECT COUNT(*) FROM consent_grants WHERE subject_type = "companion_profile" AND subject_id = :profile AND purpose = "profile.publication" AND audience = "public" AND granted = 1');
     $consentCount->execute(['profile'=>$profileId]);
     $assert((int) $consentCount->fetchColumn() === 1,'public profile requires explicit versioned publication consent');
