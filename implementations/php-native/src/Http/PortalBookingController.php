@@ -156,10 +156,9 @@ final class PortalBookingController
             $zone=new DateTimeZone((string) $booking['time_zone']);
             $localStart=(new DateTimeImmutable((string) $booking['starts_at_utc'],new DateTimeZone('UTC')))->setTimezone($zone)->format('Y-m-d\TH:i');
             $localEnd=(new DateTimeImmutable((string) $booking['ends_at_utc'],new DateTimeZone('UTC')))->setTimezone($zone)->format('Y-m-d\TH:i');
-            return $this->page('client-reschedule',[],$error,$status,[
+            return $this->page('client-reschedule',[],$error,$status,array_replace([
                 'booking'=>$booking,'localStart'=>$localStart,'localEnd'=>$localEnd,'formValues'=>$request->body,
-            ],$extra);
-            ]);
+            ],$extra));
         } catch (DomainException) {
             return $this->clientIndex($request,'You do not have permission to reschedule this booking.',403);
         }
