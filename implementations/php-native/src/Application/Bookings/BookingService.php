@@ -172,7 +172,7 @@ final class BookingService
                 throw new \DomainException('Requested time overlaps an existing booking or pending request.');
             }
 
-            $autoEligible = $policy->automaticEnabled && (bool) $profile['auto_booking_opt_in'] &&
+            $autoEligible = $policy->automaticEnabled && $policy->autoConfirmEnabled && (bool) $profile['auto_booking_opt_in'] &&
                 !$policy->depositRequired && $this->isWithinCompanionAvailability($profileId,$start,$end) &&
                 $this->automaticFeatureAvailable($market,$consent,$profileId,$now);
             $mode = $autoEligible ? 'automatic' : 'manual';
