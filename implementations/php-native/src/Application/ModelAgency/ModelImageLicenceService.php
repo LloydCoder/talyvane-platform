@@ -349,7 +349,7 @@ final class ModelImageLicenceService
 
     private function invalidateSubmissions(string $licenceId,?string $actorId,string $reason): void
     {
-        $q=$this->pdo->prepare('SELECT id,call_id FROM model_casting_submissions WHERE image_licence_id=:licence AND status IN ("submitted","shortlisted","selected") FOR UPDATE');
+        $q=$this->pdo->prepare('SELECT id,casting_call_id FROM model_casting_submissions WHERE image_licence_id=:licence AND status IN ("submitted","shortlisted","selected") FOR UPDATE');
         $q->execute(['licence'=>$licenceId]);
         foreach($q->fetchAll(PDO::FETCH_ASSOC) as $submission) {
             $this->pdo->prepare('UPDATE model_casting_submissions SET status="invalidated",invalidated_at=UTC_TIMESTAMP(),invalidation_reason=:reason,updated_at=UTC_TIMESTAMP() WHERE id=:id')
@@ -357,7 +357,7 @@ final class ModelImageLicenceService
             $this->pdo->prepare(
                 'INSERT INTO model_casting_events (id,call_id,submission_id,actor_id,actor_type,event_type,reason,occurred_at,created_at,updated_at)
                  VALUES (:id,:call,:submission,:actor,:actor_type,"casting.submission_invalidated","Submission invalidated because its image licence is no longer active.",UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
-            )->execute(['id'=>self::uuid(),'call'=>$submission['call_id'],'submission'=>$submission['id'],'actor'=>$actorId,'actor_type'=>$actorId===null?'system':'administrator']);
+            )->execute(['id'=>self::uuid(),'call'=>$submission['casting_call_id'],'submission'=>$submission['id'],'actor'=>$actorId,'actor_type'=>$actorId===null?'system':'administrator']);
         }
     }
 
