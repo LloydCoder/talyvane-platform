@@ -769,9 +769,13 @@ function runIdentityIntegration(PDO $pdo): int
     ],bin2hex(random_bytes(16)));
 
     $bookingSettingsService=new BookingSettingsService($pdo,$audit,new FeatureAvailability([],static fn(string $dependency):bool=>false));
+    $initialBookingJson=(string)$pdo->query('SELECT setting_json FROM deployment_settings WHERE setting_key="booking.rules"')->fetchColumn();
+    $initialBookingVersion=(int)$pdo->query('SELECT version FROM deployment_settings WHERE setting_key="booking.rules"')->fetchColumn();
     $initialBookingSettings=$bookingSettingsService->current($featureAdmin);
-    $assert($initialBookingSettings['minimum_notice_hours']===12 && $initialBookingSettings['auto_requires_verified_deposit']===true,
-        'native booking policy defaults match Laravel 12-hour notice and verified-deposit defaults');
+    $initialRuntimePolicy=(new BookingPolicyRepository($pdo))->current();
+    $assert($initialBookingSettings['minimum_notice_hours']===(int)ceil($initialRuntimePolicy->minimumNoticeMinutes/60) &&
+        $initialBookingSettings['auto_requires_verified_deposit']===$initialRuntimePolicy->depositRequired,
+        'booking settings workspace reads the same effective values as the runtime booking policy repository');
     $bookingSettingsService->update($featureAdmin,[
         'booking_mode'=>'manual','auto_confirm_enabled'=>false,'auto_requires_verified_deposit'=>true,
         'minimum_notice_hours'=>24,'maximum_advance_days'=>60,'client_cancellation_enabled'=>true,
@@ -792,15 +796,8 @@ function runIdentityIntegration(PDO $pdo): int
     } catch (DomainException) {
         $assert(true,'automatic booking mode cannot be configured while independent operational feature gates are closed');
     }
-    $bookingSettingsService->update($featureAdmin,[
-        'booking_mode'=>$initialBookingSettings['booking_mode'],
-        'auto_confirm_enabled'=>$initialBookingSettings['auto_confirm_enabled'],
-        'auto_requires_verified_deposit'=>$initialBookingSettings['auto_requires_verified_deposit'],
-        'minimum_notice_hours'=>$initialBookingSettings['minimum_notice_hours'],
-        'maximum_advance_days'=>$initialBookingSettings['maximum_advance_days'],
-        'client_cancellation_enabled'=>$initialBookingSettings['client_cancellation_enabled'],
-        'cancellation_cutoff_hours'=>$initialBookingSettings['cancellation_cutoff_hours'],
-    ],bin2hex(random_bytes(16)));
+    $restoreBooking=$pdo->prepare('UPDATE deployment_settings SET setting_json=:json,version=:version,updated_by=:actor,updated_at=UTC_TIMESTAMP() WHERE setting_key="booking.rules"');
+    $restoreBooking->execute(['json'=>$initialBookingJson,'version'=>$initialBookingVersion,'actor'=>$id]);
 
     $paymentAudit=$pdo->prepare('SELECT COUNT(*) FROM audit_events WHERE actor_user_id=:actor AND event_key="payment.configuration.updated"');
     $paymentAudit->execute(['actor'=>$featureAdminId]);
