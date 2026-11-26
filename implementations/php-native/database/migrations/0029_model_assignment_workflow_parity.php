@@ -71,6 +71,7 @@ return [
         ADD COLUMN created_by CHAR(36) NULL AFTER private_evidence_key,
         ADD COLUMN submitted_by CHAR(36) NULL AFTER created_by,
         ADD COLUMN review_note TEXT NULL AFTER reviewed_at,
+        ADD COLUMN encryption_version TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER review_note,
         ADD COLUMN updated_at DATETIME NULL AFTER created_at,
         MODIFY status VARCHAR(24) NOT NULL DEFAULT 'pending',
         MODIFY description TEXT NOT NULL,
