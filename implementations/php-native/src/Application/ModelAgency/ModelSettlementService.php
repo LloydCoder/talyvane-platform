@@ -29,7 +29,7 @@ final class ModelSettlementService
     {
         $this->authorize($actor);$this->requirePermission($actor,'model_settlements.expense.submit');$this->assertFeature();$this->assertRequestId($requestId);
         $description=trim($description);
-        if(strlen($description)<12 || strlen($description)>500) throw new \InvalidArgumentException('Expense description must contain 12 to 500 characters.');
+        if(strlen($description)<10 || strlen($description)>1000) throw new \InvalidArgumentException('Expense description must contain 10 to 1000 characters.');
         $this->assertEvidenceReference($evidenceReference,'private/model-expenses/');
         $requestFingerprint=hash('sha256',$actor->id."\0".$requestId);
         $this->pdo->beginTransaction();
@@ -92,8 +92,8 @@ final class ModelSettlementService
     public function reviewExpense(Principal $actor,string $expenseId,string $decision,string $note,string $requestId): void
     {
         $this->authorize($actor);$this->requirePermission($actor,'model_settlements.expense.review');$this->assertFeature();$this->assertRequestId($requestId);$note=trim($note);
-        if(!in_array($decision,['approved','rejected'],true) || strlen($note)<20 || strlen($note)>1500) {
-            throw new \InvalidArgumentException('Choose an expense decision and provide a review note of 20 to 1500 characters.');
+        if(!in_array($decision,['approved','rejected'],true) || strlen($note)<20 || strlen($note)>1000) {
+            throw new \InvalidArgumentException('Choose an expense decision and provide a review note of 20 to 1000 characters.');
         }
         $this->pdo->beginTransaction();
         try {
@@ -226,7 +226,7 @@ final class ModelSettlementService
     public function recordPayment(Principal $actor,string $settlementId,string $method,string $paymentReference,string $evidenceReference,string $requestId): void
     {
         $this->authorize($actor);$this->requirePermission($actor,'model_settlements.payment.attest');$this->assertRequestId($requestId);
-        if(!in_array($method,['bank_transfer','cash','other_external'],true) || trim($paymentReference)==='' || strlen($paymentReference)>200) {
+        if(!in_array($method,['bank_transfer','cash','other_external'],true) || trim($paymentReference)==='' || strlen($paymentReference)<4 || strlen($paymentReference)>200) {
             throw new \InvalidArgumentException('External payment method and reference are required.');
         }
         $this->assertEvidenceReference($evidenceReference,'private/model-settlements/');
