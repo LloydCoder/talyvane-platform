@@ -59,6 +59,11 @@ $record=is_array($record??null)?$record:[];
 <button class="button" type="submit">Submit privately</button></form><?php endif;?></article><?php endforeach;?>
 <h2>Casting activity</h2><?php foreach(($record['casting_submissions']??[]) as $submission):?><div class="record"><strong><?= $escape($submission['submission_reference']??'') ?></strong><span><?= $escape($submission['casting_reference']??'') ?> · <?= $escape($submission['title']??'') ?> · <?= $escape($submission['status']??'') ?></span></div><?php endforeach;?>
 <h2>Assignments</h2><?php foreach(($record['assignments']??[]) as $assignment):?><div class="record"><strong><?= $escape($assignment['assignment_reference']??'') ?></strong><span><?= $escape($assignment['project_purpose']??'') ?> · <?= $escape($assignment['status']??'') ?> · <?= $escape($assignment['shoot_starts_at']??'') ?> – <?= $escape($assignment['shoot_ends_at']??'') ?></span>
+<p><strong>Commissioning client:</strong> <?= $escape($assignment['client_name']??'') ?></p>
+<p><strong>Location:</strong> <?= $escape($assignment['location_city']??'') ?> · <?= $escape($assignment['country_code']??'') ?></p>
+<p><strong>Brief:</strong> <?= nl2br($escape($assignment['brief']??'')) ?></p>
+<p><strong>Deliverables:</strong> <?= nl2br($escape($assignment['deliverables']??'')) ?></p>
+<p><strong>Compensation:</strong> <?= $escape($assignment['currency_code']??'') ?> <?= $escape($assignment['compensation_minor']??'Not specified') ?> minor units · Expense cap <?= $escape($assignment['expense_cap_minor']??'0') ?> minor units</p>
 <?php if(($assignment['status']??'')==='offered'):?>
 <?php if((int)($assignment['execution_evidence_ready']??0)===1):?><p class="hint">The executed assignment document is on file. Review the terms shown in your agreement before accepting.</p><?php else:?><p class="hint">The agency has not yet recorded the executed assignment document. You may decline this offer, but acceptance is unavailable until that evidence is on file.</p><?php endif;?>
 <form method="post" action="/model-agency/portal/assignments/<?= $escape($assignment['id']) ?>/respond"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
