@@ -1,5 +1,7 @@
 # Standalone release packaging
 
+The Laravel standalone artifact and the native PHP single-ZIP candidate are separate release products with different package contracts. Native PHP current-head evidence and outstanding acceptance gates are maintained in [NATIVE-PHP-PORT-STATUS.md](NATIVE-PHP-PORT-STATUS.md). A passing package job is not a signed customer release.
+
 ## Current CI artifact
 
 After every complete PHP 8.3/8.4/8.5 test matrix passes, CI performs a production-only Composer installation on PHP 8.3 and creates a standalone package smoke artifact from the exact tested commit.
