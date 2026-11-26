@@ -293,11 +293,10 @@ final class ModelAssignmentService
     {
         if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId)) throw new \InvalidArgumentException('Applicant identity is invalid.');
         $query=$this->pdo->prepare(
-            'SELECT id,assignment_reference,application_id,status,project_purpose,country_code,
+            'SELECT id,assignment_reference,status,project_purpose,country_code,
                     client_name,brief,location_city,shoot_starts_at,shoot_ends_at,deliverables,
                     compensation_minor,currency_code,expense_cap_minor,terms_snapshot,applicant_response_status,
-                    applicant_response_version,applicant_response_at,applicant_response_reason,
-                    applicant_response_terms_hash
+                    applicant_response_version,applicant_response_at,applicant_response_reason
              FROM model_assignments
              WHERE application_id=:application AND status<>"draft"
              ORDER BY created_at DESC LIMIT 100'
