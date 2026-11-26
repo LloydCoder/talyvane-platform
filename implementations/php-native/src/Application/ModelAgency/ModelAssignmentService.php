@@ -197,7 +197,7 @@ final class ModelAssignmentService
     /** @deprecated Agency staff may record execution evidence, but only the model may attest acceptance. */
     public function recordAcceptance(Principal $actor,string $assignmentId,string $executedDocumentReference,string $modelConsentEvidenceReference,string $requestId): void
     {
-        throw new \\DomainException('Agency staff cannot attest model consent. Record external execution evidence, then obtain the model response in the OTP-verified portal.');
+        throw new \DomainException('Agency staff cannot attest model consent. Record external execution evidence, then obtain the model response in the OTP-verified portal.');
     }
 
     public function confirm(Principal $actor,string $assignmentId,string $requestId): void
