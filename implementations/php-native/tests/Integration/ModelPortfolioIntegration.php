@@ -236,8 +236,12 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert(is_array($assignmentDraft) && $assignmentDraft['client_name']!=='Verified editorial commissioning client','assignment client identity is encrypted at rest');
 
     $settlements=new ModelSettlementService($pdo,new AuditLogger($pdo),$secretBox,static fn():bool=>true);
+    $expenseRequestId=bin2hex(random_bytes(16));
     $expenseId=$settlements->addExpense($owner,$assignmentId,'25.00','GBP',
-        'Pre-approved local transport expense for the defined shoot.','private/model-expenses/expense-evidence-0001',bin2hex(random_bytes(16)));
+        'Pre-approved local transport expense for the defined shoot.','private/model-expenses/expense-evidence-0001',$expenseRequestId);
+    $replayedExpenseId=$settlements->addExpense($owner,$assignmentId,'25.00','GBP',
+        'Pre-approved local transport expense for the defined shoot.','private/model-expenses/expense-evidence-0001',$expenseRequestId);
+    $assert($replayedExpenseId===$expenseId,'replayed expense submission returns the original expense without duplicating the ledger');
     $expenseRows=$settlements->expenses($finance,$assignmentId);
     $assert(count($expenseRows)===1 && $expenseRows[0]['description']==='Pre-approved local transport expense for the defined shoot.' &&
         $expenseRows[0]['evidence_reference']==='private/model-expenses/expense-evidence-0001',
