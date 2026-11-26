@@ -290,13 +290,14 @@ final class PortalPrivacyRightsAdminService
                 ->execute(['id'=>$user['id']]);
             $this->pdo->prepare(
                 'UPDATE portal_privacy_requests
-                 SET payload_ciphertext=NULL,otp_hash="",status=IF(id=:request,"fulfilled","superseded"),
-                     decision_reason=IF(id=:request,:reason,decision_reason),
-                     reviewed_by=IF(id=:request,:reviewer,reviewed_by),
-                     reviewed_at=IF(id=:request,UTC_TIMESTAMP(),reviewed_at),
+                 SET payload_ciphertext=NULL,otp_hash="",status=IF(id=:request_status,"fulfilled","superseded"),
+                     decision_reason=IF(id=:request_reason,:reason,decision_reason),
+                     reviewed_by=IF(id=:request_reviewer,:reviewer,reviewed_by),
+                     reviewed_at=IF(id=:request_reviewed,UTC_TIMESTAMP(),reviewed_at),
                      completed_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP()
                  WHERE user_id=:user AND status IN ("pending","in_review")'
-            )->execute(['request'=>$requestId,'reason'=>$reason,'reviewer'=>$actor->id,'user'=>$user['id']]);
+            )->execute(['request_status'=>$requestId,'request_reason'=>$requestId,'request_reviewer'=>$requestId,
+                'request_reviewed'=>$requestId,'reason'=>$reason,'reviewer'=>$actor->id,'user'=>$user['id']]);
 
             $pseudonym='erased+'.str_replace('-','',(string)$user['id']).'@privacy.invalid';
             $this->pdo->prepare(
@@ -364,12 +365,12 @@ final class PortalPrivacyRightsAdminService
             if(!is_array($profile)) throw new \DomainException('Companion profile is unavailable; investigate account linkage before erasure.');
 
             $checks=[
-                ['SELECT COUNT(*) FROM bookings WHERE profile_id=:id','id'=>$profile['id']],
-                ['SELECT COUNT(*) FROM profile_media WHERE profile_id=:id','id'=>$profile['id']],
-                ['SELECT COUNT(*) FROM safeguarding_cases WHERE reporter_user_id=:id','id'=>$user['id']],
-                ['SELECT COUNT(*) FROM enquiries WHERE email=:email','email'=>$user['email']],
+                ['SELECT COUNT(*) FROM bookings WHERE profile_id=:id','id',$profile['id']],
+                ['SELECT COUNT(*) FROM profile_media WHERE profile_id=:id','id',$profile['id']],
+                ['SELECT COUNT(*) FROM safeguarding_cases WHERE reporter_user_id=:id','id',$user['id']],
+                ['SELECT COUNT(*) FROM enquiries WHERE email=:email','email',$user['email']],
             ];
-            foreach($checks as [$sql,$parameter=>$value]) {
+            foreach($checks as [$sql,$parameter,$value]) {
                 $check=$this->pdo->prepare($sql);
                 $check->execute([$parameter=>$value]);
                 if((int)$check->fetchColumn()>0) {
