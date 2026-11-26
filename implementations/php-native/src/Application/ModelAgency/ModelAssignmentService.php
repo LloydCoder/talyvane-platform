@@ -397,8 +397,9 @@ final class ModelAssignmentService
         [$whole,$fraction]=array_pad(explode('.',$amount,2),2,'');
         if(strlen($fraction)>$precision && trim(substr($fraction,$precision),'0')!=='') throw new \InvalidArgumentException('Amount exceeds currency minor-unit precision.');
         $scale=10**$precision;
-        if((int)$whole>intdiv(PHP_INT_MAX,$scale)) throw new \InvalidArgumentException('Amount exceeds supported integer range.');
-        $minor=((int)$whole*$scale)+(int)str_pad(substr($fraction,0,$precision),$precision,'0');
+        $fractionMinor=(int)str_pad(substr($fraction,0,$precision),$precision,'0');
+        if((int)$whole>intdiv(PHP_INT_MAX-$fractionMinor,$scale)) throw new \InvalidArgumentException('Amount exceeds supported integer range.');
+        $minor=((int)$whole*$scale)+$fractionMinor;
         if($minor<0) throw new \InvalidArgumentException('Amount is invalid.');
         return $minor;
     }
