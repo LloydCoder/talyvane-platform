@@ -6,8 +6,8 @@ namespace Talyvane\Domain\ModelAgency;
 final class CastingStateMachine
 {
     private const CALLS = [
-        'draft' => ['published','cancelled'],
-        'published' => ['closed','cancelled'],
+        'draft' => ['open','cancelled'],
+        'open' => ['closed','cancelled'],
         'closed' => [],
         'cancelled' => [],
     ];
