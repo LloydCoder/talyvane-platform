@@ -381,7 +381,13 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $rightsRequestId=$applicantRights->verify((string)$applicationIdentityRow['application_reference'],(string)$applicationIdentityRow['email'],
         $rightsCode,'127.0.0.1',bin2hex(random_bytes(16)));
     $assert(is_string($rightsRequestId),'applicant portfolio withdrawal requires successful email OTP verification');
-    $service->withdrawByVerifiedApplicantRights($rightsRequestId,$licensedAsset['id'],bin2hex(random_bytes(16)));
+    try {
+        $service->withdrawByVerifiedApplicantRights((string)$rightsRequestId,$asset['id'],bin2hex(random_bytes(16)));
+        $assert(false,'verified portfolio withdrawal cannot be redirected to another applicant asset');
+    } catch(DomainException) {
+        $assert(true,'verified portfolio withdrawal cannot be redirected to another applicant asset');
+    }
+    $service->withdrawByVerifiedApplicantRights((string)$rightsRequestId,$licensedAsset['id'],bin2hex(random_bytes(16)));
     $applicantWithdrawal=$pdo->prepare(
         'SELECT status,private_storage_key,consent_withdrawn_at FROM model_portfolio_assets WHERE id=:id'
     );
