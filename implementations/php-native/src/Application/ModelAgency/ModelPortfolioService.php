@@ -41,10 +41,10 @@ final class ModelPortfolioService
         $image=$this->storage->storeImage($upload,'model-portfolio',8_388_608);
         $assetId=self::uuid();
         $grantId=self::uuid();
-        $policy=$this->approvedPolicy();
         try {
             $this->pdo->beginTransaction();
             $application=$this->assertEligible($applicationId,true);
+            $policy=$this->approvedPolicy();
             $duplicate=$this->pdo->prepare('SELECT id FROM model_portfolio_assets WHERE application_id=:application AND sha256=:hash LIMIT 1 FOR UPDATE');
             $duplicate->execute(['application'=>$applicationId,'hash'=>$image['sha256']]);
             if($duplicate->fetchColumn()!==false) throw new \DomainException('This exact image is already recorded in the applicant portfolio.');
@@ -135,8 +135,8 @@ final class ModelPortfolioService
             if(!is_array($asset) || $asset['status']!=='pending_review' || $asset['consent_withdrawn_at']!==null) {
                 throw new \DomainException('Only a current private asset awaiting review can be approved or rejected.');
             }
-            $application=$this->assertEligible((string)$asset['application_id'],true);
             if($decision==='approved') {
+                $this->assertEligible((string)$asset['application_id'],true);
                 $grant=$this->pdo->prepare(
                     'SELECT granted,withdrawn_at,policy_version FROM consent_grants
                      WHERE id=:id AND subject_type="model_portfolio_asset" AND subject_id=:subject
@@ -167,7 +167,7 @@ final class ModelPortfolioService
                 $decision==='approved'?'Portfolio asset approved for private agency curation only; no campaign or public usage is authorized.':'Portfolio asset rejected and private image bytes removed.',
                 (string)$asset['consent_policy_version']);
             $this->audit->record($actor->id,'model_portfolio.asset_'.$decision,'model_portfolio_asset',$assetId,
-                $note,['status'=>'pending_review'],['status'=>$decision,'private_storage_retained'=>$decision==='approved'],
+                'Private portfolio review decision recorded',['status'=>'pending_review'],['status'=>$decision,'private_storage_retained'=>$decision==='approved'],
                 $requestId,'model-portfolio-v1');
             $this->pdo->commit();
         } catch(Throwable $error) {
@@ -206,9 +206,9 @@ final class ModelPortfolioService
             ]);
             $this->revokeDependentLicences($assetId,$actor->id,$reason);
             $this->event((string)$asset['application_id'],$actor->id,'application.portfolio_consent_withdrawn',
-                'Consent withdrawal recorded; private image bytes deleted and dependent usage licences revoked.',$this->approvedPolicy()['policy_version']);
+                'Consent withdrawal recorded; private image bytes deleted and dependent usage licences revoked.',(string)($asset['consent_policy_version']??'model-portfolio-legacy'));
             $this->audit->record($actor->id,'model_portfolio.consent_withdrawn','model_portfolio_asset',$assetId,
-                $reason,['status'=>$asset['status']],['status'=>'withdrawn','private_storage_deleted'=>true,'dependent_licences_revoked'=>true],
+                'Private portfolio consent withdrawal recorded',['status'=>$asset['status']],['status'=>'withdrawn','private_storage_deleted'=>true,'dependent_licences_revoked'=>true],
                 $requestId,'model-portfolio-v1');
             $this->pdo->commit();
         } catch(Throwable $error) {
@@ -317,11 +317,15 @@ final class ModelPortfolioService
     private function validateEvidence(array $evidence): void
     {
         foreach(['source_description','consent_scope'] as $field) {
-            $value=trim($evidence[$field]??'');
+            $raw=$evidence[$field]??null;
+            if(!is_string($raw)) throw new \InvalidArgumentException('Portfolio source description and consent scope must be text.');
+            $value=trim($raw);
             if(strlen($value)<20 || strlen($value)>2000) throw new \InvalidArgumentException('Portfolio source description and consent scope must each contain 20 to 2000 characters.');
         }
-        if(!$this->validEvidenceReference($evidence['rights_evidence_reference']??'','private/model-rights/') ||
-            !$this->validEvidenceReference($evidence['consent_evidence_reference']??'','private/model-consent/')) {
+        $rights=$evidence['rights_evidence_reference']??null;
+        $consent=$evidence['consent_evidence_reference']??null;
+        if(!is_string($rights) || !$this->validEvidenceReference($rights,'private/model-rights/') ||
+            !is_string($consent) || !$this->validEvidenceReference($consent,'private/model-consent/')) {
             throw new \InvalidArgumentException('Portfolio rights and consent evidence must use valid private evidence references.');
         }
     }
