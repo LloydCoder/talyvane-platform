@@ -221,9 +221,10 @@ final class BookingQuoteService
         $query=$this->pdo->prepare(
             'SELECT q.id,q.quote_reference,q.client_user_id,q.profile_id,q.country_code,q.original_amount_minor,
                     q.original_currency,q.expires_at,q.accepted_at,q.consumed_at,q.policy_version,
-                    u.email AS client_email,p.display_name AS profile_name
+                    u.email AS client_email,p.display_name AS profile_name,c.minor_units AS currency_precision
              FROM quote_snapshots q JOIN users u ON u.id=q.client_user_id
              JOIN companion_profiles p ON p.id=q.profile_id
+             JOIN currencies c ON c.code=q.original_currency
              ORDER BY q.created_at DESC LIMIT :limit'
         );
         $query->bindValue(':limit',$limit,PDO::PARAM_INT);$query->execute();return $query->fetchAll(PDO::FETCH_ASSOC);
