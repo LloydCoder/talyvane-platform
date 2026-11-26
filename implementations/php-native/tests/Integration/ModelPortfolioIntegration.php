@@ -561,10 +561,18 @@ function runModelPortfolioIntegration(PDO $pdo): int
 
     $pdo->prepare('UPDATE deployment_settings SET setting_json=:settings,version=version+1,updated_by=:actor,updated_at=UTC_TIMESTAMP() WHERE setting_key="model_agency.image_licence"')
         ->execute(['settings'=>json_encode(['enabled'=>false,'policy_approved'=>false,'policy_version'=>''],JSON_THROW_ON_ERROR),'actor'=>$adminId]);
-    $licences->revoke($admin,$licenceId,'Consent withdrawn for this defined image use and territory.',bin2hex(random_bytes(16)));
+    $wrongApplicationRejected=false;
+    try {
+        $licences->withdrawConsentByApplicant('00000000-0000-4000-8000-000000000001',$licenceId,bin2hex(random_bytes(16)));
+    } catch(DomainException) {
+        $wrongApplicationRejected=true;
+    }
+    $assert($wrongApplicationRejected,'applicant cannot withdraw a licence belonging to another application');
+    $applicantApplicationForWithdrawal=$rights->portalApplicationIdForConsentWithdrawal((string)$portalRightsId);
+    $licences->withdrawConsentByApplicant($applicantApplicationForWithdrawal,$licenceId,bin2hex(random_bytes(16)));
     $revoked=$pdo->prepare('SELECT status,revocation_reason FROM model_image_licences WHERE id=:id');$revoked->execute(['id'=>$licenceId]);$revokedRow=$revoked->fetch(PDO::FETCH_ASSOC);
     $grant->execute(['id'=>$draftRow['consent_grant_id']]);
-    $assert(is_array($revokedRow) && $revokedRow['status']==='revoked' && $revokedRow['revocation_reason']!=='Consent withdrawn for this defined image use and territory.','revocation reason is encrypted at rest');
+    $assert(is_array($revokedRow) && $revokedRow['status']==='revoked' && $revokedRow['revocation_reason']!=='Model applicant withdrew consent for this specific image usage.','applicant consent-withdrawal reason is encrypted at rest');
     $assert((int)$grant->fetchColumn()===0,'revocation withdraws model consent even when new licences are disabled');
     $submissionState=$pdo->prepare('SELECT status,invalidation_reason FROM model_casting_submissions WHERE id=:id');$submissionState->execute(['id'=>$submissionId]);$submissionStateRow=$submissionState->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($submissionStateRow) && $submissionStateRow['status']==='invalidated' && $submissionStateRow['invalidation_reason']!=='Underlying image licence was revoked or expired.','licence revocation invalidates selected casting submissions and encrypts the reason');

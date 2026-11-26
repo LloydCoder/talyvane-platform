@@ -292,6 +292,21 @@ final class ModelApplicantRightsService
         }
     }
 
+    /** Resolve the application for a consent withdrawal without requiring an active application status. */
+    public function portalApplicationIdForConsentWithdrawal(string $rightsRequestId): string
+    {
+        $this->pdo->beginTransaction();
+        try {
+            [, $application]=$this->verifiedContext($rightsRequestId,'portal_access');
+            $id=(string)$application['id'];
+            $this->pdo->commit();
+            return $id;
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
     /** Resolve the applicant's own application only from a live OTP-verified portal session. */
     public function portalApplicationId(string $rightsRequestId): string
     {

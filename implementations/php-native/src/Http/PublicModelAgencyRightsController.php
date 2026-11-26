@@ -7,12 +7,13 @@ use Talyvane\Application\ModelAgency\ModelApplicantRightsService;
 use Talyvane\Application\ModelAgency\ModelPortfolioService;
 use Talyvane\Application\ModelAgency\ModelCastingWorkflowService;
 use Talyvane\Application\ModelAgency\ModelAssignmentService;
+use Talyvane\Application\ModelAgency\ModelImageLicenceService;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\SessionManager;
 
 final class PublicModelAgencyRightsController
 {
-    public function __construct(private ?ModelApplicantRightsService $rights, private ViewRenderer $views, private string $brandName, private ?ModelPortfolioService $portfolio=null, private ?ModelCastingWorkflowService $casting=null, private ?ModelAssignmentService $assignments=null) {}
+    public function __construct(private ?ModelApplicantRightsService $rights, private ViewRenderer $views, private string $brandName, private ?ModelPortfolioService $portfolio=null, private ?ModelCastingWorkflowService $casting=null, private ?ModelAssignmentService $assignments=null, private ?ModelImageLicenceService $licences=null) {}
 
     public function requestForm(Request $request): Response
     {
@@ -181,6 +182,27 @@ final class PublicModelAgencyRightsController
             return $this->showPortal($rightsId,$request->requestId,$error->getMessage(),422);
         } catch(\Throwable) {
             return $this->showPortal($rightsId,$request->requestId,'The assignment response could not be completed securely.',503);
+        }
+    }
+
+    /** Applicant-initiated, purpose-specific image-licence consent withdrawal. */
+    public function portalWithdrawLicence(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
+        $rightsId=$this->rightsId();
+        if($rightsId===null || $this->rights===null || $this->licences===null) return Response::redirect('/model-agency/privacy');
+        if($this->field($request,'confirm_consent_withdrawal')!=='yes') {
+            return $this->showPortal($rightsId,$request->requestId,'Confirm withdrawal of consent for this specific image usage.',422);
+        }
+        try {
+            $applicationId=$this->rights->portalApplicationIdForConsentWithdrawal($rightsId);
+            $this->licences->withdrawConsentByApplicant($applicationId,(string)($params['id']??''),$request->requestId);
+            return $this->showPortal($rightsId,$request->requestId,'Your consent for this image usage has been withdrawn. Dependent casting submissions were invalidated.');
+        } catch(\InvalidArgumentException|\DomainException $error) {
+            return $this->showPortal($rightsId,$request->requestId,$error->getMessage(),422);
+        } catch(\Throwable) {
+            return $this->showPortal($rightsId,$request->requestId,'The image-usage consent withdrawal could not be completed securely.',503);
         }
     }
 
