@@ -498,7 +498,7 @@ final class ModelImageLicenceService
     {
         $email=strtolower(trim($email));
         if(filter_var($email,FILTER_VALIDATE_EMAIL)===false) {
-            throw new \\DomainException('The model application has no valid verified email destination for consent-offer notification.');
+            throw new \DomainException('The model application has no valid verified email destination for consent-offer notification.');
         }
         $id=self::uuid();
         $payload=json_encode([
