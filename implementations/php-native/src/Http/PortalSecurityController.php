@@ -16,7 +16,7 @@ final class PortalSecurityController
         private PasswordChangeService $passwords,
         private ViewRenderer $views,
         private string $brandName,
-        private ?\\Talyvane\\Application\\Identity\\PortalEmailChangeService $emailChanges = null
+        private ?\Talyvane\Application\Identity\PortalEmailChangeService $emailChanges = null
     ) {}
 
     public function index(Request $request): Response
@@ -74,11 +74,11 @@ final class PortalSecurityController
         try {
             $this->emailChanges->request($principal,$this->field($request,'new_email'),$this->field($request,'current_password'),$request->requestId);
             return $this->page('','A verification code was sent to the new address. Your account email remains unchanged until verification succeeds.');
-        } catch(\\DomainException $e) {
+        } catch(\DomainException $e) {
             return $this->page('The request could not be accepted. Check your current password, address and request limits.','',422);
-        } catch(\\InvalidArgumentException) {
+        } catch(\InvalidArgumentException) {
             return $this->page('Enter a valid new email address and your current password.','',422);
-        } catch(\\Throwable) {
+        } catch(\Throwable) {
             return $this->page('The verification message could not be delivered. No email change was made.','',503);
         }
     }
@@ -95,7 +95,7 @@ final class PortalSecurityController
             SessionManager::rotateAfterAuthentication();
             $_SESSION['session_version']=$version;
             return $this->page('','Your contact email is verified and updated. Other sessions have been revoked.');
-        } catch(\\Throwable) {
+        } catch(\Throwable) {
             return $this->page('The verification code could not be accepted. It may be expired, invalid or already used.','',422);
         }
     }
