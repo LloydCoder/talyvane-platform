@@ -484,7 +484,7 @@ final class PortalPrivacyRightsAdminService
     /** @return array{ready:bool,items:list<array<string,mixed>>} */
     public function externalErasureEvidence(Principal $actor,string $requestId): array
     {
-        Authorization::require($actor,'privacy.requests.review',true);
+        Authorization::require($actor,'privacy.requests.review');
         if(!self::isUuid($requestId)) throw new \InvalidArgumentException('Privacy request reference is invalid.');
         $request=$this->pdo->prepare(
             'SELECT request_type,status FROM portal_privacy_requests WHERE id=:id'
@@ -528,6 +528,7 @@ final class PortalPrivacyRightsAdminService
         if(!$actor->hasRole('owner') && !$actor->hasRole('super_admin')) {
             throw new \DomainException('Only an MFA-verified Owner or Super Admin may attest to external erasure evidence.');
         }
+        $reason=trim($reason);
         if(!self::isUuid($requestId) || !array_key_exists($systemKey,self::externalErasureSystems()) ||
             !in_array($decision,['cleared','retained','not_applicable'],true) ||
             preg_match('/^[A-Za-z0-9][A-Za-z0-9._:\/-]{7,189}$/D',$evidenceReference)!==1 ||
@@ -554,7 +555,6 @@ final class PortalPrivacyRightsAdminService
             $retentionUntil=null;
             $legalBasisReference=$legalBasisReference!==''?$legalBasisReference:null;
         }
-        $reason=trim($reason);
         $this->pdo->beginTransaction();
         try {
             $request=$this->pdo->prepare(
