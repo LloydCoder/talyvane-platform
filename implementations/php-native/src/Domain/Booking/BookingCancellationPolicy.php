@@ -21,7 +21,7 @@ final readonly class BookingCancellationPolicy
         if ($actorRole !== 'client') {
             throw new \DomainException('Client cancellation is not permitted for this booking.');
         }
-        if ($bookingState === 'pending_review') {
+        if (in_array($bookingState,['requested','pending_review'],true)) {
             return;
         }
         if ($bookingState !== 'confirmed' || !$this->clientCancellationEnabled) {
