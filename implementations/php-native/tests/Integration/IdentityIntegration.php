@@ -660,7 +660,8 @@ function runIdentityIntegration(PDO $pdo): int
         'companion can submit and verify an independently scoped correction request');
     $assert(count($portalRights->history($companionPrincipal))===1 && count($portalRights->history($clientPrincipal))===2,
         'client and companion privacy request histories remain account-scoped');
-    $portalRightsAdmin=new PortalPrivacyRightsAdminService($pdo,new SecretBox(str_repeat('Q',32)),$audit);
+    $privacyOutboxBox=new SecretBox(str_repeat('Q',32));
+    $portalRightsAdmin=new PortalPrivacyRightsAdminService($pdo,$privacyOutboxBox,$audit,new \\Talyvane\\Application\\Identity\\PortalPrivacyOutcomeOutbox($pdo,$privacyOutboxBox));
     $adminPrivacyQueue=$portalRightsAdmin->queue($superAdmin,bin2hex(random_bytes(16)));
     $assert(count($adminPrivacyQueue)===3 &&
         in_array($correctionSummary,array_column($adminPrivacyQueue,'correction_summary'),true),
@@ -683,6 +684,24 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(is_array($deferredRow) && $deferredRow['status']==='deferred' &&
         str_contains($deferredRow['decision_reason'],'Legal retention'),
         'administrator can defer erasure with a mandatory auditable legal-retention reason');
+    $reviewNoticeQuery=$pdo->prepare(
+        'SELECT id,recipient_ciphertext,payload_ciphertext FROM communication_outbox
+         WHERE related_type="portal_privacy" AND related_id=:id AND idempotency_key=:key'
+    );
+    $reviewNoticeQuery->execute(['id'=>$erasureRequestId,'key'=>'portal-privacy-review-v1:'.$erasureRequestId]);
+    $reviewNotice=$reviewNoticeQuery->fetch(PDO::FETCH_ASSOC);
+    $reviewNoticePayload=is_array($reviewNotice)
+        ? json_decode($privacyOutboxBox->decrypt((string)$reviewNotice['payload_ciphertext'],
+            'communication-outbox-v1:payload:'.$reviewNotice['id']),true,8,JSON_THROW_ON_ERROR)
+        : null;
+    $reviewNoticeRecipient=is_array($reviewNotice)
+        ? $privacyOutboxBox->decrypt((string)$reviewNotice['recipient_ciphertext'],
+            'communication-outbox-v1:recipient:'.$reviewNotice['id'])
+        : '';
+    $assert(is_array($reviewNoticePayload) && str_contains((string)$reviewNoticePayload['body'],'deferred pending further review') &&
+        !str_contains((string)$reviewNoticePayload['body'],'Legal retention') &&
+        $reviewNoticeRecipient==='native-registered-client@example.test',
+        'deferred privacy review queues an encrypted, generic, idempotent outcome notice without disclosing the restricted decision rationale');
     $portalRightsAdmin->fulfillCompanionCorrection($superAdmin,$companionCorrectionId,
         'Verified Talent Corrected','Corrected biography supplied and checked by the administrator.',['en','fr-CA'],
         'Applicant identity and requested profile corrections were independently checked.',bin2hex(random_bytes(16)));
