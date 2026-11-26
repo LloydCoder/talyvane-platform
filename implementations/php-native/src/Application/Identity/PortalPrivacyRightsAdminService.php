@@ -182,7 +182,7 @@ final class PortalPrivacyRightsAdminService
                 if (!is_array($recipient) || $recipient['status']!=='active' ||
                     $recipient['email_verified_at']===null || !is_string($recipient['email']) ||
                     !filter_var($recipient['email'],FILTER_VALIDATE_EMAIL)) {
-                    throw new \\DomainException('The corrected client has no active verified notification destination.');
+                    throw new \DomainException('The corrected client has no active verified notification destination.');
                 }
                 $this->outcomes->enqueueCorrectionFulfilled($requestId,(string)$recipient['email'],'client');
             }
@@ -193,7 +193,7 @@ final class PortalPrivacyRightsAdminService
                 if (!is_array($recipient) || $recipient['status']!=='active' ||
                     $recipient['email_verified_at']===null || !is_string($recipient['email']) ||
                     !filter_var($recipient['email'],FILTER_VALIDATE_EMAIL)) {
-                    throw new \\DomainException('The corrected companion has no active verified notification destination.');
+                    throw new \DomainException('The corrected companion has no active verified notification destination.');
                 }
                 $this->outcomes->enqueueCorrectionFulfilled($requestId,(string)$recipient['email'],'companion');
             }
