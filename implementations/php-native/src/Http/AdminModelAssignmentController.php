@@ -60,6 +60,13 @@ final class AdminModelAssignmentController
     }
 
     /** @param array<string,string> $params */
+    public function executionEvidence(Request $request,array $params): Response
+    {
+        return $this->mutate($request,$params,fn($actor,$id)=>$this->assignments->recordExecutionEvidence(
+            $actor,$id,$this->field($request,'executed_document_reference'),$request->requestId));
+    }
+
+    /** @param array<string,string> $params */
     public function accept(Request $request,array $params): Response
     {
         return $this->mutate($request,$params,fn($actor,$id)=>$this->assignments->recordAcceptance(
