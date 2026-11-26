@@ -266,10 +266,11 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $applicantSubmission->execute(['id'=>$submissionId]);$applicantSubmissionRow=$applicantSubmission->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($applicantSubmissionRow) && $applicantSubmissionRow['status']==='submitted' && $applicantSubmissionRow['submitted_by']===null,
         'verified applicant self-service submits without inventing a user account or administrator actor');
-    $applicantEvent=$pdo->prepare('SELECT actor_type,actor_id FROM model_casting_events WHERE submission_id=:id AND event_type="casting.applicant_submitted"');
+    $applicantEvent=$pdo->prepare('SELECT actor_type,actor_id,reason FROM model_casting_events WHERE submission_id=:id AND event_type="casting.applicant_submitted"');
     $applicantEvent->execute(['id'=>$submissionId]);$applicantEventRow=$applicantEvent->fetch(PDO::FETCH_ASSOC);
-    $assert(is_array($applicantEventRow) && $applicantEventRow['actor_type']==='applicant' && $applicantEventRow['actor_id']===null,
-        'applicant-originated casting submission is explicitly attributed to applicant session rather than an admin'); 
+    $assert(is_array($applicantEventRow) && $applicantEventRow['actor_type']==='applicant' && $applicantEventRow['actor_id']===null &&
+        str_contains((string)$applicantEventRow['reason'],'model-casting-voluntary-submission-v1'),
+        'applicant-originated casting submission records the voluntary attestation version and applicant-session attribution'); 
     try {
         $casting->submit($admin,$callId,$applicationId,$licensedAsset['id'],$licenceId,bin2hex(random_bytes(16)));
         $assert(false,'duplicate submission is rejected regardless of whether it originated from applicant or agency');
