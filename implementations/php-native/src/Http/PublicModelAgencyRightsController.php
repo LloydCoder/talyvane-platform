@@ -8,12 +8,13 @@ use Talyvane\Application\ModelAgency\ModelPortfolioService;
 use Talyvane\Application\ModelAgency\ModelCastingWorkflowService;
 use Talyvane\Application\ModelAgency\ModelAssignmentService;
 use Talyvane\Application\ModelAgency\ModelImageLicenceService;
+use Talyvane\Application\ModelAgency\ModelAvailabilityService;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\SessionManager;
 
 final class PublicModelAgencyRightsController
 {
-    public function __construct(private ?ModelApplicantRightsService $rights, private ViewRenderer $views, private string $brandName, private ?ModelPortfolioService $portfolio=null, private ?ModelCastingWorkflowService $casting=null, private ?ModelAssignmentService $assignments=null, private ?ModelImageLicenceService $licences=null) {}
+    public function __construct(private ?ModelApplicantRightsService $rights, private ViewRenderer $views, private string $brandName, private ?ModelPortfolioService $portfolio=null, private ?ModelCastingWorkflowService $casting=null, private ?ModelAssignmentService $assignments=null, private ?ModelImageLicenceService $licences=null, private ?ModelAvailabilityService $availability=null) {}
 
     public function requestForm(Request $request): Response
     {
@@ -186,6 +187,43 @@ final class PublicModelAgencyRightsController
     }
 
     /** Applicant-initiated, purpose-specific image-licence consent withdrawal. */
+    public function portalCreateAvailability(Request $request): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
+        $rightsId=$this->rightsId();
+        if($rightsId===null || $this->rights===null || $this->availability===null) return Response::redirect('/model-agency/privacy');
+        try {
+            $applicationId=$this->rights->portalApplicationIdForConsentWithdrawal($rightsId);
+            $this->availability->createByApplicant(
+                $applicationId,$this->field($request,'starts_at'),$this->field($request,'ends_at'),
+                $this->field($request,'reason_code'),$request->requestId
+            );
+            return $this->showPortal($rightsId,$request->requestId,'Your unavailability interval has been recorded. Overlapping assignment offers cannot be accepted.');
+        } catch(\InvalidArgumentException|\DomainException $error) {
+            return $this->showPortal($rightsId,$request->requestId,$error->getMessage(),422);
+        } catch(\Throwable) {
+            return $this->showPortal($rightsId,$request->requestId,'The unavailability interval could not be recorded securely.',503);
+        }
+    }
+
+    public function portalCancelAvailability(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
+        $rightsId=$this->rightsId();
+        if($rightsId===null || $this->rights===null || $this->availability===null) return Response::redirect('/model-agency/privacy');
+        try {
+            $applicationId=$this->rights->portalApplicationIdForConsentWithdrawal($rightsId);
+            $this->availability->cancelByApplicant($applicationId,(string)($params['id']??''),$request->requestId);
+            return $this->showPortal($rightsId,$request->requestId,'Your unavailability interval was cancelled.');
+        } catch(\InvalidArgumentException|\DomainException $error) {
+            return $this->showPortal($rightsId,$request->requestId,$error->getMessage(),422);
+        } catch(\Throwable) {
+            return $this->showPortal($rightsId,$request->requestId,'The unavailability interval could not be cancelled securely.',503);
+        }
+    }
+
     public function portalWithdrawLicence(Request $request,array $params): Response
     {
         SessionManager::start();
@@ -322,6 +360,10 @@ final class PublicModelAgencyRightsController
             if($this->rights!==null && $this->assignments!==null) {
                 $applicationId=$this->rights->portalApplicationId($id);
                 $record['assignments']=$this->assignments->applicantAssignments($applicationId);
+            }
+            if($this->rights!==null && $this->availability!==null) {
+                $applicationId=$this->rights->portalApplicationIdForConsentWithdrawal($id);
+                $record['availability_blocks']=$this->availability->listForApplicant($applicationId);
             }
             return $this->page('portal',['record'=>$record,'notice'=>$notice],$status);
         } catch(\Throwable) {
