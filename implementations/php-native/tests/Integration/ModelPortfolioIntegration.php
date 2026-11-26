@@ -527,6 +527,17 @@ function runModelPortfolioIntegration(PDO $pdo): int
         $assert(true,'applicant portfolio withdrawal session cannot be replayed');
     }
 
+    $rights->logoutPortal((string)$portalRightsId,bin2hex(random_bytes(16)));
+    $portalSession->execute(['id'=>$portalRightsId]);
+    $assert($portalSession->fetchColumn()==='completed',
+        'model workspace logout revokes the verified portal session in the database');
+    try {
+        $rights->portalRead((string)$portalRightsId,bin2hex(random_bytes(16)));
+        $assert(false,'a revoked model workspace session cannot be reused');
+    } catch(DomainException) {
+        $assert(true,'a revoked model workspace session cannot be reused');
+    }
+
     $storage->delete($licensedAsset['key']);
     rmdir($privateRoot.DIRECTORY_SEPARATOR.'model-portfolio');rmdir($privateRoot);rmdir($publicRoot);rmdir($base);
     return $assertions;
