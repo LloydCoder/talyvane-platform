@@ -36,6 +36,15 @@ $statuses = ['new'=>'New','in_progress'=>'In progress','responded'=>'Responded',
 <div class="field"><label>Assignment reason</label><input name="reason" minlength="8" maxlength="500" required placeholder="Reason for assignment"></div>
 <button class="button" type="submit">Save assignment</button>
 </form>
+<section class="internal-notes" style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
+<strong style="font:18px Georgia,serif">Internal notes</strong>
+<?php foreach (($item['internal_notes']??[]) as $note): ?><article style="padding:10px 0;border-bottom:1px solid var(--line)"><div class="muted" style="font-size:10px"><?= $escape($note['author_email']??'') ?> · <?= $escape($note['created_at']??'') ?></div><p style="font-size:12px;white-space:pre-wrap;margin:5px 0"><?= $escape($note['body']??'') ?></p></article><?php endforeach; ?>
+<form method="post" action="<?= $escape('/admin/enquiries/' . rawurlencode((string) ($item['reference'] ?? '')) . '/notes') ?>">
+<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<div class="field"><label>Append private note</label><textarea name="note" minlength="10" maxlength="3000" required rows="3" style="width:100%;padding:10px;border:1px solid #d9d5cc;font:13px ui-sans-serif,system-ui,sans-serif" placeholder="Internal-only context. Never include passwords, identity documents or payment credentials."></textarea></div>
+<button class="button" type="submit">Add internal note</button>
+</form>
+</section>
 <div class="muted" style="font-size:11px">Responded: <?= $escape($item['responded_at'] ?? '—') ?><br>Closed: <?= $escape($item['closed_at'] ?? '—') ?></div></div></div></section><?php endforeach; ?>
 <?php endif; ?>
 </main></body></html>
