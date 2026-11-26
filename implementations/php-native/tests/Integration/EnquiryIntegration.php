@@ -5,6 +5,7 @@ use Talyvane\Application\CRM\EnquiryService;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Security\RateLimiter;
 use Talyvane\Security\Principal;
+use Talyvane\Security\SecretBox;
 
 function runEnquiryIntegration(PDO $pdo): int
 {
@@ -16,7 +17,7 @@ function runEnquiryIntegration(PDO $pdo): int
         }
     };
     $limiter = new RateLimiter($pdo,hash_hmac('sha256','enquiry-integration-key-'.bin2hex(random_bytes(8)),'integration-pepper'));
-    $service = new EnquiryService($pdo,$limiter,new AuditLogger($pdo));
+    $service = new EnquiryService($pdo,$limiter,new AuditLogger($pdo),new SecretBox(str_repeat('E',32)));
     $before = (int) $pdo->query('SELECT COUNT(*) FROM enquiries')->fetchColumn();
 
     $honeypot = $service->submit([
@@ -80,6 +81,26 @@ $attribution = is_array($saved) ? json_decode((string) $saved['attribution_json'
     }
 
     $clientId = (string) $pdo->query('SELECT id FROM users WHERE email = "native-client@example.test"')->fetchColumn();
+    $privateNote='Customer requested a callback after reviewing the destination details.';
+    $service->addInternalNote($admin,$reference,$privateNote,bin2hex(random_bytes(16)));
+    $storedNote=$pdo->prepare('SELECT id,ciphertext FROM crm_enquiry_notes WHERE enquiry_id=(SELECT id FROM enquiries WHERE reference=:reference)');
+    $storedNote->execute(['reference'=>$reference]);
+    $storedNoteRow=$storedNote->fetch(PDO::FETCH_ASSOC);
+    $listedNote=$service->list($admin,100,0);
+    $matchingEnquiry=array_values(array_filter($listedNote,static fn(array $item):bool=>$item['reference']===$reference))[0]??null;
+    $assert(is_array($storedNoteRow) && !str_contains((string)$storedNoteRow['ciphertext'],$privateNote),
+        'CRM internal note content is encrypted at rest and not stored in plaintext');
+    $assert(is_array($matchingEnquiry) && count($matchingEnquiry['internal_notes']??[])===1 &&
+        $matchingEnquiry['internal_notes'][0]['body']===$privateNote,
+        'authorized CRM inbox decrypts and displays its own private internal notes');
+    $triggerCount=(int)$pdo->query("SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema=DATABASE() AND trigger_name IN ('crm_enquiry_notes_no_update','crm_enquiry_notes_no_delete')")->fetchColumn();
+    if($triggerCount===2) {
+        $immutable=false;
+        try{$pdo->prepare('UPDATE crm_enquiry_notes SET ciphertext=:value WHERE id=:id')->execute(['value'=>'tamper','id'=>$storedNoteRow['id']]);}
+        catch(PDOException){$immutable=true;}
+        $assert($immutable,'database trigger rejects CRM internal-note mutation when trigger privileges are available');
+    }
+
     try {
         $service->updateStatus(new Principal($clientId,['client'],false),$reference,'closed','Forbidden',bin2hex(random_bytes(16)));
         $assert(false,'client cannot change enquiry pipeline state');
