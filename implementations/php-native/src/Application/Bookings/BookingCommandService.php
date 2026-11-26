@@ -19,7 +19,8 @@ final class BookingCommandService
     public function __construct(
         private PDO $pdo,
         private BookingPolicyRepository $policies,
-        private AuditLogger $audit
+        private AuditLogger $audit,
+        private ?BookingNotificationOutbox $notifications = null
     ) {}
 
     public function transition(Principal $actor, string $bookingId, string $toState, string $reason, string $requestId): string
@@ -67,6 +68,24 @@ final class BookingCommandService
                 throw new \DomainException('Booking state changed concurrently; reload and retry.');
             }
             $this->recordEvent($bookingId,$actor->id,$actorRole,$fromState,$newState,trim($reason),$requestId);
+            if ($this->notifications !== null && $newState !== $fromState) {
+                $eventKey=match($newState) {
+                    'confirmed'=>'booking.accepted',
+                    'declined'=>'booking.declined',
+                    'cancelled'=>'booking.cancelled',
+                    default=>null,
+                };
+                if ($eventKey !== null) {
+                    if ($actorRole === 'client') {
+                        $this->notifications->enqueue($bookingId,(string)$booking['companion_user_id'],$eventKey);
+                    } elseif ($actorRole === 'companion') {
+                        $this->notifications->enqueue($bookingId,(string)$booking['client_user_id'],$eventKey);
+                    } else {
+                        $this->notifications->enqueue($bookingId,(string)$booking['client_user_id'],$eventKey);
+                        $this->notifications->enqueue($bookingId,(string)$booking['companion_user_id'],$eventKey);
+                    }
+                }
+            }
             $this->audit->record($actor->id,'booking.state.changed','booking',$bookingId,trim($reason),['status'=>$fromState],['status'=>$newState],$requestId,'booking-lifecycle-v1');
             $this->pdo->commit();
             return $newState;
@@ -208,6 +227,12 @@ final class BookingCommandService
                 'id'=>$bookingId,
             ]);
             $this->recordEvent($bookingId,$actor->id,$actorRole,(string) $booking['status'],(string) $booking['status'],'Rescheduled: ' . trim($reason),$requestId);
+            if ($this->notifications !== null) {
+                $this->notifications->enqueue($bookingId,(string)$booking['companion_user_id'],'booking.rescheduled');
+                if ($actorRole !== 'client') {
+                    $this->notifications->enqueue($bookingId,(string)$booking['client_user_id'],'booking.rescheduled');
+                }
+            }
             $this->audit->record($actor->id,'booking.rescheduled','booking',$bookingId,trim($reason),[
                 'starts_at_utc'=>$booking['starts_at_utc'],
                 'ends_at_utc'=>$booking['ends_at_utc'],
