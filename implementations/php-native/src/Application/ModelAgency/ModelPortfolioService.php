@@ -287,14 +287,16 @@ final class ModelPortfolioService
 
     private function revokeDependentLicences(string $assetId,string $actorId,string $reason): void
     {
-        $query=$this->pdo->prepare('SELECT id FROM model_image_licences WHERE portfolio_asset_id=:asset AND status IN ("draft","active") FOR UPDATE');
+        $query=$this->pdo->prepare('SELECT id,consent_grant_id FROM model_image_licences WHERE portfolio_asset_id=:asset AND status IN ("draft","active") FOR UPDATE');
         $query->execute(['asset'=>$assetId]);
-        foreach($query->fetchAll(PDO::FETCH_COLUMN) as $licenceId) {
-            $licenceId=(string)$licenceId;
+        foreach($query->fetchAll(PDO::FETCH_ASSOC) as $licence) {
+            $licenceId=(string)$licence['id'];
             $this->pdo->prepare(
                 'UPDATE model_image_licences SET status="revoked",revoked_at=UTC_TIMESTAMP(),revoked_by=:actor,
                  revocation_reason=:reason,updated_at=UTC_TIMESTAMP() WHERE id=:id'
-            )->execute(['actor'=>$actorId,'reason'=>$this->encrypt($licenceId,'revocation_reason',$reason),'id'=>$licenceId]);
+            )->execute(['actor'=>$actorId,'reason'=>$this->cipher->encrypt($reason,'model-image-licence-v1:'.$licenceId.':revocation_reason'),'id'=>$licenceId]);
+            $this->pdo->prepare('UPDATE consent_grants SET granted=0,withdrawn_at=UTC_TIMESTAMP() WHERE id=:id AND granted=1')
+                ->execute(['id'=>$licence['consent_grant_id']]);
             $submissions=$this->pdo->prepare(
                 'SELECT id,call_id FROM model_casting_submissions WHERE image_licence_id=:licence
                  AND status IN ("submitted","shortlisted","selected") FOR UPDATE'
@@ -304,7 +306,7 @@ final class ModelPortfolioService
                 $this->pdo->prepare(
                     'UPDATE model_casting_submissions SET status="invalidated",invalidated_at=UTC_TIMESTAMP(),
                      invalidation_reason=:reason,updated_at=UTC_TIMESTAMP() WHERE id=:id'
-                )->execute(['reason'=>'Underlying portfolio consent was withdrawn: '.$reason,'id'=>$submission['id']]);
+                )->execute(['reason'=>'Underlying portfolio consent was withdrawn.','id'=>$submission['id']]);
                 $this->insertCastingEvent((string)$submission['call_id'],(string)$submission['id'],$actorId,
                     'casting.submission_invalidated','Submission invalidated because underlying portfolio consent was withdrawn.');
             }
