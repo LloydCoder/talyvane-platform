@@ -70,7 +70,8 @@ final class BookingCommandService
             $this->recordEvent($bookingId,$actor->id,$actorRole,$fromState,$newState,trim($reason),$requestId);
             if ($this->notifications !== null && $newState !== $fromState) {
                 $eventKey=match($newState) {
-                    'confirmed'=>'booking.accepted',
+                    'accepted'=>'booking.accepted',
+                    'confirmed'=>'booking.confirmed',
                     'declined'=>'booking.declined',
                     'cancelled'=>'booking.cancelled',
                     default=>null,
