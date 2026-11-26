@@ -73,6 +73,8 @@ try { $cancelPolicy->assertAllowed('companion','confirmed',new DateTimeImmutable
 catch (DomainException) { $assert(true, 'companion cannot use client cancellation policy'); }
 
 $assert(BookingStateMachine::transition('pending_review','cancelled','client') === 'cancelled', 'client may cancel a pending-review booking');
+$assert(BookingStateMachine::transition('requested','cancelled','client') === 'cancelled', 'client may cancel a newly requested booking');
+$assert(BookingStateMachine::transition('accepted','cancelled','client') === 'cancelled', 'client may cancel before administrator confirmation');
 
 $calendarPdo = new class extends PDO { public function __construct() {} };
 $calendar = new BookingCalendarService($calendarPdo,str_repeat('C',32));
