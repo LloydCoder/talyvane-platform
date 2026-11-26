@@ -463,7 +463,7 @@ final class ModelImageLicenceService
         return ['policy_version'=>trim($policy['policy_version'])];
     }
 
-    private function invalidateSubmissions(string $licenceId,?string $actorId,string $reason): void
+    private function invalidateSubmissions(string $licenceId,?string $actorId,string $reason,?string $actorType=null): void
     {
         $q=$this->pdo->prepare('SELECT id,casting_call_id FROM model_casting_submissions WHERE image_licence_id=:licence AND status IN ("submitted","shortlisted","selected") FOR UPDATE');
         $q->execute(['licence'=>$licenceId]);
@@ -473,7 +473,7 @@ final class ModelImageLicenceService
             $this->pdo->prepare(
                 'INSERT INTO model_casting_events (id,call_id,submission_id,actor_id,actor_type,event_type,reason,occurred_at,created_at,updated_at)
                  VALUES (:id,:call,:submission,:actor,:actor_type,"casting.submission_invalidated","Submission invalidated because its image licence is no longer active.",UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
-            )->execute(['id'=>self::uuid(),'call'=>$submission['casting_call_id'],'submission'=>$submission['id'],'actor'=>$actorId,'actor_type'=>$actorId===null?'system':'administrator']);
+            )->execute(['id'=>self::uuid(),'call'=>$submission['casting_call_id'],'submission'=>$submission['id'],'actor'=>$actorId,'actor_type'=>$actorType??($actorId===null?'system':'administrator')]);
         }
     }
 
@@ -491,7 +491,7 @@ final class ModelImageLicenceService
     private function applicantPortalContext(string $rightsRequestId,bool $lock): array
     {
         $sql='SELECT r.id,r.application_id,r.status,r.request_type,r.expires_at,r.completed_at,
-                     a.status AS application_status,a.legal_hold,a.anonymized_at
+                     a.status AS application_status,a.legal_hold,a.anonymized_at,a.country_code
               FROM model_applicant_rights_requests r
               INNER JOIN model_talent_applications a ON a.id=r.application_id
               WHERE r.id=:id LIMIT 1'.($lock?' FOR UPDATE':'');
@@ -503,7 +503,7 @@ final class ModelImageLicenceService
         }
         $rights=['id'=>$row['id'],'application_id'=>$row['application_id'],'status'=>$row['status']];
         $application=['id'=>$row['application_id'],'status'=>$row['application_status'],
-            'legal_hold'=>$row['legal_hold'],'anonymized_at'=>$row['anonymized_at']];
+            'legal_hold'=>$row['legal_hold'],'anonymized_at'=>$row['anonymized_at'],'country_code'=>$row['country_code']];
         return [$rights,$application];
     }
 
