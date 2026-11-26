@@ -186,7 +186,7 @@ final class PortalPrivacyRightsService
         $isClient=$actor->hasRole('client') && count($actor->roles)===1;
         $isCompanion=$actor->hasRole('companion') && count($actor->roles)===1;
         if(!$isClient && !$isCompanion) throw new \DomainException('A client or companion portal account is required.');
-        Authorization::require($actor,$isClient?'client.booking.manage':'companion.self.view',false);
+        Authorization::require($actor,$isClient?'client.privacy.manage':'companion.privacy.manage',false);
         return $isClient?'client':'companion';
     }
 
