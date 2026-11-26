@@ -92,7 +92,7 @@ function runModelCastingIntegration(PDO $pdo): int
     $published->execute(['id'=>$callId]);$publishedRow=$published->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($publishedRow) && $publishedRow['status']==='open' && $publishedRow['published_by']===$adminId && $publishedRow['published_at']!==null,'approved draft can be opened with actor and timestamp provenance');
 
-    $clientId=(string)$pdo->query('SELECT id FROM users WHERE email="native-password-client@example.test"')->fetchColumn();
+    $clientId=(string)$pdo->query('SELECT id FROM users WHERE email="native-password-client-new@example.test"')->fetchColumn();
     if($clientId==='') throw new RuntimeException('Model client distribution integration requires the verified client identity fixture.');
     $distribution=new ClientModelAgencyDistributionService($pdo,$storage,new AuditLogger($pdo),$cipher);
     $eligibleClients=$distribution->eligibleClients($admin);
