@@ -32,7 +32,7 @@ final class ModelApplicantRightsService
         $reference = strtoupper(trim($reference));
         $email = strtolower(trim($email));
         if (!preg_match('/^[A-Z0-9-]{6,32}$/D',$reference) || filter_var($email,FILTER_VALIDATE_EMAIL) === false ||
-            !in_array($requestType,['access','correction','withdrawal','erasure','portfolio_withdrawal'],true) ||
+            !in_array($requestType,['access','correction','withdrawal','erasure','portfolio_withdrawal','portal_access'],true) ||
             ($requestType==='portfolio_withdrawal' && (!is_string($assetId) || !preg_match('/^[0-9a-f-]{36}$/iD',$assetId))) ||
             ($requestType!=='portfolio_withdrawal' && $assetId!==null) ||
             $ipAddress === '' || strlen($ipAddress) > 64 || strlen($requestId) < 16 || strlen($requestId) > 64) {
@@ -91,11 +91,11 @@ final class ModelApplicantRightsService
             throw $error;
         }
         try {
-            $this->mailer->send(
-                $email,
-                'Your Talyvane applicant privacy request',
-                "A privacy request was started for application {$reference}.\n\nYour one-time verification code is: {$code}\n\nThe code expires in 10 minutes and can be used once. If you did not request this, ignore this email."
-            );
+            $subject=$requestType==='portal_access'?'Your Talyvane model workspace sign-in':'Your Talyvane applicant privacy request';
+            $message=$requestType==='portal_access'
+                ? "A secure model workspace sign-in was requested for application {$reference}.\n\nYour one-time verification code is: {$code}\n\nThe code expires in 10 minutes and can be used once. The verified workspace session lasts up to 30 minutes. If you did not request this, ignore this email."
+                : "A privacy request was started for application {$reference}.\n\nYour one-time verification code is: {$code}\n\nThe code expires in 10 minutes and can be used once. If you did not request this, ignore this email.";
+            $this->mailer->send($email,$subject,$message);
         } catch (Throwable) {
             $this->pdo->prepare(
                 'UPDATE model_applicant_rights_requests SET status = "delivery_failed",otp_hash = "",completed_at = UTC_TIMESTAMP()
@@ -163,8 +163,10 @@ final class ModelApplicantRightsService
                  verified_at = UTC_TIMESTAMP(),expires_at = DATE_ADD(UTC_TIMESTAMP(),INTERVAL 30 MINUTE)
                  WHERE id = :id'
             )->execute(['attempts'=>$attempts,'id'=>$rights['id']]);
-            $this->audit->record(null,'model_application.rights.verified','model_application',(string) $app['id'],
-                'Applicant verified a privacy-rights request',null,['request_type'=>$rights['request_type']],$requestId,'applicant-rights-v1');
+            $eventKey=$rights['request_type']==='portal_access'?'model_application.portal_access.verified':'model_application.rights.verified';
+            $this->audit->record(null,$eventKey,'model_application',(string) $app['id'],
+                $rights['request_type']==='portal_access'?'Applicant authenticated to the model self-service workspace':'Applicant verified a privacy-rights request',
+                null,['request_type'=>$rights['request_type']],$requestId,'applicant-rights-v1');
             $this->pdo->commit();
             return (string) $rights['id'];
         } catch (Throwable $error) {
@@ -211,6 +213,125 @@ final class ModelApplicantRightsService
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
+            throw $error;
+        }
+    }
+
+    /** @return array<string,mixed> */
+    public function portalRead(string $rightsRequestId,string $requestId): array
+    {
+        if(strlen($requestId)<16 || strlen($requestId)>64) throw new \InvalidArgumentException('Request identifier is invalid.');
+        $this->pdo->beginTransaction();
+        try {
+            [$rights,$application]=$this->verifiedContext($rightsRequestId,'portal_access');
+            $assets=$this->pdo->prepare(
+                'SELECT id,status,mime_type,width,height,file_size,created_at,consent_withdrawn_at
+                 FROM model_portfolio_assets WHERE application_id=:application
+                 ORDER BY created_at DESC LIMIT 100'
+            );
+            $assets->execute(['application'=>$application['id']]);
+            $licences=$this->pdo->prepare(
+                'SELECT id,licence_reference,purpose,territory_code,status,starts_on,ends_on,
+                        exclusivity,compensation_amount,currency_code,created_at
+                 FROM model_image_licences WHERE application_id=:application
+                 ORDER BY created_at DESC LIMIT 100'
+            );
+            $licences->execute(['application'=>$application['id']]);
+            $castings=$this->pdo->prepare(
+                'SELECT s.id,s.submission_reference,s.status,s.submitted_at,c.casting_reference,c.title,
+                        c.project_purpose,c.country_code,c.shoot_starts_at,c.shoot_ends_at
+                 FROM model_casting_submissions s
+                 INNER JOIN model_casting_calls c ON c.id=s.casting_call_id
+                 WHERE s.application_id=:application
+                 ORDER BY s.submitted_at DESC LIMIT 100'
+            );
+            $castings->execute(['application'=>$application['id']]);
+            $assignments=$this->pdo->prepare(
+                'SELECT id,assignment_reference,status,project_purpose,country_code,
+                        shoot_starts_at,shoot_ends_at,compensation_minor,currency_code,
+                        created_at,offered_at,accepted_at,confirmed_at,started_at,completed_at
+                 FROM model_assignments WHERE application_id=:application
+                 ORDER BY created_at DESC LIMIT 100'
+            );
+            $assignments->execute(['application'=>$application['id']]);
+            $result=[
+                'application_reference'=>$application['application_reference'],
+                'applicant_name'=>$application['applicant_name'],'email'=>$application['email'],
+                'phone'=>$application['phone'],'country_code'=>$application['country_code'],
+                'city'=>$application['city'],'portfolio_url'=>$application['portfolio_url'],
+                'experience_summary'=>$application['experience_summary'],'status'=>$application['status'],
+                'privacy_notice_version'=>$application['privacy_notice_version'],
+                'privacy_acknowledged_at'=>$application['privacy_acknowledged_at'],'created_at'=>$application['created_at'],
+                'portfolio_assets'=>$assets->fetchAll(PDO::FETCH_ASSOC),
+                'image_licences'=>$licences->fetchAll(PDO::FETCH_ASSOC),
+                'casting_submissions'=>$castings->fetchAll(PDO::FETCH_ASSOC),
+                'assignments'=>$assignments->fetchAll(PDO::FETCH_ASSOC),
+                'legal_hold_restricts_mutations'=>(bool)$application['legal_hold'],
+            ];
+            $this->audit->record(null,'model_application.portal.accessed','model_application',(string)$application['id'],
+                'Applicant accessed their authenticated model self-service workspace',null,
+                ['rights_request_id'=>$rightsRequestId,'asset_count'=>count($result['portfolio_assets']),
+                 'licence_count'=>count($result['image_licences']),'casting_count'=>count($result['casting_submissions']),
+                 'assignment_count'=>count($result['assignments'])],$requestId,'model-applicant-portal-v1');
+            $this->pdo->commit();
+            return $result;
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    /** @param array<string,mixed> $input */
+    public function portalCorrect(string $rightsRequestId,array $input,string $requestId): void
+    {
+        $name=trim((string)($input['applicant_name']??''));
+        $phone=isset($input['phone'])?(string)$input['phone']:null;
+        $phone=$phone===null?null:trim($phone);
+        $city=trim((string)($input['city']??''));
+        $portfolio=$input['portfolio_url']??null;
+        $experience=trim((string)($input['experience_summary']??''));
+        if($name==='' || strlen($name)>120 ||
+            ($phone!==null && ($phone!=='' && (strlen($phone)>40 || preg_match('/^[+0-9(). \\-]{5,40}$/D',$phone)!==1))) ||
+            $city==='' || strlen($city)>120 || $experience==='' || strlen($experience)>8000 ||
+            ($portfolio!==null && (!is_string($portfolio) || strlen($portfolio)>2048 ||
+                filter_var($portfolio,FILTER_VALIDATE_URL)===false || strtolower((string)parse_url($portfolio,PHP_URL_SCHEME))!=='https')) ||
+            strlen($requestId)<16 || strlen($requestId)>64) {
+            throw new \InvalidArgumentException('Applicant profile fields are invalid.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            [$rights,$application]=$this->verifiedContext($rightsRequestId,'portal_access');
+            if($application['status']==='withdrawn') throw new \DomainException('A withdrawn application is read-only.');
+            $this->pdo->prepare(
+                'UPDATE model_talent_applications SET applicant_name=:name,phone=:phone,city=:city,
+                 portfolio_url=:portfolio,experience_summary=:experience,updated_at=UTC_TIMESTAMP()
+                 WHERE id=:id AND anonymized_at IS NULL'
+            )->execute(['name'=>$name,'phone'=>$phone===''?null:$phone,'city'=>$city,'portfolio'=>$portfolio,
+                'experience'=>$experience,'id'=>$application['id']]);
+            $this->recordApplicantEvent($application['id'],'application.portal_profile_corrected',(string)$application['status']);
+            $this->audit->record(null,'model_application.portal_profile.corrected','model_application',(string)$application['id'],
+                'Applicant corrected their own model profile',null,
+                ['fields'=>['applicant_name','phone','city','portfolio_url','experience_summary']],$requestId,'model-applicant-portal-v1');
+            $this->pdo->commit();
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    public function logoutPortal(string $rightsRequestId,string $requestId): void
+    {
+        if(strlen($requestId)<16 || strlen($requestId)>64) throw new \InvalidArgumentException('Request identifier is invalid.');
+        $this->pdo->beginTransaction();
+        try {
+            [$rights,$application]=$this->verifiedContext($rightsRequestId,'portal_access');
+            $this->completeRequest($rightsRequestId);
+            $this->audit->record(null,'model_application.portal_access.ended','model_application',(string)$application['id'],
+                'Applicant ended their authenticated model workspace session',null,
+                ['rights_request_id'=>$rightsRequestId],$requestId,'model-applicant-portal-v1');
+            $this->pdo->commit();
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $error;
         }
     }

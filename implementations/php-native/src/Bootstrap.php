@@ -288,6 +288,12 @@ final class Bootstrap
         $router->add('POST', '/model-agency/privacy/withdraw', static fn(Request $request): Response => $publicModelAgencyRights->withdraw($request));
         $router->add('POST', '/model-agency/privacy/erase', static fn(Request $request): Response => $publicModelAgencyRights->erase($request));
         $router->add('POST', '/model-agency/privacy/withdraw-portfolio', static fn(Request $request): Response => $publicModelAgencyRights->withdrawPortfolio($request));
+        $router->add('GET', '/model-agency/portal', static fn(Request $request): Response => $publicModelAgencyRights->portal($request));
+        $router->add('POST', '/model-agency/portal/profile', static fn(Request $request): Response => $publicModelAgencyRights->portalCorrect($request));
+        $router->add('POST', '/model-agency/portal/portfolio', static fn(Request $request): Response => $publicModelAgencyRights->portalUpload($request));
+        $router->add('GET', '/model-agency/portal/portfolio/{id}/preview', static fn(Request $request,array $params): Response => $publicModelAgencyRights->portalPreview($request,$params));
+        $router->add('POST', '/model-agency/portal/portfolio/{id}/withdraw', static fn(Request $request,array $params): Response => $publicModelAgencyRights->portalWithdraw($request,$params));
+        $router->add('POST', '/model-agency/portal/logout', static fn(Request $request): Response => $publicModelAgencyRights->portalLogout($request));
         $router->add('GET', '/destinations', static fn(Request $request): Response => $publicDiscovery->destinations($request));
         $router->add('GET', '/companions', static fn(Request $request): Response => $publicDiscovery->companions($request));
         $router->add('GET', '/companions/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->companion($request,$params));

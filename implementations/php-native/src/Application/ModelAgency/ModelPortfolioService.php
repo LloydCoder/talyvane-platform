@@ -81,9 +81,124 @@ final class ModelPortfolioService
             return $assetId;
         } catch(Throwable $error) {
             if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            if(is_array($image) && is_string($image['key']??null)) $this->storage->delete($image['key']);
+            throw $error;
+        }
+    }
+
+    /**
+     * Applicant-owned portfolio upload, authorized by the active OTP model workspace.
+     * Rights and consent evidence are recorded as an explicit applicant attestation,
+     * not represented as independent third-party verification.
+     *
+     * @param array{name?:string,type?:string,tmp_name?:string,error?:int,size?:int} $upload
+     * @param array{source_description:string,consent_scope:string} $evidence
+     */
+    public function storeByVerifiedApplicantPortal(string $rightsRequestId,array $upload,array $evidence,bool $attested,string $requestId): string
+    {
+        if(!$attested) throw new \DomainException('The applicant must explicitly attest to image rights and private portfolio consent.');
+        $this->assertFeature();
+        $this->assertRequestId($requestId);
+        foreach(['source_description','consent_scope'] as $field) {
+            $value=$evidence[$field]??null;
+            if(!is_string($value) || strlen(trim($value))<20 || strlen(trim($value))>2000) {
+                throw new \InvalidArgumentException('Portfolio source description and consent scope must each contain 20 to 2000 characters.');
+            }
+        }
+        $image=null;
+        $assetId=self::uuid();$grantId=self::uuid();
+        try {
+            $this->pdo->beginTransaction();
+            $rightsQuery=$this->pdo->prepare(
+                'SELECT r.id,r.application_id,r.status,r.request_type,r.expires_at,r.completed_at,
+                        a.status AS application_status,a.legal_hold,a.anonymized_at
+                 FROM model_applicant_rights_requests r
+                 INNER JOIN model_talent_applications a ON a.id=r.application_id
+                 WHERE r.id=:rights LIMIT 1 FOR UPDATE'
+            );
+            $rightsQuery->execute(['rights'=>$rightsRequestId]);$rights=$rightsQuery->fetch(PDO::FETCH_ASSOC);
+            if(!is_array($rights) || $rights['status']!=='verified' || $rights['request_type']!=='portal_access' ||
+                $rights['completed_at']!==null || $rights['anonymized_at']!==null ||
+                new \DateTimeImmutable((string)$rights['expires_at'],new \DateTimeZone('UTC'))<=new \DateTimeImmutable('now',new \DateTimeZone('UTC'))) {
+                throw new \DomainException('The verified model workspace session is invalid or expired.');
+            }
+            if((int)$rights['legal_hold']===1) throw new \DomainException('Portfolio uploads are paused while safeguarding/legal-hold review is active.');
+            $application=$this->assertEligible((string)$rights['application_id'],true);
+            $policy=$this->approvedPolicy();
+            $image=$this->storage->storeImage($upload,'model-portfolio',8_388_608);
+            $duplicate=$this->pdo->prepare('SELECT id FROM model_portfolio_assets WHERE application_id=:application AND sha256=:hash LIMIT 1 FOR UPDATE');
+            $duplicate->execute(['application'=>$rights['application_id'],'hash'=>$image['sha256']]);
+            if($duplicate->fetchColumn()!==false) throw new \DomainException('This exact image is already recorded in your portfolio.');
+            $attestation='applicant-portal-attestation:'.$assetId;
+            $this->pdo->prepare(
+                'INSERT INTO consent_grants
+                 (id,subject_type,subject_id,purpose,audience,policy_version,granted,granted_at,withdrawn_at,evidence_reference,created_at)
+                 VALUES (:id,"model_portfolio_asset",:subject,"portfolio_curation","agency_internal",:policy,1,UTC_TIMESTAMP(),NULL,:evidence,UTC_TIMESTAMP())'
+            )->execute(['id'=>$grantId,'subject'=>$assetId,'policy'=>$policy['policy_version'],'evidence'=>hash('sha256',$attestation)]);
+            $this->pdo->prepare(
+                'INSERT INTO model_portfolio_assets
+                 (id,application_id,uploaded_by,private_storage_key,mime_type,width,height,file_size,sha256,
+                  consent_grant_id,review_status,status,source_description,consent_scope,rights_evidence_reference,
+                  consent_evidence_reference,consent_policy_version,consent_recorded_at,created_at,updated_at)
+                 VALUES (:id,:application,NULL,:key,:mime,:width,:height,:size,:hash,:grant,
+                  "pending","pending_review",:source,:scope,:rights,:consent,:policy,UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+            )->execute([
+                'id'=>$assetId,'application'=>$rights['application_id'],'key'=>$image['key'],'mime'=>$image['mime'],
+                'width'=>$image['width'],'height'=>$image['height'],'size'=>$image['size'],'hash'=>$image['sha256'],'grant'=>$grantId,
+                'source'=>$this->encrypt($assetId,'source_description',trim($evidence['source_description'])),
+                'scope'=>$this->encrypt($assetId,'consent_scope',trim($evidence['consent_scope'])),
+                'rights'=>$this->encrypt($assetId,'rights_evidence_reference',$attestation),
+                'consent'=>$this->encrypt($assetId,'consent_evidence_reference',$attestation),'policy'=>$policy['policy_version'],
+            ]);
+            $this->pdo->prepare(
+                'INSERT INTO model_talent_application_events
+                 (id,application_id,actor_user_id,actor_type,from_status,to_status,reason,policy_version,created_at)
+                 VALUES (:id,:application,NULL,"applicant",:status,:status,
+                         "Applicant uploaded a private portfolio image and recorded a portfolio-curation consent attestation.",:policy,UTC_TIMESTAMP())'
+            )->execute(['id'=>self::uuid(),'application'=>$rights['application_id'],'status'=>$application['status'],'policy'=>$policy['policy_version']]);
+            $this->audit->record(null,'model_portfolio.applicant_asset_uploaded','model_portfolio_asset',$assetId,
+                'Applicant uploaded a private portfolio image through verified model self-service',null,
+                ['application_id'=>$rights['application_id'],'status'=>'pending_review','mime_type'=>'image/webp',
+                 'file_size'=>$image['size'],'sha256'=>$image['sha256'],'consent_policy_version'=>$policy['policy_version'],
+                 'evidence_type'=>'applicant_attestation'],$requestId,'model-applicant-portal-v1');
+            $this->pdo->commit();
+            return $assetId;
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
             $this->storage->delete($image['key']);
             throw $error;
         }
+    }
+
+    /** @return array{bytes:string,mime:string} */
+    public function previewForVerifiedApplicantPortal(string $rightsRequestId,string $assetId,string $requestId): array
+    {
+        $this->assertRequestId($requestId);
+        $query=$this->pdo->prepare(
+            'SELECT a.id,a.application_id,a.private_storage_key,a.mime_type,a.sha256,a.status,a.consent_withdrawn_at,
+                    r.application_id AS portal_application_id,r.status AS portal_status,r.request_type,r.expires_at,r.completed_at,
+                    app.anonymized_at,app.status AS application_status
+             FROM model_portfolio_assets a
+             INNER JOIN model_applicant_rights_requests r ON r.id=:rights
+             INNER JOIN model_talent_applications app ON app.id=r.application_id
+             WHERE a.id=:asset AND a.application_id=r.application_id LIMIT 1'
+        );
+        $query->execute(['rights'=>$rightsRequestId,'asset'=>$assetId]);$row=$query->fetch(PDO::FETCH_ASSOC);
+        if(!is_array($row) || $row['portal_status']!=='verified' || $row['request_type']!=='portal_access' ||
+            $row['completed_at']!==null || $row['anonymized_at']!==null || $row['application_status']==='withdrawn' || $row['consent_withdrawn_at']!==null ||
+            !in_array($row['status'],['pending_review','approved'],true) ||
+            !is_string($row['private_storage_key']) || $row['private_storage_key']==='' ||
+            new \DateTimeImmutable((string)$row['expires_at'],new \DateTimeZone('UTC'))<=new \DateTimeImmutable('now',new \DateTimeZone('UTC'))) {
+            throw new \DomainException('The applicant portfolio preview is unavailable.');
+        }
+        $bytes=$this->storage->read((string)$row['private_storage_key'],8_388_608);
+        if($row['mime_type']!=='image/webp' || !hash_equals((string)$row['sha256'],hash('sha256',$bytes))) {
+            throw new \DomainException('Applicant portfolio preview failed integrity verification.');
+        }
+        $this->audit->record(null,'model_portfolio.applicant_asset_viewed','model_portfolio_asset',$assetId,
+            'Applicant viewed their own private portfolio image',null,['sha256'=>(string)$row['sha256']],
+            $requestId,'model-applicant-portal-v1');
+        return ['bytes'=>$bytes,'mime'=>'image/webp'];
     }
 
     /** @return list<array<string,mixed>> */
@@ -128,7 +243,7 @@ final class ModelPortfolioService
         $this->authorize($actor);
         $query=$this->pdo->prepare('SELECT private_storage_key,mime_type,sha256,status,consent_withdrawn_at FROM model_portfolio_assets WHERE id=:id LIMIT 1');
         $query->execute(['id'=>$assetId]);$asset=$query->fetch(PDO::FETCH_ASSOC);
-        if(!is_array($asset) || !in_array($asset['status'],['pending_review','approved'],true) ||
+        if(!is_array($asset) || !in_array($asset['status'],['pending_review','approved','rejected'],true) ||
             $asset['consent_withdrawn_at']!==null || !is_string($asset['private_storage_key']) || $asset['private_storage_key']==='') {
             throw new \DomainException('Private portfolio preview is unavailable.');
         }
@@ -256,8 +371,8 @@ final class ModelPortfolioService
             $rightsQuery->execute(['rights'=>$rightsRequestId]);
             $rights=$rightsQuery->fetch(PDO::FETCH_ASSOC);
             if(!is_array($rights) || $rights['status']!=='verified' ||
-                $rights['request_type']!=='portfolio_withdrawal' ||
-                !hash_equals((string)$rights['related_asset_id'],$assetId) ||
+                !in_array($rights['request_type'],['portfolio_withdrawal','portal_access'],true) ||
+                ($rights['request_type']==='portfolio_withdrawal' && !hash_equals((string)$rights['related_asset_id'],$assetId)) ||
                 $rights['anonymized_at']!==null ||
                 new \DateTimeImmutable((string)$rights['expires_at'],new \DateTimeZone('UTC'))<=new \DateTimeImmutable('now',new \DateTimeZone('UTC'))) {
                 throw new \DomainException('The verified applicant portfolio-withdrawal session is invalid or expired.');
@@ -335,10 +450,12 @@ final class ModelPortfolioService
                  VALUES (:id,:application,NULL,"applicant",:from_status,:to_status,
                          "Applicant withdrew a specific portfolio asset through verified privacy rights.","applicant-portfolio-rights-v1",UTC_TIMESTAMP())'
             )->execute(['id'=>self::uuid(),'application'=>$rights['application_id'],'from_status'=>$rights['application_status'],'to_status'=>$rights['application_status']]);
-            $this->pdo->prepare(
-                'UPDATE model_applicant_rights_requests SET status="completed",otp_hash="",completed_at=UTC_TIMESTAMP()
-                 WHERE id=:id AND status="verified"'
-            )->execute(['id'=>$rightsRequestId]);
+            if($rights['request_type']==='portfolio_withdrawal') {
+                $this->pdo->prepare(
+                    'UPDATE model_applicant_rights_requests SET status="completed",otp_hash="",completed_at=UTC_TIMESTAMP()
+                     WHERE id=:id AND status="verified"'
+                )->execute(['id'=>$rightsRequestId]);
+            }
             $this->audit->record(null,'model_application.portfolio_asset.withdrawn','model_portfolio_asset',$assetId,
                 'Applicant withdrew a specific portfolio asset through verified email rights',
                 ['status'=>$asset['status']],['status'=>'withdrawn','private_storage_deleted'=>true,'dependent_licences_revoked'=>true],

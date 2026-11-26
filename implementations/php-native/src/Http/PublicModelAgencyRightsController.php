@@ -61,12 +61,107 @@ final class PublicModelAgencyRightsController
             SessionManager::rotateAfterAuthentication();
             return match ($context['type']) {
                 'access'=>$this->showAccess($id,$request->requestId),
+                'portal_access'=>$this->showPortal($id,$request->requestId),
                 'correction'=>$this->page('correction'),
                 default=>$this->page('confirm',['requestType'=>$context['type']]),
             };
         } catch (\Throwable) {
             return $this->page('verify',['error'=>'The verification details could not be accepted.'],422);
         }
+    }
+
+    public function portal(Request $request): Response
+    {
+        SessionManager::start();
+        $id=$this->rightsId();
+        if($id===null || $this->rights===null) return Response::redirect('/model-agency/privacy');
+        return $this->showPortal($id,$request->requestId);
+    }
+
+    public function portalCorrect(Request $request): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
+        $id=$this->rightsId();
+        if($id===null || $this->rights===null) return Response::redirect('/model-agency/privacy');
+        try {
+            $this->rights->portalCorrect($id,[
+                'applicant_name'=>$this->field($request,'applicant_name'),
+                'phone'=>$this->nullable($this->field($request,'phone')),
+                'city'=>$this->field($request,'city'),
+                'portfolio_url'=>$this->nullable($this->field($request,'portfolio_url')),
+                'experience_summary'=>$this->field($request,'experience_summary'),
+            ],$request->requestId);
+            return $this->showPortal($id,$request->requestId,'Your profile changes have been saved.');
+        } catch(\Throwable) {
+            return $this->showPortal($id,$request->requestId,'The profile could not be updated. Check the fields and try again.',422);
+        }
+    }
+
+    public function portalUpload(Request $request): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
+        $id=$this->rightsId();
+        if($id===null || $this->portfolio===null) return Response::redirect('/model-agency/privacy');
+        $upload=$request->files['portfolio_image']??null;
+        if($this->field($request,'applicant_attestation')!=='yes') return $this->showPortal($id,$request->requestId,'Confirm the private portfolio rights and consent attestation before uploading.',422);
+        if(!is_array($upload)) return $this->showPortal($id,$request->requestId,'Choose a portfolio image before uploading.',422);
+        try {
+            $assetId=$this->portfolio->storeByVerifiedApplicantPortal($id,$upload,[
+                'source_description'=>$this->field($request,'source_description'),
+                'consent_scope'=>$this->field($request,'consent_scope'),
+            ],true,$request->requestId);
+            return $this->showPortal($id,$request->requestId,'Your image was uploaded privately and is awaiting human review.');
+        } catch(\Throwable) {
+            return $this->showPortal($id,$request->requestId,'The portfolio image could not be uploaded. Check the image and consent details.',422);
+        }
+    }
+
+    /** @param array<string,string> $params */
+    public function portalWithdraw(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
+        $id=$this->rightsId();
+        if($id===null || $this->portfolio===null) return Response::redirect('/model-agency/privacy');
+        try {
+            $this->portfolio->withdrawByVerifiedApplicantRights($id,(string)($params['id']??''),$request->requestId);
+            return $this->showPortal($id,$request->requestId,'Portfolio consent was withdrawn and dependent licences/submissions were invalidated.');
+        } catch(\Throwable) {
+            return $this->showPortal($id,$request->requestId,'The image could not be withdrawn. Safeguarding/legal-hold review may be required.',422);
+        }
+    }
+
+    /** @param array<string,string> $params */
+    public function portalPreview(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        $id=$this->rightsId();
+        if($id===null || $this->portfolio===null) return Response::redirect('/model-agency/privacy');
+        try {
+            $image=$this->portfolio->previewForVerifiedApplicantPortal($id,(string)($params['id']??''),$request->requestId);
+            return new Response($image['bytes'],200,[
+                'content-type'=>$image['mime'],'content-disposition'=>'inline; filename="my-private-portfolio.webp"',
+                'cache-control'=>'private, no-store, max-age=0','pragma'=>'no-cache',
+                'x-content-type-options'=>'nosniff','referrer-policy'=>'no-referrer',
+                'content-security-policy'=>"default-src 'none'; sandbox",
+            ]);
+        } catch(\Throwable) {
+            return Response::html('Not found',404)->withHeaders(['cache-control'=>'private, no-store','x-content-type-options'=>'nosniff']);
+        }
+    }
+
+    public function portalLogout(Request $request): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
+        $id=$this->rightsId();
+        if($id!==null && $this->rights!==null) {
+            try { $this->rights->logoutPortal($id,$request->requestId); } catch(\Throwable) { /* Session is still cleared locally. */ }
+        }
+        $this->clearContext();
+        return Response::redirect('/model-agency/privacy');
     }
 
     public function correct(Request $request): Response
@@ -148,12 +243,23 @@ final class PublicModelAgencyRightsController
         }
     }
 
+    private function showPortal(string $id,string $requestId,string $notice='',int $status=200): Response
+    {
+        try {
+            $record=$this->rights?->portalRead($id,$requestId)??[];
+            return $this->page('portal',['record'=>$record,'notice'=>$notice],$status);
+        } catch(\Throwable) {
+            $this->clearContext();
+            return Response::redirect('/model-agency/privacy');
+        }
+    }
+
     /** @return array{reference:string,email:string,type:string}|null */
     private function context(): ?array
     {
         $context=$_SESSION['model_rights_context']??null;
         if (!is_array($context) || !is_string($context['reference']??null) || !is_string($context['email']??null) ||
-            !is_string($context['type']??null) || !in_array($context['type'],['access','correction','withdrawal','erasure'],true)) return null;
+            !is_string($context['type']??null) || !in_array($context['type'],['access','correction','withdrawal','erasure','portal_access'],true)) return null;
         return ['reference'=>$context['reference'],'email'=>$context['email'],'type'=>$context['type']];
     }
 
@@ -166,6 +272,7 @@ final class PublicModelAgencyRightsController
     private function clearContext(): void
     {
         unset($_SESSION['model_rights_id'],$_SESSION['model_rights_context']);
+        SessionManager::rotateAfterAuthentication();
         Csrf::rotate();
     }
 
@@ -185,6 +292,9 @@ final class PublicModelAgencyRightsController
     private function page(string $screen,array $data=[],int $status=200): Response
     {
         $payload=$data+['screen'=>$screen,'csrf'=>Csrf::issue(),'error'=>'','notice'=>'','requestType'=>'','record'=>[],'brandName'=>$this->brandName];
-        return Response::html($this->views->render('public/model-agency-rights',$payload),$status);
+        return Response::html($this->views->render('public/model-agency-rights',$payload),$status)->withHeaders([
+            'cache-control'=>'private, no-store, max-age=0','pragma'=>'no-cache','x-content-type-options'=>'nosniff',
+            'referrer-policy'=>'no-referrer','x-frame-options'=>'DENY',
+        ]);
     }
 }
