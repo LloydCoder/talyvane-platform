@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Explicit cPanel cron entry point for encrypted booking, safeguarding and privacy-outcome mail.
  * Example: php /path/to/private/implementations/php-native/bin/dispatch-notifications.php --limit=25
- * Requires TALYVANE_CONFIG to reference the installer-generated owner-only config.
+ * Requires TALYVANE_CONFIG and TALYVANE_PUBLIC_ROOT to identify the owner-only private config and canonical public document root.
  */
 
 use Talyvane\Application\Bookings\BookingNotificationDispatcher;
@@ -13,6 +13,7 @@ use Talyvane\Application\Identity\PortalPrivacyNotificationDispatcher;
 use Talyvane\Infrastructure\Database\ConnectionFactory;
 use Talyvane\Infrastructure\Mail\SmtpMailer;
 use Talyvane\Security\SecretBox;
+use Talyvane\Installer\PrivateCliConfig;
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(404);
@@ -36,13 +37,13 @@ if (!is_string($limitValue) || !ctype_digit($limitValue) || (int)$limitValue < 1
 $configPath = getenv('TALYVANE_CONFIG');
 $publicRoot = getenv('TALYVANE_PUBLIC_ROOT');
 if (!is_string($configPath) || $configPath === '' || !is_string($publicRoot) || $publicRoot === '') {
-    fwrite(STDERR,"Set TALYVANE_CONFIG and TALYVANE_PUBLIC_ROOT to the private config file and public document root.\\n");
+    fwrite(STDERR,"Set TALYVANE_CONFIG and TALYVANE_PUBLIC_ROOT to the private config file and public document root.\n");
     exit(2);
 }
 try {
     $config = PrivateCliConfig::load($configPath,$publicRoot);
 } catch (Throwable) {
-    fwrite(STDERR,"Private CLI configuration must be valid, owner-only and outside the public document root.\\n");
+    fwrite(STDERR,"Private CLI configuration must be valid, owner-only and outside the public document root.\n");
     exit(2);
 }
 
