@@ -37,6 +37,25 @@ $statuses = ['new'=>'New','in_progress'=>'In progress','responded'=>'Responded',
 <button class="button" type="submit">Save assignment</button>
 </form>
 <section class="internal-notes" style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
+<strong style="font:18px Georgia,serif">Follow-up reminders</strong>
+<?php foreach (($item['reminders']??[]) as $reminder): ?>
+<article style="padding:8px 0;border-bottom:1px solid var(--line)">
+<div class="muted" style="font-size:11px">Due (UTC): <?= $escape($reminder['due_at']??'') ?> · <?= !empty($reminder['completed_at'])?'Completed':'Open' ?></div>
+<?php if(empty($reminder['completed_at'])): ?>
+<form method="post" action="<?= $escape('/admin/enquiry-reminders/' . rawurlencode((string)($reminder['id']??'')) . '/complete') ?>">
+<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<div class="field"><label>Completion reason</label><input name="reason" minlength="8" maxlength="500" required placeholder="Describe the follow-up outcome"></div>
+<button class="button" type="submit">Complete reminder</button>
+</form>
+<?php endif; ?></article>
+<?php endforeach; ?>
+<form method="post" action="<?= $escape('/admin/enquiries/' . rawurlencode((string)($item['reference']??'')) . '/reminders') ?>">
+<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<div class="field"><label>Due date and time (UTC)</label><input type="text" name="due_at" required pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}" placeholder="YYYY-MM-DD HH:MM:SS"></div>
+<div class="field"><label>Scheduling reason</label><input name="reason" minlength="8" maxlength="500" required placeholder="Why is follow-up needed?"></div>
+<button class="button" type="submit">Schedule reminder</button>
+</form></section>
+<section class="internal-notes" style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
 <strong style="font:18px Georgia,serif">Internal notes</strong>
 <?php foreach (($item['internal_notes']??[]) as $note): ?><article style="padding:10px 0;border-bottom:1px solid var(--line)"><div class="muted" style="font-size:10px"><?= $escape($note['author_email']??'') ?> · <?= $escape($note['created_at']??'') ?></div><p style="font-size:12px;white-space:pre-wrap;margin:5px 0"><?= $escape($note['body']??'') ?></p></article><?php endforeach; ?>
 <form method="post" action="<?= $escape('/admin/enquiries/' . rawurlencode((string) ($item['reference'] ?? '')) . '/notes') ?>">
