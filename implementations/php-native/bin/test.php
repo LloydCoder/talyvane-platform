@@ -47,6 +47,15 @@ use Talyvane\Installer\InstallerLock;
 use Talyvane\Installer\PrivateConfigStore;
 use Talyvane\Installer\SafeZipExtractor;
 
+$tests = 0;
+$assert = static function (bool $condition, string $message) use (&$tests): void {
+    $tests++;
+    if (!$condition) {
+        throw new RuntimeException('FAIL: ' . $message);
+    }
+};
+
+
 $automaticProfile = [
     'status'=>'published','adult_eligibility_status'=>'verified',
     'publication_consent_version'=>'v1','publication_consent_withdrawn_at'=>null,
@@ -82,15 +91,6 @@ try {
 } catch (DomainException) {
     $assert(true,'companion cannot opt in while deployment feature gates are closed');
 }
-
-$tests = 0;
-$assert = static function (bool $condition, string $message) use (&$tests): void {
-    $tests++;
-    if (!$condition) {
-        throw new RuntimeException('FAIL: ' . $message);
-    }
-};
-
 
 $ambiguousLondon = LocalDateTimeResolver::candidates('2026-10-25T01:30',new DateTimeZone('Europe/London'));
 $assert(count($ambiguousLondon)===2 && $ambiguousLondon[0]['utc']->format('Y-m-d H:i:s')==='2026-10-25 00:30:00' &&
