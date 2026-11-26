@@ -243,7 +243,7 @@ final class ModelPortfolioService
         $this->authorize($actor);
         $query=$this->pdo->prepare('SELECT private_storage_key,mime_type,sha256,status,consent_withdrawn_at FROM model_portfolio_assets WHERE id=:id LIMIT 1');
         $query->execute(['id'=>$assetId]);$asset=$query->fetch(PDO::FETCH_ASSOC);
-        if(!is_array($asset) || !in_array($asset['status'],['pending_review','approved'],true) ||
+        if(!is_array($asset) || !in_array($asset['status'],['pending_review','approved','rejected'],true) ||
             $asset['consent_withdrawn_at']!==null || !is_string($asset['private_storage_key']) || $asset['private_storage_key']==='') {
             throw new \DomainException('Private portfolio preview is unavailable.');
         }
