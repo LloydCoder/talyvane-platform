@@ -351,13 +351,13 @@ final class ModelImageLicenceService
 
     public function expireDue(): int
     {
-        $query=$this->pdo->query('SELECT id FROM model_image_licences WHERE status="active" AND ends_on<UTC_DATE() ORDER BY ends_on ASC LIMIT 100');
+        $query=$this->pdo->query('SELECT id FROM model_image_licences WHERE status IN ("active","awaiting_model_consent") AND ends_on<UTC_DATE() ORDER BY ends_on ASC LIMIT 100');
         $ids=$query->fetchAll(PDO::FETCH_COLUMN);$expired=0;
         foreach($ids as $id) {
             $this->pdo->beginTransaction();
             try {
                 $licence=$this->lockRow('model_image_licences',(string)$id);
-                if($licence['status']!=='active' || $licence['ends_on']>=gmdate('Y-m-d')) {$this->pdo->rollBack();continue;}
+                if(!in_array($licence['status'],['active','awaiting_model_consent'],true) || $licence['ends_on']>=gmdate('Y-m-d')) {$this->pdo->rollBack();continue;}
                 $this->pdo->prepare('UPDATE model_image_licences SET status="expired",expired_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE id=:id')
                     ->execute(['id'=>$licence['id']]);
                 $this->pdo->prepare('UPDATE consent_grants SET granted=0,withdrawn_at=UTC_TIMESTAMP() WHERE id=:id AND granted=1')
@@ -463,7 +463,7 @@ final class ModelImageLicenceService
     {
         $query=$this->pdo->prepare(
             'SELECT purpose,channels,exclusivity FROM model_image_licences
-             WHERE portfolio_asset_id=:asset AND territory_code=:territory AND status="active"
+             WHERE portfolio_asset_id=:asset AND territory_code=:territory AND status IN ("active","awaiting_model_consent")
                AND starts_on<=:ends_on AND ends_on>=:starts_on FOR UPDATE'
         );
         $query->execute(['asset'=>$assetId,'territory'=>$terms['country_code'],'ends_on'=>$terms['ends_on'],'starts_on'=>$terms['starts_on']]);
@@ -585,7 +585,7 @@ final class ModelImageLicenceService
         if(strlen($reference)<20 || strlen($reference)>200 || !str_starts_with($reference,$prefix) ||
             preg_match('#^'.preg_quote($prefix,'#').'[A-Za-z0-9][A-Za-z0-9._/-]{10,180}$#D',$reference)!==1 ||
             str_contains($reference,'..') || str_contains($reference,'\\')) {
-            throw new \InvalidArgumentException('External execution and model-consent evidence must use valid private evidence references.');
+            throw new \InvalidArgumentException('External execution evidence must use a valid private evidence reference.');
         }
     }
 
