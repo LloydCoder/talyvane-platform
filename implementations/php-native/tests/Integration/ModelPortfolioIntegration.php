@@ -349,6 +349,13 @@ function runModelPortfolioIntegration(PDO $pdo): int
         $assert(true,'agency cannot record assignment execution before the model explicitly responds to the offer');
     }
     $assignmentApplicationId=$rights->portalApplicationId((string)$portalRightsId);
+    $pausedAssignments=new ModelAssignmentService($pdo,new AuditLogger($pdo),$secretBox,$storage,static fn():bool=>false);
+    try {
+        $pausedAssignments->respondByApplicant($assignmentApplicationId,$assignmentId,'accept',true,null,bin2hex(random_bytes(16)));
+        $assert(false,'assignment acceptance intent is disabled while the assignment feature is paused');
+    } catch(DomainException) {
+        $assert(true,'assignment acceptance intent is disabled while the assignment feature is paused');
+    }
     try {
         $assignments->respondByApplicant('00000000-0000-4000-8000-000000000001',$assignmentId,'accept',true,null,bin2hex(random_bytes(16)));
         $assert(false,'a model cannot respond to an assignment owned by another application');
@@ -459,7 +466,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $secondAcceptanceIntent=$assignments->respondByApplicant($assignmentApplicationId,$secondAssignmentId,'accept',true,null,bin2hex(random_bytes(16)));
     $assert($secondAcceptanceIntent==='acceptance_pending_execution','model can record a second assignment acceptance intent before external execution');
     $declineRequestId=bin2hex(random_bytes(16));
-    $declinedResponse=$assignments->respondByApplicant($assignmentApplicationId,$secondAssignmentId,'decline',true,
+    $declinedResponse=$pausedAssignments->respondByApplicant($assignmentApplicationId,$secondAssignmentId,'decline',true,
         'I cannot accept the proposed dates due to a scheduling conflict.',$declineRequestId);
     $assert($declinedResponse==='declined','model can decline an offered assignment through the verified self-service workspace');
     $declineRow=$pdo->prepare('SELECT status,declined_by,applicant_response_status,applicant_response_reason,model_decline_evidence_reference FROM model_assignments WHERE id=:id');
@@ -474,7 +481,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert(is_array($declineEventRow) && $declineEventRow['actor_user_id']===null && $declineEventRow['actor_type']==='applicant' &&
         $declineEventRow['from_status']==='offered' && $declineEventRow['to_status']==='declined',
         'model-originated decline is append-only and correctly attributed to the applicant session');
-    $assert($assignments->respondByApplicant($assignmentApplicationId,$secondAssignmentId,'decline',true,
+    $assert($pausedAssignments->respondByApplicant($assignmentApplicationId,$secondAssignmentId,'decline',true,
         'I cannot accept the proposed dates due to a scheduling conflict.',$declineRequestId)==='declined',
         'replayed model decline response is idempotent');
     $secondApplicantAssignmentList=$assignments->applicantAssignments($assignmentApplicationId);
