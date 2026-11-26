@@ -13,6 +13,7 @@ use Talyvane\Application\Destinations\DestinationManagementService;
 use Talyvane\Application\Globalization\MarketPolicyManagementService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Bookings\BookingCommandService;
+use Talyvane\Application\Bookings\CalendarFeedTokenService;
 use Talyvane\Application\Bookings\BookingQueryService;
 use Talyvane\Application\Bookings\BookingNotificationOutbox;
 use Talyvane\Application\Bookings\BookingNotificationDispatcher;
@@ -473,6 +474,30 @@ function runIdentityIntegration(PDO $pdo): int
         'companion iCalendar export excludes client identity and account identifiers');
     $assert(str_contains($companionCalendarIcs,'STATUS:CANCELLED'),
         'calendar export preserves cancellation tombstones for downstream calendar reconciliation');
+    $calendarFeedTokens=new CalendarFeedTokenService($pdo,$audit);
+    $feedToken=$calendarFeedTokens->issue($clientPrincipal,'Personal calendar',90,bin2hex(random_bytes(16)));
+    $storedFeedToken=$pdo->prepare('SELECT token_hash,role_key,expires_at,revoked_at FROM calendar_feed_tokens WHERE id=:id');
+    $storedFeedToken->execute(['id'=>$feedToken['id']]);$storedFeedRow=$storedFeedToken->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($storedFeedRow) && $storedFeedRow['token_hash']===hash('sha256',$feedToken['token']) &&
+        $storedFeedRow['token_hash']!==$feedToken['token'] && $storedFeedRow['role_key']==='client',
+        'calendar feed stores only a one-way token hash bound to the issuing portal role');
+    $resolvedFeedPrincipal=$calendarFeedTokens->resolve($feedToken['token']);
+    $assert($resolvedFeedPrincipal instanceof Principal && $resolvedFeedPrincipal->id===$clientPrincipal->id &&
+        $resolvedFeedPrincipal->hasRole('client'),'valid calendar feed token resolves only to its owning client identity');
+    $feedList=$calendarFeedTokens->list($clientPrincipal);
+    $assert(count($feedList)===1 && !array_key_exists('token_hash',$feedList[0]) && !array_key_exists('token',$feedList[0]),
+        'calendar feed management lists metadata without disclosing token material');
+    $wrongFeedOwnerDenied=false;
+    try { $calendarFeedTokens->revoke($companionPrincipal,(string)$feedToken['id'],bin2hex(random_bytes(16))); }
+    catch(DomainException) { $wrongFeedOwnerDenied=true; }
+    $assert($wrongFeedOwnerDenied,'companion cannot revoke a client calendar feed token');
+    $calendarFeedTokens->revoke($clientPrincipal,(string)$feedToken['id'],bin2hex(random_bytes(16)));
+    $assert($calendarFeedTokens->resolve($feedToken['token'])===null,'revoked calendar feed token stops resolving immediately');
+    $secondFeedToken=$calendarFeedTokens->issue($companionPrincipal,'Companion calendar',30,bin2hex(random_bytes(16)));
+    $pdo->prepare('UPDATE calendar_feed_tokens SET expires_at=DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 MINUTE) WHERE id=:id')
+        ->execute(['id'=>$secondFeedToken['id']]);
+    $assert($calendarFeedTokens->resolve($secondFeedToken['token'])===null,'expired calendar feed token cannot be used');
+
     $bookingTestMailer=new NativeTestMailer();
     $bookingDispatcher=new BookingNotificationDispatcher($pdo,new SecretBox(str_repeat('B',32)),$bookingTestMailer);
     $dispatchResult=$bookingDispatcher->dispatchBatch(50);
