@@ -104,6 +104,7 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
   <a class="button" href="/admin/bookings" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage bookings</a>
   <a class="button" href="/admin/safeguarding/reports" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Submit confidential safeguarding report</a>
   <a class="button" href="/admin/clients" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage client memberships</a>
+  <a class="button" href="/admin/privacy/requests" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review privacy requests</a>
   <?php if (in_array('verifier', $roles, true)): ?><a class="button" href="/admin/model-agency/verifications" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open verifier queue</a><?php endif; ?>
   <?php endif; ?>
   <?php if (in_array('safeguarding', $roles, true)): ?><a class="button" href="/admin/safeguarding/cases" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open assigned safeguarding cases</a><?php endif; ?>
