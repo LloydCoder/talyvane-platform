@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Talyvane\\Installer;
+namespace Talyvane\Installer;
 
 /**
  * Loads the owner-only native CLI configuration and proves it is outside
@@ -14,19 +14,19 @@ final class PrivateCliConfig
     {
         if ($configPath==='' || $documentRoot==='' || is_link($configPath) || is_link($documentRoot) ||
             !is_file($configPath) || !is_readable($configPath) || !is_dir($documentRoot)) {
-            throw new \\RuntimeException('Private CLI configuration paths are unavailable.');
+            throw new \RuntimeException('Private CLI configuration paths are unavailable.');
         }
         $configFile=realpath($configPath);
         $publicRoot=realpath($documentRoot);
         $mode=$configFile===false?false:fileperms($configFile);
         if ($configFile===false || $publicRoot===false || $mode===false || ($mode & 0077)!==0 ||
             self::isWithin($configFile,$publicRoot)) {
-            throw new \\RuntimeException('CLI configuration must be owner-only and outside the public document root.');
+            throw new \RuntimeException('CLI configuration must be owner-only and outside the public document root.');
         }
         $config=require $configFile;
         if (!is_array($config) || !is_string($config['app_key']??null) || strlen($config['app_key'])<32 ||
-            !is_array($config['database']??null) || !is_array($config['mail']??null)) {
-            throw new \\RuntimeException('Private CLI configuration is incomplete.');
+            !is_array($config['database']??null)) {
+            throw new \RuntimeException('Private CLI configuration is incomplete.');
         }
         return $config;
     }
