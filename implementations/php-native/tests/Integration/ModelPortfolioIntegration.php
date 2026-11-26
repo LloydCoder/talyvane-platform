@@ -229,6 +229,11 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'compensation_amount'=>null,'currency_code'=>null,'max_submissions'=>2,
     ],bin2hex(random_bytes(16)));
     $casting->publish($admin,$callId,bin2hex(random_bytes(16)));
+    $applicantCastingPortal=$rights->portalRead((string)$portalRightsId,bin2hex(random_bytes(16)));
+    $opportunities=$applicantCastingPortal['available_casting_calls']??[];
+    $opportunity=array_values(array_filter($opportunities,static fn(array $item):bool=>($item['id']??null)===$callId));
+    $assert(count($opportunity)===1 && !array_key_exists('description',$opportunity[0]) && !array_key_exists('requirements',$opportunity[0]),
+        'applicant opportunity listing never exposes encrypted casting-brief ciphertext as display text');
     $clientId=(string)$pdo->query('SELECT UUID()')->fetchColumn();
     $pdo->prepare(
         'INSERT INTO users (id,email,password_hash,status,email_verified_at,first_login_required,created_at,updated_at)
