@@ -56,21 +56,25 @@ $record('php_version', PHP_VERSION_ID >= 80300,
     PHP_VERSION_ID >= 80300 ? 'PHP 8.3 or newer is active.' : 'PHP 8.3 or newer is required.');
 
 $paths = is_array($config['paths'] ?? null) ? $config['paths'] : [];
-$documentRoot = (string)($paths['document_root'] ?? '');
+$documentRootInput = $paths['document_root'] ?? null;
+$documentRoot = is_string($documentRootInput) && $documentRootInput !== '' &&
+    !is_link($documentRootInput) && is_dir($documentRootInput)
+        ? realpath($documentRootInput)
+        : false;
+$record('document_root', $documentRoot !== false,
+    $documentRoot !== false
+        ? 'Configured public document root resolves to a real directory.'
+        : 'Configured public document root is missing, invalid, or linked.');
 foreach (['storage', 'logs', 'backups'] as $key) {
     $path = $paths[$key] ?? null;
-    $valid = is_string($path) && $path !== '' && !is_link($path) &&
-        is_dir($path) && is_writable($path);
-    if ($valid && $documentRoot !== '') {
-        $public = realpath($documentRoot);
-        $private = realpath($path);
-        $valid = $public !== false && $private !== false &&
-            $private !== $public &&
-            !str_starts_with($private . DIRECTORY_SEPARATOR, rtrim($public, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR);
-    }
+    $private = is_string($path) && $path !== '' && !is_link($path) &&
+        is_dir($path) && is_writable($path) ? realpath($path) : false;
+    $valid = $documentRoot !== false && $private !== false &&
+        $private !== $documentRoot &&
+        !str_starts_with($private . DIRECTORY_SEPARATOR, rtrim($documentRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR);
     $record('private_' . $key, $valid, $valid
         ? 'Directory exists, is writable, and is outside the configured document root.'
-        : 'Directory is missing, not writable, linked, or not proven private.');
+        : 'Directory is missing, not writable, linked, or its public-root separation cannot be proven.');
 }
 
 $dbConfig = $config['database'] ?? null;
