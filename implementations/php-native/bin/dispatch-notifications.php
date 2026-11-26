@@ -50,6 +50,15 @@ if (!is_array($config) || !is_string($config['app_key'] ?? null) || strlen($conf
     fwrite(STDERR,"Private application configuration is invalid.\n");
     exit(2);
 }
+$documentRootInput = $config['paths']['document_root'] ?? null;
+$documentRoot = is_string($documentRootInput) && $documentRootInput !== '' && !is_link($documentRootInput) && is_dir($documentRootInput)
+    ? realpath($documentRootInput)
+    : false;
+if ($documentRoot === false || str_starts_with($realConfig . DIRECTORY_SEPARATOR, rtrim($documentRoot,DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)) {
+    fwrite(STDERR,"Private configuration must be outside the public document root.\\n");
+    exit(2);
+}
+
 $mailConfig = is_array($config['mail']['smtp'] ?? null)
     ? $config['mail']['smtp']
     : (is_array($config['mail'] ?? null) ? $config['mail'] : null);
