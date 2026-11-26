@@ -8,6 +8,7 @@ use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Security\RateLimiter;
 use Talyvane\Security\Authorization;
 use Talyvane\Security\Principal;
+use Talyvane\Security\SecretBox;
 
 final class EnquiryService
 {
@@ -16,7 +17,8 @@ final class EnquiryService
     public function __construct(
         private PDO $pdo,
         private RateLimiter $limiter,
-        private AuditLogger $audit
+        private AuditLogger $audit,
+        private ?SecretBox $notesCipher = null
     ) {}
 
     /** @param array<string,mixed> $input */
