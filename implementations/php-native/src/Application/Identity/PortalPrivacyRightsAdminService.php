@@ -199,7 +199,7 @@ final class PortalPrivacyRightsAdminService
                 $request['request_type']!=='correction' || $request['account_type']!=='client') {
                 throw new \DomainException('Only a verified client correction request awaiting review can be fulfilled.');
             }
-            $user=$this->pdo->prepare('SELECT id,status,name FROM users WHERE id=:id FOR UPDATE');
+            $user=$this->pdo->prepare('SELECT id,status,display_name FROM users WHERE id=:id FOR UPDATE');
             $user->execute(['id'=>$request['user_id']]);
             $account=$user->fetch(PDO::FETCH_ASSOC);
             $roles=$this->pdo->prepare('SELECT role_key FROM user_roles WHERE user_id=:id ORDER BY role_key');
@@ -208,7 +208,7 @@ final class PortalPrivacyRightsAdminService
             if(!is_array($account) || $account['status']!=='active' || $roleList!==['client']) {
                 throw new \DomainException('The client account is inactive or does not have an exclusive client role.');
             }
-            $this->pdo->prepare('UPDATE users SET name=:name,updated_at=UTC_TIMESTAMP() WHERE id=:id')
+            $this->pdo->prepare('UPDATE users SET display_name=:name,updated_at=UTC_TIMESTAMP() WHERE id=:id')
                 ->execute(['name'=>$name,'id'=>$request['user_id']]);
             $this->pdo->prepare(
                 'UPDATE portal_privacy_requests SET status="fulfilled",reviewed_by=:reviewer,
@@ -216,9 +216,9 @@ final class PortalPrivacyRightsAdminService
                  completed_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE id=:id'
             )->execute(['reviewer'=>$actor->id,'reason'=>$reason,'id'=>$requestId]);
             $this->audit->record($actor->id,'portal.privacy.correction.fulfilled','portal_privacy_request',$requestId,
-                'Verified client account name correction applied; contact details were not changed.',
-                ['fields'=>['name']],
-                ['fields'=>['name'],'reason'=>$reason],
+                'Verified client display-name correction applied; contact details were not changed.',
+                ['fields'=>['display_name']],
+                ['fields'=>['display_name'],'reason'=>$reason],
                 $correlationId,'portal-privacy-rights-v1');
             $this->pdo->commit();
         } catch(Throwable $error) {
