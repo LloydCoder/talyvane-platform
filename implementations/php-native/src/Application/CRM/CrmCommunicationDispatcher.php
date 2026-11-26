@@ -22,7 +22,7 @@ final class CrmCommunicationDispatcher
         $this->pdo->prepare(
             'UPDATE communication_outbox SET status="failed",claim_token=NULL,claimed_at=NULL,
              last_error_code="retry_limit_after_stale_claim"
-             WHERE related_type IN ("crm_enquiry","model_licence") AND status="processing" AND attempts>=8
+             WHERE related_type IN ("crm_enquiry","model_licence","model_assignment") AND status="processing" AND attempts>=8
                AND claimed_at<UTC_TIMESTAMP()-INTERVAL 10 MINUTE'
         )->execute();
 
@@ -75,7 +75,7 @@ final class CrmCommunicationDispatcher
                     strlen($payload['subject'])<2 || strlen($payload['subject'])>190 ||
                     preg_match('/[\r\n]/',$payload['subject'])===1 ||
                     strlen($payload['body'])<10 || strlen($payload['body'])>8000) {
-                    throw new \RuntimeException('CRM communication envelope is invalid.');
+                    throw new \RuntimeException('Communication envelope is invalid.');
                 }
                 $this->mailer->send($recipient,$payload['subject'],$payload['body']);
                 $this->pdo->beginTransaction();
