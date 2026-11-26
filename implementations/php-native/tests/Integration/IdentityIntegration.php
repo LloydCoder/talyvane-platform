@@ -11,6 +11,7 @@ use Talyvane\Application\Companions\CompanionOnboardingService;
 use Talyvane\Application\Companions\CompanionAvailabilityService;
 use Talyvane\Features\FeatureAvailability;
 use Talyvane\Application\Features\FeatureManagementService;
+use Talyvane\Application\Globalization\GlobalizationSettingsService;
 use Talyvane\Infrastructure\Database\FeatureStateRepository;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Destinations\DestinationManagementService;
@@ -723,6 +724,33 @@ function runIdentityIntegration(PDO $pdo): int
     $assert($featureAudit->fetchColumn()==='platform.feature.disabled',
         'feature state changes are recorded in the append-only audit log');
     (new FeatureStateRepository($pdo))->set('crm.enquiries',true,null,$id);
+
+    $globalization=new GlobalizationSettingsService($pdo,$audit);
+    $usd=$pdo->query('SELECT code FROM currencies WHERE code="USD"')->fetchColumn();
+    $assert($usd==='USD','pinned ISO 4217 reference dataset contains USD for globalization settings');
+    $globalization->toggleCurrency($featureAdmin,'USD',true,
+        'Enable the verified ISO currency for controlled reporting configuration.',bin2hex(random_bytes(16)));
+    $globalization->updateDefaults($featureAdmin,'USD','en-GB','Europe/London',
+        'Set the deployment reporting currency and regional formatting defaults.',bin2hex(random_bytes(16)));
+    $globalSettings=$pdo->query('SELECT base_currency_code,default_locale,default_timezone FROM deployment_globalization_settings WHERE id=1')->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($globalSettings) && $globalSettings['base_currency_code']==='USD' &&
+        $globalSettings['default_locale']==='en-GB' && $globalSettings['default_timezone']==='Europe/London',
+        'globalization defaults persist only against an enabled ISO currency and valid BCP 47/IANA values');
+    try {
+        $globalization->toggleCurrency($featureAdmin,'USD',false,
+            'Attempt to disable the active reporting currency during a test.',bin2hex(random_bytes(16)));
+        $assert(false,'active reporting currency cannot be disabled');
+    } catch (DomainException) {
+        $assert(true,'active reporting currency cannot be disabled');
+    }
+    $globalization->updateDefaults($featureAdmin,null,'en','UTC',
+        'Restore neutral deployment locale and time zone after integration verification.',bin2hex(random_bytes(16)));
+    $globalization->toggleCurrency($featureAdmin,'USD',false,
+        'Disable the temporary ISO currency after the globalization integration test.',bin2hex(random_bytes(16)));
+    $globalAudit=$pdo->prepare('SELECT COUNT(*) FROM audit_events WHERE actor_user_id=:actor AND event_key IN ("globalization.defaults.updated","globalization.currency.availability_changed")');
+    $globalAudit->execute(['actor'=>$featureAdminId]);
+    $assert((int)$globalAudit->fetchColumn()>=4,'globalization default and currency changes are append-only audited');
+
 
     return $assertions;
 }
