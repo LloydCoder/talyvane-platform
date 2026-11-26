@@ -50,6 +50,7 @@ final class PortalPrivacyRightsAdminService
     public function review(Principal $actor,string $requestId,string $decision,string $reason,string $correlationId): void
     {
         Authorization::require($actor,'privacy.requests.review');
+        $this->requireOutcomeOutbox();
         $reason=trim($reason);
         if(!self::isUuid($requestId) || !in_array($decision,['rejected','deferred'],true) ||
             strlen($reason)<10 || strlen($reason)>500 || strlen($correlationId)<16 || strlen($correlationId)>64) {
