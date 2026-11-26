@@ -96,7 +96,12 @@ final class BookingQuoteService
         $utc=new DateTimeZone('UTC');$now=new DateTimeImmutable('now',$utc);
         $this->pdo->beginTransaction();
         try {
-            $query=$this->pdo->prepare('SELECT * FROM quote_snapshots WHERE id=:id LIMIT 1 FOR UPDATE');
+            $query=$this->pdo->prepare(
+                'SELECT q.*,er.rate_decimal,er.source AS exchange_rate_source,er.observed_at AS exchange_rate_observed_at,
+                        er.expires_at AS exchange_rate_expires_at
+                 FROM quote_snapshots q LEFT JOIN exchange_rate_snapshots er ON er.id=q.exchange_rate_snapshot_id
+                 WHERE q.id=:id LIMIT 1 FOR UPDATE'
+            );
             $query->execute(['id'=>$quoteId]);$row=$query->fetch(PDO::FETCH_ASSOC);
             if(!is_array($row) || $row['client_user_id']!==$client->id) throw new \DomainException('Quote is not available to this client.');
             if($row['accepted_at']!==null) {
@@ -123,7 +128,11 @@ final class BookingQuoteService
                 (int)$row['original_amount_minor'],(string)$row['original_currency'],
                 $row['target_amount_minor']===null?null:(int)$row['target_amount_minor'],
                 $row['target_currency']===null?null:(string)$row['target_currency'],
-                null,null,null,null,$row['tax_policy_version']===null?null:(string)$row['tax_policy_version'],
+                $row['rate_decimal']===null?null:(string)$row['rate_decimal'],
+                $row['exchange_rate_source']===null?null:(string)$row['exchange_rate_source'],
+                $row['exchange_rate_observed_at']===null?null:new DateTimeImmutable((string)$row['exchange_rate_observed_at'],$utc),
+                $row['exchange_rate_expires_at']===null?null:new DateTimeImmutable((string)$row['exchange_rate_expires_at'],$utc),
+                $row['tax_policy_version']===null?null:(string)$row['tax_policy_version'],
                 $fees,(string)$row['country_code'],(string)$row['policy_version'],
                 new DateTimeImmutable((string)$row['expires_at'],$utc)
             );
