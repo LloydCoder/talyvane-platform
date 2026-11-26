@@ -126,9 +126,12 @@ final class PublicModelAgencyRightsController
         if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
         $id=$this->rightsId();
         if($id===null || $this->licences===null) return Response::redirect('/model-agency/privacy');
+        $decision=$this->field($request,'decision');
+        if($decision==='grant' && $this->field($request,'confirm_consent')!=='yes') return $this->showPortal($id,$request->requestId,'Affirmative consent confirmation is required.',422);
+        if($decision==='withdraw' && !in_array($this->field($request,'confirm_withdrawal'),['yes','decline'],true)) return $this->showPortal($id,$request->requestId,'Confirm the licence decline or consent withdrawal.',422);
         try {
             $this->licences->recordApplicantDecision(
-                $id,(string)($params['id']??''),$this->field($request,'decision'),
+                $id,(string)($params['id']??''),$decision,
                 $this->field($request,'reason'),$request->requestId
             );
             $notice=$this->field($request,'decision')==='grant'
