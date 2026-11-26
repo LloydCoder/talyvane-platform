@@ -13,7 +13,7 @@ use Talyvane\Security\SecretBox;
 /** MFA-gated privacy request review. Fulfilment is deliberately not implied by a review decision. */
 final class PortalPrivacyRightsAdminService
 {
-    public function __construct(private PDO $pdo,private SecretBox $box,private AuditLogger $audit) {}
+    public function __construct(private PDO $pdo,private SecretBox $box,private AuditLogger $audit,private ?PortalPrivacyOutcomeOutbox $outcomes=null) {}
 
     /** @return list<array<string,mixed>> */
     public function queue(Principal $actor,string $requestId): array
@@ -284,6 +284,7 @@ final class PortalPrivacyRightsAdminService
                 }
             }
 
+            $this->outcomes?->enqueue($requestId,(string)$user['email'],'client');
             $this->pdo->prepare('DELETE FROM client_favorites WHERE client_user_id=:id')
                 ->execute(['id'=>$user['id']]);
             $this->pdo->prepare('DELETE FROM auth_challenges WHERE user_id=:id')
@@ -378,6 +379,7 @@ final class PortalPrivacyRightsAdminService
                 }
             }
 
+            $this->outcomes?->enqueue($requestId,(string)$user['email'],'companion');
             $this->pdo->prepare('DELETE FROM companion_availability WHERE profile_id=:id')
                 ->execute(['id'=>$profile['id']]);
             $this->pdo->prepare('DELETE FROM client_favorites WHERE profile_id=:id')
