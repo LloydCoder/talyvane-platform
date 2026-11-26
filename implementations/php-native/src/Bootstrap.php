@@ -246,7 +246,8 @@ final class Bootstrap
         $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName);
         $portalPrivacy = new PortalPrivacyController($authentication,new PortalPrivacyExportService($pdo,$audit,$rateLimiter));
         $portalPrivacyRightsController = new \Talyvane\Http\PortalPrivacyRightsController($authentication,$portalPrivacyRights,$views,$brandName);
-        $adminPrivacyRights = new \Talyvane\Application\Identity\PortalPrivacyRightsAdminService($pdo,new SecretBox($config['app_key']),$audit);
+        $privacyOutcomeOutbox = new \Talyvane\Application\Identity\PortalPrivacyOutcomeOutbox($pdo,new SecretBox($config['app_key']));
+        $adminPrivacyRights = new \Talyvane\Application\Identity\PortalPrivacyRightsAdminService($pdo,new SecretBox($config['app_key']),$audit,$privacyOutcomeOutbox);
         $adminPrivacyRightsController = new \Talyvane\Http\AdminPrivacyRightsController($authentication,$adminPrivacyRights,$views,$brandName);
         $adminPrivacyRightsController = new \Talyvane\Http\AdminPrivacyRightsController($authentication,$adminPrivacyRights,$views,$brandName);
         $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
