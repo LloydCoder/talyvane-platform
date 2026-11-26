@@ -9,6 +9,7 @@ use Talyvane\Domain\Money\Currency;
 use Talyvane\Domain\Money\QuoteSnapshot;
 use Talyvane\Domain\Payments\PaymentStateMachine;
 use Talyvane\Domain\Booking\BookingStateMachine;
+use Talyvane\Domain\Booking\BookingPolicy;
 use Talyvane\Domain\Booking\BookingCancellationPolicy;
 use Talyvane\Domain\Booking\LocalDateTimeResolver;
 use Talyvane\Application\Bookings\BookingCalendarService;
@@ -55,6 +56,12 @@ $assert = static function (bool $condition, string $message) use (&$tests): void
     }
 };
 
+
+$defaultBookingPolicy=BookingPolicy::fromArray([],'booking-default-test-v1');
+$assert(!$defaultBookingPolicy->automaticEnabled && !$defaultBookingPolicy->autoConfirmEnabled &&
+    $defaultBookingPolicy->depositRequired && $defaultBookingPolicy->minimumNoticeMinutes===720 &&
+    $defaultBookingPolicy->maximumAdvanceDays===90,
+    'partial booking policy defaults preserve manual mode, verified deposit, 12-hour notice and 90-day horizon');
 
 $automaticProfile = [
     'status'=>'published','adult_eligibility_status'=>'verified',
