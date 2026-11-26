@@ -122,6 +122,37 @@ function runIdentityIntegration(PDO $pdo): int
     $clientAudit = $pdo->prepare('SELECT event_key FROM audit_events WHERE actor_user_id=:id AND event_key="portal.password.changed"');
     $clientAudit->execute(['id'=>$clientId]);
     $assert($clientAudit->fetchColumn() === 'portal.password.changed','client password change emits an audit event');
+    $emailChangeMailer=new NativeTestMailer();
+    $emailChanges=new \Talyvane\Application\Identity\PortalEmailChangeService(
+        $pdo,$emailChangeMailer,$limiter,$audit,str_repeat('V',32)
+    );
+    $clientPrincipalForEmail=new Principal($clientId,['client'],false);
+    $emailChanges->request($clientPrincipalForEmail,'native-password-client-new@example.test',$newClientPassword,bin2hex(random_bytes(16)));
+    $emailChallengeQuery=$pdo->prepare('SELECT id,code_hash FROM portal_email_change_challenges WHERE user_id=:id AND consumed_at IS NULL');
+    $emailChallengeQuery->execute(['id'=>$clientId]);
+    $emailChallenge=$emailChallengeQuery->fetch(PDO::FETCH_ASSOC);
+    preg_match('/verification code is: ([0-9]{6})/',(string)$emailChangeMailer->messages[0]['body'],$emailCodeMatch);
+    $emailCode=(string)($emailCodeMatch[1]??'');
+    $beforeEmailVerify=$pdo->prepare('SELECT email,admin_session_version FROM users WHERE id=:id');
+    $beforeEmailVerify->execute(['id'=>$clientId]);
+    $beforeEmailVerifyRow=$beforeEmailVerify->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($emailChallenge) && $emailCode!=='' && is_array($beforeEmailVerifyRow) &&
+        $beforeEmailVerifyRow['email']==='native-password-client@example.test',
+        'new contact address is not applied before one-time verification');
+    $emailVersion=$emailChanges->verify($clientPrincipalForEmail,$emailCode,bin2hex(random_bytes(16)));
+    $afterEmailVerify=$pdo->prepare('SELECT email,email_verified_at,admin_session_version FROM users WHERE id=:id');
+    $afterEmailVerify->execute(['id'=>$clientId]);
+    $afterEmailVerifyRow=$afterEmailVerify->fetch(PDO::FETCH_ASSOC);
+    $assert($emailVersion===3 && is_array($afterEmailVerifyRow) &&
+        $afterEmailVerifyRow['email']==='native-password-client-new@example.test' &&
+        $afterEmailVerifyRow['email_verified_at']!==null && (int)$afterEmailVerifyRow['admin_session_version']===3,
+        'verified contact email change updates the address, preserves verified status and revokes other sessions');
+    $assert(count($emailChangeMailer->messages)===2 &&
+        $emailChangeMailer->messages[1]['recipient']==='native-password-client@example.test',
+        'successful contact email change notifies the previous address');
+    $emailAudit=$pdo->prepare('SELECT COUNT(*) FROM audit_events WHERE actor_user_id=:id AND event_key="portal.email.changed"');
+    $emailAudit->execute(['id'=>$clientId]);
+    $assert((int)$emailAudit->fetchColumn()===1,'verified contact email change is auditable');
     $adminPasswordChangeDenied = false;
     try { $passwordChanges->changePortalPassword($id,$password,$newClientPassword,bin2hex(random_bytes(16))); }
     catch (DomainException) { $adminPasswordChangeDenied = true; }
