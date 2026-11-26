@@ -29,7 +29,7 @@ final class CrmCommunicationDispatcher
         $this->pdo->beginTransaction();
         try {
             $query=$this->pdo->prepare(
-                'SELECT id,recipient_ciphertext,payload_ciphertext,attempts
+                'SELECT id,related_id,recipient_ciphertext,payload_ciphertext,attempts
                  FROM communication_outbox
                  WHERE related_type="crm_enquiry" AND channel="email"
                    AND (((status IN ("pending","failed")) AND available_at<=UTC_TIMESTAMP())
@@ -87,6 +87,11 @@ final class CrmCommunicationDispatcher
                     );
                     $done->execute(['id'=>$id,'token'=>$row['claim_token']]);
                     if($done->rowCount()===1) {
+                        // The enquiry is marked responded only after the SMTP transport accepts the message.
+                        $this->pdo->prepare(
+                            'UPDATE enquiries SET status="responded",responded_at=COALESCE(responded_at,UTC_TIMESTAMP()),
+                             updated_at=UTC_TIMESTAMP() WHERE id=:id AND status IN ("new","in_progress","responded")'
+                        )->execute(['id'=>$row['related_id']]);
                         $this->attempt($attemptId,$id,'delivered',null);
                         $result['delivered']++;
                     }
