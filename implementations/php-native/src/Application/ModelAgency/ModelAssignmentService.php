@@ -314,7 +314,7 @@ final class ModelAssignmentService
         $query->execute(['application'=>$applicationId]);$rows=$query->fetchAll(PDO::FETCH_ASSOC);
         foreach($rows as &$row) {
             $row['response_enabled']=($this->assignmentsEnabled)();
-            if($row['currency_code']!==null && $row['currency_precision']===null) throw new \\DomainException('Assignment currency precision is unavailable.');
+            if($row['currency_code']!==null && $row['currency_precision']===null) throw new \DomainException('Assignment currency precision is unavailable.');
             $precision=(int)($row['currency_precision']??0);
             $row['compensation_amount']=$row['compensation_minor']===null?null:$this->minorToDecimal((int)$row['compensation_minor'],$precision);
             $row['expense_cap_amount']=$this->minorToDecimal((int)$row['expense_cap_minor'],$precision);
@@ -583,7 +583,7 @@ final class ModelAssignmentService
         if(is_string($assignment['currency_code']??null) && $assignment['currency_code']!=='') {
             $currency=$this->pdo->prepare('SELECT minor_units FROM currencies WHERE code=:code LIMIT 1');
             $currency->execute(['code'=>$assignment['currency_code']]);$precisionValue=$currency->fetchColumn();
-            if($precisionValue===false) throw new \\DomainException('Assignment currency precision is unavailable.');
+            if($precisionValue===false) throw new \DomainException('Assignment currency precision is unavailable.');
             $precision=(int)$precisionValue;
         }
         $terms=[
