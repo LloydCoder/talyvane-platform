@@ -140,13 +140,20 @@ final class BookingService
                 if ($quoteSnapshotId === null) {
                     throw new \DomainException('An accepted quote is required by the deposit policy.');
                 }
-                $quoteQuery = $this->pdo->prepare('SELECT country_code,expires_at,accepted_at FROM quote_snapshots WHERE id = :id FOR UPDATE');
+                $quoteQuery = $this->pdo->prepare(
+                    'SELECT client_user_id,profile_id,destination_id,country_code,expires_at,accepted_at,accepted_by,
+                            consumed_at,policy_version
+                     FROM quote_snapshots WHERE id = :id FOR UPDATE'
+                );
                 $quoteQuery->execute(['id'=>$quoteSnapshotId]);
                 $quote = $quoteQuery->fetch();
-                if (!is_array($quote) || $quote['country_code'] !== $profile['country_code'] ||
-                    $quote['accepted_at'] === null ||
+                if (!is_array($quote) || $quote['client_user_id'] !== $client->id ||
+                    $quote['profile_id'] !== $profileId || $quote['destination_id'] !== $profile['destination_id'] ||
+                    $quote['country_code'] !== $profile['country_code'] || $quote['accepted_at'] === null ||
+                    $quote['accepted_by'] !== $client->id || $quote['consumed_at'] !== null ||
+                    $quote['policy_version'] !== $policy->version ||
                     new DateTimeImmutable((string) $quote['expires_at'],$utc) <= $now) {
-                    throw new \DomainException('Quote is missing, expired, unaccepted or belongs to another market.');
+                    throw new \DomainException('Quote is missing, expired, unaccepted, consumed or not bound to this client, profile, market and policy.');
                 }
             }
 
@@ -193,6 +200,19 @@ final class BookingService
                 'policy'=>$policy->version,
                 'note'=>$note,
             ]);
+            if($quoteSnapshotId!==null) {
+                $consumeQuote=$this->pdo->prepare(
+                    'UPDATE quote_snapshots SET consumed_at=UTC_TIMESTAMP(),consumed_booking_id=:booking
+                     WHERE id=:quote AND client_user_id=:client AND profile_id=:profile
+                       AND accepted_by=:accepted_by AND accepted_at IS NOT NULL AND consumed_at IS NULL
+                       AND expires_at>UTC_TIMESTAMP()'
+                );
+                $consumeQuote->execute([
+                    'booking'=>$bookingId,'quote'=>$quoteSnapshotId,'client'=>$client->id,
+                    'profile'=>$profileId,'accepted_by'=>$client->id,
+                ]);
+                if($consumeQuote->rowCount()!==1) throw new \DomainException('Accepted quote was consumed concurrently; request a new quote.');
+            }
             $this->recordEvent($bookingId,$client->id,'client','draft','requested','Client submitted booking request',$policy->version);
             if ($autoEligible) {
                 BookingStateMachine::transition('requested','confirmed','system');
