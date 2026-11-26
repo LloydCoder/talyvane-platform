@@ -39,7 +39,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
         $grantId=sprintf('%08x-%04x-4%03x-8%03x-%012x',random_int(0,0xffffffff),random_int(0,0xffff),random_int(0,0xfff),random_int(0,0xfff),random_int(0,0xffffffffffff));
         $directory=$privateRoot.DIRECTORY_SEPARATOR.'model-portfolio';if(!is_dir($directory)) mkdir($directory,0700,true);
         $key='model-portfolio/'.bin2hex(random_bytes(16)).'.webp';$path=$privateRoot.DIRECTORY_SEPARATOR.$key;
-        $image=imagecreatetruecolor(320,320);if($image===false || !imagewebp($image,$path,80)) throw new RuntimeException('Could not create portfolio test image.');imagedestroy($image);chmod($path,0600);
+        $image=imagecreatetruecolor(320,320);if($image!==false) imagefill($image,0,0,imagecolorallocate($image,random_int(0,255),random_int(0,255),random_int(0,255)));if($image===false || !imagewebp($image,$path,80)) throw new RuntimeException('Could not create portfolio test image.');imagedestroy($image);chmod($path,0600);
         $hash=hash_file('sha256',$path);$size=filesize($path);
         $pdo->prepare(
             'INSERT INTO consent_grants (id,subject_type,subject_id,purpose,audience,policy_version,granted,granted_at,created_at)
