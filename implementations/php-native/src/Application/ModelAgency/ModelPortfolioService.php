@@ -332,9 +332,9 @@ final class ModelPortfolioService
             $this->pdo->prepare(
                 'INSERT INTO model_talent_application_events
                  (id,application_id,actor_user_id,actor_type,from_status,to_status,reason,policy_version,created_at)
-                 VALUES (:id,:application,NULL,"applicant",:status,:status,
+                 VALUES (:id,:application,NULL,"applicant",:from_status,:to_status,
                          "Applicant withdrew a specific portfolio asset through verified privacy rights.","applicant-portfolio-rights-v1",UTC_TIMESTAMP())'
-            )->execute(['id'=>self::uuid(),'application'=>$rights['application_id'],'status'=>$rights['application_status']]);
+            )->execute(['id'=>self::uuid(),'application'=>$rights['application_id'],'from_status'=>$rights['application_status'],'to_status'=>$rights['application_status']]);
             $this->pdo->prepare(
                 'UPDATE model_applicant_rights_requests SET status="completed",otp_hash="",completed_at=UTC_TIMESTAMP()
                  WHERE id=:id AND status="verified"'
