@@ -62,6 +62,23 @@ $attribution = is_array($saved) ? json_decode((string) $saved['attribution_json'
     $assert(is_array($updated) && $updated['status'] === 'responded' && $updated['responded_at'] !== null && $updated['closed_at'] === null,
         'admin status transition records response time and leaves the enquiry open');
 
+    $service->assign($admin,$reference,$adminId,'Assign enquiry to support owner',bin2hex(random_bytes(16)));
+    $assignment=$pdo->prepare('SELECT assigned_to FROM enquiries WHERE reference=:reference');
+    $assignment->execute(['reference'=>$reference]);
+    $assert($assignment->fetchColumn()===$adminId,'MFA administrator can assign an enquiry to an active administrator');
+    $assignees=$service->eligibleAssignees($admin);
+    $assert(count(array_filter($assignees,static fn(array $person):bool=>$person['id']===$adminId))===1,
+        'eligible assignee directory contains active administrator accounts');
+    $service->assign($admin,$reference,null,'Return enquiry to the unassigned queue',bin2hex(random_bytes(16)));
+    $assignment->execute(['reference'=>$reference]);
+    $assert($assignment->fetchColumn()===null,'administrator can explicitly unassign an enquiry');
+    try {
+        $service->assign($admin,$reference,$clientId='00000000-0000-4000-8000-000000000001','Assign to ineligible user',bin2hex(random_bytes(16)));
+        $assert(false,'assignment rejects users without an eligible admin role');
+    } catch (InvalidArgumentException) {
+        $assert(true,'assignment rejects users without an eligible admin role');
+    }
+
     $clientId = (string) $pdo->query('SELECT id FROM users WHERE email = "native-client@example.test"')->fetchColumn();
     try {
         $service->updateStatus(new Principal($clientId,['client'],false),$reference,'closed','Forbidden',bin2hex(random_bytes(16)));
