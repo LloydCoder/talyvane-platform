@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 use Talyvane\Application\Bookings\BookingNotificationDispatcher;
 use Talyvane\Application\Safeguarding\SafeguardingNotificationDispatcher;
+use Talyvane\Application\Identity\PortalPrivacyNotificationDispatcher;
 use Talyvane\Infrastructure\Database\ConnectionFactory;
 use Talyvane\Infrastructure\Mail\SmtpMailer;
 use Talyvane\Security\SecretBox;
@@ -73,14 +74,16 @@ try {
     $box = new SecretBox($config['app_key']);
     $booking = (new BookingNotificationDispatcher($pdo,$box,$mailer))->dispatchBatch((int)$limitValue);
     $safeguarding = (new SafeguardingNotificationDispatcher($pdo,$box,$mailer))->dispatchBatch((int)$limitValue);
+    $privacy = (new PortalPrivacyNotificationDispatcher($pdo,$box,$mailer))->dispatchBatch((int)$limitValue);
     $result = [
         'status'=>'ok',
         'booking'=>$booking,
         'safeguarding'=>$safeguarding,
-        'processed'=>$booking['claimed'] + $safeguarding['claimed'],
-        'delivered'=>$booking['delivered'] + $safeguarding['delivered'],
-        'retried'=>$booking['retried'] + $safeguarding['retried'],
-        'dead_lettered'=>$booking['dead_lettered'] + $safeguarding['dead_lettered'],
+        'privacy'=>$privacy,
+        'processed'=>$booking['claimed'] + $safeguarding['claimed'] + $privacy['claimed'],
+        'delivered'=>$booking['delivered'] + $safeguarding['delivered'] + $privacy['delivered'],
+        'retried'=>$booking['retried'] + $safeguarding['retried'] + $privacy['retried'],
+        'dead_lettered'=>$booking['dead_lettered'] + $safeguarding['dead_lettered'] + $privacy['dead_lettered'],
         'checked_at_utc'=>gmdate('Y-m-d\\TH:i:s\\Z'),
     ];
     if (array_key_exists('json',$options)) {
