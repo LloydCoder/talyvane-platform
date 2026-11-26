@@ -594,7 +594,7 @@ function runIdentityIntegration(PDO $pdo): int
     catch (DomainException) { $mfaPrivacyReviewDenied=true; }
     $assert($mfaPrivacyReviewDenied,'privacy request review requires a verified administrator MFA session');
     $clientPrivacyReviewDenied=false;
-    try { $portalRightsAdmin->queue($clientPrincipal); }
+    try { $portalRightsAdmin->queue($clientPrincipal,bin2hex(random_bytes(16))); }
     catch (DomainException) { $clientPrivacyReviewDenied=true; }
     $assert($clientPrivacyReviewDenied,'client and companion accounts cannot access the administrator privacy review queue');
     $portalRightsAdmin->review($superAdmin,$erasureRequestId,'deferred',
