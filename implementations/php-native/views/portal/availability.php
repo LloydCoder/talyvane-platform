@@ -48,20 +48,7 @@ $today = gmdate('Y-m-d');
 <div class="actions"><button class="button" type="submit">Save booking preference</button></div>
 </form>
 </section>
-<section class="panel" aria-label="Automatic booking preference">
-<div class="eyebrow">Booking preferences</div><h2>Automatic booking</h2>
-<p class="muted">Automatic booking is off by default. Turning it on requires an operationally approved deployment, current profile publication and adult-verification checks, approved market status, and your explicit confirmation. You can always turn it off.</p>
-<form method="post" action="/portal/companion/automatic-booking">
-<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
-<input type="hidden" name="profile_id" value="<?= $escape($profile['id'] ?? '') ?>">
-<div class="field"><label for="automatic_booking">Your preference</label><select id="automatic_booking" name="enabled" required>
-<option value="0" <?= empty($profile['auto_booking_opt_in']) ? 'selected' : '' ?>>Off</option>
-<option value="1" <?= !empty($profile['auto_booking_opt_in']) ? 'selected' : '' ?> <?= empty($profile['automatic_booking_available']) ? 'disabled' : '' ?>>On<?= empty($profile['automatic_booking_available']) ? ' — not available on this deployment' : '' ?></option>
-</select></div>
-<label class="help"><input type="checkbox" name="consent_confirmed" value="1"> I explicitly consent to automatic booking being enabled for my profile, subject to the displayed eligibility and operational safeguards.</label>
-<div class="actions"><button class="button" type="submit">Save booking preference</button></div>
-</form>
-</section>
+
 <form method="post" action="/portal/companion/availability">
 <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
 <input type="hidden" name="profile_id" value="<?= $escape($profile['id'] ?? '') ?>">
