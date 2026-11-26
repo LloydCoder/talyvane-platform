@@ -412,6 +412,7 @@ final class ModelAssignmentService
             if($toStatus==='accepted' && is_array($updates)) $set[]='acceptance_evidence_reference=:acceptance_evidence_reference';
             if($toStatus==='accepted' && is_array($updates)) $params['acceptance_evidence_reference']=$this->encryptField($assignmentId,'acceptance_evidence_reference',(string)($updates['executed_document_reference']??''));
             $this->pdo->prepare('UPDATE model_assignments SET '.implode(',',$set).' WHERE id=:id')->execute($params);
+            if($toStatus==='offered') $this->queueApplicantAssignmentOffer((string)$application['email'],$assignmentId);
             $this->event($assignmentId,$actor->id,'assignment.'.$toStatus,$from,$toStatus,'Assignment status changed to '.$toStatus.'.',$this->policyVersionOrLegacy($assignment));
             $this->audit->record($actor->id,'model_assignment.'.$toStatus,'model_assignment',$assignmentId,
                 'Assignment status changed',['status'=>$from],['status'=>$toStatus,'evidence_present'=>$evidenceReference!==null],
@@ -673,6 +674,30 @@ final class ModelAssignmentService
         if(strlen($reference)<20 || strlen($reference)>200 || !str_starts_with($reference,$prefix) ||
             preg_match('#^'.preg_quote($prefix,'#').'[A-Za-z0-9][A-Za-z0-9._/-]{10,180}$#D',$reference)!==1 ||
             str_contains($reference,'..') || str_contains($reference,'\\')) throw new \InvalidArgumentException('Assignment evidence reference is invalid.');
+    }
+
+    /** Queue a minimal assignment-offer notice atomically with the offer state change. */
+    private function queueApplicantAssignmentOffer(string $email,string $assignmentId): void
+    {
+        $email=strtolower(trim($email));
+        if(filter_var($email,FILTER_VALIDATE_EMAIL)===false) {
+            throw new \\DomainException('The model application has no valid email destination for assignment-offer notification.');
+        }
+        $id=self::uuid();
+        $payload=json_encode([
+            'subject'=>'A model assignment offer is waiting',
+            'body'=>"A model assignment offer is waiting in your model workspace. Sign in using the address you already verified to review the terms and respond. The assignment is not confirmed unless you accept and all required execution evidence is recorded. If you did not expect this notice, contact support through the website's official contact details.",
+        ],JSON_THROW_ON_ERROR);
+        $this->pdo->prepare(
+            'INSERT INTO communication_outbox
+             (id,idempotency_key,related_type,related_id,channel,recipient_ciphertext,payload_ciphertext,status,attempts,available_at,created_at)
+             VALUES (:id,:key,"model_assignment"," :related","email",:recipient,:payload,"pending",0,UTC_TIMESTAMP(),UTC_TIMESTAMP())
+             ON DUPLICATE KEY UPDATE id=id'
+        )->execute([
+            'id'=>$id,'key'=>'model-assignment-offer:'.$assignmentId,'related'=>$assignmentId,
+            'recipient'=>$this->cipher->encrypt($email,'communication-outbox-v1:recipient:'.$id),
+            'payload'=>$this->cipher->encrypt($payload,'communication-outbox-v1:payload:'.$id),
+        ]);
     }
 
     private function encryptField(string $id,string $field,string $value): string
