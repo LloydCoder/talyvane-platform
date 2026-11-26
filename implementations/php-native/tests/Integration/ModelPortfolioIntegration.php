@@ -340,15 +340,45 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'deliverables'=>'One editorial shoot with the agreed image selection and usage scope.',
         'compensation_amount'=>'800.00','currency_code'=>'GBP','expense_cap_amount'=>'75.00',
     ],bin2hex(random_bytes(16)));
+    $modelAssignmentTerms=$assignments->applicantAssignments($applicationId);
+    $modelAssignmentTerm=array_values(array_filter($modelAssignmentTerms,static fn(array $item):bool=>$item['id']===$assignmentId));
+    $assert(count($modelAssignmentTerm)===1 &&
+        $modelAssignmentTerm[0]['client_name']==='Verified editorial commissioning client' &&
+        $modelAssignmentTerm[0]['brief']==='A defined editorial assignment brief for the model and commissioning client.' &&
+        $modelAssignmentTerm[0]['location_city']==='London' &&
+        $modelAssignmentTerm[0]['deliverables']==='One editorial shoot with the agreed image selection and usage scope.' &&
+        !array_key_exists('commission_basis_points',$modelAssignmentTerm[0]),
+        'verified model workspace receives decrypted assignment terms while internal agency commission remains private');
     $assignments->offer($admin,$assignmentId,bin2hex(random_bytes(16)));
     try {
         $assignments->confirm($admin,$assignmentId,bin2hex(random_bytes(16)));
-        $assert(false,'assignment cannot be confirmed before external execution and model-acceptance evidence are recorded');
+        $assert(false,'assignment cannot be confirmed before external execution and model-consent evidence are recorded');
     } catch(DomainException) {
-        $assert(true,'assignment cannot be confirmed before external execution and model-acceptance evidence are recorded');
+        $assert(true,'assignment cannot be confirmed before external execution and model-consent evidence are recorded');
     }
-    $assignments->recordAcceptance($admin,$assignmentId,'private/model-assignments/executed-document-0001',
-        'private/model-consent/assignment-acceptance-0001',bin2hex(random_bytes(16)));
+    $applicantApplicationId=$rights->portalApplicationId((string)$portalRightsId);
+    try {
+        $assignments->respondByApplicant($applicantApplicationId,$assignmentId,'accept',
+            'I have reviewed the assignment terms, compensation, shoot schedule and image-use scope, and I voluntarily accept this assignment.',
+            bin2hex(random_bytes(16)));
+        $assert(false,'model cannot accept an assignment before external execution evidence is recorded');
+    } catch(DomainException) {
+        $assert(true,'model cannot accept an assignment before external execution evidence is recorded');
+    }
+    $assignments->recordExecutionEvidence($admin,$assignmentId,'private/model-assignments/executed-document-0001',bin2hex(random_bytes(16)));
+    $assignments->respondByApplicant($applicantApplicationId,$assignmentId,'accept',
+        'I have reviewed the assignment terms, compensation, shoot schedule and image-use scope, and I voluntarily accept this assignment.',
+        bin2hex(random_bytes(16)));
+    $acceptedAssignment=$pdo->prepare('SELECT status,acceptance_recorded_by,model_acceptance_evidence_reference FROM model_assignments WHERE id=:id');
+    $acceptedAssignment->execute(['id'=>$assignmentId]);$acceptedAssignmentRow=$acceptedAssignment->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($acceptedAssignmentRow) && $acceptedAssignmentRow['status']==='accepted' &&
+        $acceptedAssignmentRow['acceptance_recorded_by']===null &&
+        $acceptedAssignmentRow['model_acceptance_evidence_reference']!=='',
+        'OTP-verified model acceptance is recorded as an applicant actor with encrypted consent evidence, not an administrator attestation');
+    $applicantAssignmentEvent=$pdo->prepare('SELECT actor_type,actor_user_id FROM model_assignment_events WHERE assignment_id=:id AND event_type="assignment.applicant_accepted"');
+    $applicantAssignmentEvent->execute(['id'=>$assignmentId]);$applicantAssignmentEventRow=$applicantAssignmentEvent->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($applicantAssignmentEventRow) && $applicantAssignmentEventRow['actor_type']==='applicant' && $applicantAssignmentEventRow['actor_user_id']===null,
+        'model assignment response is attributed to the verified applicant session without a synthetic user account');
     $assignments->confirm($admin,$assignmentId,bin2hex(random_bytes(16)));
     $assignments->start($admin,$assignmentId,bin2hex(random_bytes(16)));
     $assignmentRow=$pdo->prepare('SELECT status,compensation_minor,expense_cap_minor,commission_basis_points,client_name FROM model_assignments WHERE id=:id');
@@ -365,6 +395,44 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert(!array_key_exists('commission_basis_points',$clientAssignments[0]),
         'internal agency commission terms are not exposed in the client assignment register');
 
+
+    $declineCall=$casting->createDraft($admin,[
+        'title'=>'Private assignment decline test call','client_name'=>'Verified editorial commissioning client',
+        'client_reference'=>'client-ref-casting-decline','project_purpose'=>'editorial',
+        'description'=>'A second private editorial project brief for testing applicant assignment decline operations.',
+        'requirements'=>'Current portfolio approval, adult verification and purpose-specific consent remain mandatory.',
+        'country_code'=>'GB','opens_at'=>$now->modify('-1 hour')->format(DATE_ATOM),
+        'closes_at'=>$now->modify('+5 days')->format(DATE_ATOM),
+        'shoot_starts_at'=>$now->modify('+12 days')->format(DATE_ATOM),
+        'shoot_ends_at'=>$now->modify('+13 days')->format(DATE_ATOM),
+        'compensation_amount'=>null,'currency_code'=>null,'max_submissions'=>1,
+    ],bin2hex(random_bytes(16)));
+    $casting->publish($admin,$declineCall,bin2hex(random_bytes(16)));
+    $declineSubmission=$casting->submitByApplicant($applicationId,$declineCall,$licensedAsset['id'],$licenceId,bin2hex(random_bytes(16)));
+    $casting->decide($admin,$declineSubmission,'shortlisted','Model shortlisted after human review of the second private casting submission.',bin2hex(random_bytes(16)));
+    $casting->decide($admin,$declineSubmission,'selected','Model selected after human review for the second private casting assignment.',bin2hex(random_bytes(16)));
+    $declineAssignment=$assignments->createDraft($admin,$declineSubmission,[
+        'project_purpose'=>'editorial','client_name'=>'Verified editorial commissioning client',
+        'client_reference'=>'editorial-client-ref-decline','brief'=>'A second defined editorial assignment brief for model decline workflow testing.',
+        'location_city'=>'London','shoot_starts_at'=>$now->modify('+12 days')->format('Y-m-d H:i:s'),
+        'shoot_ends_at'=>$now->modify('+13 days')->format('Y-m-d H:i:s'),
+        'deliverables'=>'One editorial shoot with the agreed image selection and usage scope.',
+        'compensation_amount'=>'800.00','currency_code'=>'GBP','expense_cap_amount'=>'75.00',
+    ],bin2hex(random_bytes(16)));
+    $assignments->offer($admin,$declineAssignment,bin2hex(random_bytes(16)));
+    $assignments->respondByApplicant($applicantApplicationId,$declineAssignment,'decline',
+        'I have reviewed this offer and voluntarily decline because the proposed dates do not fit my current availability.',
+        bin2hex(random_bytes(16)));
+    $declinedRow=$pdo->prepare('SELECT status,declined_by,decline_reason,model_decline_evidence_reference FROM model_assignments WHERE id=:id');
+    $declinedRow->execute(['id'=>$declineAssignment]);$declinedAssignmentRow=$declinedRow->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($declinedAssignmentRow) && $declinedAssignmentRow['status']==='declined' &&
+        $declinedAssignmentRow['declined_by']===null && $declinedAssignmentRow['decline_reason']!=='' &&
+        $declinedAssignmentRow['model_decline_evidence_reference']!=='',
+        'model can decline an offered assignment from the OTP portal with encrypted reason and applicant actor attribution');
+    $declineEvent=$pdo->prepare('SELECT actor_type,actor_user_id FROM model_assignment_events WHERE assignment_id=:id AND event_type="assignment.applicant_declined"');
+    $declineEvent->execute(['id'=>$declineAssignment]);$declineEventRow=$declineEvent->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($declineEventRow) && $declineEventRow['actor_type']==='applicant' && $declineEventRow['actor_user_id']===null,
+        'applicant decline event is append-only and does not fabricate a user identity');
 
     $assignmentEventId=(string)$pdo->query('SELECT id FROM model_assignment_events WHERE assignment_id='.$pdo->quote($assignmentId).' ORDER BY occurred_at LIMIT 1')->fetchColumn();
     try {
