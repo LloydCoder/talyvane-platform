@@ -15,6 +15,12 @@ Official references:
 - Include dependency/SBOM review, secret scanning, static analysis, dynamic testing, upload abuse tests, backup-restore exercises and manual security review in release gates.
 - Treat CI success as evidence only for the checks actually executed; it is not proof of legal compliance, production readiness or security certification.
 
+## Privacy-rights fulfilment notifications
+- A privacy review decision or correction/erasure fulfilment must not commit if the encrypted outcome outbox is unavailable.
+- Before a fulfilment transaction completes, re-check that the account is active and the current notification destination is still verified. Never send the notice to a stale or unverified address.
+- Queue the generic outcome notice transactionally with the privacy state change; do not include restricted review rationale or corrected personal values in the message.
+- This delivery control does not prove linked-data erasure, third-party propagation, encrypted-backup expiry or external mailbox deletion. Those remain separately evidenced retention/release gates.
+
 ## Identity and access
 - Server-side role and resource policies on every protected request.
 - Membership benefits are never authorization based on a tier label or client-facing summary. Use the server-owned entitlement catalogue and active/in-date grants; check at both query projection and final resource delivery. Keep private media URLs out of public discovery and cache responses.
