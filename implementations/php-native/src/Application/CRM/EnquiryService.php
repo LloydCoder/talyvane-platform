@@ -363,6 +363,218 @@ final class EnquiryService
         return $items;
     }
 
+    /** @return list<array<string,mixed>> */
+    public function responseTemplates(Principal $actor): array
+    {
+        Authorization::require($actor,'enquiries.manage',true);
+        $query=$this->pdo->query(
+            'SELECT template_key,channel,locale,subject_template,body_template,version,active,updated_at
+             FROM communication_templates
+             WHERE template_key="crm.enquiry.response" AND channel="email"
+             ORDER BY locale ASC,version DESC LIMIT 100'
+        );
+        return $query->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function saveResponseTemplate(
+        Principal $actor,string $locale,string $subjectTemplate,string $bodyTemplate,string $reason,string $requestId
+    ): int {
+        Authorization::require($actor,'enquiries.manage',true);
+        $locale=strtolower(trim($locale));
+        $subjectTemplate=trim($subjectTemplate);
+        $bodyTemplate=trim($bodyTemplate);
+        $reason=trim($reason);
+        if (preg_match('/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/D',$locale)!==1 ||
+            mb_strlen($subjectTemplate,'UTF-8')<2 || mb_strlen($subjectTemplate,'UTF-8')>160 ||
+            mb_strlen($bodyTemplate,'UTF-8')<10 || mb_strlen($bodyTemplate,'UTF-8')>4000 ||
+            preg_match('/[\r\n]/',$subjectTemplate)===1 ||
+            preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/',$bodyTemplate)===1 ||
+            mb_strlen($reason,'UTF-8')<8 || mb_strlen($reason,'UTF-8')>500 ||
+            preg_match('/^[a-f0-9]{32}$/iD',$requestId)!==1) {
+            throw new \InvalidArgumentException('CRM response template details are invalid.');
+        }
+        self::validateResponseTemplate($subjectTemplate,'subject');
+        self::validateResponseTemplate($bodyTemplate,'body');
+        $idempotencyHash=hash('sha256',$requestId);
+        $this->pdo->beginTransaction();
+        try {
+            $replayed=$this->pdo->prepare(
+                'SELECT version FROM communication_templates WHERE idempotency_key=:key LIMIT 1 FOR UPDATE'
+            );
+            $replayed->execute(['key'=>$idempotencyHash]);
+            $existingVersion=$replayed->fetchColumn();
+            if($existingVersion!==false) {
+                $this->pdo->commit();
+                return (int)$existingVersion;
+            }
+            // Lock the locale's template range before incrementing its immutable version.
+            $lock=$this->pdo->prepare(
+                'SELECT id FROM communication_templates
+                 WHERE template_key="crm.enquiry.response" AND channel="email" AND locale=:locale
+                 ORDER BY version DESC LIMIT 1 FOR UPDATE'
+            );
+            $lock->execute(['locale'=>$locale]);
+            $lock->fetchAll(PDO::FETCH_COLUMN);
+            $versionQuery=$this->pdo->prepare(
+                'SELECT COALESCE(MAX(version),0) FROM communication_templates
+                 WHERE template_key="crm.enquiry.response" AND channel="email" AND locale=:locale'
+            );
+            $versionQuery->execute(['locale'=>$locale]);
+            $version=(int)$versionQuery->fetchColumn()+1;
+            $this->pdo->prepare(
+                'UPDATE communication_templates SET active=0,updated_at=UTC_TIMESTAMP()
+                 WHERE template_key="crm.enquiry.response" AND channel="email" AND locale=:locale AND active=1'
+            )->execute(['locale'=>$locale]);
+            $id=self::uuid();
+            $this->pdo->prepare(
+                'INSERT INTO communication_templates
+                 (id,template_key,channel,locale,subject_template,body_template,version,active,idempotency_key,updated_by,created_at,updated_at)
+                 VALUES (:id,"crm.enquiry.response","email",:locale,:subject,:body,:version,1,:idempotency,:actor,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+            )->execute([
+                'id'=>$id,'locale'=>$locale,'subject'=>$subjectTemplate,'body'=>$bodyTemplate,
+                'version'=>$version,'idempotency'=>$idempotencyHash,'actor'=>$actor->id,
+            ]);
+            $this->audit->record($actor->id,'crm.communication.template_published','communication_template',$id,
+                $reason,null,['template_key'=>'crm.enquiry.response','channel'=>'email','locale'=>$locale,'version'=>$version],
+                $requestId,'crm-communications-v1');
+            $this->pdo->commit();
+            return $version;
+        } catch(\Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    /** Queue a plain-text, versioned CRM response. SMTP delivery is performed by the private cron dispatcher. */
+    public function queueResponse(
+        Principal $actor,string $reference,string $replyText,string $locale,string $agencyName,string $requestId
+    ): bool {
+        Authorization::require($actor,'enquiries.manage',true);
+        $replyText=trim(str_replace(["\r\n","\r"],"\n",$replyText));
+        $locale=strtolower(trim($locale));
+        $agencyName=trim($agencyName);
+        if (!preg_match('/^TV-[A-F0-9]{10}$/D',$reference) ||
+            mb_strlen($replyText,'UTF-8')<10 || mb_strlen($replyText,'UTF-8')>3000 ||
+            preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/',$replyText)===1 ||
+            preg_match('/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/D',$locale)!==1 ||
+            $agencyName==='' || mb_strlen($agencyName,'UTF-8')>120 ||
+            preg_match('/[\r\n\x00-\x1F\x7F]/',$agencyName)===1 ||
+            preg_match('/^[a-f0-9]{32}$/iD',$requestId)!==1) {
+            throw new \InvalidArgumentException('CRM response details are invalid.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $enquiryQuery=$this->pdo->prepare(
+                'SELECT id,name,email,status FROM enquiries WHERE reference=:reference FOR UPDATE'
+            );
+            $enquiryQuery->execute(['reference'=>$reference]);
+            $enquiry=$enquiryQuery->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($enquiry) || in_array($enquiry['status'],['closed','spam'],true)) {
+                throw new \DomainException('A CRM response requires an existing, open enquiry.');
+            }
+            if (!is_string($enquiry['email']) || !filter_var($enquiry['email'],FILTER_VALIDATE_EMAIL)) {
+                throw new \DomainException('The enquiry does not have a valid reply address.');
+            }
+            $idempotency='crm-enquiry-response-v1:'.hash('sha256',(string)$enquiry['id']."\0".$requestId);
+            $existing=$this->pdo->prepare('SELECT id FROM communication_outbox WHERE idempotency_key=:key LIMIT 1');
+            $existing->execute(['key'=>$idempotency]);
+            if (is_string($existing->fetchColumn())) {
+                $this->pdo->commit();
+                return false;
+            }
+            $templateQuery=$this->pdo->prepare(
+                'SELECT id,locale,subject_template,body_template,version
+                 FROM communication_templates
+                 WHERE template_key="crm.enquiry.response" AND channel="email" AND active=1
+                   AND locale IN (:locale,:fallback)
+                 ORDER BY CASE WHEN locale=:preferred THEN 0 ELSE 1 END,version DESC LIMIT 1'
+            );
+            $templateQuery->execute(['locale'=>$locale,'fallback'=>'en','preferred'=>$locale]);
+            $template=$templateQuery->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($template)) {
+                throw new \DomainException('No active CRM response template exists for this language or the English fallback.');
+            }
+            $values=[
+                'customer_name'=>self::safeTemplateValue((string)$enquiry['name']),
+                'enquiry_reference'=>$reference,
+                'agency_name'=>self::safeTemplateValue($agencyName),
+                'reply_text'=>$replyText,
+            ];
+            $subject=self::renderResponseTemplate((string)$template['subject_template'],$values);
+            $body=self::renderResponseTemplate((string)$template['body_template'],$values);
+            if ($subject==='' || preg_match('/[\r\n]/',$subject)===1 || strlen($subject)>190 || $body==='' || strlen($body)>8000) {
+                throw new \DomainException('The active CRM response template rendered an invalid message.');
+            }
+            $outboxId=self::uuid();
+            $payload=json_encode([
+                'subject'=>$subject,'body'=>$body,'template_version'=>(int)$template['version'],
+                'template_locale'=>(string)$template['locale'],
+            ],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+            $recipientCipher=$this->notesCipher?->encrypt((string)$enquiry['email'],'communication-outbox-v1:recipient:'.$outboxId);
+            $payloadCipher=$this->notesCipher?->encrypt($payload,'communication-outbox-v1:payload:'.$outboxId);
+            if (!is_string($recipientCipher) || !is_string($payloadCipher)) {
+                throw new \DomainException('Encrypted CRM communications are unavailable.');
+            }
+            $this->pdo->prepare(
+                'INSERT INTO communication_outbox
+                 (id,idempotency_key,related_type,related_id,channel,recipient_ciphertext,recipient_fingerprint,
+                  payload_ciphertext,status,attempts,available_at,created_at)
+                 VALUES (:id,:key,"crm_enquiry",:related,"email",:recipient,NULL,:payload,"pending",0,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+            )->execute([
+                'id'=>$outboxId,'key'=>$idempotency,'related'=>$enquiry['id'],
+                'recipient'=>$recipientCipher,'payload'=>$payloadCipher,
+            ]);
+            // Queueing is not delivery: keep a new enquiry in progress until SMTP accepts the message.
+            $this->pdo->prepare(
+                'UPDATE enquiries SET status=CASE WHEN status="new" THEN "in_progress" ELSE status END,
+                 updated_at=UTC_TIMESTAMP() WHERE id=:id'
+            )->execute(['id'=>$enquiry['id']]);
+            $this->audit->record($actor->id,'crm.enquiry.response_queued','enquiry',(string)$enquiry['id'],
+                'Templated customer response queued for encrypted SMTP delivery',null,
+                ['outbox_id'=>$outboxId,'template_id'=>$template['id'],'template_version'=>(int)$template['version'],
+                 'locale'=>$template['locale'],'body_character_count'=>mb_strlen($replyText,'UTF-8')],
+                $requestId,'crm-communications-v1');
+            $this->pdo->commit();
+            return true;
+        } catch(\Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    private static function validateResponseTemplate(string $template,string $part): void
+    {
+        preg_match_all('/{{\s*([a-z_]+)\s*}}/',$template,$matches);
+        $allowed=$part==='subject'
+            ? ['customer_name','enquiry_reference','agency_name']
+            : ['customer_name','enquiry_reference','agency_name','reply_text'];
+        foreach($matches[1]??[] as $name) {
+            if (!in_array($name,$allowed,true)) {
+                throw new \InvalidArgumentException('CRM response template contains an unsupported placeholder.');
+            }
+        }
+        $stripped=preg_replace('/{{\s*[a-z_]+\s*}}/','',$template)??$template;
+        if (str_contains($stripped,'{{') || str_contains($stripped,'}}')) {
+            throw new \InvalidArgumentException('CRM response template contains malformed placeholder syntax.');
+        }
+    }
+
+    /** @param array<string,string> $values */
+    private static function renderResponseTemplate(string $template,array $values): string
+    {
+        return preg_replace_callback('/{{\s*([a-z_]+)\s*}}/',static function(array $match) use($values):string {
+            if (!array_key_exists($match[1],$values)) {
+                throw new \DomainException('CRM response template requested an unavailable value.');
+            }
+            return $values[$match[1]];
+        },$template)??throw new \RuntimeException('CRM response template rendering failed.');
+    }
+
+    private static function safeTemplateValue(string $value): string
+    {
+        return trim(preg_replace('/[\x00-\x1F\x7F]/u',' ',$value)??'');
+    }
+
     private static function safeAttribution(?string $referer): ?string
     {
         if ($referer === null || strlen($referer) > 2048) {

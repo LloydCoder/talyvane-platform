@@ -452,6 +452,8 @@ final class Bootstrap
         $router->add('POST', '/admin/memberships/{id}/suspend', static fn(Request $request,array $params): Response => $adminClients->suspend($request,$params));
         $router->add('GET', '/admin/enquiries', static fn(Request $request): Response => $adminEnquiries->index($request));
         $router->add('POST', '/admin/enquiries/{reference}', static fn(Request $request, array $params): Response => $adminEnquiries->update($request, $params));
+        $router->add('POST', '/admin/communications/templates', static fn(Request $request): Response => $adminEnquiries->saveResponseTemplate($request));
+        $router->add('POST', '/admin/enquiries/{reference}/reply', static fn(Request $request,array $params): Response => $adminEnquiries->reply($request,$params));
         $router->add('POST', '/admin/enquiries/{reference}/assign', static fn(Request $request, array $params): Response => $adminEnquiries->assign($request, $params));
         $router->add('POST', '/admin/enquiries/{reference}/notes', static fn(Request $request, array $params): Response => $adminEnquiries->addNote($request, $params));
         $router->add('POST', '/admin/enquiries/{reference}/reminders', static fn(Request $request, array $params): Response => $adminEnquiries->scheduleReminder($request, $params));

@@ -57,6 +57,7 @@ Back up the database and private storage separately, encrypt backups before off-
 - Do not assume a queue worker, WebSocket server or persistent process can run on shared hosting.
 - Use bounded polling for near-real-time website chat; document expected delay and request limits.
 - Configure SMTP with authenticated TLS and verify delivery.
+- For native PHP, schedule `bin/dispatch-notifications.php` through cPanel cron with `TALYVANE_CONFIG` and `TALYVANE_PUBLIC_ROOT` set to the owner-only private configuration and canonical public root. The bounded dispatcher handles booking, safeguarding, privacy and CRM email outboxes; CRM replies are marked responded only after SMTP accepts delivery. Monitor pending/retried/dead-lettered counts and verify the actual host's SMTP/cron execution before relying on customer communications.
 - Monitor disk quota, PHP errors, Laravel logs, failed jobs (if queueing is enabled), mail failures and backup freshness.
 - Rotate credentials through approved secret-management procedures; never expose secret values in the Super Admin UI or logs.
 

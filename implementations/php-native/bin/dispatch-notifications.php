@@ -2,12 +2,13 @@
 declare(strict_types=1);
 
 /**
- * Explicit cPanel cron entry point for encrypted booking, safeguarding and privacy-outcome mail.
+ * Explicit cPanel cron entry point for encrypted booking, safeguarding, privacy-outcome and CRM response mail.
  * Example: php /path/to/private/implementations/php-native/bin/dispatch-notifications.php --limit=25
  * Requires TALYVANE_CONFIG and TALYVANE_PUBLIC_ROOT to identify the owner-only private config and canonical public document root.
  */
 
 use Talyvane\Application\Bookings\BookingNotificationDispatcher;
+use Talyvane\Application\CRM\CrmCommunicationDispatcher;
 use Talyvane\Application\Safeguarding\SafeguardingNotificationDispatcher;
 use Talyvane\Application\Identity\PortalPrivacyNotificationDispatcher;
 use Talyvane\Infrastructure\Database\ConnectionFactory;
@@ -62,15 +63,17 @@ try {
     $booking = (new BookingNotificationDispatcher($pdo,$box,$mailer))->dispatchBatch((int)$limitValue);
     $safeguarding = (new SafeguardingNotificationDispatcher($pdo,$box,$mailer))->dispatchBatch((int)$limitValue);
     $privacy = (new PortalPrivacyNotificationDispatcher($pdo,$box,$mailer))->dispatchBatch((int)$limitValue);
+    $crm = (new CrmCommunicationDispatcher($pdo,$box,$mailer))->dispatchBatch((int)$limitValue);
     $result = [
         'status'=>'ok',
         'booking'=>$booking,
         'safeguarding'=>$safeguarding,
         'privacy'=>$privacy,
-        'processed'=>$booking['claimed'] + $safeguarding['claimed'] + $privacy['claimed'],
-        'delivered'=>$booking['delivered'] + $safeguarding['delivered'] + $privacy['delivered'],
-        'retried'=>$booking['retried'] + $safeguarding['retried'] + $privacy['retried'],
-        'dead_lettered'=>$booking['dead_lettered'] + $safeguarding['dead_lettered'] + $privacy['dead_lettered'],
+        'crm'=>$crm,
+        'processed'=>$booking['claimed'] + $safeguarding['claimed'] + $privacy['claimed'] + $crm['claimed'],
+        'delivered'=>$booking['delivered'] + $safeguarding['delivered'] + $privacy['delivered'] + $crm['delivered'],
+        'retried'=>$booking['retried'] + $safeguarding['retried'] + $privacy['retried'] + $crm['retried'],
+        'dead_lettered'=>$booking['dead_lettered'] + $safeguarding['dead_lettered'] + $privacy['dead_lettered'] + $crm['dead_lettered'],
         'checked_at_utc'=>gmdate('Y-m-d\\TH:i:s\\Z'),
     ];
     if (array_key_exists('json',$options)) {
