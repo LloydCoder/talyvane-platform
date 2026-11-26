@@ -390,7 +390,7 @@ final class EnquiryService
             preg_match('/[\r\n]/',$subjectTemplate)===1 ||
             preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/',$bodyTemplate)===1 ||
             mb_strlen($reason,'UTF-8')<8 || mb_strlen($reason,'UTF-8')>500 ||
-            strlen($requestId)<16 || strlen($requestId)>190) {
+            preg_match('/^[a-f0-9]{32}$/iD',$requestId)!==1) {
             throw new \InvalidArgumentException('CRM response template details are invalid.');
         }
         self::validateResponseTemplate($subjectTemplate,'subject');
@@ -449,7 +449,7 @@ final class EnquiryService
             preg_match('/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/D',$locale)!==1 ||
             $agencyName==='' || mb_strlen($agencyName,'UTF-8')>120 ||
             preg_match('/[\r\n\x00-\x1F\x7F]/',$agencyName)===1 ||
-            strlen($requestId)<16 || strlen($requestId)>190) {
+            preg_match('/^[a-f0-9]{32}$/iD',$requestId)!==1) {
             throw new \InvalidArgumentException('CRM response details are invalid.');
         }
         $this->pdo->beginTransaction();
