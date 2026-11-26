@@ -614,6 +614,9 @@ catch (DomainException) { $assert(true, 'settlement requires external evidence')
 $assert(AgreementStateMachine::transition('offered','executed','admin','external-agreement-ref') === 'executed', 'agreement execution requires external evidence');
 try { AgreementStateMachine::transition('offered','executed','admin'); $assert(false, 'agreement cannot be marked executed without evidence'); }
 catch (DomainException) { $assert(true, 'agreement cannot be marked executed without evidence'); }
+$assert(CastingStateMachine::call('draft','open') === 'open', 'agency can publish a draft casting call into the private open state');
+$assert(CastingStateMachine::call('open','closed') === 'closed', 'agency can close an open casting call');
+$assert(CastingStateMachine::call('open','cancelled') === 'cancelled', 'agency can cancel an open casting call');
 $assert(CastingStateMachine::submission('submitted','selected','admin') === 'selected', 'agency can select a casting submission');
 try { CastingStateMachine::submission('submitted','selected','applicant'); $assert(false, 'applicant cannot select themselves'); }
 catch (DomainException) { $assert(true, 'applicant cannot select themselves'); }
