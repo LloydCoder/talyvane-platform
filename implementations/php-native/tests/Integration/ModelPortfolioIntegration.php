@@ -404,7 +404,8 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'model assignment response is attributed to the verified applicant session without a synthetic user account');
     $assignments->confirm($admin,$assignmentId,bin2hex(random_bytes(16)));
     $assignments->start($admin,$assignmentId,bin2hex(random_bytes(16)));
-    $assignments->respondByApplicant($applicantApplicationId,$assignmentId,'accept',true,$acceptanceStatement,$acceptRequestId);
+    $pausedReplay=new ModelAssignmentService($pdo,new AuditLogger($pdo),$secretBox,$storage,static fn():bool=>false);
+    $pausedReplay->respondByApplicant($applicantApplicationId,$assignmentId,'accept',true,$acceptanceStatement,$acceptRequestId);
     $acceptedEventCountAfterProgression=(int)$pdo->query('SELECT COUNT(*) FROM model_assignment_events WHERE assignment_id='.$pdo->quote($assignmentId).' AND event_type="assignment.applicant_accepted"')->fetchColumn();
     $assert($acceptedEventCountAfterProgression===1,'acceptance replay remains idempotent after the assignment advances to in-progress');
     $assignmentRow=$pdo->prepare('SELECT status,compensation_minor,expense_cap_minor,commission_basis_points,client_name FROM model_assignments WHERE id=:id');
