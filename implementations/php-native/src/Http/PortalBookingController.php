@@ -10,6 +10,7 @@ use InvalidArgumentException;
 use Talyvane\Application\Bookings\BookingCommandService;
 use Talyvane\Application\Bookings\BookingQueryService;
 use Talyvane\Application\Bookings\BookingQuoteService;
+use Talyvane\Application\Bookings\CalendarFeedTokenService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Identity\AuthenticationService;
@@ -27,6 +28,7 @@ final class PortalBookingController
         private BookingCommandService $commands,
         private BookingQueryService $queries,
         private \Talyvane\Application\Bookings\BookingCalendarService $calendar,
+        private CalendarFeedTokenService $feedTokens,
         private BookingQuoteService $quotes,
         private DiscoveryService $discovery,
         private ViewRenderer $views,
@@ -222,15 +224,73 @@ final class PortalBookingController
         return $this->calendarDownload('companion');
     }
 
-    private function calendarPage(string $role): Response
+    public function createCalendarFeedToken(Request $request): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return Response::html('Your session expired. Refresh and try again.',419);
+        $actor=$this->authentication->currentPrincipal();
+        if($actor===null) return Response::redirect('/portal/login');
+        $roles=array_values(array_intersect($actor->roles,['client','companion']));
+        if(count($roles)!==1) return Response::html('Forbidden',403);
+        try {
+            $issued=$this->feedTokens->issue($actor,$this->field($request,'label'),180,$request->requestId);
+            $feedPath='/portal/calendar/feed.ics?token='.rawurlencode($issued['token']);
+            return $this->calendarPage($roles[0],$feedPath);
+        } catch(InvalidArgumentException|DomainException $error) {
+            return $this->calendarPage($roles[0],'',$error->getMessage());
+        }
+    }
+
+    public function revokeCalendarFeedToken(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return Response::html('Your session expired. Refresh and try again.',419);
+        $actor=$this->authentication->currentPrincipal();
+        if($actor===null) return Response::redirect('/portal/login');
+        $roles=array_values(array_intersect($actor->roles,['client','companion']));
+        if(count($roles)!==1) return Response::html('Forbidden',403);
+        try {
+            $this->feedTokens->revoke($actor,(string)($params['id']??''),$request->requestId);
+            return Response::redirect($roles[0]==='client'?'/portal/calendar':'/portal/companion/calendar');
+        } catch(DomainException) {
+            return Response::html('Calendar feed token could not be revoked.',403);
+        }
+    }
+
+    public function calendarFeed(Request $request): Response
+    {
+        $token=$request->query['token']??'';
+        if(!is_string($token) || $token==='') return Response::html('Calendar feed not found.',404);
+        try {
+            $actor=$this->feedTokens->resolve($token);
+            if($actor===null) return Response::html('Calendar feed not found.',404);
+            $role=$actor->hasRole('client')?'client':'companion';
+            $events=$role==='client'?$this->calendar->clientEvents($actor):$this->calendar->companionEvents($actor);
+            $body=$this->calendar->toIcalendar($actor,$events,new DateTimeImmutable('now',new DateTimeZone('UTC')));
+            return new Response($body,200,[
+                'content-type'=>'text/calendar; charset=utf-8',
+                'cache-control'=>'no-store, private',
+                'pragma'=>'no-cache',
+                'x-content-type-options'=>'nosniff',
+                'x-robots-tag'=>'noindex, nofollow',
+                'referrer-policy'=>'no-referrer',
+            ]);
+        } catch(DomainException) {
+            return Response::html('Calendar feed not found.',404);
+        }
+    }
+
+    private function calendarPage(string $role,string $newFeedPath='',string $error=''): Response
     {
         SessionManager::start();
         $actor=$this->principal($role);
         if ($actor===null) return Response::redirect('/portal/login');
         try {
             $events=$role==='client'?$this->calendar->clientEvents($actor):$this->calendar->companionEvents($actor);
+            $tokens=$this->feedTokens->list($actor);
             return Response::html($this->views->render('portal/calendar',[
-                'events'=>$events,'role'=>$role,'brandName'=>$this->brandName,
+                'events'=>$events,'role'=>$role,'brandName'=>$this->brandName,'feedTokens'=>$tokens,
+                'newFeedPath'=>$newFeedPath,'error'=>$error,'csrf'=>Csrf::issue(),
             ]));
         } catch (DomainException) {
             return Response::html('You do not have permission to view this calendar.',403);
