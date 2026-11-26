@@ -23,6 +23,7 @@ $record = static function (string $name, bool $ok, string $detail) use (&$checks
     $checks[] = ['check' => $name, 'status' => $ok ? 'ok' : 'failed', 'detail' => $detail];
 };
 
+$realConfig = false;
 $configPath = getenv('TALYVANE_CONFIG');
 if (!is_string($configPath) || $configPath === '' || is_link($configPath) ||
     !is_file($configPath) || !is_readable($configPath)) {
@@ -65,6 +66,12 @@ $record('document_root', $documentRoot !== false,
     $documentRoot !== false
         ? 'Configured public document root resolves to a real directory.'
         : 'Configured public document root is missing, invalid, or linked.');
+$configOutsidePublicRoot = $realConfig !== false && $documentRoot !== false &&
+    !str_starts_with($realConfig, rtrim($documentRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR);
+$record('configuration_outside_document_root', $configOutsidePublicRoot,
+    $configOutsidePublicRoot
+        ? 'Private configuration file is outside the public document root.'
+        : 'Private configuration file is missing, invalid, or located under the public document root.');
 foreach (['storage', 'logs', 'backups'] as $key) {
     $path = $paths[$key] ?? null;
     $private = is_string($path) && $path !== '' && !is_link($path) &&
