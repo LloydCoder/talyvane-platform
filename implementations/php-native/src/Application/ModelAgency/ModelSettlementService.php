@@ -323,7 +323,7 @@ final class ModelSettlementService
         $this->authorize($actor);
         $query=$this->pdo->prepare(
             'SELECT id,assignment_id,settlement_id,amount_minor,currency_code,description,private_evidence_key,
-                    status,created_by,submitted_by,reviewed_by,reviewed_at,review_note,encryption_version,created_at
+                    status,created_by,submitted_by,reviewed_by,reviewed_at,encryption_version,created_at
              FROM model_assignment_expenses WHERE assignment_id=:assignment ORDER BY created_at DESC'
         );
         $query->execute(['assignment'=>$assignmentId]);
@@ -333,8 +333,6 @@ final class ModelSettlementService
                 $row['description']=$this->cipher->decrypt((string)$row['description'],'model-settlement-v1:'.$row['id'].':description');
                 $row['evidence_reference']=is_string($row['private_evidence_key']) && $row['private_evidence_key']!==''?
                     $this->cipher->decrypt($row['private_evidence_key'],'model-settlement-v1:'.$row['id'].':private_evidence_key'):null;
-                $row['review_note']=is_string($row['review_note']) && $row['review_note']!==''?
-                    $this->cipher->decrypt($row['review_note'],'model-settlement-v1:'.$row['id'].':review_note'):null;
             } else {
                 $row['evidence_reference']=$row['private_evidence_key'];
             }
