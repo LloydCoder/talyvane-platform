@@ -113,9 +113,9 @@ The native branch now has 27 ordered PHP migrations and connected slices for ide
 | Portfolio review/consent withdrawal | PortfolioAsset controller | NOT_STARTED | Human review, withdrawal removes private image |
 | Purpose-bound image licence ledger | ImageLicence controller | IN_PROGRESS | Asset/agreement/territory/channel/window and revocation |
 | Internal casting register | Casting controller | IN_PROGRESS | Native private draft/open/close/cancel register, MFA-gated, market/policy guarded, event + audit logged; eligible model submission, active licence validation, shortlist/selection and full browser workflow remain open |
-| Model assignment lifecycle | Assignment controller | IN_PROGRESS | Selected submission only; offer/accept/confirm/start/complete/decline/cancel/dispute |
+| Model assignment lifecycle | ModelAssignmentService + admin workspace | IN_PROGRESS | Native schema parity, policy-gated draft creation from selected submissions, encrypted client/brief/evidence fields, current adult/consent/licence/agreement/market rechecks, overlap checks, offer/accept/confirm/start/complete/decline/cancel/dispute and append-only events are implemented and routed; integration/browser acceptance, model self-service and full notification parity remain open |
 | Compensation/expense snapshots | Assignment domain | NOT_STARTED | Immutable commission and cap snapshot |
-| Expense review and settlement ledger | Settlement controller | IN_PROGRESS | Integer minor units, cap enforcement, maker-checker approval |
+| Expense review and settlement ledger | ModelSettlementService + finance workspace | IN_PROGRESS | Native expense/settlement schema parity, encrypted expense details with legacy-data versioning, integer minor-unit calculations, expense-cap enforcement, independent review/approval, recalculation, external-payment attestation, reversal/dispute evidence and finance-only routes are implemented; current-head MySQL/browser acceptance and complete reporting remain open |
 | External payment/reversal/dispute evidence | Settlement controller | NOT_STARTED | Records attestations only; no transfer initiation/verification |
 | Model portfolio assets and consent | ModelTalentPortfolioAssetService | NOT_STARTED | Private sanitized upload, human review, consent withdrawal, deletion and licence revocation parity |
 | Purpose-specific image licences | ModelTalentImageLicenceService | NOT_STARTED | Executed agreement, territory/channel/date scope, external execution evidence, current model consent, conflict checks and revocation/expiry |
@@ -159,7 +159,7 @@ The native branch now has 27 ordered PHP migrations and connected slices for ide
 | Ledger/reconciliation | PAYMENTS | NOT_STARTED | Immutable postings, under/overpayment, refunds and disputes |
 | Card processor | COMPLIANCE-RELEASE-GATES | BLOCKED | Written underwriting and jurisdiction approval |
 | Custody/escrow/private keys | PRODUCT-REQUIREMENTS | NOT_APPLICABLE | Explicitly excluded; never implement custody |
-| Model settlement finance workspace | Settlement controller | NOT_STARTED | Finance-only, maker-checker and audit |
+| Model settlement finance workspace | AdminModelSettlementController | IN_PROGRESS | MFA-gated finance/owner workspace now exposes assignment expenses, independent review, settlement draft, approval, external payment attestation, reversal and dispute; no transfers/custody; current-head CI and browser acceptance remain open |
 | Actual settlement transfers | PRODUCT-REQUIREMENTS | BLOCKED | External provider approval/integration; no custody |
 | Tax adapters | TGLS | BLOCKED | Qualified rules, merchant obligations and legal review |
 
