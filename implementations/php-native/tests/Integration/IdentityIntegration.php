@@ -951,6 +951,14 @@ function runIdentityIntegration(PDO $pdo): int
     $eligibleCompanionCode=(string)($eligibleCompanionCodeMatch[1]??'');
     $assert($eligibleCompanionCode!=='' && $portalRights->verify($eligibleCompanionPrincipal,$eligibleCompanionErasureId,$eligibleCompanionCode,'127.0.0.1',bin2hex(random_bytes(16))),
         'eligible companion erasure requires independent email verification');
+    foreach($externalSystems as $systemKey) {
+        $portalRightsAdmin->recordExternalErasureEvidence(
+            $superAdmin,$eligibleCompanionErasureId,$systemKey,'not_applicable',
+            'TEST-NO-PROVIDER-'.$systemKey,null,null,
+            'No such external processor is configured in this isolated integration test.',
+            bin2hex(random_bytes(16))
+        );
+    }
     $portalRightsAdmin->fulfillCompanionErasure($superAdmin,$eligibleCompanionErasureId,
         'Companion identity and retention review are complete; no bookings, private media, safeguarding or enquiry records remain.',bin2hex(random_bytes(16)));
     $erasedCompanionQuery=$pdo->prepare('SELECT email,display_name,status,email_verified_at,admin_session_version FROM users WHERE id=:id');
