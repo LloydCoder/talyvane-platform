@@ -5,6 +5,8 @@ use Talyvane\Application\ModelAgency\ModelPortfolioService;
 use Talyvane\Application\ModelAgency\ModelAgencyAgreementService;
 use Talyvane\Application\ModelAgency\ModelImageLicenceService;
 use Talyvane\Application\ModelAgency\ModelCastingWorkflowService;
+use Talyvane\Application\ModelAgency\ModelAssignmentService;
+use Talyvane\Application\ModelAgency\ModelSettlementService;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
 use Talyvane\Security\Principal;
@@ -113,8 +115,8 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $agreementService=new ModelAgencyAgreementService($pdo,new AuditLogger($pdo));
     $agreementId=$agreementService->createDraft($admin,$applicationId,[
         'service_scope'=>['portfolio_development','casting_submissions'],
-        'commission_basis_points'=>1200,'term_months'=>12,'exclusivity'=>false,'termination_notice_days'=>30,
-    ],1200,bin2hex(random_bytes(16)));
+        'commission_basis_points'=>1500,'term_months'=>12,'exclusivity'=>false,'termination_notice_days'=>30,
+    ],1500,bin2hex(random_bytes(16)));
     $agreementService->transition($admin,$agreementId,'offered','Agreement offered for external execution review.',null,null,null,bin2hex(random_bytes(16)));
     $agreementService->transition($admin,$agreementId,'executed','External agreement execution confirmed.','private/model-agreements/execution-reference-0001',
         new DateTimeImmutable('now',new DateTimeZone('UTC')),new DateTimeImmutable('+12 months',new DateTimeZone('UTC')),bin2hex(random_bytes(16)));
