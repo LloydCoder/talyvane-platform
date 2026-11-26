@@ -290,6 +290,12 @@ final class EnquiryService
         return $query->fetchAll();
     }
 
+    public function count(Principal $actor): int
+    {
+        Authorization::require($actor,'enquiries.manage',true);
+        return (int) $this->pdo->query('SELECT COUNT(*) FROM enquiries')->fetchColumn();
+    }
+
     /** @return list<array<string,mixed>> */
     public function list(Principal $actor,int $limit = 50,int $offset = 0): array
     {
