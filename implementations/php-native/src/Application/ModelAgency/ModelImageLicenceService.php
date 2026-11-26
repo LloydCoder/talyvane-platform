@@ -132,8 +132,9 @@ final class ModelImageLicenceService
             $row['channels']=$visible['channels'];
             $row['licensee_name']=$visible['licensee_name'];
             $row['purpose_details']=$visible['purpose_details'];
-            $row['terms_hash_valid']=$row['applicant_consent_terms_hash']===null ||
-                hash_equals((string)$row['applicant_consent_terms_hash'],hash('sha256',json_encode($visible,JSON_THROW_ON_ERROR)));
+            $row['terms_hash_valid']=$row['status']!=='awaiting_model_consent' ||
+                (is_string($row['applicant_consent_terms_hash']) && $row['applicant_consent_terms_hash']!=='' &&
+                 hash_equals((string)$row['applicant_consent_terms_hash'],hash('sha256',json_encode($visible,JSON_THROW_ON_ERROR))));
             unset($row['applicant_consent_terms_hash']);
             $result[]=$row;
         }
@@ -494,11 +495,11 @@ final class ModelImageLicenceService
     private function termsFromLicence(array $licence): array
     {
         return [
-            'licensee_name'=>$this->decrypt((string)$licence['id'],'licensee_name',(string)$licence['licensee_name']),
+            'licensee_name'=>$this->decryptVisibleField((string)$licence['id'],'licensee_name',$licence['licensee_name']??null),
             'licensee_reference'=>is_string($licence['licensee_reference']??null) && $licence['licensee_reference']!==''?
-                $this->decrypt((string)$licence['id'],'licensee_reference',(string)$licence['licensee_reference']):null,
+                $this->decryptVisibleField((string)$licence['id'],'licensee_reference',$licence['licensee_reference']??null):null,
             'purpose'=>(string)$licence['purpose'],'channels'=>is_array($channels=json_decode((string)$licence['channels'],true))?$channels:[],
-            'purpose_details'=>$this->decrypt((string)$licence['id'],'purpose_details',(string)$licence['purpose_details']),
+            'purpose_details'=>$this->decryptVisibleField((string)$licence['id'],'purpose_details',$licence['purpose_details']??null),
             'country_code'=>(string)$licence['territory_code'],'starts_on'=>(string)$licence['starts_on'],
             'ends_on'=>(string)$licence['ends_on'],'exclusivity'=>(bool)$licence['exclusivity'],
             'compensation_amount'=>$licence['compensation_amount']===null?null:(string)$licence['compensation_amount'],
@@ -597,6 +598,16 @@ final class ModelImageLicenceService
     private function decrypt(string $id,string $field,string $value): string
     {
         return $this->cipher->decrypt($value,'model-image-licence-v1:'.$id.':'.$field);
+    }
+
+    private function decryptVisibleField(string $id,string $field,mixed $value): string
+    {
+        if(!is_string($value) || $value==='') return 'Not recorded in this legacy licence.';
+        try {
+            return $this->decrypt($id,$field,$value);
+        } catch(Throwable) {
+            return 'Not available in this legacy licence.';
+        }
     }
 
     private function policyVersionOrLegacy(array $licence): string
