@@ -425,7 +425,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert(is_array($declineRecord) && $declineRecord['status']==='declined' && $declineRecord['declined_by']===null &&
         $declineRecord['applicant_response_status']==='declined' &&
         $declineRecord['applicant_response_reason']!=='I cannot accept the proposed dates due to a scheduling conflict.' &&
-        $declineRecord['model_decline_evidence_reference']!==null,
+        $declineRecord['model_decline_evidence_reference']===null,
         'model decline is recorded without a synthetic user and sensitive explanation/evidence references remain encrypted');
     $declineEvent=$pdo->prepare('SELECT actor_user_id,actor_type,from_status,to_status,event_type FROM model_assignment_events WHERE assignment_id=:id AND event_type="assignment.applicant_declined"');
     $declineEvent->execute(['id'=>$secondAssignmentId]);$declineEventRow=$declineEvent->fetch(PDO::FETCH_ASSOC);
