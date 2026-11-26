@@ -856,6 +856,30 @@ function runIdentityIntegration(PDO $pdo): int
             'Identity and dependency review are complete; the notification transport is deliberately unavailable.',bin2hex(random_bytes(16)));
     } catch(DomainException) { $noOutcomeDenied=true; }
     $assert($noOutcomeDenied,'privacy erasure fails closed when the verified outcome notification outbox is unavailable');
+    $missingExternalEvidenceDenied=false;
+    try {
+        $portalRightsAdmin->fulfillClientErasure($superAdmin,$eligibleErasureId,
+            'Identity and dependency review are complete; external systems have not yet been reconciled.',bin2hex(random_bytes(16)));
+    } catch(DomainException $error) {
+        $missingExternalEvidenceDenied=str_contains($error->getMessage(),'external processor evidence');
+    }
+    $assert($missingExternalEvidenceDenied,
+        'client erasure remains blocked until every external processor and backup system has reviewed evidence');
+    $externalSystems=[
+        'encrypted_database_backups','private_storage_backups','smtp_mailbox_providers',
+        'payment_processors','analytics_integrations','external_evidence_repositories','safeguarding_key_custody',
+    ];
+    foreach($externalSystems as $systemKey) {
+        $portalRightsAdmin->recordExternalErasureEvidence(
+            $superAdmin,$eligibleErasureId,$systemKey,'not_applicable',
+            'TEST-NO-PROVIDER-'.$systemKey,null,null,
+            'No such external processor is configured in this isolated integration test.',
+            bin2hex(random_bytes(16))
+        );
+    }
+    $externalEvidence=$portalRightsAdmin->externalErasureEvidence($superAdmin,$eligibleErasureId);
+    $assert($externalEvidence['ready']===true && count($externalEvidence['items'])===count($externalSystems),
+        'owner-reviewed evidence records cover every external erasure release gate');
     $pdo->prepare('UPDATE users SET email_verified_at=NULL WHERE id=:id')->execute(['id'=>$eligibleClientId]);
     $unverifiedOutcomeDenied=false;
     try {
