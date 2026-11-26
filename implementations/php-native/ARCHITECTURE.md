@@ -82,3 +82,11 @@ Client and companion accounts can request a self-service JSON export from their 
 - Rescheduling is available only to the owning client for accepted or confirmed bookings. The portal form resolves the booking through the client's scoped history before rendering or accepting a change; POST requests require CSRF validation.
 - Reschedule inputs are interpreted in the destination's IANA time zone, reject nonexistent local wall-clock times, and are converted to UTC before the command service. The command service re-locks the booking, rechecks current profile consent, adult-verification, destination/market eligibility, quote validity, overlap and booking-policy constraints, and preserves the original duration and accepted/confirmed state.
 - A duration change requires a separate booking request and quote. External calendar providers, calendar-feed tokens, notification delivery and synchronization retries are not yet implemented; no external calendar side effect is implied by a successful internal reschedule.
+
+## Private booking calendars and iCalendar export
+
+- Calendar pages and .ics downloads require an authenticated client or companion session. The router applies private, no-store response headers to portal routes.
+- Calendar database queries are scoped by the authenticated client user ID or companion profile owner ID. Companion event projections intentionally omit client identity, contact data and private booking notes.
+- iCalendar exports use UTC DTSTART/DTEND, opaque HMAC-derived stable UIDs, escaped RFC5545 text, UTF-8-safe 75-octet line folding, LAST-MODIFIED and timestamp-based SEQUENCE values.
+- Recent cancellations are emitted as STATUS:CANCELLED events using the same stable UID so downstream import/synchronization clients can reconcile previously exported events. Only accepted, confirmed and recently changed cancelled bookings are exported.
+- The current implementation is an authenticated download, not a public subscription feed. Calendar tokens, revocation, provider OAuth/webhooks, outbound synchronization, retry queues, pagination beyond the bounded export query and cross-provider reconciliation remain unimplemented. No provider connection or external calendar mutation is implied.
