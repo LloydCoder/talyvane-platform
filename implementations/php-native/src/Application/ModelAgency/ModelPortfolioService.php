@@ -298,7 +298,7 @@ final class ModelPortfolioService
             $this->pdo->prepare('UPDATE consent_grants SET granted=0,withdrawn_at=UTC_TIMESTAMP() WHERE id=:id AND granted=1')
                 ->execute(['id'=>$licence['consent_grant_id']]);
             $submissions=$this->pdo->prepare(
-                'SELECT id,call_id FROM model_casting_submissions WHERE image_licence_id=:licence
+                'SELECT id,casting_call_id FROM model_casting_submissions WHERE image_licence_id=:licence
                  AND status IN ("submitted","shortlisted","selected") FOR UPDATE'
             );
             $submissions->execute(['licence'=>$licenceId]);
@@ -307,7 +307,7 @@ final class ModelPortfolioService
                     'UPDATE model_casting_submissions SET status="invalidated",invalidated_at=UTC_TIMESTAMP(),
                      invalidation_reason=:reason,updated_at=UTC_TIMESTAMP() WHERE id=:id'
                 )->execute(['reason'=>'Underlying portfolio consent was withdrawn.','id'=>$submission['id']]);
-                $this->insertCastingEvent((string)$submission['call_id'],(string)$submission['id'],$actorId,
+                $this->insertCastingEvent((string)$submission['casting_call_id'],(string)$submission['id'],$actorId,
                     'casting.submission_invalidated','Submission invalidated because underlying portfolio consent was withdrawn.');
             }
         }
