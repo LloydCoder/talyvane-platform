@@ -13,7 +13,7 @@ final class Authorization
         'verifier' => ['model_applications.adult_eligibility.verify','companion.adult_eligibility.verify'],
         'safeguarding' => ['safeguarding.cases.assigned.view','safeguarding.cases.assigned.update'],
         'client' => ['client.self.view','client.self.update','client.booking.create','client.booking.manage','client.favorites.manage','client.privacy.manage'],
-        'companion' => ['companion.self.view','companion.booking.decide','companion.consent.manage','companion.availability.manage'],
+        'companion' => ['companion.self.view','companion.privacy.manage','companion.booking.decide','companion.consent.manage','companion.availability.manage'],
     ];
 
     private const NEVER_GRANT = [
