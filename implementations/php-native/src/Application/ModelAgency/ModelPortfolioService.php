@@ -237,6 +237,119 @@ final class ModelPortfolioService
         }
     }
 
+    /**
+     * Fulfil an applicant-initiated portfolio withdrawal only from a live, OTP-verified
+     * rights request bound to this exact application and asset.
+     */
+    public function withdrawByVerifiedApplicantRights(string $rightsRequestId,string $assetId,string $requestId): void
+    {
+        $this->assertRequestId($requestId);
+        $this->pdo->beginTransaction();
+        try {
+            $rightsQuery=$this->pdo->prepare(
+                'SELECT r.id,r.application_id,r.related_asset_id,r.status,r.request_type,r.expires_at,
+                        a.anonymized_at,a.legal_hold
+                 FROM model_applicant_rights_requests r
+                 JOIN model_talent_applications a ON a.id=r.application_id
+                 WHERE r.id=:rights FOR UPDATE'
+            );
+            $rightsQuery->execute(['rights'=>$rightsRequestId]);
+            $rights=$rightsQuery->fetch(PDO::FETCH_ASSOC);
+            if(!is_array($rights) || $rights['status']!=='verified' ||
+                $rights['request_type']!=='portfolio_withdrawal' ||
+                !hash_equals((string)$rights['related_asset_id'],$assetId) ||
+                $rights['anonymized_at']!==null ||
+                new \\DateTimeImmutable((string)$rights['expires_at'],new \\DateTimeZone('UTC'))<=new \\DateTimeImmutable('now',new \\DateTimeZone('UTC'))) {
+                throw new \\DomainException('The verified applicant portfolio-withdrawal session is invalid or expired.');
+            }
+            $assetQuery=$this->pdo->prepare(
+                'SELECT id,application_id,private_storage_key,status,consent_grant_id,consent_withdrawn_at
+                 FROM model_portfolio_assets WHERE id=:asset AND application_id=:application FOR UPDATE'
+            );
+            $assetQuery->execute(['asset'=>$assetId,'application'=>$rights['application_id']]);
+            $asset=$assetQuery->fetch(PDO::FETCH_ASSOC);
+            if(!is_array($asset) || !in_array($asset['status'],['pending_review','approved'],true) ||
+                $asset['consent_withdrawn_at']!==null) {
+                throw new \\DomainException('The requested portfolio asset is no longer available for withdrawal.');
+            }
+            if((int)$rights['legal_hold']===1) {
+                throw new \\DomainException('Portfolio withdrawal requires safeguarding/legal-hold review before private bytes can be changed.');
+            }
+            if(is_string($asset['private_storage_key']) && $asset['private_storage_key']!=='') {
+                $this->storage->delete($asset['private_storage_key']);
+            }
+            $this->pdo->prepare(
+                'UPDATE consent_grants SET granted=0,withdrawn_at=UTC_TIMESTAMP()
+                 WHERE id=:id AND granted=1 AND withdrawn_at IS NULL'
+            )->execute(['id'=>$asset['consent_grant_id']]);
+            $this->pdo->prepare(
+                'UPDATE model_portfolio_assets SET status="withdrawn",review_status="withdrawn",
+                 private_storage_key=NULL,consent_withdrawn_at=UTC_TIMESTAMP(),withdrawn_at=UTC_TIMESTAMP(),
+                 withdrawal_evidence_reference=:evidence,withdrawal_reason=:reason,updated_at=UTC_TIMESTAMP()
+                 WHERE id=:id'
+            )->execute([
+                'evidence'=>$this->encrypt($assetId,'withdrawal_evidence_reference','otp-rights:'.$rightsRequestId),
+                'reason'=>$this->encrypt($assetId,'withdrawal_reason','Applicant withdrew portfolio consent through a verified privacy-rights session.'),
+                'id'=>$assetId,
+            ]);
+            $licences=$this->pdo->prepare(
+                'SELECT id,consent_grant_id FROM model_image_licences
+                 WHERE portfolio_asset_id=:asset AND status IN ("draft","active") FOR UPDATE'
+            );
+            $licences->execute(['asset'=>$assetId]);
+            foreach($licences->fetchAll(PDO::FETCH_ASSOC) as $licence) {
+                $licenceId=(string)$licence['id'];
+                $this->pdo->prepare(
+                    'UPDATE model_image_licences SET status="revoked",revoked_at=UTC_TIMESTAMP(),revoked_by=NULL,
+                     revocation_reason=:reason,updated_at=UTC_TIMESTAMP() WHERE id=:id'
+                )->execute([
+                    'reason'=>$this->cipher->encrypt('Applicant withdrew the underlying portfolio consent.','model-image-licence-v1:'.$licenceId.':revocation_reason'),
+                    'id'=>$licenceId,
+                ]);
+                $this->pdo->prepare('UPDATE consent_grants SET granted=0,withdrawn_at=UTC_TIMESTAMP() WHERE id=:id AND granted=1')
+                    ->execute(['id'=>$licence['consent_grant_id']]);
+                $submissions=$this->pdo->prepare(
+                    'SELECT id,casting_call_id FROM model_casting_submissions
+                     WHERE image_licence_id=:licence AND status IN ("submitted","shortlisted","selected") FOR UPDATE'
+                );
+                $submissions->execute(['licence'=>$licenceId]);
+                foreach($submissions->fetchAll(PDO::FETCH_ASSOC) as $submission) {
+                    $this->pdo->prepare(
+                        'UPDATE model_casting_submissions SET status="invalidated",invalidated_at=UTC_TIMESTAMP(),
+                         invalidation_reason=:reason,updated_at=UTC_TIMESTAMP() WHERE id=:id'
+                    )->execute([
+                        'reason'=>$this->cipher->encrypt('Underlying portfolio consent was withdrawn by the applicant.','model-casting-submission-v1:'.$submission['id'].':invalidation_reason'),
+                        'id'=>$submission['id'],
+                    ]);
+                    $this->pdo->prepare(
+                        'INSERT INTO model_casting_events
+                         (id,call_id,submission_id,actor_id,actor_type,event_type,reason,occurred_at,created_at,updated_at)
+                         VALUES (:id,:call,:submission,NULL,"applicant","casting.submission_invalidated",
+                                 "Submission invalidated after applicant withdrew portfolio consent.",UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+                    )->execute(['id'=>self::uuid(),'call'=>$submission['casting_call_id'],'submission'=>$submission['id']]);
+                }
+            }
+            $this->pdo->prepare(
+                'INSERT INTO model_talent_application_events
+                 (id,application_id,actor_user_id,actor_type,from_status,to_status,reason,policy_version,created_at)
+                 VALUES (:id,:application,NULL,"applicant",:status,:status,
+                         "Applicant withdrew a specific portfolio asset through verified privacy rights.","applicant-portfolio-rights-v1",UTC_TIMESTAMP())'
+            )->execute(['id'=>self::uuid(),'application'=>$rights['application_id'],'status'=>'accepted']);
+            $this->pdo->prepare(
+                'UPDATE model_applicant_rights_requests SET status="completed",otp_hash="",completed_at=UTC_TIMESTAMP()
+                 WHERE id=:id AND status="verified"'
+            )->execute(['id'=>$rightsRequestId]);
+            $this->audit->record(null,'model_application.portfolio_asset.withdrawn','model_portfolio_asset',$assetId,
+                'Applicant withdrew a specific portfolio asset through verified email rights',
+                ['status'=>$asset['status']],['status'=>'withdrawn','private_storage_deleted'=>true,'dependent_licences_revoked'=>true],
+                $requestId,'applicant-portfolio-rights-v1');
+            $this->pdo->commit();
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
     /** @return array<string,mixed> */
     private function assertEligible(string $applicationId,bool $lock): array
     {
