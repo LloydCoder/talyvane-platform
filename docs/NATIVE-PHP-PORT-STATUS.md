@@ -21,7 +21,7 @@ A route, view, table, stub, static test or successful package build is not by it
 
 ## Current head and validation
 
-Latest runtime-affecting implementation head: `f62c6f314f468644e6b6ca7434001279f33ff26f`. Latest fully validated feature-branch head: `37a4c72ccc8590574c53d30b868d7952f8fd1f41` (subsequent commits in this PR are documentation-only). Exact-head GitHub Actions passed PHP 8.3/8.4/8.5 native tests, MySQL 8.0 integration (37 migrations), PHP 8.3/8.4/8.5 Laravel feature suites, security analysis, native cPanel package verification, single-ZIP package verification, standalone release package smoke, native installer browser E2E, Laravel installer browser E2E and general CI. These are repository-level results, not live-host acceptance. The runtime implementation head passed these required repository workflows:
+Latest runtime-affecting implementation head: `0fb9e36427a5ff364714fcf653f359eaf98cf806`. The immediately preceding implementation head `0fb9e364` passed PHP 8.3/8.4/8.5 native tests, MySQL 8.0 integration (38 migrations), Semgrep security analysis and native cPanel package verification. Single-ZIP packaging, installer browser E2E, Laravel feature suites and general CI were still running when this status was reconciled. These are repository-level results, not live-host acceptance. The runtime implementation head passed these required repository workflows:
 
 | Check | Exact-head result |
 |---|---|
@@ -34,13 +34,13 @@ Latest runtime-affecting implementation head: `f62c6f314f468644e6b6ca7434001279f
 | Laravel installer browser E2E | Passed at exact validated branch head `37a4c72` |
 | General CI / Laravel release smoke | Passed at exact validated branch head `37a4c72` |
 
-The PR remains open, draft and unmerged. These are repository-level results, not live-host acceptance. The current native branch has 37 ordered migrations. Any later runtime change requires fresh exact-head validation.
+The PR remains open, draft and unmerged. These are repository-level results, not live-host acceptance. The current native branch has 38 ordered migrations. Any later runtime change requires fresh exact-head validation.
 ## Implemented native domains — partial vertical slices
 
 | Domain | Implemented on this branch | Remaining parity / acceptance |
 |---|---|---|
 | Runtime and cPanel installer | Native HTTP kernel, private configuration/storage boundaries, browser installer, dual-email Super Admin bootstrap, first-login password replacement/MFA, ZIP packaging and package contract | Exact-head browser and package workflows; real cPanel/LiteSpeed host acceptance; upgrade/rollback |
-| Identity and portals | Client/companion registration and login, email verification, recovery, MFA-gated admin, account exports, verified privacy-rights request intake/history | Full account lifecycle and cross-role negative authorization matrix |
+| Identity and portals | Client/companion registration and login, email verification, recovery, MFA-gated admin, account exports, verified privacy-rights request intake/history; verified client/companion contact-email change with current-password confirmation, OTP to the new address, session revocation and old-address security notice | Full account lifecycle and cross-role negative authorization matrix; browser and target-SMTP acceptance for the new email-change journey |
 | Privacy rights | MFA review; client display-name and companion profile correction fulfilment; guarded client/companion account anonymization with dependency blockers and session invalidation; applicant email-OTP portfolio withdrawal bound to one asset, with dependent licence/casting invalidation | Client/companion contact-email re-verification; legal-hold/retention reconciliation for every data class; media/object-store deletion proof; third-party propagation; full outcome delivery/monitoring; backup expiry proof |
 | Companion/client operations | Booking request/history/cancel/reschedule, companion decisions and availability, client shortlist, agency-managed membership assignment/suspension/cancellation | Full companion profile/media self-service, receipts/support parity, client-facing model casting/assignment |
 | Membership and gallery | Immutable entitlement grants, active/date-scoped authorization, protected members-only gallery and opaque media delivery with consent/market/file-integrity checks | Legal approval and target-deployment activation; independent media/consent withdrawal and storage acceptance |
