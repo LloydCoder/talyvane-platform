@@ -206,8 +206,22 @@ try {
     await page.locator('[name="account_type"]').selectOption(accountType);
     await page.locator('[name="email"]').fill(email);
     await page.locator('[name="password"]').fill(portalPassword);
+    const registrationResponsePromise = page.waitForResponse((response) =>
+      response.request().method() === 'POST' && new URL(response.url()).pathname === '/portal/register',
+    );
     await page.getByRole('button', { name: /Create account/i }).click();
-    await page.waitForSelector('form[action="/portal/verify"] [name="code"]');
+    const registrationResponse = await registrationResponsePromise;
+    await page.waitForLoadState('networkidle');
+    const verificationField = page.locator('form[action="/portal/verify"] [name="code"]');
+    if (!(await verificationField.isVisible().catch(() => false))) {
+      throw new Error([
+        'Portal registration did not advance to email verification.',
+        `HTTP status: ${registrationResponse.status()}`,
+        `Current URL: ${page.url()}`,
+        `Visible errors: ${(await page.locator('[role="alert"]').allInnerTexts()).join(' | ')}`,
+        `Page text: ${await page.locator('body').innerText()}`,
+      ].join('\\n'));
+    }
     const verificationCode = await waitForCode(email);
     await page.locator('form[action="/portal/verify"] [name="code"]').fill(verificationCode);
     await page.getByRole('button', { name: /Verify email/i }).click();
