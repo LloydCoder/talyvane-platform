@@ -257,7 +257,7 @@ final class CompanionAvailabilityService
                 $before,['auto_booking_opt_in'=>$enabled],$requestId,'companion-automatic-booking-v1'
             );
             $this->pdo->commit();
-        } catch(\\Throwable $error) {
+        } catch(\Throwable $error) {
             if($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $error;
         }
