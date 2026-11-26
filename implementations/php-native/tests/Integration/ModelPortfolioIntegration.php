@@ -237,7 +237,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
         $activeRow['applicant_consent_at']!==null && $activeRow['applicant_consent_statement']!==$consentStatement &&
         $activeRow['applicant_consent_evidence_hash']!==null && (int)$grant->fetchColumn()===1,
         'only the applicant grants purpose-specific consent after execution and the statement is encrypted');
-    $applicantConsentEvent=$pdo->prepare('SELECT actor_type FROM model_talent_application_events WHERE application_id=:application AND reason LIKE "Model applicant granted consent%" ORDER BY created_at DESC LIMIT 1');
+    $applicantConsentEvent=$pdo->prepare('SELECT actor_type FROM model_talent_application_events WHERE application_id=:application AND reason LIKE "%Model applicant granted consent%" ORDER BY created_at DESC LIMIT 1');
     $applicantConsentEvent->execute(['application'=>$applicationId]);
     $assert($applicantConsentEvent->fetchColumn()==='applicant','model licence consent is attributed to the applicant without a synthetic user');
     try {
