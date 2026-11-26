@@ -11,6 +11,8 @@ use PDO;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Security\Authorization;
 use Talyvane\Security\Principal;
+use Talyvane\Features\FeatureAvailability;
+use Talyvane\Domain\Booking\CompanionAutomaticBookingPolicy;
 
 /** Companion-owned weekly availability, stored as destination-local wall-clock windows. */
 final class CompanionAvailabilityService
