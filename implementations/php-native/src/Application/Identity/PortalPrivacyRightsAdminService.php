@@ -109,17 +109,17 @@ final class PortalPrivacyRightsAdminService
             strlen($biography)>8000 || strlen($reason)<10 || strlen($reason)>500 ||
             strlen($correlationId)<16 || strlen($correlationId)>64 ||
             count($languages)>20 || $languages===[]) {
-            throw new \\InvalidArgumentException('Companion correction details are invalid.');
+            throw new \InvalidArgumentException('Companion correction details are invalid.');
         }
         $normalized=[];
         foreach($languages as $language) {
             if (!is_string($language) || preg_match('/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/D',trim($language))!==1) {
-                throw new \\InvalidArgumentException('Companion languages must be valid BCP-47-style tags.');
+                throw new \InvalidArgumentException('Companion languages must be valid BCP-47-style tags.');
             }
             $tag=trim($language);
             if (!in_array(strtolower($tag),array_map('strtolower',$normalized),true)) $normalized[]=$tag;
         }
-        if ($normalized===[]) throw new \\InvalidArgumentException('At least one valid language is required.');
+        if ($normalized===[]) throw new \InvalidArgumentException('At least one valid language is required.');
 
         $this->pdo->beginTransaction();
         try {
@@ -131,20 +131,20 @@ final class PortalPrivacyRightsAdminService
             $request=$query->fetch(PDO::FETCH_ASSOC);
             if (!is_array($request) || $request['status']!=='in_review' ||
                 $request['request_type']!=='correction' || $request['account_type']!=='companion') {
-                throw new \\DomainException('Only a verified companion correction request awaiting review can be fulfilled.');
+                throw new \DomainException('Only a verified companion correction request awaiting review can be fulfilled.');
             }
             $user=$this->pdo->prepare('SELECT id,status FROM users WHERE id=:id FOR UPDATE');
             $user->execute(['id'=>$request['user_id']]);
             $account=$user->fetch(PDO::FETCH_ASSOC);
             if (!is_array($account) || $account['status']!=='active') {
-                throw new \\DomainException('The companion account is not active.');
+                throw new \DomainException('The companion account is not active.');
             }
             $profileQuery=$this->pdo->prepare(
                 'SELECT id,status FROM companion_profiles WHERE user_id=:user FOR UPDATE'
             );
             $profileQuery->execute(['user'=>$request['user_id']]);
             $profile=$profileQuery->fetch(PDO::FETCH_ASSOC);
-            if (!is_array($profile)) throw new \\DomainException('The companion profile is unavailable.');
+            if (!is_array($profile)) throw new \DomainException('The companion profile is unavailable.');
 
             $before=$this->pdo->prepare('SELECT display_name,biography,languages_json,status FROM companion_profiles WHERE id=:id');
             $before->execute(['id'=>$profile['id']]);
