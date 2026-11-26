@@ -39,7 +39,7 @@ async function waitForCode(address, digits = 6, subject = null) {
     for (const message of await messagesFor(address)) {
       if (subject && (message.Subject ?? message.subject) !== subject) continue;
       const body = [message.Text, message.HTML, message.text, message.html, message.Snippet].filter(Boolean).join('\n');
-      const match = body.match(new RegExp('\\\\b([0-9]{' + digits + '})\\\\b'));
+      const match = body.match(new RegExp('\\b([0-9]{' + digits + '})\\b'));
       if (match) return match[1];
     }
     await sleep(400);
