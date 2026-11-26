@@ -47,7 +47,15 @@ $escape=static fn(mixed $value):string=>htmlspecialchars((string)$value,ENT_QUOT
 <button class="button" type="submit">Apply correction and unpublish for review</button>
 </form>
 <?php else:?>
-<p>Client account corrections are not yet directly editable here. Defer this request while the account-specific correction workflow is assessed.</p>
+<form method="post" action="/admin/privacy/requests/review" class="correction-form">
+<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<input type="hidden" name="request_id" value="<?= $escape($item['id']??'') ?>">
+<input type="hidden" name="decision" value="fulfill_client_correction">
+<label>Verified account name<input name="client_name" maxlength="120" required></label>
+<label>Fulfilment reason<textarea name="reason" minlength="10" maxlength="500" required></textarea></label>
+<button class="button" type="submit">Apply account name correction</button>
+<p class="meta">Contact-email changes are not included. They require a separate verification challenge sent to the proposed new address before fulfilment.</p>
+</form>
 <?php endif;?>
 <?php else:?>
 <p>The account holder requested erasure. No account data has been erased automatically.</p>
