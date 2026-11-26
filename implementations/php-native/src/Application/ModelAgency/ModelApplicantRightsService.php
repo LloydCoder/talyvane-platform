@@ -281,6 +281,24 @@ final class ModelApplicantRightsService
         }
     }
 
+    /** Resolve the applicant's own application only from a live OTP-verified portal session. */
+    public function portalApplicationId(string $rightsRequestId): string
+    {
+        $this->pdo->beginTransaction();
+        try {
+            [, $application]=$this->verifiedContext($rightsRequestId,'portal_access');
+            if($application['status']!=='accepted' || (bool)$application['legal_hold']) {
+                throw new \\DomainException('This model application is not eligible for casting self-service.');
+            }
+            $id=(string)$application['id'];
+            $this->pdo->commit();
+            return $id;
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
     /** @param array<string,mixed> $input */
     public function portalCorrect(string $rightsRequestId,array $input,string $requestId): void
     {
