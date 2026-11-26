@@ -23,6 +23,7 @@ final class PortalBookingController
         private BookingService $bookings,
         private BookingCommandService $commands,
         private BookingQueryService $queries,
+        private \Talyvane\Application\Bookings\BookingCalendarService $calendar,
         private DiscoveryService $discovery,
         private ViewRenderer $views,
         private string $brandName
@@ -157,6 +158,62 @@ final class PortalBookingController
             return $this->rescheduleForm($request,$params,$error->getMessage(),422);
         } catch (\Throwable) {
             return $this->rescheduleForm($request,$params,'The booking could not be rescheduled. Please try again.',503);
+        }
+    }
+
+    public function clientCalendar(Request $request): Response
+    {
+        return $this->calendarPage('client');
+    }
+
+    public function companionCalendar(Request $request): Response
+    {
+        return $this->calendarPage('companion');
+    }
+
+    public function clientCalendarIcs(Request $request): Response
+    {
+        return $this->calendarDownload('client');
+    }
+
+    public function companionCalendarIcs(Request $request): Response
+    {
+        return $this->calendarDownload('companion');
+    }
+
+    private function calendarPage(string $role): Response
+    {
+        SessionManager::start();
+        $actor=$this->principal($role);
+        if ($actor===null) return Response::redirect('/portal/login');
+        try {
+            $events=$role==='client'?$this->calendar->clientEvents($actor):$this->calendar->companionEvents($actor);
+            return Response::html($this->views->render('portal/calendar',[
+                'events'=>$events,'role'=>$role,'brandName'=>$this->brandName,
+            ]));
+        } catch (DomainException) {
+            return Response::html('You do not have permission to view this calendar.',403);
+        }
+    }
+
+    private function calendarDownload(string $role): Response
+    {
+        SessionManager::start();
+        $actor=$this->principal($role);
+        if ($actor===null) return Response::redirect('/portal/login');
+        try {
+            $events=$role==='client'?$this->calendar->clientEvents($actor):$this->calendar->companionEvents($actor);
+            $body=$this->calendar->toIcalendar($actor,$events,new DateTimeImmutable('now',new DateTimeZone('UTC')));
+            $filename=$role==='client'?'talyvane-client-calendar.ics':'talyvane-companion-calendar.ics';
+            return new Response($body,200,[
+                'content-type'=>'text/calendar; charset=utf-8',
+                'content-disposition'=>'attachment; filename="' . $filename . '"',
+                'cache-control'=>'no-store, private',
+                'pragma'=>'no-cache',
+                'x-content-type-options'=>'nosniff',
+            ]);
+        } catch (DomainException) {
+            return Response::html('You do not have permission to export this calendar.',403);
         }
     }
 
