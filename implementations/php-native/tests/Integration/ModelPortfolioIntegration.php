@@ -210,11 +210,36 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert(is_array($draftRow) && $draftRow['licensee_name']!=='Verified editorial commissioning client','licensee identity is encrypted at rest');
     $grant=$pdo->prepare('SELECT granted FROM consent_grants WHERE id=:id');$grant->execute(['id'=>$draftRow['consent_grant_id']]);
     $assert((int)$grant->fetchColumn()===0,'draft licence does not imply model consent');
-    $licences->activate($admin,$licenceId,'private/model-licences/execution-evidence-0001','private/model-consent/model-consent-evidence-0001',bin2hex(random_bytes(16)));
-    $active=$pdo->prepare('SELECT status,execution_evidence_reference FROM model_image_licences WHERE id=:id');$active->execute(['id'=>$licenceId]);$activeRow=$active->fetch(PDO::FETCH_ASSOC);
+    $licences->offerForApplicantConsent($admin,$licenceId,'private/model-licences/execution-evidence-0001',bin2hex(random_bytes(16)));
+    $offered=$pdo->prepare('SELECT status,execution_evidence_reference,applicant_consent_terms_hash FROM model_image_licences WHERE id=:id');$offered->execute(['id'=>$licenceId]);$offeredRow=$offered->fetch(PDO::FETCH_ASSOC);
     $grant->execute(['id'=>$draftRow['consent_grant_id']]);
-    $assert(is_array($activeRow) && $activeRow['status']==='active' && $activeRow['execution_evidence_reference']!=='','activation records external execution evidence');
-    $assert((int)$grant->fetchColumn()===1,'activation records separate purpose-specific model consent');
+    $portalLicence=array_values(array_filter($licences->applicantPortalLicences($applicationId),static fn(array $item):bool=>$item['id']===$licenceId));
+    $assert(is_array($offeredRow) && $offeredRow['status']==='awaiting_model_consent' && $offeredRow['execution_evidence_reference']!=='' &&
+        is_array($portalLicence[0]??null) && $portalLicence[0]['licensee_name']==='Verified editorial commissioning client' &&
+        $portalLicence[0]['purpose_details']==='Private casting review for a defined editorial project and territory only.' &&
+        $portalLicence[0]['terms_hash_valid']===true && (int)$grant->fetchColumn()===0,
+        'executed licence is offered with exact model-visible terms and remains inactive until model consent');
+    try {
+        $licences->respondByApplicant($applicationId,$licenceId,'grant',false,
+            'I have reviewed the exact image-usage terms and make this decision voluntarily.',bin2hex(random_bytes(16)));
+        $assert(false,'model licence consent requires explicit attestation');
+    } catch(DomainException) {
+        $assert(true,'model licence consent requires explicit attestation');
+    }
+    $consentRequestId=bin2hex(random_bytes(16));
+    $consentStatement='I reviewed the licensee, purpose, channels, territory, dates and compensation. I voluntarily grant consent for these exact image-usage terms.';
+    $licences->respondByApplicant($applicationId,$licenceId,'grant',true,$consentStatement,$consentRequestId);
+    $licences->respondByApplicant($applicationId,$licenceId,'grant',true,$consentStatement,$consentRequestId);
+    $active=$pdo->prepare('SELECT status,execution_evidence_reference,model_consent_evidence_reference,applicant_consent_decision,applicant_consent_at,applicant_consent_statement,applicant_consent_evidence_hash FROM model_image_licences WHERE id=:id');$active->execute(['id'=>$licenceId]);$activeRow=$active->fetch(PDO::FETCH_ASSOC);
+    $grant->execute(['id'=>$draftRow['consent_grant_id']]);
+    $assert(is_array($activeRow) && $activeRow['status']==='active' && $activeRow['execution_evidence_reference']!=='' &&
+        $activeRow['model_consent_evidence_reference']===null && $activeRow['applicant_consent_decision']==='grant' &&
+        $activeRow['applicant_consent_at']!==null && $activeRow['applicant_consent_statement']!==$consentStatement &&
+        $activeRow['applicant_consent_evidence_hash']!==null && (int)$grant->fetchColumn()===1,
+        'only the applicant grants purpose-specific consent after execution and the statement is encrypted');
+    $applicantConsentEvent=$pdo->prepare('SELECT actor_type FROM model_talent_application_events WHERE application_id=:application AND reason LIKE "%Model applicant granted consent%" ORDER BY created_at DESC LIMIT 1');
+    $applicantConsentEvent->execute(['application'=>$applicationId]);
+    $assert($applicantConsentEvent->fetchColumn()==='applicant','model licence consent is attributed to the applicant without a synthetic user');
     try {
         $licences->createDraft($admin,$licensedAsset['id'],$agreementId,$licenceTerms,bin2hex(random_bytes(16)));
         $assert(false,'overlapping active same-purpose licence is rejected');

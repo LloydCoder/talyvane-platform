@@ -158,25 +158,22 @@ final class AdminModelPortfolioController
     /** @param array<string,string> $params */
     public function activateLicence(Request $request,array $params): Response
     {
-        SessionManager::start();
         if(!Csrf::verify($this->field($request,'_csrf'))) return $this->index($request,'Your session expired. Refresh this page and try again.',419);
-        $actor=$this->authentication->currentPrincipal();
-        if($actor===null) return Response::redirect('/admin/login');
         try {
-            if($this->field($request,'confirm_external_execution')!=='1' || $this->field($request,'confirm_model_consent')!=='1') {
-                throw new InvalidArgumentException('Confirm separate external execution and model consent evidence.');
+            $actor=$this->authentication->requirePrincipal($request);
+            if($this->field($request,'confirm_external_execution')!=='1') {
+                throw new InvalidArgumentException('Confirm that the external execution evidence was verified.');
             }
-            $this->licences->activate($actor,(string)($params['id']??''),$this->field($request,'execution_evidence_reference'),
-                $this->field($request,'model_consent_evidence_reference'),$request->requestId);
-            return Response::redirect('/admin/model-agency/portfolio?licence=active');
+            $this->licences->offerForApplicantConsent($actor,(string)($params['id']??''),
+                $this->field($request,'execution_evidence_reference'),$request->requestId);
+            return Response::redirect('/admin/model-agency/portfolio?licence=offered');
         } catch(InvalidArgumentException|DomainException $error) {
             return $this->index($request,$error->getMessage(),422);
-        } catch(\Throwable) {
-            return $this->index($request,'Image licence activation could not be completed securely.',503);
+        } catch(Throwable) {
+            return $this->index($request,'The executed image-licence offer could not be sent to the model securely.',503);
         }
     }
 
-    /** @param array<string,string> $params */
     public function revokeLicence(Request $request,array $params): Response
     {
         SessionManager::start();

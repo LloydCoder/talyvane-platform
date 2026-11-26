@@ -113,55 +113,168 @@ final class ModelImageLicenceService
         }
     }
 
-    public function activate(Principal $actor,string $licenceId,string $executionEvidenceReference,string $modelConsentEvidenceReference,string $requestId): void
+    /** Model-facing, redacted terms for licences that have been formally offered. */
+    public function applicantPortalLicences(string $applicationId): array
+    {
+        if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId)) throw new \InvalidArgumentException('Model application identifier is invalid.');
+        $q=$this->pdo->prepare(
+            'SELECT id,licence_reference,application_id,status,purpose,territory_code,channels,starts_on,ends_on,
+                    exclusivity,compensation_amount,currency_code,licensee_name,purpose_details,licence_policy_version,
+                    consent_offered_at,applicant_consent_decision,applicant_consent_at,applicant_consent_terms_hash,
+                    applicant_consent_protocol_version
+             FROM model_image_licences WHERE application_id=:application AND status<>"draft"
+             ORDER BY created_at DESC LIMIT 100'
+        );
+        $q->execute(['application'=>$applicationId]);
+        $result=[];
+        foreach($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $visible=$this->applicantVisibleTerms($row);
+            $row['channels']=$visible['channels'];
+            $row['licensee_name']=$visible['licensee_name'];
+            $row['purpose_details']=$visible['purpose_details'];
+            $row['terms_hash_valid']=$row['status']!=='awaiting_model_consent' ||
+                (is_string($row['applicant_consent_terms_hash']) && $row['applicant_consent_terms_hash']!=='' &&
+                 hash_equals((string)$row['applicant_consent_terms_hash'],hash('sha256',json_encode($visible,JSON_THROW_ON_ERROR))));
+            unset($row['applicant_consent_terms_hash']);
+            $result[]=$row;
+        }
+        return $result;
+    }
+
+    /** Agency records external execution; the licence remains inactive until the model responds. */
+    public function offerForApplicantConsent(Principal $actor,string $licenceId,string $executionEvidenceReference,string $requestId): void
     {
         $this->authorize($actor);$this->assertFeature();$this->assertRequestId($requestId);
         $this->assertEvidenceReference($executionEvidenceReference,'private/model-licences/');
-        $this->assertEvidenceReference($modelConsentEvidenceReference,'private/model-consent/');
         $this->pdo->beginTransaction();
         try {
             $licence=$this->lockRow('model_image_licences',$licenceId);
-            if($licence['status']!=='draft') throw new \DomainException('Only a draft image licence can be activated.');
+            if($licence['status']!=='draft') throw new \DomainException('Only a draft image licence can be offered for model consent.');
             $asset=$this->lockRow('model_portfolio_assets',(string)$licence['portfolio_asset_id']);
             $application=$this->lockRow('model_talent_applications',(string)$licence['application_id']);
             $agreement=$this->lockRow('model_representation_agreements',(string)$licence['agreement_id']);
             $policy=$this->approvedPolicy();
-            $terms=[
-                'purpose'=>$licence['purpose'],'channels'=>json_decode((string)$licence['channels'],true),
-                'country_code'=>$licence['territory_code'],'starts_on'=>$licence['starts_on'],'ends_on'=>$licence['ends_on'],
-                'exclusivity'=>(bool)$licence['exclusivity'],'compensation_amount'=>$licence['compensation_amount'],
-                'currency_code'=>$licence['currency_code'],
-            ];
+            $terms=$this->termsFromLicence($licence);
             $this->assertEligible($application,$asset,$agreement,$terms,$policy['policy_version']);
             $this->assertNoConflict((string)$asset['id'],$terms);
-            if(!hash_equals((string)$licence['licence_policy_version'],$policy['policy_version'])) {
-                throw new \DomainException('Image licence draft uses a stale policy version.');
-            }
             $grant=$this->pdo->prepare(
-                'SELECT id,granted,withdrawn_at,policy_version FROM consent_grants
+                'SELECT granted,withdrawn_at,policy_version FROM consent_grants
                  WHERE id=:id AND subject_type="model_image_licence" AND subject_id=:subject
                  AND purpose="image_usage" AND audience="agency_distribution" LIMIT 1 FOR UPDATE'
             );
             $grant->execute(['id'=>$licence['consent_grant_id'],'subject'=>$licenceId]);$consent=$grant->fetch(PDO::FETCH_ASSOC);
             if(!is_array($consent) || (int)$consent['granted']!==0 || $consent['withdrawn_at']!==null ||
                 !hash_equals($policy['policy_version'],(string)$consent['policy_version'])) {
-                throw new \DomainException('A fresh, purpose-specific model consent record is required for activation.');
+                throw new \DomainException('A fresh, purpose-specific model consent record is required for this offer.');
             }
-            $this->pdo->prepare('UPDATE consent_grants SET granted=1,granted_at=UTC_TIMESTAMP(),evidence_reference=:evidence WHERE id=:id')
-                ->execute(['evidence'=>hash('sha256',$modelConsentEvidenceReference),'id'=>$licence['consent_grant_id']]);
+            $visible=$this->applicantVisibleTerms($licence);
+            $termsHash=hash('sha256',json_encode($visible,JSON_THROW_ON_ERROR));
             $this->pdo->prepare(
-                'UPDATE model_image_licences SET status="active",activated_by=:actor,activated_at=UTC_TIMESTAMP(),
-                 execution_evidence_reference=:execution,model_consent_evidence_reference=:consent,updated_at=UTC_TIMESTAMP()
-                 WHERE id=:id AND status="draft"'
+                'UPDATE model_image_licences SET status="awaiting_model_consent",consent_offered_by=:actor,
+                 consent_offered_at=UTC_TIMESTAMP(),execution_evidence_reference=:execution,
+                 applicant_consent_terms_hash=:terms_hash,applicant_consent_protocol_version="model-image-licence-consent-v1",
+                 updated_at=UTC_TIMESTAMP() WHERE id=:id AND status="draft"'
             )->execute([
                 'actor'=>$actor->id,'execution'=>$this->encrypt($licenceId,'execution_evidence_reference',$executionEvidenceReference),
-                'consent'=>$this->encrypt($licenceId,'model_consent_evidence_reference',$modelConsentEvidenceReference),'id'=>$licenceId,
+                'terms_hash'=>$termsHash,'id'=>$licenceId,
             ]);
-            $this->event((string)$application['id'],$actor->id,'application.image_licence_activated',
-                'Externally executed image licence activated after current model consent evidence was recorded.',$policy['policy_version']);
-            $this->audit->record($actor->id,'model_licence.activated','model_image_licence',$licenceId,
-                'Activated externally executed, purpose-specific image licence', ['status'=>'draft'],['status'=>'active','execution_evidence_present'=>true,'model_consent_present'=>true],
-                $requestId,'model-image-licence-v1');
+            $this->event((string)$application['id'],$actor->id,'application.image_licence_consent_offered',
+                'Externally executed image licence offered to the model for a separate consent decision.',$policy['policy_version']);
+            $this->audit->record($actor->id,'model_licence.consent_offered','model_image_licence',$licenceId,
+                'Offered externally executed image licence for model consent',['status'=>'draft'],
+                ['status'=>'awaiting_model_consent','terms_hash'=>$termsHash,'execution_evidence_present'=>true],
+                $requestId,'model-image-licence-consent-v1');
+            $this->pdo->commit();
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    /** Applicant-originated grant/decline; only the verified model session may supply application identity. */
+    public function respondByApplicant(string $applicationId,string $licenceId,string $decision,bool $attested,string $statement,string $requestId): void
+    {
+        $this->assertRequestId($requestId);
+        if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId)) throw new \InvalidArgumentException('Model application identifier is invalid.');
+        if(!in_array($decision,['grant','decline'],true)) throw new \InvalidArgumentException('Choose grant or decline for this image-usage consent offer.');
+        if(!$attested) throw new \DomainException('The model must explicitly attest that the image-usage decision is voluntary.');
+        $statement=trim($statement);
+        if(strlen($statement)<20 || strlen($statement)>2000) throw new \InvalidArgumentException('The consent decision statement must contain 20 to 2000 characters.');
+        $fingerprint=hash('sha256',$requestId);
+        $this->pdo->beginTransaction();
+        try {
+            $licence=$this->lockRow('model_image_licences',$licenceId);
+            if(!hash_equals($applicationId,(string)$licence['application_id'])) {
+                throw new \DomainException('This image licence does not belong to the verified model workspace.');
+            }
+            $replay=$this->pdo->prepare(
+                'SELECT id,application_id,applicant_consent_decision,applicant_consent_terms_hash
+                 FROM model_image_licences WHERE applicant_consent_request_fingerprint=:fingerprint LIMIT 1 FOR UPDATE'
+            );
+            $replay->execute(['fingerprint'=>$fingerprint]);$prior=$replay->fetch(PDO::FETCH_ASSOC);
+            if(is_array($prior)) {
+                if(!hash_equals((string)$prior['id'],$licenceId) || !hash_equals((string)$prior['application_id'],$applicationId) ||
+                    !hash_equals((string)$prior['applicant_consent_decision'],$decision) ||
+                    !hash_equals((string)$prior['applicant_consent_terms_hash'],(string)$licence['applicant_consent_terms_hash'])) {
+                    throw new \DomainException('This request identifier was already used for a different consent decision.');
+                }
+                $this->pdo->commit();
+                return;
+            }
+            if($licence['status']!=='awaiting_model_consent' || $licence['consent_offered_at']===null ||
+                $licence['applicant_consent_terms_hash']===null || $licence['execution_evidence_reference']===null) {
+                throw new \DomainException('This image licence is not awaiting a model consent decision.');
+            }
+            $visible=$this->applicantVisibleTerms($licence);
+            $termsHash=hash('sha256',json_encode($visible,JSON_THROW_ON_ERROR));
+            if(!hash_equals((string)$licence['applicant_consent_terms_hash'],$termsHash)) {
+                throw new \DomainException('The offered image-usage terms changed; the agency must issue a new consent offer.');
+            }
+            $asset=$this->lockRow('model_portfolio_assets',(string)$licence['portfolio_asset_id']);
+            $application=$this->lockRow('model_talent_applications',$applicationId);
+            $agreement=$this->lockRow('model_representation_agreements',(string)$licence['agreement_id']);
+            $policy=$this->approvedPolicy();
+            $grant=$this->pdo->prepare(
+                'SELECT granted,withdrawn_at,policy_version FROM consent_grants
+                 WHERE id=:id AND subject_type="model_image_licence" AND subject_id=:subject
+                 AND purpose="image_usage" AND audience="agency_distribution" LIMIT 1 FOR UPDATE'
+            );
+            $grant->execute(['id'=>$licence['consent_grant_id'],'subject'=>$licenceId]);$consent=$grant->fetch(PDO::FETCH_ASSOC);
+            if(!is_array($consent) || (int)$consent['granted']!==0 || $consent['withdrawn_at']!==null ||
+                !hash_equals($policy['policy_version'],(string)$consent['policy_version'])) {
+                throw new \DomainException('This consent grant is no longer available; the agency must issue a fresh offer.');
+            }
+            if($decision==='grant') {
+                $terms=$this->termsFromLicence($licence);
+                $this->assertEligible($application,$asset,$agreement,$terms,$policy['policy_version']);
+                $this->assertNoConflict((string)$asset['id'],$terms,$licenceId);
+            }
+            $evidenceHash=$decision==='grant'?hash('sha256',$statement.':'.$termsHash):null;
+            if($decision==='grant') {
+                $this->pdo->prepare('UPDATE consent_grants SET granted=1,granted_at=UTC_TIMESTAMP(),evidence_reference=:evidence WHERE id=:id AND granted=0')
+                    ->execute(['evidence'=>$evidenceHash,'id'=>$licence['consent_grant_id']]);
+            }
+            $newStatus=$decision==='grant'?'active':'declined';
+            $this->pdo->prepare(
+                'UPDATE model_image_licences SET status=:status,activated_by=NULL,
+                 activated_at=CASE WHEN :is_active=1 THEN UTC_TIMESTAMP() ELSE NULL END,
+                 applicant_consent_decision=:decision,applicant_consent_statement=:statement,
+                 applicant_consent_at=UTC_TIMESTAMP(),applicant_consent_request_fingerprint=:fingerprint,
+                 applicant_consent_terms_hash=:terms_hash,applicant_consent_protocol_version="model-image-licence-consent-v1",
+                 applicant_consent_evidence_hash=:evidence_hash,updated_at=UTC_TIMESTAMP()
+                 WHERE id=:id AND status="awaiting_model_consent"'
+            )->execute([
+                'status'=>$newStatus,'is_active'=>$decision==='grant'?1:0,'decision'=>$decision,
+                'statement'=>$this->encrypt($licenceId,'applicant_consent_statement',$statement),
+                'fingerprint'=>$fingerprint,'terms_hash'=>$termsHash,'evidence_hash'=>$evidenceHash,'id'=>$licenceId,
+            ]);
+            $this->event($applicationId,null,$decision==='grant'?'application.image_licence_consent_granted':'application.image_licence_consent_declined',
+                $decision==='grant'?'Model applicant granted consent for the exact offered image-usage terms.':'Model applicant declined the offered image-usage terms.',
+                $policy['policy_version'],'applicant');
+            $this->audit->record(null,'model_licence.applicant_consent_'.$decision,'model_image_licence',$licenceId,
+                'Applicant recorded a purpose-specific image-usage consent decision',['status'=>'awaiting_model_consent'],
+                ['status'=>$newStatus,'terms_hash'=>$termsHash,'decision'=>$decision,'evidence_hash'=>$evidenceHash],
+                $requestId,'model-image-licence-consent-v1');
             $this->pdo->commit();
         } catch(Throwable $error) {
             if($this->pdo->inTransaction()) $this->pdo->rollBack();
@@ -218,7 +331,7 @@ final class ModelImageLicenceService
         $this->pdo->beginTransaction();
         try {
             $licence=$this->lockRow('model_image_licences',$licenceId);
-            if(!in_array($licence['status'],['draft','active'],true)) throw new \DomainException('Only a draft or active image licence can be revoked.');
+            if(!in_array($licence['status'],['draft','awaiting_model_consent','active'],true)) throw new \DomainException('Only a draft, offered or active image licence can be revoked.');
             $this->pdo->prepare(
                 'UPDATE model_image_licences SET status="revoked",revoked_by=:actor,revoked_at=UTC_TIMESTAMP(),
                  revocation_reason=:reason,updated_at=UTC_TIMESTAMP() WHERE id=:id'
@@ -239,13 +352,13 @@ final class ModelImageLicenceService
 
     public function expireDue(): int
     {
-        $query=$this->pdo->query('SELECT id FROM model_image_licences WHERE status="active" AND ends_on<UTC_DATE() ORDER BY ends_on ASC LIMIT 100');
+        $query=$this->pdo->query('SELECT id FROM model_image_licences WHERE status IN ("active","awaiting_model_consent") AND ends_on<UTC_DATE() ORDER BY ends_on ASC LIMIT 100');
         $ids=$query->fetchAll(PDO::FETCH_COLUMN);$expired=0;
         foreach($ids as $id) {
             $this->pdo->beginTransaction();
             try {
                 $licence=$this->lockRow('model_image_licences',(string)$id);
-                if($licence['status']!=='active' || $licence['ends_on']>=gmdate('Y-m-d')) {$this->pdo->rollBack();continue;}
+                if(!in_array($licence['status'],['active','awaiting_model_consent'],true) || $licence['ends_on']>=gmdate('Y-m-d')) {$this->pdo->rollBack();continue;}
                 $this->pdo->prepare('UPDATE model_image_licences SET status="expired",expired_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE id=:id')
                     ->execute(['id'=>$licence['id']]);
                 $this->pdo->prepare('UPDATE consent_grants SET granted=0,withdrawn_at=UTC_TIMESTAMP() WHERE id=:id AND granted=1')
@@ -347,14 +460,15 @@ final class ModelImageLicenceService
     }
 
     /** @param array<string,mixed> $terms */
-    private function assertNoConflict(string $assetId,array $terms): void
+    private function assertNoConflict(string $assetId,array $terms,?string $exceptLicenceId=null): void
     {
         $query=$this->pdo->prepare(
-            'SELECT purpose,channels,exclusivity FROM model_image_licences
-             WHERE portfolio_asset_id=:asset AND territory_code=:territory AND status="active"
-               AND starts_on<=:ends_on AND ends_on>=:starts_on FOR UPDATE'
+            'SELECT id,purpose,channels,exclusivity FROM model_image_licences
+             WHERE portfolio_asset_id=:asset AND territory_code=:territory AND status IN ("active","awaiting_model_consent")
+               AND starts_on<=:ends_on AND ends_on>=:starts_on
+               AND (:except_null IS NULL OR id<>:except_match) FOR UPDATE'
         );
-        $query->execute(['asset'=>$assetId,'territory'=>$terms['country_code'],'ends_on'=>$terms['ends_on'],'starts_on'=>$terms['starts_on']]);
+        $query->execute(['asset'=>$assetId,'territory'=>$terms['country_code'],'ends_on'=>$terms['ends_on'],'starts_on'=>$terms['starts_on'],'except_null'=>$exceptLicenceId,'except_match'=>$exceptLicenceId]);
         foreach($query->fetchAll(PDO::FETCH_ASSOC) as $existing) {
             $channels=json_decode((string)$existing['channels'],true);
             $overlap=is_array($channels)?array_intersect($terms['channels'],$channels):[];
@@ -376,6 +490,35 @@ final class ModelImageLicenceService
             new DateTimeImmutable((string)$row['expires_at'],new DateTimeZone('UTC'))<=new DateTimeImmutable('now',new DateTimeZone('UTC'))) {
             throw new \DomainException('Image licensing requires a current approved market with evidence.');
         }
+    }
+
+    /** @return array<string,mixed> */
+    private function termsFromLicence(array $licence): array
+    {
+        return [
+            'licensee_name'=>$this->decryptVisibleField((string)$licence['id'],'licensee_name',$licence['licensee_name']??null),
+            'licensee_reference'=>is_string($licence['licensee_reference']??null) && $licence['licensee_reference']!==''?
+                $this->decryptVisibleField((string)$licence['id'],'licensee_reference',$licence['licensee_reference']??null):null,
+            'purpose'=>(string)$licence['purpose'],'channels'=>is_array($channels=json_decode((string)$licence['channels'],true))?$channels:[],
+            'purpose_details'=>$this->decryptVisibleField((string)$licence['id'],'purpose_details',$licence['purpose_details']??null),
+            'country_code'=>(string)$licence['territory_code'],'starts_on'=>(string)$licence['starts_on'],
+            'ends_on'=>(string)$licence['ends_on'],'exclusivity'=>(bool)$licence['exclusivity'],
+            'compensation_amount'=>$licence['compensation_amount']===null?null:(string)$licence['compensation_amount'],
+            'currency_code'=>$licence['currency_code']===null?null:(string)$licence['currency_code'],
+        ];
+    }
+
+    /** Exact applicant-visible terms; agency-only commission and internal evidence references are excluded. */
+    private function applicantVisibleTerms(array $licence): array
+    {
+        $terms=$this->termsFromLicence($licence);
+        return [
+            'licence_reference'=>(string)$licence['licence_reference'],
+            'licensee_name'=>$terms['licensee_name'],'purpose'=>$terms['purpose'],'channels'=>$terms['channels'],
+            'purpose_details'=>$terms['purpose_details'],'territory_code'=>$terms['country_code'],
+            'starts_on'=>$terms['starts_on'],'ends_on'=>$terms['ends_on'],'exclusivity'=>$terms['exclusivity'],
+            'compensation_amount'=>$terms['compensation_amount'],'currency_code'=>$terms['currency_code'],
+        ];
     }
 
     /** @return array{policy_version:string} */
@@ -444,13 +587,28 @@ final class ModelImageLicenceService
         if(strlen($reference)<20 || strlen($reference)>200 || !str_starts_with($reference,$prefix) ||
             preg_match('#^'.preg_quote($prefix,'#').'[A-Za-z0-9][A-Za-z0-9._/-]{10,180}$#D',$reference)!==1 ||
             str_contains($reference,'..') || str_contains($reference,'\\')) {
-            throw new \InvalidArgumentException('External execution and model-consent evidence must use valid private evidence references.');
+            throw new \InvalidArgumentException('External execution evidence must use a valid private evidence reference.');
         }
     }
 
     private function encrypt(string $id,string $field,string $value): string
     {
         return $this->cipher->encrypt($value,'model-image-licence-v1:'.$id.':'.$field);
+    }
+
+    private function decrypt(string $id,string $field,string $value): string
+    {
+        return $this->cipher->decrypt($value,'model-image-licence-v1:'.$id.':'.$field);
+    }
+
+    private function decryptVisibleField(string $id,string $field,mixed $value): string
+    {
+        if(!is_string($value) || $value==='') return 'Not recorded in this legacy licence.';
+        try {
+            return $this->decrypt($id,$field,$value);
+        } catch(Throwable) {
+            return 'Not available in this legacy licence.';
+        }
     }
 
     private function policyVersionOrLegacy(array $licence): string

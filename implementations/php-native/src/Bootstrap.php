@@ -295,6 +295,7 @@ final class Bootstrap
         $router->add('POST', '/model-agency/portal/portfolio', static fn(Request $request): Response => $publicModelAgencyRights->portalUpload($request));
         $router->add('POST', '/model-agency/portal/casting', static fn(Request $request): Response => $publicModelAgencyRights->portalSubmitCasting($request));
         $router->add('POST', '/model-agency/portal/assignments/{id}/respond', static fn(Request $request,array $params): Response => $publicModelAgencyRights->portalRespondAssignment($request,$params));
+        $router->add('POST', '/model-agency/portal/licences/{id}/respond', static fn(Request $request,array $params): Response => $publicModelAgencyRights->portalRespondLicenceConsent($request,$params));
         $router->add('POST', '/model-agency/portal/licences/{id}/withdraw-consent', static fn(Request $request,array $params): Response => $publicModelAgencyRights->portalWithdrawLicence($request,$params));
         $router->add('POST', '/model-agency/portal/availability', static fn(Request $request): Response => $publicModelAgencyRights->portalCreateAvailability($request));
         $router->add('POST', '/model-agency/portal/availability/{id}/cancel', static fn(Request $request,array $params): Response => $publicModelAgencyRights->portalCancelAvailability($request,$params));

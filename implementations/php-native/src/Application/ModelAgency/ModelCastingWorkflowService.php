@@ -246,7 +246,7 @@ final class ModelCastingWorkflowService
                AND lic.territory_code=:country AND JSON_CONTAINS(lic.channels,JSON_QUOTE("casting_platform"))
                AND lic.starts_on<=DATE(:shoot_start_licence) AND lic.ends_on>=DATE(:shoot_end_licence)
                AND lic.licence_policy_version=:licence_policy
-               AND licence_consent.granted=1 AND licence_consent.withdrawn_at IS NULL AND lic.model_consent_evidence_reference IS NOT NULL
+               AND licence_consent.granted=1 AND licence_consent.withdrawn_at IS NULL AND (lic.model_consent_evidence_reference IS NOT NULL OR lic.applicant_consent_at IS NOT NULL)
                AND agreement.status="executed" AND agreement.effective_from<=:shoot_start_agreement AND agreement.effective_until>=:shoot_end_agreement
                AND JSON_CONTAINS(agreement.terms_snapshot,JSON_QUOTE("casting_submissions"),"$.service_scope")
                AND NOT EXISTS (SELECT 1 FROM model_casting_submissions existing
@@ -431,7 +431,7 @@ final class ModelCastingWorkflowService
             !is_string($asset['private_storage_key']) || $asset['private_storage_key']==='' ||
             $licence['application_id']!==$application['id'] || $licence['portfolio_asset_id']!==$asset['id'] ||
             $licence['status']!=='active' || $licence['purpose']!=='casting_distribution' ||
-            $licence['territory_code']!==$call['country_code'] || $licence['model_consent_evidence_reference']===null ||
+            $licence['territory_code']!==$call['country_code'] || ($licence['model_consent_evidence_reference']===null && $licence['applicant_consent_at']===null) ||
             $agreement['application_id']!==$application['id'] || $agreement['status']!=='executed' ||
             $agreement['effective_from']===null || $agreement['effective_until']===null) {
             throw new \DomainException('Casting submission requires an open call, eligible verified model, approved private asset, active matching licence and executed representation agreement.');
