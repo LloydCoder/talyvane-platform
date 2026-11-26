@@ -257,7 +257,7 @@ final class ModelSettlementService
     public function reverse(Principal $actor,string $settlementId,string $reason,string $evidenceReference,string $requestId): void
     {
         $this->authorize($actor);$this->requirePermission($actor,'model_settlements.reverse.attest');$this->assertRequestId($requestId);$reason=trim($reason);
-        if(strlen($reason)<20 || strlen($reason)>1500) throw new \InvalidArgumentException('Settlement reversal requires a reason of 20 to 1500 characters.');
+        if(strlen($reason)<20 || strlen($reason)>1000) throw new \InvalidArgumentException('Settlement reversal requires a reason of 20 to 1000 characters.');
         $this->assertEvidenceReference($evidenceReference,'private/model-settlements/');
         $this->pdo->beginTransaction();
         try {
