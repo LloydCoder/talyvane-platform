@@ -46,7 +46,7 @@ final class BookingCommandService
             $fromState = (string) $booking['status'];
             if ($actorRole === 'client' && $toState === 'cancelled') {
                 $policy = $this->policies->current();
-                $cancellation = new \\Talyvane\\Domain\\Booking\\BookingCancellationPolicy(
+                $cancellation = new \Talyvane\Domain\Booking\BookingCancellationPolicy(
                     $policy->clientCancellationEnabled,
                     $policy->clientCancellationCutoffMinutes
                 );
