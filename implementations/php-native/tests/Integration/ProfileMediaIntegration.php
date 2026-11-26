@@ -224,6 +224,18 @@ function runProfileMediaIntegration(PDO $pdo): int
         $quoteRows=$bookingQuotes->clientQuotes($companionClient,$profileId);
         $assert(count($quoteRows)===1 && $quoteRows[0]['id']===$quoteId && $quoteRows[0]['accepted_at']===null,
             'booking quotes are issued to one verified client and the exact companion profile');
+        try {
+            $pdo->prepare('UPDATE quote_snapshots SET original_amount_minor=1 WHERE id=:id')->execute(['id'=>$quoteId]);
+            $assert(false,'database trigger prevents mutation of immutable quote terms');
+        } catch(PDOException) {
+            $assert(true,'database trigger prevents mutation of immutable quote terms');
+        }
+        try {
+            $pdo->prepare('DELETE FROM quote_snapshots WHERE id=:id')->execute(['id'=>$quoteId]);
+            $assert(false,'database trigger prevents deletion of immutable quote history');
+        } catch(PDOException) {
+            $assert(true,'database trigger prevents deletion of immutable quote history');
+        }
         $bookingQuotes->accept($companionClient,$quoteId,bin2hex(random_bytes(16)));
         $bookingQuotes->accept($companionClient,$quoteId,bin2hex(random_bytes(16)));
         $acceptedQuote=$pdo->prepare('SELECT accepted_at,accepted_by,client_user_id,profile_id,policy_version,original_amount_minor,original_currency,fees_json FROM quote_snapshots WHERE id=:id');
