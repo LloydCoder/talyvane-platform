@@ -14,7 +14,8 @@ final readonly class BookingPolicy
         public int $maximumDurationMinutes,
         public string $version,
         public bool $clientCancellationEnabled = false,
-        public int $clientCancellationCutoffMinutes = 120
+        public int $clientCancellationCutoffMinutes = 120,
+        public bool $autoConfirmEnabled = false
     ) {
         if ($minimumNoticeMinutes < 0 || $minimumNoticeMinutes > 43200 ||
             $maximumAdvanceDays < 1 || $maximumAdvanceDays > 730 ||
@@ -38,7 +39,8 @@ final readonly class BookingPolicy
             (int) ($data['maximum_duration_minutes'] ?? 480),
             $version,
             (bool) ($data['client_cancellation_enabled'] ?? false),
-            (int) ($data['client_cancellation_cutoff_minutes'] ?? 120)
+            (int) ($data['client_cancellation_cutoff_minutes'] ?? 120),
+            (bool) ($data['auto_confirm_enabled'] ?? false)
         );
     }
 }
