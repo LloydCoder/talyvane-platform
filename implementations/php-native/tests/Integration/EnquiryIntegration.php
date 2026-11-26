@@ -7,6 +7,15 @@ use Talyvane\Infrastructure\Security\RateLimiter;
 use Talyvane\Security\Principal;
 use Talyvane\Security\SecretBox;
 
+final class EnquiryIntegrationMailer implements Mailer
+{
+    public array $messages=[];
+    public function send(string $recipient,string $subject,string $textBody): void
+    {
+        $this->messages[]=['recipient'=>$recipient,'subject'=>$subject,'body'=>$textBody];
+    }
+}
+
 function runEnquiryIntegration(PDO $pdo): int
 {
     $assertions = 0;
@@ -115,6 +124,50 @@ $attribution = is_array($saved) ? json_decode((string) $saved['attribution_json'
     $reminderEnquiry = array_values(array_filter($reminders,static fn(array $item):bool=>$item['reference']===$reference))[0]??null;
     $assert(($reminderEnquiry['reminders'][0]['completed_at']??null)!==null,
         'CRM reminder completion is stateful and auditable');
+
+    $templateReason='Approved customer-response wording for the CRM team';
+    $service->saveResponseTemplate(
+        $admin,'en','Hello {{ customer_name }} — enquiry {{ enquiry_reference }}',
+        "Dear {{ customer_name }},\\n\\n{{ reply_text }}\\n\\nRegards,\\n{{ agency_name }}",
+        $templateReason,bin2hex(random_bytes(16))
+    );
+    $templates=$service->responseTemplates($admin);
+    $activeTemplate=array_values(array_filter($templates,static fn(array $template):bool=>$template['locale']==='en' && (int)$template['active']===1))[0]??null;
+    $assert(is_array($activeTemplate) && (int)$activeTemplate['version']===1,
+        'CRM response template is versioned and activated through the authorized admin workflow');
+    try {
+        $service->saveResponseTemplate($admin,'en','Invalid {{ recipient_email }}',
+            'Body {{ customer_name }} {{ reply_text }}','Reject unknown placeholder',bin2hex(random_bytes(16)));
+        $assert(false,'CRM templates reject non-allowlisted placeholders');
+    } catch(InvalidArgumentException) {
+        $assert(true,'CRM templates reject non-allowlisted placeholders');
+    }
+    $replyRequest=bin2hex(random_bytes(16));
+    $queued=$service->queueResponse($admin,$reference,
+        "Thank you for your enquiry. We can provide the details you requested.",'en','Talyvane',$replyRequest);
+    $assert($queued===true,'authorized administrator can queue a templated CRM response');
+    $outbox=$pdo->prepare('SELECT id,recipient_ciphertext,payload_ciphertext,status,related_type FROM communication_outbox WHERE related_type="crm_enquiry" AND idempotency_key=:key');
+    $outbox->execute(['key'=>'crm-enquiry-response-v1:'.hash('sha256',$reference."\\0".$replyRequest)]);
+    $outboxRow=$outbox->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($outboxRow) && $outboxRow['status']==='pending' &&
+        !str_contains((string)$outboxRow['recipient_ciphertext'],'visitor@example.test') &&
+        !str_contains((string)$outboxRow['payload_ciphertext'],'Thank you for your enquiry'),
+        'CRM recipient and rendered response are encrypted in the transactional outbox');
+    $duplicate=$service->queueResponse($admin,$reference,
+        "Thank you for your enquiry. We can provide the details you requested.",'en','Talyvane',$replyRequest);
+    $assert($duplicate===false,'CRM response idempotency key prevents duplicate outbound messages');
+    $crmMailer=new EnquiryIntegrationMailer();
+    $crmDispatch=(new CrmCommunicationDispatcher($pdo,new SecretBox(str_repeat('E',32)),$crmMailer))->dispatchBatch(10);
+    $assert($crmDispatch['claimed']===1 && $crmDispatch['delivered']===1 && count($crmMailer->messages)===1 &&
+        $crmMailer->messages[0]['recipient']==='visitor@example.test' &&
+        str_contains($crmMailer->messages[0]['body'],'Thank you for your enquiry.') &&
+        str_contains($crmMailer->messages[0]['body'],'Talyvane'),
+        'CRM dispatcher renders the approved template and delivers the encrypted outbox message');
+    $responseState=$pdo->prepare('SELECT status,responded_at FROM enquiries WHERE reference=:reference');
+    $responseState->execute(['reference'=>$reference]);
+    $responseRow=$responseState->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($responseRow) && $responseRow['status']==='responded' && $responseRow['responded_at']!==null,
+        'queueing a CRM response advances the enquiry to responded within the same transaction');
 
     try {
         $service->updateStatus(new Principal($clientId,['client'],false),$reference,'closed','Forbidden',bin2hex(random_bytes(16)));
