@@ -97,6 +97,9 @@ $assert(BookingStateMachine::transition('accepted','cancelled','client') === 'ca
 
 $calendarPdo = new class extends PDO { public function __construct() {} };
 $calendar = new BookingCalendarService($calendarPdo,str_repeat('C',32));
+$assert((new Principal('single-role-client',['client']))->hasOnlyRole('client'), 'single-role predicate accepts the intended client role');
+$assert(!(new Principal('mixed-client',['client','admin'],true))->hasOnlyRole('client'), 'single-role predicate rejects mixed client/administrator identities');
+$assert(!(new Principal('mixed-companion',['companion','owner'],true))->hasOnlyRole('companion'), 'single-role predicate rejects mixed companion/owner identities');
 try {
     $calendar->clientEvents(new Principal('mixed-client',['client','admin'],true));
     $assert(false,'calendar query rejects a mixed client/administrator principal before reading bookings');
