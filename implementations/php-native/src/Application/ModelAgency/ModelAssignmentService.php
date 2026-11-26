@@ -155,6 +155,26 @@ final class ModelAssignmentService
     }
 
     /** @return list<array<string,mixed>> */
+    public function eligibleSubmissions(Principal $actor,int $limit=100): array
+    {
+        $this->authorize($actor);$limit=max(1,min(200,$limit));
+        $query=$this->pdo->prepare(
+            'SELECT s.id,s.submission_reference,a.application_reference,c.casting_reference,
+                    c.project_purpose,c.country_code,c.shoot_starts_at,c.shoot_ends_at,
+                    asset.mime_type,asset.width,asset.height,lic.licence_reference
+             FROM model_casting_submissions s
+             JOIN model_talent_applications a ON a.id=s.application_id
+             JOIN model_casting_calls c ON c.id=s.casting_call_id
+             JOIN model_portfolio_assets asset ON asset.id=s.portfolio_asset_id
+             JOIN model_image_licences lic ON lic.id=s.image_licence_id
+             WHERE s.status="selected" AND c.status<>"cancelled"
+               AND NOT EXISTS (SELECT 1 FROM model_assignments existing WHERE existing.submission_id=s.id)
+             ORDER BY s.submitted_at DESC LIMIT :limit'
+        );
+        $query->bindValue(':limit',$limit,PDO::PARAM_INT);$query->execute();return $query->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** @return list<array<string,mixed>> */
     public function list(Principal $actor,int $limit=100): array
     {
         $this->authorize($actor);$limit=max(1,min(200,$limit));
