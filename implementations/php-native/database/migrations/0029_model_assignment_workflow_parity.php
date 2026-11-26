@@ -20,6 +20,7 @@ return [
         ADD COLUMN acceptance_recorded_by CHAR(36) NULL AFTER accepted_at,
         ADD COLUMN executed_document_reference TEXT NULL AFTER acceptance_evidence_reference,
         ADD COLUMN model_acceptance_evidence_reference TEXT NULL AFTER executed_document_reference,
+        ADD COLUMN completion_evidence_reference TEXT NULL AFTER model_acceptance_evidence_reference,
         ADD COLUMN confirmed_by CHAR(36) NULL AFTER confirmed_at,
         ADD COLUMN started_by CHAR(36) NULL AFTER started_at,
         ADD COLUMN completed_by CHAR(36) NULL AFTER completed_at,
