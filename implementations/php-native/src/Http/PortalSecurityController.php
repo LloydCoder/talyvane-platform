@@ -15,7 +15,8 @@ final class PortalSecurityController
         private AuthenticationService $authentication,
         private PasswordChangeService $passwords,
         private ViewRenderer $views,
-        private string $brandName
+        private string $brandName,
+        private ?\Talyvane\Application\Identity\PortalEmailChangeService $emailChanges = null
     ) {}
 
     public function index(Request $request): Response
@@ -63,6 +64,42 @@ final class PortalSecurityController
         }
     }
 
+    public function requestEmailChange(Request $request): Response
+    {
+        SessionManager::start();
+        $principal=$this->portalPrincipal();
+        if(!$principal instanceof Principal) return Response::redirect('/portal/login');
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('Your session expired. Refresh this page and try again.','',419);
+        if($this->emailChanges===null) return $this->page('Email change verification is unavailable because outbound email is not configured.','',503);
+        try {
+            $this->emailChanges->request($principal,$this->field($request,'new_email'),$this->field($request,'current_password'),$request->requestId);
+            return $this->page('','A verification code was sent to the new address. Your account email remains unchanged until verification succeeds.');
+        } catch(\DomainException $e) {
+            return $this->page('The request could not be accepted. Check your current password, address and request limits.','',422);
+        } catch(\InvalidArgumentException) {
+            return $this->page('Enter a valid new email address and your current password.','',422);
+        } catch(\Throwable) {
+            return $this->page('The verification message could not be delivered. No email change was made.','',503);
+        }
+    }
+
+    public function verifyEmailChange(Request $request): Response
+    {
+        SessionManager::start();
+        $principal=$this->portalPrincipal();
+        if(!$principal instanceof Principal) return Response::redirect('/portal/login');
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('Your session expired. Refresh this page and try again.','',419);
+        if($this->emailChanges===null) return $this->page('Email change verification is unavailable.','',503);
+        try {
+            $version=$this->emailChanges->verify($principal,$this->field($request,'code'),$request->requestId);
+            SessionManager::rotateAfterAuthentication();
+            $_SESSION['session_version']=$version;
+            return $this->page('','Your contact email is verified and updated. Other sessions have been revoked.');
+        } catch(\Throwable) {
+            return $this->page('The verification code could not be accepted. It may be expired, invalid or already used.','',422);
+        }
+    }
+
     private function portalPrincipal(): ?Principal
     {
         $principal = $this->authentication->currentPrincipal();
@@ -83,7 +120,7 @@ final class PortalSecurityController
     private function page(string $error='',string $notice='',int $status=200): Response
     {
         $html = $this->views->render('auth/portal-security',[
-            'brandName'=>$this->brandName,'csrf'=>Csrf::issue(),'error'=>$error,'notice'=>$notice,
+            'brandName'=>$this->brandName,'csrf'=>Csrf::issue(),'error'=>$error,'notice'=>$notice,'emailChangeAvailable'=>$this->emailChanges!==null,
         ]);
         $base = Response::html($html,$status);
         $headers = $base->headers;

@@ -1,4 +1,5 @@
 name: Native PHP single-ZIP cPanel package
+run-name: Native PHP cPanel package verification
 
 on:
   pull_request:
@@ -25,6 +26,7 @@ jobs:
         run: |
           find implementations/php-native -name '*.php' -print0 | xargs -0 -n1 php -l
           bash -n implementations/php-native/bin/build-cpanel-package.sh
+          python3 -c "compile(open('implementations/php-native/bin/generate-sbom.py', encoding='utf-8').read(), 'generate-sbom.py', 'exec')"
           bash -n implementations/php-native/tests/Packaging/native-php-cpanel-contract.sh
           bash -n implementations/php-native/tests/Http/native-php-cpanel-bootstrap.sh
       - name: Build reproducible native customer ZIP

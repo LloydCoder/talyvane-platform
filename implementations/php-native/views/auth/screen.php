@@ -15,7 +15,7 @@ $titles = [
     'first_login' => ['Secure your account', 'Replace the initial password before administrator access can be granted.'],
     'mfa_setup' => ['Set up two-factor authentication', 'Add this account to an authenticator app, then confirm a current six-digit code.'],
     'recovery_codes' => ['Save your recovery codes', 'These codes are shown once. Store them somewhere private and separate from this device.'],
-    'dashboard' => ['Control room', 'Your administrator identity is verified. Operational workspaces are being connected in this release.'],
+    'dashboard' => ['Control room', 'Your administrator identity is verified. Open only the workspaces authorised for your role.'],
 ];
 [$heading, $description] = $titles[$screen] ?? $titles['login'];
 ?>
@@ -93,6 +93,7 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
   <div class="role-list"><?php foreach ($roles as $role): ?><span><?= $escape($role) ?></span><?php endforeach; ?></div>
   <div class="rule"></div>
   <p class="hint">Authentication and administrator MFA are complete. Operational workspaces are exposed only to the roles and workflows that have passed their authorization gates.</p>
+  <?php if (array_intersect($roles, ['finance','owner','super_admin']) !== []): ?><a class="button" href="/admin/model-agency/settlements" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open finance &amp; settlement workspace</a><?php endif; ?>
   <?php if (array_intersect($roles, ['super_admin','owner','admin']) !== []): ?>
   <a class="button" href="/admin/content" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open content workspace</a>
   <a class="button" href="/admin/destinations" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage destinations</a>
@@ -101,14 +102,17 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
   <a class="button" href="/admin/companions" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review companion profiles</a>
   <a class="button" href="/admin/profile-media" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review profile media</a>
   <a class="button" href="/admin/model-agency" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage model-agency applications</a>
+  <a class="button" href="/admin/model-agency/assignments" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage model assignments</a>
   <a class="button" href="/admin/bookings" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage bookings</a>
+  <a class="button" href="/admin/booking-quotes" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Issue booking quotes</a>
   <a class="button" href="/admin/safeguarding/reports" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Submit confidential safeguarding report</a>
   <a class="button" href="/admin/clients" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage client memberships</a>
+  <a class="button" href="/admin/privacy/requests" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review privacy requests</a>
   <?php if (in_array('verifier', $roles, true)): ?><a class="button" href="/admin/model-agency/verifications" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open verifier queue</a><?php endif; ?>
   <?php endif; ?>
   <?php if (in_array('safeguarding', $roles, true)): ?><a class="button" href="/admin/safeguarding/cases" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open assigned safeguarding cases</a><?php endif; ?>
   <?php if (array_intersect($roles, ['super_admin','owner']) !== []): ?><a class="button" href="/admin/safeguarding/governance" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Safeguarding governance register</a><?php endif; ?>
-  <?php if (in_array('super_admin', $roles, true)): ?><a class="button" href="/admin/brand" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Configure brand identity</a><a class="button" href="/admin/audit" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">View security audit trail</a><a class="button" href="/admin/markets" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review market compliance</a><?php endif; ?>
+  <?php if (in_array('super_admin', $roles, true)): ?><a class="button" href="/admin/features" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage platform features</a><a class="button" href="/admin/globalization" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Configure globalization</a><a class="button" href="/admin/payment-settings" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Configure payment capabilities</a><a class="button" href="/admin/payment-methods" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage receiving methods</a><a class="button" href="/admin/bookings/settings" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Configure booking policy</a><a class="button" href="/admin/brand" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Configure brand identity</a><a class="button" href="/admin/audit" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">View security audit trail</a><a class="button" href="/admin/markets" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review market compliance</a><?php endif; ?>
   <form method="post" action="/admin/logout"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><button class="button" type="submit">Sign out securely</button></form>
   <?php endif; ?>
   <div class="footer">Access attempts are rate-limited. Administrator sessions expire after inactivity and are revoked when account security state changes.</div>

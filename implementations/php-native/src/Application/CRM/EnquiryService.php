@@ -8,6 +8,7 @@ use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Security\RateLimiter;
 use Talyvane\Security\Authorization;
 use Talyvane\Security\Principal;
+use Talyvane\Security\SecretBox;
 
 final class EnquiryService
 {
@@ -16,7 +17,8 @@ final class EnquiryService
     public function __construct(
         private PDO $pdo,
         private RateLimiter $limiter,
-        private AuditLogger $audit
+        private AuditLogger $audit,
+        private ?SecretBox $notesCipher = null
     ) {}
 
     /** @param array<string,mixed> $input */
@@ -142,6 +144,158 @@ final class EnquiryService
         }
     }
 
+    public function assign(Principal $actor,string $reference,?string $assigneeId,string $reason,string $requestId): void
+    {
+        Authorization::require($actor,'enquiries.manage',true);
+        $assigneeId = $assigneeId === null || trim($assigneeId) === '' ? null : trim($assigneeId);
+        $reason = trim($reason);
+        if (!preg_match('/^TV-[A-F0-9]{10}$/D',$reference) ||
+            ($assigneeId !== null && !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iD',$assigneeId)) ||
+            mb_strlen($reason,'UTF-8') < 8 || mb_strlen($reason,'UTF-8') > 500 ||
+            strlen($requestId) < 16 || strlen($requestId) > 190) {
+            throw new \InvalidArgumentException('Enquiry assignment is invalid.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare('SELECT id,assigned_to FROM enquiries WHERE reference=:reference FOR UPDATE');
+            $query->execute(['reference'=>$reference]);
+            $before=$query->fetch();
+            if (!is_array($before)) {
+                throw new \DomainException('Enquiry does not exist.');
+            }
+            if ($assigneeId !== null) {
+                $eligible=$this->pdo->prepare(
+                    "SELECT u.id FROM users u INNER JOIN user_roles ur ON ur.user_id=u.id
+                     WHERE u.id=:id AND u.status='active' AND ur.role_key IN ('super_admin','owner','admin')
+                     LIMIT 1"
+                );
+                $eligible->execute(['id'=>$assigneeId]);
+                if ($eligible->fetchColumn() === false) {
+                    throw new \InvalidArgumentException('Choose an active administrator or owner.');
+                }
+            }
+            $update=$this->pdo->prepare('UPDATE enquiries SET assigned_to=:assignee,updated_at=UTC_TIMESTAMP() WHERE id=:id');
+            $update->execute(['assignee'=>$assigneeId,'id'=>$before['id']]);
+            $this->audit->record($actor->id,'crm.enquiry.assigned','enquiry',(string)$before['id'],$reason,
+                ['assigned_to'=>$before['assigned_to']],['assigned_to'=>$assigneeId],$requestId,'crm-enquiry-v1');
+            $this->pdo->commit();
+        } catch (\Throwable $error) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    public function addInternalNote(Principal $actor,string $reference,string $note,string $requestId): void
+    {
+        Authorization::require($actor,'enquiries.manage',true);
+        $note=trim($note);
+        if(!preg_match('/^TV-[A-F0-9]{10}$/D',$reference) || mb_strlen($note,'UTF-8')<10 ||
+            mb_strlen($note,'UTF-8')>3000 || strlen($requestId)<16 || strlen($requestId)>190 ||
+            $this->notesCipher===null) {
+            throw new \InvalidArgumentException('Internal note details are invalid or encryption is unavailable.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare('SELECT id FROM enquiries WHERE reference=:reference FOR UPDATE');
+            $query->execute(['reference'=>$reference]);
+            $enquiryId=$query->fetchColumn();
+            if(!is_string($enquiryId)) throw new \DomainException('Enquiry does not exist.');
+            $id=self::uuid();
+            $ciphertext=$this->notesCipher->encrypt($note,'crm-enquiry-note-v1:'.$enquiryId);
+            $this->pdo->prepare('INSERT INTO crm_enquiry_notes (id,enquiry_id,author_user_id,ciphertext,created_at) VALUES (:id,:enquiry,:author,:ciphertext,UTC_TIMESTAMP())')
+                ->execute(['id'=>$id,'enquiry'=>$enquiryId,'author'=>$actor->id,'ciphertext'=>$ciphertext]);
+            $this->audit->record($actor->id,'crm.enquiry.note_added','enquiry',$enquiryId,
+                'Private internal note appended to enquiry',null,['note_id'=>$id,'character_count'=>mb_strlen($note,'UTF-8')],
+                $requestId,'crm-enquiry-v1');
+            $this->pdo->commit();
+        } catch(\Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    public function scheduleReminder(Principal $actor,string $reference,string $dueAt,string $reason,string $requestId): string
+    {
+        Authorization::require($actor,'enquiries.manage',true);
+        $reason=trim($reason);
+        $due=\DateTimeImmutable::createFromFormat('!Y-m-d H:i:s',$dueAt,new \DateTimeZone('UTC'));
+        $errors=\DateTimeImmutable::getLastErrors();
+        if(!preg_match('/^TV-[A-F0-9]{10}$/D',$reference) || $due===false ||
+            ($errors!==false && ($errors['warning_count']>0 || $errors['error_count']>0)) ||
+            $due->format('Y-m-d H:i:s')!==$dueAt || $due<=new \DateTimeImmutable('now',new \DateTimeZone('UTC')) ||
+            $due>new \DateTimeImmutable('+365 days',new \DateTimeZone('UTC')) ||
+            mb_strlen($reason,'UTF-8')<8 || mb_strlen($reason,'UTF-8')>500 ||
+            strlen($requestId)<16 || strlen($requestId)>190) {
+            throw new \InvalidArgumentException('CRM reminder details are invalid.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare('SELECT id,status FROM enquiries WHERE reference=:reference FOR UPDATE');
+            $query->execute(['reference'=>$reference]);
+            $enquiry=$query->fetch();
+            if(!is_array($enquiry) || in_array($enquiry['status'],['closed','spam'],true)) {
+                throw new \DomainException('A reminder requires an open enquiry.');
+            }
+            $id=self::uuid();
+            $this->pdo->prepare('INSERT INTO crm_enquiry_reminders (id,enquiry_id,created_by,due_at,created_at) VALUES (:id,:enquiry,:actor,:due,UTC_TIMESTAMP())')
+                ->execute(['id'=>$id,'enquiry'=>$enquiry['id'],'actor'=>$actor->id,'due'=>$dueAt]);
+            $this->audit->record($actor->id,'crm.enquiry.reminder_scheduled','enquiry',(string)$enquiry['id'],$reason,
+                null,['reminder_id'=>$id,'due_at'=>$dueAt],$requestId,'crm-enquiry-reminder-v1');
+            $this->pdo->commit();
+            return $id;
+        } catch(\Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    public function completeReminder(Principal $actor,string $reminderId,string $reason,string $requestId): void
+    {
+        Authorization::require($actor,'enquiries.manage',true);
+        $reason=trim($reason);
+        if(!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iD',$reminderId) ||
+            mb_strlen($reason,'UTF-8')<8 || mb_strlen($reason,'UTF-8')>500 ||
+            strlen($requestId)<16 || strlen($requestId)>190) {
+            throw new \InvalidArgumentException('CRM reminder completion is invalid.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare('SELECT r.id,r.enquiry_id,r.completed_at FROM crm_enquiry_reminders r WHERE r.id=:id FOR UPDATE');
+            $query->execute(['id'=>$reminderId]);
+            $reminder=$query->fetch();
+            if(!is_array($reminder) || $reminder['completed_at']!==null) {
+                throw new \DomainException('Reminder does not exist or is already complete.');
+            }
+            $this->pdo->prepare('UPDATE crm_enquiry_reminders SET completed_at=UTC_TIMESTAMP(),completed_by=:actor WHERE id=:id')
+                ->execute(['actor'=>$actor->id,'id'=>$reminderId]);
+            $this->audit->record($actor->id,'crm.enquiry.reminder_completed','enquiry',(string)$reminder['enquiry_id'],$reason,
+                ['completed'=>false],['completed'=>true,'reminder_id'=>$reminderId],$requestId,'crm-enquiry-reminder-v1');
+            $this->pdo->commit();
+        } catch(\Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    /** @return list<array{id:string,email:string,role_key:string}> */
+    public function eligibleAssignees(Principal $actor): array
+    {
+        Authorization::require($actor,'enquiries.manage',true);
+        $query=$this->pdo->query(
+            "SELECT u.id,u.email,MIN(ur.role_key) AS role_key
+             FROM users u INNER JOIN user_roles ur ON ur.user_id=u.id
+             WHERE u.status='active' AND ur.role_key IN ('super_admin','owner','admin')
+             GROUP BY u.id,u.email ORDER BY u.email"
+        );
+        return $query->fetchAll();
+    }
+
+    public function count(Principal $actor): int
+    {
+        Authorization::require($actor,'enquiries.manage',true);
+        return (int) $this->pdo->query('SELECT COUNT(*) FROM enquiries')->fetchColumn();
+    }
+
     /** @return list<array<string,mixed>> */
     public function list(Principal $actor,int $limit = 50,int $offset = 0): array
     {
@@ -149,13 +303,64 @@ final class EnquiryService
         $limit = max(1,min(100,$limit));
         $offset = max(0,min(100000,$offset));
         $query = $this->pdo->prepare(
-            'SELECT reference,name,email,phone,city,subject,status,created_at,responded_at,closed_at
-             FROM enquiries ORDER BY created_at DESC,id DESC LIMIT :limit OFFSET :offset'
+            'SELECT e.reference,e.name,e.email,e.phone,e.city,e.subject,e.message,e.status,e.created_at,e.responded_at,e.closed_at,e.assigned_to,u.email AS assignee_email
+             FROM enquiries e LEFT JOIN users u ON u.id=e.assigned_to ORDER BY e.created_at DESC,e.id DESC LIMIT :limit OFFSET :offset'
         );
         $query->bindValue(':limit',$limit,PDO::PARAM_INT);
         $query->bindValue(':offset',$offset,PDO::PARAM_INT);
         $query->execute();
-        return $query->fetchAll();
+        $items=$query->fetchAll();
+        if($items!==[] && $this->notesCipher!==null) {
+            $ids=array_column($items,'reference');
+            $placeholders=[];
+            $params=[];
+            foreach($ids as $index=>$reference){$key='ref'.$index;$placeholders[]=':'.$key;$params[$key]=$reference;}
+            $notesQuery=$this->pdo->prepare(
+                'SELECT n.id,n.enquiry_id,e.reference,n.author_user_id,u.email AS author_email,n.ciphertext,n.created_at
+                 FROM crm_enquiry_notes n INNER JOIN enquiries e ON e.id=n.enquiry_id
+                 INNER JOIN users u ON u.id=n.author_user_id
+                 WHERE e.reference IN ('.implode(',',$placeholders).')
+                 ORDER BY n.created_at DESC,n.id DESC'
+            );
+            $notesQuery->execute($params);
+            $byReference=[];
+            foreach($notesQuery->fetchAll() as $noteRow) {
+                $reference=(string)$noteRow['reference'];
+                $byReference[$reference]??=[];
+                if(count($byReference[$reference])>=10) continue;
+                $noteRow['body']=$this->notesCipher->decrypt((string)$noteRow['ciphertext'],'crm-enquiry-note-v1:'.$noteRow['enquiry_id']);
+                unset($noteRow['ciphertext'],$noteRow['enquiry_id']);
+                $byReference[$reference][]=$noteRow;
+            }
+            foreach($items as &$item) $item['internal_notes']=$byReference[$item['reference']]??[];
+            unset($item);
+        } else {
+            foreach($items as &$item) $item['internal_notes']=[];
+            unset($item);
+        }
+        if($items!==[]) {
+            $references=array_column($items,'reference');
+            $placeholders=[];$params=[];
+            foreach($references as $index=>$reference){$key='r'.$index;$placeholders[]=':'.$key;$params[$key]=$reference;}
+            $reminderQuery=$this->pdo->prepare(
+                'SELECT r.id,e.reference,r.due_at,r.completed_at,r.created_at
+                 FROM crm_enquiry_reminders r INNER JOIN enquiries e ON e.id=r.enquiry_id
+                 WHERE e.reference IN ('.implode(',',$placeholders).')
+                 ORDER BY r.due_at ASC,r.created_at DESC'
+            );
+            $reminderQuery->execute($params);
+            $byReference=[];
+            foreach($reminderQuery->fetchAll() as $reminder) {
+                $reference=(string)$reminder['reference'];
+                $byReference[$reference]??=[];
+                if(count($byReference[$reference])>=10) continue;
+                unset($reminder['reference']);
+                $byReference[$reference][]=$reminder;
+            }
+            foreach($items as &$item) $item['reminders']=$byReference[$item['reference']]??[];
+            unset($item);
+        }
+        return $items;
     }
 
     private static function safeAttribution(?string $referer): ?string

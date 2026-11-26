@@ -20,7 +20,7 @@ A casting selection alone does not create an assignment. Assignment creation req
 Alternate terminal or exception states: `declined`, `cancelled`, `disputed`.
 
 1. An administrator creates a draft only from a selected casting submission. The client, project purpose, brief, location city, shoot window, deliverables, compensation metadata and expense cap are snapshotted.
-2. The representation agreement's commission percentage is copied into the assignment as an immutable commercial snapshot. The platform does not calculate a payable balance or settlement.
+2. The representation agreement's commission percentage is copied into the assignment as an immutable commercial snapshot. The separate native PHP settlement domain now accepts private expense claims, enforces the assignment cap, calculates commission and model net in integer minor units, snapshots the calculation and requires maker-checker approval. It records an external payment attestation; it does not move or independently verify funds.
 3. An administrator records that an offer was issued externally. The platform does not send an offer or message the model.
 4. An administrator records the private storage references for the externally executed assignment instrument and model acceptance evidence. The platform does not sign, validate or independently authenticate those documents.
 5. A second confirmation rechecks the selected submission, adult-eligibility status, legal hold, asset consent, casting licence, representation agreement, assignment policy, market approval and schedule conflict.
@@ -44,11 +44,14 @@ Assignment acceptance does not grant image or campaign usage rights. Public, cli
 
 ## Known limitations
 
+This assignment and settlement parity is implemented on the native PHP feature branch as a separate administrator-only workflow. It is not evidence that the Laravel reference or a production deployment has received the same change; see [native PHP port status](NATIVE-PHP-PORT-STATUS.md).
+
 - No client portal, client review or client acceptance.
 - No model self-service portal or direct model acceptance; an administrator records externally evidenced acceptance.
 - No automated emails, messaging or calendar integration.
 - No e-signature, identity-provider verification or legal validation of external documents.
 - No assignment booking engine, rescheduling, attendance/call-sheet system or time tracking.
-- No expense reimbursement, commission calculation, tax, invoice, payment, refund or settlement ledger.
+- A native PHP internal settlement ledger exists for expense review, commission/net calculation, approval, external payment attestation, reversal and dispute evidence. It does not execute reimbursement, provider payments, refunds or bank reconciliation.
+- Tax, withholding, invoice generation, partial settlements and statutory reporting remain unimplemented.
 - No public image delivery, client downloads or campaign publication.
 - Jurisdiction-specific legal, safeguarding, contract and payment review remains a separate release gate.

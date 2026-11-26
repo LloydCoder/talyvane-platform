@@ -1,8 +1,10 @@
 # Model Agency Application Operations
 
+The Laravel application requirements remain the reference for this domain. Native PHP parity is a parallel track; current code/test evidence is in [NATIVE-PHP-PORT-STATUS.md](NATIVE-PHP-PORT-STATUS.md) and [the native parity tracker](../implementations/php-native/PORTING-TRACKER.md).
+
 ## Scope
 
-The platform implements a separate application intake, administrator-review workflow, applicant privacy-rights workflow, adult-eligibility gate, representation-agreement register and private portfolio media/consent workflow. The model-agency workflow remains separate from companionship accounts, profiles, enquiries and bookings. The register records versioned draft terms, offers, external execution evidence and termination; it does not provide e-signature, grant image rights, publish models, create assignments or process settlements.
+The platform implements a separate application intake, administrator-review workflow, applicant privacy-rights workflow, adult-eligibility gate, representation-agreement register and private portfolio media/consent workflow. The model-agency workflow remains separate from companionship accounts, profiles, enquiries and bookings. The register records versioned draft terms, offers, external execution evidence and termination; it does not provide e-signature, grant image rights or publish models. Separate native PHP modules now provide an internal casting register, administrator-only assignment lifecycle and internal settlement ledger; those modules do not turn the application register itself into a client distribution or model self-service portal, and do not process external payments.
 
 ## Default-safe activation
 
@@ -64,7 +66,7 @@ Every transition requires an administrator reason and is committed with an appli
 - A separately verified applicant email-change and account-recovery process; the current rights workflow intentionally cannot change the registered email.
 - Legal review and sign-off of the configured retention periods and successful production cron execution.
 - Secure document and image submission only if later required, with private storage, scanning, consent and rights provenance.
-- Assignment approvals, model bookings and settlements. Internal casting briefs and licensed model submission tracking are documented in [Private Model Casting Workflow](MODEL-CASTING-WORKFLOW.md); they do not create assignments or expose images to clients. Private executed-document upload/download and access audit are also outstanding.
+- Model self-service, client-facing casting/assignment distribution, assignment booking/rescheduling and client image delivery remain outstanding. The native PHP branch has a separate administrator-only assignment lifecycle and settlement ledger; see [Model Assignment Lifecycle](MODEL-ASSIGNMENTS.md) and [Model Talent Settlement Ledger](MODEL-SETTLEMENTS.md). These do not expose images to clients or move/verify funds. Private executed-document upload/download and access audit remain outstanding.
 - Production legal review, privacy review and safeguarding sign-off.
 
 ## Engineering references

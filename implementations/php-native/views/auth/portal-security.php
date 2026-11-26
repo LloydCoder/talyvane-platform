@@ -5,6 +5,7 @@ $brandName = is_string($brandName ?? null) && $brandName !== '' ? $brandName : '
 $csrf = is_string($csrf ?? null) ? $csrf : '';
 $error = is_string($error ?? null) ? $error : '';
 $notice = is_string($notice ?? null) ? $notice : '';
+$emailChangeAvailable = ($emailChangeAvailable ?? false) === true;
 ?>
 <!doctype html>
 <html lang="en">
@@ -31,6 +32,24 @@ $notice = is_string($notice ?? null) ? $notice : '';
 <div class="field"><label for="confirm_password">Confirm new password</label><input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" minlength="14" maxlength="1024" required></div>
 <button class="button" type="submit">Change password securely</button>
 </form>
+<hr style="border:0;border-top:1px solid var(--line);margin:30px 0">
+<h2 style="font:400 27px Georgia,serif">Change contact email</h2>
+<p class="hint">Confirm your current password. A one-time code will be sent to the new address. Your account email changes only after that code is verified; other sessions are then revoked.</p>
+<?php if ($emailChangeAvailable): ?>
+<form method="post" action="/portal/security/email/request" autocomplete="off">
+<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<div class="field"><label for="new_email">New email address</label><input id="new_email" name="new_email" type="email" autocomplete="email" maxlength="254" required></div>
+<div class="field"><label for="email_current_password">Current password</label><input id="email_current_password" name="current_password" type="password" autocomplete="current-password" maxlength="1024" required></div>
+<button class="button" type="submit">Send verification code</button>
+</form>
+<form method="post" action="/portal/security/email/verify" autocomplete="off">
+<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<div class="field"><label for="email_code">Six-digit verification code</label><input id="email_code" name="code" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="one-time-code" required></div>
+<button class="button" type="submit">Verify and update email</button>
+</form>
+<?php else: ?>
+<p class="hint">Email changes are unavailable until a secure outbound email service is configured.</p>
+<?php endif; ?>
 <p class="links"><a href="/portal">Return to your account</a></p>
 </section>
 </main>

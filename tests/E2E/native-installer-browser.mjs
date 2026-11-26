@@ -34,16 +34,19 @@ async function messagesFor(address) {
   return details;
 }
 
-async function waitForCode(address) {
+async function waitForCode(address, digits = 6, subject = null, reference = null) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     for (const message of await messagesFor(address)) {
+      if (subject && (message.Subject ?? message.subject) !== subject) continue;
       const body = [message.Text, message.HTML, message.text, message.html, message.Snippet].filter(Boolean).join('\n');
-      const match = body.match(/\b([0-9]{6})\b/);
+      if (reference && !body.includes(reference)) continue;
+      const labeled = body.match(new RegExp('(?:one-time\\s+)?verification code\\s*:\\s*([0-9]{' + digits + '})', 'i'));
+      const match = labeled ?? body.match(new RegExp('\\b([0-9]{' + digits + '})\\b'));
       if (match) return match[1];
     }
     await sleep(400);
   }
-  throw new Error(`No native installer verification code arrived for ${address}.`);
+  throw new Error(`No ${digits}-digit verification code arrived for ${address}.`);
 }
 
 function base32Decode(value) {
@@ -200,7 +203,107 @@ try {
   await page.getByRole('link', { name: /Continue to control room/i }).click();
   await page.waitForURL('**/admin');
   assert.match(await page.locator('body').innerText(), /Control room/i);
-  console.log('PASS: Native PHP one-ZIP extraction, private key, HTTPS installer, live MySQL migrations, authenticated SMTP, dual-email verification, browser-only credential handoff, lock/cleanup, first-login password replacement and MFA enrollment.');
+  async function registerAndLogin(email, accountType) {
+    const portalPassword = 'Native-Portal-E2E-Password-2026!';
+    await page.goto(baseUrl + '/portal/register', { waitUntil: 'networkidle' });
+    await page.locator('[name="account_type"]').selectOption(accountType);
+    await page.locator('[name="email"]').fill(email);
+    await page.locator('[name="password"]').fill(portalPassword);
+    const registrationResponsePromise = page.waitForResponse((response) =>
+      response.request().method() === 'POST' && new URL(response.url()).pathname === '/portal/register',
+    );
+    await page.getByRole('button', { name: /Create account/i }).click();
+    const registrationResponse = await registrationResponsePromise;
+    await page.waitForLoadState('networkidle');
+    const verificationField = page.locator('form[action="/portal/verify"] [name="code"]');
+    if (!(await verificationField.isVisible().catch(() => false))) {
+      throw new Error([
+        'Portal registration did not advance to email verification.',
+        `HTTP status: ${registrationResponse.status()}`,
+        `Current URL: ${page.url()}`,
+        `Visible errors: ${(await page.locator('[role="alert"]').allInnerTexts()).join(' | ')}`,
+        `Page text: ${await page.locator('body').innerText()}`,
+      ].join('\\n'));
+    }
+    const verificationCode = await waitForCode(email);
+    await page.locator('form[action="/portal/verify"] [name="code"]').fill(verificationCode);
+    await page.getByRole('button', { name: /Verify email/i }).click();
+    await page.waitForSelector('form[action="/portal/login"]');
+    await page.goto(baseUrl + '/portal/login', { waitUntil: 'networkidle' });
+    await page.locator('[name="email"]').fill(email);
+    await page.locator('[name="password"]').fill(portalPassword);
+    await page.getByRole('button', { name: /Sign in securely/i }).click();
+    await page.waitForURL('**/portal');
+    return portalPassword;
+  }
+
+  async function signOutPortal() {
+    await page.goto(baseUrl + '/portal', { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: /Sign out securely/i }).click();
+    await page.waitForURL('**/portal/login');
+  }
+
+  const clientEmail = 'client@talyvane-native-e2e.example';
+  await registerAndLogin(clientEmail, 'client');
+  await page.goto(baseUrl + '/portal/calendar', { waitUntil: 'networkidle' });
+  assert.equal(await page.locator('h1').innerText(), 'Your booking calendar.');
+  assert.match(await page.locator('body').innerText(), /There are no active or recently changed bookings/);
+  const clientCalendarResponse = await context.request.get(baseUrl + '/portal/calendar.ics');
+  assert.equal(clientCalendarResponse.status(), 200, 'Authenticated clients can export their private calendar.');
+  assert.match(clientCalendarResponse.headers()['content-type'] ?? '', /text\/calendar/i);
+  assert.match(clientCalendarResponse.headers()['cache-control'] ?? '', /private.*no-store|no-store.*private/i);
+  const clientIcs = await clientCalendarResponse.text();
+  assert.match(clientIcs, /BEGIN:VCALENDAR[\s\S]*END:VCALENDAR/);
+  assert.ok(!clientIcs.includes(clientEmail), 'Client calendar export must not include the client email address.');
+
+  await page.goto(baseUrl + '/portal/privacy', { waitUntil: 'networkidle' });
+  await page.locator('#summary').fill('Please correct the spelling of my account details.');
+  await page.getByRole('button', { name: /Request a correction/i }).click();
+  await page.waitForSelector('form[action="/portal/privacy/verify"] [name="code"]');
+  const correctionRequestId = await page.locator('form[action="/portal/privacy/verify"] [name="request_id"]').inputValue();
+  const correctionCode = await waitForCode(clientEmail, 8, 'Your Talyvane privacy request', correctionRequestId);
+  await page.locator('form[action="/portal/privacy/verify"] [name="code"]').fill(correctionCode);
+  await page.getByRole('button', { name: /Verify privacy request/i }).click();
+  await page.getByRole('status').getByText(/entered the restricted review queue/i).waitFor();
+  assert.match(await page.locator('body').innerText(), /correction[\s\S]*in_review/i);
+
+  await page.goto(baseUrl + '/portal/privacy', { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: /Request account erasure/i }).click();
+  await page.waitForSelector('form[action="/portal/privacy/verify"] [name="code"]');
+  const erasureRequestId = await page.locator('form[action="/portal/privacy/verify"] [name="request_id"]').inputValue();
+  const erasureCode = await waitForCode(clientEmail, 8, 'Your Talyvane privacy request', erasureRequestId);
+  await page.locator('form[action="/portal/privacy/verify"] [name="code"]').fill(erasureCode);
+  await page.getByRole('button', { name: /Verify privacy request/i }).click();
+  const erasureStatus = page.getByRole('status');
+  await erasureStatus.waitFor({ state: 'visible' });
+  const erasureNotice = await erasureStatus.innerText();
+  assert.match(erasureNotice, /Erasure is not automatic/i, 'Verified erasure requests must explicitly remain subject to human review.');
+  assert.match(await page.locator('body').innerText(), /erasure[\s\S]*in_review/i);
+  await page.goto(baseUrl + '/portal/calendar', { waitUntil: 'networkidle' });
+  assert.equal(await page.locator('h1').innerText(), 'Your booking calendar.',
+    'Verified erasure requests must not disable or erase the account before human review.');
+
+  await page.goto(baseUrl + '/portal/companion/calendar', { waitUntil: 'networkidle' });
+  assert.equal(new URL(page.url()).pathname, '/portal/login', 'Client sessions cannot open the companion calendar.');
+  await signOutPortal();
+
+  const companionEmail = 'companion@talyvane-native-e2e.example';
+  await registerAndLogin(companionEmail, 'companion');
+  await page.goto(baseUrl + '/portal/companion/calendar', { waitUntil: 'networkidle' });
+  assert.equal(await page.locator('h1').innerText(), 'Your schedule.');
+  assert.match(await page.locator('body').innerText(), /There are no active or recently changed bookings/);
+  const companionCalendarResponse = await context.request.get(baseUrl + '/portal/companion/calendar.ics');
+  assert.equal(companionCalendarResponse.status(), 200, 'Authenticated companions can export their private calendar.');
+  assert.match(companionCalendarResponse.headers()['content-type'] ?? '', /text\/calendar/i);
+  assert.match(companionCalendarResponse.headers()['cache-control'] ?? '', /private.*no-store|no-store.*private/i);
+  const companionIcs = await companionCalendarResponse.text();
+  assert.match(companionIcs, /BEGIN:VCALENDAR[\s\S]*END:VCALENDAR/);
+  assert.ok(!companionIcs.includes(clientEmail) && !companionIcs.includes(companionEmail),
+    'Companion calendar export must not expose either participant email address.');
+  await page.goto(baseUrl + '/portal/calendar', { waitUntil: 'networkidle' });
+  assert.equal(new URL(page.url()).pathname, '/portal/login', 'Companion sessions cannot open the client calendar.');
+
+  console.log('PASS: Native PHP one-ZIP extraction, private key, HTTPS installer, live MySQL migrations, authenticated SMTP, dual-email verification, browser-only credential handoff, lock/cleanup, first-login password replacement and MFA enrollment; client and companion registration, email verification, login, role-isolated private calendar pages and no-store iCalendar exports.');
 } finally {
   await context.close();
   await browser.close();

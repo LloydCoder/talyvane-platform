@@ -9,6 +9,10 @@ use Talyvane\Domain\Money\Currency;
 use Talyvane\Domain\Money\QuoteSnapshot;
 use Talyvane\Domain\Payments\PaymentStateMachine;
 use Talyvane\Domain\Booking\BookingStateMachine;
+use Talyvane\Domain\Booking\BookingPolicy;
+use Talyvane\Domain\Booking\BookingCancellationPolicy;
+use Talyvane\Domain\Booking\LocalDateTimeResolver;
+use Talyvane\Application\Bookings\BookingCalendarService;
 use Talyvane\Domain\Consent\ConsentGrant;
 use Talyvane\Domain\Market\MarketPolicy;
 use Talyvane\Domain\Membership\MembershipAccess;
@@ -21,6 +25,7 @@ use Talyvane\Domain\ModelAgency\SettlementCalculator;
 use Talyvane\Domain\ModelAgency\SettlementStateMachine;
 use Talyvane\Features\FeatureAvailability;
 use Talyvane\Features\FeatureRegistry;
+use Talyvane\Domain\Booking\CompanionAutomaticBookingPolicy;
 use Talyvane\Http\Request;
 use Talyvane\Http\Response;
 use Talyvane\Http\Router;
@@ -41,6 +46,7 @@ use Talyvane\Installer\EnvironmentPreflight;
 use Talyvane\Installer\SetupKey;
 use Talyvane\Installer\InstallerLock;
 use Talyvane\Installer\PrivateConfigStore;
+use Talyvane\Installer\PrivateCliConfig;
 use Talyvane\Installer\SafeZipExtractor;
 
 $tests = 0;
@@ -51,6 +57,121 @@ $assert = static function (bool $condition, string $message) use (&$tests): void
     }
 };
 
+
+$defaultBookingPolicy=BookingPolicy::fromArray([],'booking-default-test-v1');
+$assert(!$defaultBookingPolicy->automaticEnabled && !$defaultBookingPolicy->autoConfirmEnabled &&
+    $defaultBookingPolicy->depositRequired && $defaultBookingPolicy->minimumNoticeMinutes===720 &&
+    $defaultBookingPolicy->maximumAdvanceDays===90,
+    'partial booking policy defaults preserve manual mode, verified deposit, 12-hour notice and 90-day horizon');
+
+$automaticProfile = [
+    'status'=>'published','adult_eligibility_status'=>'verified',
+    'publication_consent_version'=>'v1','publication_consent_withdrawn_at'=>null,
+    'market_approved'=>true,
+];
+CompanionAutomaticBookingPolicy::assertPreference(false,$automaticProfile,false);
+$assert(true,'companion can always opt out of automatic booking even when the feature is disabled');
+CompanionAutomaticBookingPolicy::assertPreference(true,$automaticProfile,true,true);
+$assert(true,'automatic booking opt-in is accepted only for a fully eligible published profile with an enabled feature');
+foreach ([
+    ['status'=>'draft'],
+    ['adult_eligibility_status'=>'unverified'],
+    ['publication_consent_version'=>null],
+    ['publication_consent_withdrawn_at'=>'2026-11-26 09:00:00'],
+    ['market_approved'=>false],
+] as $invalidState) {
+    try {
+        CompanionAutomaticBookingPolicy::assertPreference(true,array_merge($automaticProfile,$invalidState),true,true);
+        $assert(false,'ineligible companion profile cannot opt in to automatic booking');
+    } catch (DomainException) {
+        $assert(true,'ineligible companion profile cannot opt in to automatic booking');
+    }
+}
+try {
+    CompanionAutomaticBookingPolicy::assertPreference(true,$automaticProfile,true,false);
+    $assert(false,'automatic booking opt-in requires explicit companion confirmation');
+} catch (DomainException) {
+    $assert(true,'automatic booking opt-in requires explicit companion confirmation');
+}
+try {
+    CompanionAutomaticBookingPolicy::assertPreference(true,$automaticProfile,false,true);
+    $assert(false,'companion cannot opt in while deployment feature gates are closed');
+} catch (DomainException) {
+    $assert(true,'companion cannot opt in while deployment feature gates are closed');
+}
+
+$ambiguousLondon = LocalDateTimeResolver::candidates('2026-10-25T01:30',new DateTimeZone('Europe/London'));
+$assert(count($ambiguousLondon)===2 && $ambiguousLondon[0]['utc']->format('Y-m-d H:i:s')==='2026-10-25 00:30:00' &&
+    $ambiguousLondon[1]['utc']->format('Y-m-d H:i:s')==='2026-10-25 01:30:00',
+    'DST fall-back local time exposes both distinct UTC instants in chronological order');
+try { LocalDateTimeResolver::resolve('2026-10-25T01:30',new DateTimeZone('Europe/London')); $assert(false,'ambiguous destination local time requires explicit offset selection'); }
+catch (Talyvane\Domain\Booking\AmbiguousLocalTimeException $error) {
+    $assert(count($error->candidates)===2,'ambiguous local time returns both explicit offset choices');
+}
+$selectedLondon = LocalDateTimeResolver::resolve('2026-10-25T01:30',new DateTimeZone('Europe/London'),0);
+$assert($selectedLondon->format('Y-m-d H:i:s')==='2026-10-25 01:30:00' && $selectedLondon->getOffset()===0,
+    'explicit standard-time offset selects the second fall-back occurrence');
+try { LocalDateTimeResolver::resolve('2026-03-29T01:30',new DateTimeZone('Europe/London')); $assert(false,'DST spring-forward nonexistent local time is rejected'); }
+catch (InvalidArgumentException) { $assert(true,'DST spring-forward nonexistent local time is rejected'); }
+$unambiguousLondon = LocalDateTimeResolver::resolve('2026-11-26T09:30',new DateTimeZone('Europe/London'));
+$assert($unambiguousLondon->format('Y-m-d H:i:s')==='2026-11-26 09:30:00' && $unambiguousLondon->getOffset()===0,
+    'unambiguous destination local time resolves without an offset override');
+
+$cancelPolicy = new BookingCancellationPolicy(true, 120);
+$cancelPolicy->assertAllowed('client','confirmed',new DateTimeImmutable('2026-12-01T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00'));
+$assert(true, 'client may cancel a confirmed booking outside the configured cutoff');
+try { $cancelPolicy->assertAllowed('client','confirmed',new DateTimeImmutable('2026-12-01T09:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'client cancellation inside cutoff is rejected'); }
+catch (DomainException) { $assert(true, 'client cancellation inside cutoff is rejected'); }
+$cancelPolicyDisabled = new BookingCancellationPolicy(false,120);
+$cancelPolicyDisabled->assertAllowed('client','pending_review',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00'));
+$assert(true, 'client may cancel a pending review request without confirmed-booking cancellation policy');
+$cancelPolicyDisabled->assertAllowed('client','requested',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00'));
+$assert(true, 'client may cancel a newly submitted requested booking without confirmed-booking cancellation policy');
+try { $cancelPolicyDisabled->assertAllowed('client','confirmed',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'disabled confirmed-booking cancellation is rejected'); }
+catch (DomainException) { $assert(true, 'disabled client cancellation is rejected'); }
+$cancelPolicyDisabled->assertAllowed('client','accepted',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00'));
+$assert(true, 'client may cancel a companion-accepted booking before administrator confirmation');
+try { $cancelPolicy->assertAllowed('client','declined',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'terminal declined booking cannot be cancelled'); }
+catch (DomainException) { $assert(true, 'terminal declined booking cannot be cancelled'); }
+try { $cancelPolicy->assertAllowed('companion','confirmed',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'companion cannot use client cancellation policy'); }
+catch (DomainException) { $assert(true, 'companion cannot use client cancellation policy'); }
+
+$assert(BookingStateMachine::transition('pending_review','cancelled','client') === 'cancelled', 'client may cancel a pending-review booking');
+$assert(BookingStateMachine::transition('requested','cancelled','client') === 'cancelled', 'client may cancel a newly requested booking');
+$assert(BookingStateMachine::transition('accepted','cancelled','client') === 'cancelled', 'client may cancel before administrator confirmation');
+
+$calendarPdo = new class extends PDO { public function __construct() {} };
+$calendar = new BookingCalendarService($calendarPdo,str_repeat('C',32));
+$assert((new Principal('single-role-client',['client']))->hasOnlyRole('client'), 'single-role predicate accepts the intended client role');
+$assert(!(new Principal('mixed-client',['client','admin'],true))->hasOnlyRole('client'), 'single-role predicate rejects mixed client/administrator identities');
+$assert(!(new Principal('mixed-companion',['companion','owner'],true))->hasOnlyRole('companion'), 'single-role predicate rejects mixed companion/owner identities');
+try {
+    $calendar->clientEvents(new Principal('mixed-client',['client','admin'],true));
+    $assert(false,'calendar query rejects a mixed client/administrator principal before reading bookings');
+} catch (DomainException) {
+    $assert(true,'calendar query rejects a mixed client/administrator principal before reading bookings');
+}
+try {
+    $calendar->companionEvents(new Principal('mixed-companion',['companion','owner'],true));
+    $assert(false,'calendar query rejects a mixed companion/owner principal before reading bookings');
+} catch (DomainException) {
+    $assert(true,'calendar query rejects a mixed companion/owner principal before reading bookings');
+}
+$calendarNow = new DateTimeImmutable('2026-11-26T09:00:00+00:00');
+$calendarEvents = [[
+    'id'=>'booking-private-1','status'=>'confirmed',
+    'starts_at_utc'=>'2026-12-01 12:00:00','ends_at_utc'=>'2026-12-01 13:00:00',
+    'updated_at'=>'2026-11-26 08:00:00','profile_name'=>"Alex, Example\nVIP",
+    'destination_name'=>'London; United Kingdom',
+    'client_note'=>'PRIVATE NOTE MUST NOT APPEAR','client_user_id'=>'client-secret-id',
+]];
+$clientCalendar = $calendar->toIcalendar(new Principal('client-calendar-id',['client'],false),$calendarEvents,$calendarNow);
+$assert(str_contains($clientCalendar,'BEGIN:VCALENDAR') && str_contains($clientCalendar,'DTSTART:20261201T120000Z'), 'calendar export emits RFC5545 UTC event times');
+$assert(str_contains($clientCalendar,'SUMMARY:Booking with Alex\\, Example\nVIP — London\\; United Kingdom') && !str_contains($clientCalendar,'PRIVATE NOTE') && !str_contains($clientCalendar,'client-secret-id'), 'client calendar escapes text and excludes notes and account identifiers');
+$companionCalendar = $calendar->toIcalendar(new Principal('companion-calendar-id',['companion'],false),$calendarEvents,$calendarNow);
+$assert(str_contains($companionCalendar,'SUMMARY:Appointment — London\\; United Kingdom') && !str_contains($companionCalendar,'Alex'), 'companion calendar projection excludes client-facing profile identity details');
+$cancelledCalendar = $calendar->toIcalendar(new Principal('client-calendar-id',['client'],false),[array_merge($calendarEvents[0],['status'=>'cancelled'])],$calendarNow);
+$assert(str_contains($cancelledCalendar,'STATUS:CANCELLED'), 'calendar export carries cancellation tombstones for synchronization clients');
 $assert(Money::fromDecimal('123.45', 'USD', 2)->minorUnits === 12345, 'two-decimal money uses integer minor units');
 $assert(Money::fromDecimal('120', 'JPY', 0)->toDecimal() === '120', 'zero-decimal currency formats correctly');
 $assert(Money::fromDecimal('1.234', 'KWD', 3)->toDecimal() === '1.234', 'three-decimal currency formats correctly');
@@ -572,6 +693,9 @@ catch (DomainException) { $assert(true, 'settlement requires external evidence')
 $assert(AgreementStateMachine::transition('offered','executed','admin','external-agreement-ref') === 'executed', 'agreement execution requires external evidence');
 try { AgreementStateMachine::transition('offered','executed','admin'); $assert(false, 'agreement cannot be marked executed without evidence'); }
 catch (DomainException) { $assert(true, 'agreement cannot be marked executed without evidence'); }
+$assert(CastingStateMachine::call('draft','open') === 'open', 'agency can publish a draft casting call into the private open state');
+$assert(CastingStateMachine::call('open','closed') === 'closed', 'agency can close an open casting call');
+$assert(CastingStateMachine::call('open','cancelled') === 'cancelled', 'agency can cancel an open casting call');
 $assert(CastingStateMachine::submission('submitted','selected','admin') === 'selected', 'agency can select a casting submission');
 try { CastingStateMachine::submission('submitted','selected','applicant'); $assert(false, 'applicant cannot select themselves'); }
 catch (DomainException) { $assert(true, 'applicant cannot select themselves'); }
@@ -582,11 +706,11 @@ $licence = new ImageLicencePolicy('active','portfolio.display','GB','public',tru
 $assert($licence->permits('portfolio.display','GB','public',$now), 'image licence permits only current approved purpose and audience');
 $assert(!$licence->permits('advertising','GB','public',$now), 'image licence cannot be reused for another purpose');
 $calculation = SettlementCalculator::calculate(100000,20000,10000,2000,'GBP');
-$assert($calculation['commission_minor'] === 20000 && $calculation['model_net_minor'] === 70000, 'settlement uses exact integer minor-unit commission');
+$assert($calculation['commission_minor'] === 20000 && $calculation['model_net_minor'] === 90000, 'settlement adds approved reimbursable expenses after commission deduction');
 try { SettlementCalculator::calculate(100000,5000,5001,2000,'GBP'); $assert(false, 'expense cap enforced'); }
 catch (DomainException) { $assert(true, 'expense cap enforced'); }
-try { SettlementCalculator::calculate(1000,1000,1000,2000,'GBP'); $assert(false, 'negative settlement net rejected'); }
-catch (DomainException) { $assert(true, 'negative settlement net rejected'); }
+$reimbursed = SettlementCalculator::calculate(1000,2000,1500,2000,'GBP');
+$assert($reimbursed['model_net_minor'] === 2300, 'approved expenses are reimbursed separately and may exceed gross compensation when within the agreed cap');
 try { SettlementStateMachine::transition('draft','approved','finance','maker-1','maker-1'); $assert(false, 'settlement creator cannot approve own settlement'); }
 catch (DomainException) { $assert(true, 'settlement creator cannot approve own settlement'); }
 try { SettlementStateMachine::transition('approved','paid','finance','maker-1','approver-1','approver-1','external-payment-ref'); $assert(false, 'settlement approver cannot attest own payment'); }
@@ -603,6 +727,20 @@ $assert(!str_starts_with($privatePaths['application'], $privatePaths['document_r
 $configStore = new PrivateConfigStore($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',$privatePaths['document_root']);
 $configStore->create(['app_key'=>str_repeat('A',32),'database'=>['host'=>'127.0.0.1','database'=>'test']]);
 $loadedConfig = $configStore->load();
+$cliConfig = PrivateCliConfig::load($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',$privatePaths['document_root']);
+$assert(($cliConfig['database']['database'] ?? '') === 'test', 'notification CLI loads installer-generated config using an explicit public document root');
+chmod($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',0644);
+try { PrivateCliConfig::load($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',$privatePaths['document_root']); $assert(false, 'notification CLI rejects group/world-readable private config'); }
+catch (RuntimeException) { $assert(true, 'notification CLI rejects group/world-readable private config'); }
+chmod($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',0600);
+try { PrivateCliConfig::load($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',$documentRoot . DIRECTORY_SEPARATOR . 'missing'); $assert(false, 'notification CLI rejects an unresolved public document root'); }
+catch (RuntimeException) { $assert(true, 'notification CLI rejects an unresolved public document root'); }
+$publicConfig = $documentRoot . DIRECTORY_SEPARATOR . 'public-app.php';
+file_put_contents($publicConfig,"<?php return " . var_export(['app_key'=>str_repeat('P',32),'database'=>['database'=>'public']],true) . ";");
+chmod($publicConfig,0600);
+try { PrivateCliConfig::load($publicConfig,$documentRoot); $assert(false, 'notification CLI rejects configuration inside public document root'); }
+catch (RuntimeException) { $assert(true, 'notification CLI rejects configuration inside public document root'); }
+unlink($publicConfig);
 $assert(($loadedConfig['database']['database'] ?? '') === 'test', 'private config is written and loaded outside the public root');
 try { $configStore->create(['app_key'=>str_repeat('B',32),'database'=>[]]); $assert(false, 'private config cannot be overwritten'); }
 catch (RuntimeException) { $assert(true, 'private config cannot be overwritten'); }
@@ -846,6 +984,120 @@ $assert(is_file($rotatedLog) && strlen($currentLog) < 1024 && !str_contains($cur
 $assert(is_file($logRoot . DIRECTORY_SEPARATOR . '.application-error.lock') &&
     (fileperms($logRoot . DIRECTORY_SEPARATOR . '.application-error.lock') & 0777) === 0600,
     'private error logging serializes concurrent writers with a private stable lock');
+
+
+$healthRoot = $tempRoot . DIRECTORY_SEPARATOR . 'healthcheck-fixture';
+$healthConfigDir = $healthRoot . DIRECTORY_SEPARATOR . 'config';
+$healthStorage = $healthRoot . DIRECTORY_SEPARATOR . 'storage';
+$healthLogs = $healthRoot . DIRECTORY_SEPARATOR . 'logs';
+$healthBackups = $healthRoot . DIRECTORY_SEPARATOR . 'backups';
+foreach ([$healthConfigDir,$healthStorage,$healthLogs,$healthBackups] as $directory) {
+    mkdir($directory,0700,true);
+}
+$healthConfig = $healthConfigDir . DIRECTORY_SEPARATOR . 'app.php';
+file_put_contents($healthConfig, "<?php\nreturn " . var_export([
+    'app_key'=>str_repeat('K',32),
+    'database'=>['password'=>'HEALTHCHECK_SECRET_MUST_NOT_LEAK'],
+    'paths'=>['storage'=>$healthStorage,'logs'=>$healthLogs,'backups'=>$healthBackups],
+],true) . ";\n");
+chmod($healthConfig,0600);
+$healthCommand = [PHP_BINARY,dirname(__DIR__) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'healthcheck.php','--json'];
+$healthProcess = proc_open($healthCommand,[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$healthPipes,null,['TALYVANE_CONFIG'=>$healthConfig]);
+if (!is_resource($healthProcess)) {
+    throw new RuntimeException('Could not start native health-check regression test process.');
+}
+fclose($healthPipes[0]);
+$healthOutput = stream_get_contents($healthPipes[1]);
+$healthError = stream_get_contents($healthPipes[2]);
+fclose($healthPipes[1]);
+fclose($healthPipes[2]);
+$healthExit = proc_close($healthProcess);
+$healthResult = json_decode((string)$healthOutput,true);
+$healthStatuses = [];
+foreach (($healthResult['checks'] ?? []) as $healthCheck) {
+    $healthStatuses[$healthCheck['check']] = $healthCheck['status'];
+}
+$assert($healthExit===1 && ($healthStatuses['private_storage']??null)==='failed' &&
+    ($healthStatuses['private_logs']??null)==='failed' && ($healthStatuses['private_backups']??null)==='failed',
+    'CLI health check fails closed when the configured document root is absent');
+$assert($healthError==='' && is_array($healthResult) && ($healthResult['status']??'')==='degraded' &&
+    !str_contains((string)$healthOutput,'HEALTHCHECK_SECRET_MUST_NOT_LEAK'),
+    'CLI health check emits machine-readable degraded status without diagnostic leakage or configuration secrets');
+
+$healthPublic = $healthRoot . DIRECTORY_SEPARATOR . 'public';
+mkdir($healthPublic,0755,true);
+foreach ([$healthStorage,$healthLogs,$healthBackups] as $directory) {
+    chmod($directory,0755);
+}
+$worldReadableConfig = $healthConfigDir . DIRECTORY_SEPARATOR . 'world-readable-private-paths.php';
+file_put_contents($worldReadableConfig, "<?php\nreturn " . var_export([
+    'app_key'=>str_repeat('W',32),
+    'database'=>[],
+    'paths'=>[
+        'document_root'=>$healthPublic,
+        'storage'=>$healthStorage,
+        'logs'=>$healthLogs,
+        'backups'=>$healthBackups,
+    ],
+],true) . ";\n");
+chmod($worldReadableConfig,0600);
+$permissionProcess = proc_open($healthCommand,[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$permissionPipes,null,['TALYVANE_CONFIG'=>$worldReadableConfig]);
+if (!is_resource($permissionProcess)) {
+    throw new RuntimeException('Could not start native health-check permissions regression test process.');
+}
+fclose($permissionPipes[0]);
+$permissionOutput = stream_get_contents($permissionPipes[1]);
+$permissionError = stream_get_contents($permissionPipes[2]);
+fclose($permissionPipes[1]);
+fclose($permissionPipes[2]);
+$permissionExit = proc_close($permissionProcess);
+$permissionResult = json_decode((string)$permissionOutput,true);
+$permissionStatuses = [];
+foreach (($permissionResult['checks'] ?? []) as $permissionCheck) {
+    $permissionStatuses[$permissionCheck['check']] = $permissionCheck['status'];
+}
+$assert($permissionExit===1 && ($permissionStatuses['private_storage']??null)==='failed' &&
+    ($permissionStatuses['private_logs']??null)==='failed' && ($permissionStatuses['private_backups']??null)==='failed',
+    'CLI health check rejects group/world-accessible private data directories');
+$assert($permissionError==='' && ($permissionStatuses['document_root']??null)==='ok',
+    'CLI health check distinguishes a valid document root from unsafe private-directory permissions');
+
+foreach ([$healthStorage,$healthLogs,$healthBackups] as $directory) {
+    chmod($directory,0700);
+}
+$publicConfig = $healthPublic . DIRECTORY_SEPARATOR . 'private-config.php';
+file_put_contents($publicConfig, "<?php\nreturn " . var_export([
+    'app_key'=>str_repeat('P',32),
+    'database'=>[],
+    'paths'=>[
+        'document_root'=>$healthPublic,
+        'storage'=>$healthStorage,
+        'logs'=>$healthLogs,
+        'backups'=>$healthBackups,
+    ],
+],true) . ";\n");
+chmod($publicConfig,0600);
+$publicConfigProcess = proc_open($healthCommand,[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$publicConfigPipes,null,['TALYVANE_CONFIG'=>$publicConfig]);
+if (!is_resource($publicConfigProcess)) {
+    throw new RuntimeException('Could not start native health-check public-config regression test process.');
+}
+fclose($publicConfigPipes[0]);
+$publicConfigOutput = stream_get_contents($publicConfigPipes[1]);
+$publicConfigError = stream_get_contents($publicConfigPipes[2]);
+fclose($publicConfigPipes[1]);
+fclose($publicConfigPipes[2]);
+$publicConfigExit = proc_close($publicConfigProcess);
+$publicConfigResult = json_decode((string)$publicConfigOutput,true);
+$publicConfigStatuses = [];
+foreach (($publicConfigResult['checks'] ?? []) as $publicConfigCheck) {
+    $publicConfigStatuses[$publicConfigCheck['check']] = $publicConfigCheck['status'];
+}
+$assert($publicConfigExit===1 && ($publicConfigStatuses['configuration_outside_document_root']??null)==='failed',
+    'CLI health check rejects configuration stored beneath the public document root');
+$assert($publicConfigError==='' && ($publicConfigStatuses['document_root']??null)==='ok',
+    'CLI health check reports the public-root boundary independently from private-config placement');
+
+
 
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($iterator as $entry) {

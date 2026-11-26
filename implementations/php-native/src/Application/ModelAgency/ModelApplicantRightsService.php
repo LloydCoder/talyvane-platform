@@ -27,12 +27,14 @@ final class ModelApplicantRightsService
     }
 
     /** Always returns the same outcome to avoid disclosing whether an application exists. */
-    public function request(string $reference,string $email,string $requestType,string $ipAddress,string $requestId): void
+    public function request(string $reference,string $email,string $requestType,string $ipAddress,string $requestId,?string $assetId=null): void
     {
         $reference = strtoupper(trim($reference));
         $email = strtolower(trim($email));
         if (!preg_match('/^[A-Z0-9-]{6,32}$/D',$reference) || filter_var($email,FILTER_VALIDATE_EMAIL) === false ||
-            !in_array($requestType,['access','correction','withdrawal','erasure'],true) ||
+            !in_array($requestType,['access','correction','withdrawal','erasure','portfolio_withdrawal'],true) ||
+            ($requestType==='portfolio_withdrawal' && (!is_string($assetId) || !preg_match('/^[0-9a-f-]{36}$/iD',$assetId))) ||
+            ($requestType!=='portfolio_withdrawal' && $assetId!==null) ||
             $ipAddress === '' || strlen($ipAddress) > 64 || strlen($requestId) < 16 || strlen($requestId) > 64) {
             throw new \InvalidArgumentException('Applicant privacy request details are invalid.');
         }
@@ -47,6 +49,16 @@ final class ModelApplicantRightsService
             !hash_equals(strtolower((string) $application['email']),$email)) {
             return;
         }
+        if ($requestType==='portfolio_withdrawal') {
+            $asset=$this->pdo->prepare(
+                'SELECT a.id FROM model_portfolio_assets a
+                 WHERE a.id=:asset AND a.application_id=:application
+                   AND a.status IN ("pending_review","approved") AND a.consent_withdrawn_at IS NULL
+                 LIMIT 1'
+            );
+            $asset->execute(['asset'=>$assetId,'application'=>$application['id']]);
+            if ($asset->fetchColumn()===false) return;
+        }
         $rightsId = self::uuid();
         $code = str_pad((string) random_int(0,99999999),8,'0',STR_PAD_LEFT);
         $codeHash = hash_hmac('sha256',$rightsId . "\0" . $code,$this->otpPepper);
@@ -58,9 +70,9 @@ final class ModelApplicantRightsService
             )->execute(['application'=>$application['id']]);
             $this->pdo->prepare(
                 'INSERT INTO model_applicant_rights_requests
-                 (id,application_id,request_type,status,otp_hash,expires_at,attempts,verified_at,completed_at,created_at)
-                 VALUES (:id,:application,:type,"pending",:hash,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 10 MINUTE),0,NULL,NULL,UTC_TIMESTAMP())'
-            )->execute(['id'=>$rightsId,'application'=>$application['id'],'type'=>$requestType,'hash'=>$codeHash]);
+                 (id,application_id,related_asset_id,request_type,status,otp_hash,expires_at,attempts,verified_at,completed_at,created_at)
+                 VALUES (:id,:application,:asset,:type,"pending",:hash,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 10 MINUTE),0,NULL,NULL,UTC_TIMESTAMP())'
+            )->execute(['id'=>$rightsId,'application'=>$application['id'],'asset'=>$assetId,'type'=>$requestType,'hash'=>$codeHash]);
             $this->pdo->prepare(
                 'INSERT INTO model_talent_application_events
                  (id,application_id,actor_user_id,actor_type,from_status,to_status,reason,policy_version,created_at)
@@ -170,7 +182,14 @@ final class ModelApplicantRightsService
         $this->pdo->beginTransaction();
         try {
             [$rights,$application] = $this->verifiedContext($rightsRequestId,'access');
+            $assetQuery=$this->pdo->prepare(
+                'SELECT id,status,mime_type,width,height,file_size,created_at,consent_withdrawn_at
+                 FROM model_portfolio_assets WHERE application_id=:application
+                 ORDER BY created_at ASC LIMIT 100'
+            );
+            $assetQuery->execute(['application'=>$application['id']]);
             $result = [
+                'portfolio_assets'=>$assetQuery->fetchAll(PDO::FETCH_ASSOC),
                 'application_reference'=>$application['application_reference'],
                 'applicant_name'=>$application['applicant_name'],
                 'email'=>$application['email'],
@@ -270,6 +289,45 @@ final class ModelApplicantRightsService
                 $this->pdo->commit();
                 return false;
             }
+            // Match the Laravel lifecycle gate: contractual records require a separate
+            // retention review, and private portfolio bytes must be removed before PII erasure.
+            $agreement = $this->pdo->prepare(
+                'SELECT id FROM model_representation_agreements WHERE application_id = :application LIMIT 1 FOR UPDATE'
+            );
+            $agreement->execute(['application'=>$application['id']]);
+            if ($agreement->fetchColumn() !== false) {
+                $this->pdo->prepare(
+                    'UPDATE model_applicant_rights_requests SET status = "rejected",otp_hash = "",completed_at = UTC_TIMESTAMP() WHERE id = :id'
+                )->execute(['id'=>$rightsRequestId]);
+                $this->recordApplicantEvent($application['id'],'application.erasure_deferred_contract_retention',(string) $application['status']);
+                $this->audit->record(null,'model_application.erasure.deferred','model_application',(string) $application['id'],
+                    'Erasure deferred because representation-agreement records require a separate documented retention review',
+                    null,['blocker'=>'representation_agreement'], $requestId,'applicant-rights-v1');
+                $this->pdo->commit();
+                return false;
+            }
+
+            $privateAssets = $this->pdo->prepare(
+                'SELECT id FROM model_portfolio_assets WHERE application_id = :application AND private_storage_key IS NOT NULL LIMIT 1 FOR UPDATE'
+            );
+            $privateAssets->execute(['application'=>$application['id']]);
+            if ($privateAssets->fetchColumn() !== false) {
+                $this->pdo->prepare(
+                    'UPDATE model_applicant_rights_requests SET status = "rejected",otp_hash = "",completed_at = UTC_TIMESTAMP() WHERE id = :id'
+                )->execute(['id'=>$rightsRequestId]);
+                $this->recordApplicantEvent($application['id'],'application.erasure_deferred_private_media',(string) $application['status']);
+                $this->audit->record(null,'model_application.erasure.deferred','model_application',(string) $application['id'],
+                    'Erasure deferred until private portfolio files have been withdrawn and physically removed',
+                    null,['blocker'=>'private_portfolio_media'], $requestId,'applicant-rights-v1');
+                $this->pdo->commit();
+                return false;
+            }
+
+            // Only metadata with no remaining private bytes can be removed. Agreement
+            // and licence foreign keys are protected by the earlier contract gate.
+            $this->pdo->prepare('DELETE FROM model_portfolio_assets WHERE application_id = :application')
+                ->execute(['application'=>$application['id']]);
+
             $replacementEmail = 'erased+' . bin2hex(random_bytes(12)) . '@invalid.example';
             $this->pdo->prepare(
                 'UPDATE model_talent_applications SET applicant_name = "Erased applicant",email = :email,phone = NULL,

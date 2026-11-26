@@ -7,6 +7,9 @@ use Talyvane\Application\Companions\CompanionProfilePublicationService;
 use Talyvane\Application\Destinations\DestinationManagementService;
 use Talyvane\Application\Destinations\DestinationCoverService;
 use Talyvane\Application\Globalization\MarketPolicyManagementService;
+use Talyvane\Application\Globalization\GlobalizationSettingsService;
+use Talyvane\Application\Payments\PaymentSettingsService;
+use Talyvane\Application\Payments\PaymentMethodManagementService;
 use Talyvane\Application\Clients\ClientFavoriteService;
 use Talyvane\Application\Safeguarding\SafeguardingCaseService;
 use Talyvane\Application\Safeguarding\SafeguardingCryptoService;
@@ -25,13 +28,21 @@ use Talyvane\Features\FeatureAvailability;
 use Talyvane\Infrastructure\Database\FeatureStateRepository;
 use Talyvane\Http\AdminClientController;
 use Talyvane\Application\Companions\CompanionAvailabilityService;
+use Talyvane\Application\Features\FeatureManagementService;
 use Talyvane\Application\Bookings\BookingCommandService;
+use Talyvane\Application\Bookings\BookingSettingsService;
+use Talyvane\Application\Bookings\BookingQuoteService;
 use Talyvane\Application\Bookings\BookingQueryService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Media\ProfileMediaService;
 use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
+use Talyvane\Application\ModelAgency\ModelCastingWorkflowService;
+use Talyvane\Application\ModelAgency\ModelPortfolioService;
+use Talyvane\Application\ModelAgency\ModelImageLicenceService;
+use Talyvane\Application\ModelAgency\ModelAssignmentService;
+use Talyvane\Application\ModelAgency\ModelSettlementService;
 use Talyvane\Application\ModelAgency\ModelApplicantRightsService;
 use Talyvane\Application\CRM\EnquiryService;
 use Talyvane\Application\Identity\AccountRecoveryService;
@@ -45,14 +56,24 @@ use Talyvane\Http\AdminCompanionController;
 use Talyvane\Http\AdminDestinationController;
 use Talyvane\Http\PublicDestinationCoverController;
 use Talyvane\Http\AdminMarketController;
+use Talyvane\Http\AdminGlobalizationController;
+use Talyvane\Http\AdminPaymentSettingsController;
+use Talyvane\Http\AdminPaymentMethodController;
+use Talyvane\Http\AdminBookingSettingsController;
 use Talyvane\Http\ClientFavoriteController;
 use Talyvane\Http\ClientPrivateGalleryController;
 use Talyvane\Http\CompanionMediaController;
 use Talyvane\Http\CompanionAvailabilityController;
+use Talyvane\Http\AdminFeatureController;
 use Talyvane\Http\AdminAuthController;
+use Talyvane\Http\AdminBookingQuoteController;
 use Talyvane\Http\AdminBrandController;
 use Talyvane\Http\AdminAuditController;
 use Talyvane\Http\AdminModelAgencyController;
+use Talyvane\Http\AdminModelCastingController;
+use Talyvane\Http\AdminModelAssignmentController;
+use Talyvane\Http\AdminModelSettlementController;
+use Talyvane\Http\AdminModelPortfolioController;
 use Talyvane\Http\AdminProfileMediaController;
 use Talyvane\Http\AdminNavigationController;
 use Talyvane\Http\AdminEnquiryController;
@@ -118,9 +139,14 @@ final class Bootstrap
         $registration = null;
         $recovery = null;
         $modelApplicantRights = null;
-        if (isset($config['mail']['smtp']) && is_array($config['mail']['smtp'])) {
+        $portalPrivacyRights = null;
+        $portalEmailChanges = null;
+        $mailConfig = is_array($config['mail']['smtp'] ?? null)
+            ? $config['mail']['smtp']
+            : (is_array($config['mail'] ?? null) ? $config['mail'] : null);
+        if (is_array($mailConfig)) {
             try {
-                $mailer = new SmtpMailer($config['mail']['smtp']);
+                $mailer = new SmtpMailer($mailConfig);
                 $emailVerification = new EmailVerificationService(
                     $pdo,
                     $mailer,
@@ -128,9 +154,13 @@ final class Bootstrap
                     $audit,
                     hash_hmac('sha256', 'talyvane-email-verification-v1', $config['app_key'])
                 );
+                $portalEmailChanges = new \Talyvane\Application\Identity\PortalEmailChangeService(
+                    $pdo,$mailer,$rateLimiter,$audit,hash_hmac('sha256','talyvane-portal-email-change-v1',$config['app_key'])
+                );
                 $registration = new UserRegistrationService($pdo, $emailVerification, $rateLimiter, $audit);
                 $recovery = new AccountRecoveryService($pdo, $emailVerification, $rateLimiter, $audit);
                 $modelApplicantRights = new ModelApplicantRightsService($pdo, $mailer, $rateLimiter, $audit, hash_hmac('sha256', 'talyvane-model-applicant-rights-v1', $config['app_key']));
+                $portalPrivacyRights = new \Talyvane\Application\Identity\PortalPrivacyRightsService($pdo,$mailer,$rateLimiter,$audit,new SecretBox($config['app_key']),hash_hmac('sha256','talyvane-portal-privacy-rights-v1',$config['app_key']));
             } catch (\InvalidArgumentException) {
                 // Mail-dependent account creation stays unavailable; the public site and existing accounts remain usable.
             }
@@ -151,6 +181,13 @@ final class Bootstrap
             return false;
         };
         $membershipAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(),$membershipEligibility);
+        $castingEligibility = static function(string $dependency) use ($pdo,$brandName): bool {
+            if ($dependency==='market.policy') return MembershipGalleryPolicyReadiness::marketApproved($pdo);
+            if ($dependency==='consent.current') return MembershipGalleryPolicyReadiness::approved($pdo,$brandName);
+            // Legal, provider and independent safeguarding approvals are never inferred.
+            return false;
+        };
+        $castingAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(),$castingEligibility);
         $membershipEntitlements = new MembershipEntitlementService($pdo,$membershipAvailability);
         $publicRoot = (string) ($config['paths']['document_root'] ?? ($_SERVER['DOCUMENT_ROOT'] ?? ''));
         $mediaStorage = new PrivateMediaStorage((string) ($config['paths']['storage'] ?? ''),$publicRoot);
@@ -161,7 +198,7 @@ final class Bootstrap
         $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
         $adminBrand = new AdminBrandController($authentication, $contentManagement, $views);
         $adminNavigation = new AdminNavigationController($pdo, $authentication, $contentManagement, $views);
-        $enquiries = new EnquiryService($pdo, $rateLimiter, $audit);
+        $enquiries = new EnquiryService($pdo, $rateLimiter, $audit, new SecretBox($config['app_key']));
         $companionMedia = new CompanionMediaController($authentication,$profileMedia,$views,$brandName);
         $adminProfileMedia = new AdminProfileMediaController($authentication,$profileMedia,$views,$brandName);
         $publicProfileMedia = new PublicProfileMediaController($profileMedia);
@@ -173,20 +210,50 @@ final class Bootstrap
         $adminDestinations = new AdminDestinationController($authentication,new DestinationManagementService($pdo,$audit),$destinationCovers,$views,$brandName);
         $publicDestinationCovers = new PublicDestinationCoverController($destinationCovers);
         $adminMarkets = new AdminMarketController($authentication, new MarketPolicyManagementService($pdo, $audit), $views, $brandName);
+        $globalizationSettings = new GlobalizationSettingsService($pdo,$audit);
+        $adminGlobalization = new AdminGlobalizationController($authentication,$globalizationSettings,$views,$brandName);
+        $paymentSettings = new PaymentSettingsService($pdo,$audit);
+        $adminPaymentSettings = new AdminPaymentSettingsController($authentication,$paymentSettings,$membershipAvailability,$views,$brandName);
+        $paymentMethods = new PaymentMethodManagementService($pdo,$audit,$membershipAvailability);
+        $adminPaymentMethods = new AdminPaymentMethodController($authentication,$paymentMethods,$membershipAvailability,$views,$brandName);
+        $bookingSettings = new BookingSettingsService($pdo,$audit,$membershipAvailability);
+        $adminBookingSettings = new AdminBookingSettingsController($authentication,$bookingSettings,$views,$brandName);
+        $featureManagement = new FeatureManagementService($pdo,new FeatureStateRepository($pdo),$audit,new SecretBox($config['app_key']),$membershipEligibility);
+        $adminFeatures = new AdminFeatureController($authentication,$featureManagement,$views,$brandName);
         $modelApplications = new ModelAgencyApplicationService($pdo, $audit);
+        $modelAgencyCipher = new SecretBox($config['app_key']);
+        $modelCasting = new ModelCastingWorkflowService($pdo,$audit,$mediaStorage,$modelAgencyCipher,static fn():bool=>$castingAvailability->enabled('model-agency.casting'));
+        $modelPortfolio = new ModelPortfolioService($pdo,$mediaStorage,$audit,$modelAgencyCipher,static fn():bool=>$castingAvailability->enabled('model-agency.usage-rights'));
+        $modelImageLicences = new ModelImageLicenceService($pdo,$audit,$modelAgencyCipher,$mediaStorage,static fn():bool=>$castingAvailability->enabled('model-agency.usage-rights'));
         $publicModelAgency = new PublicModelAgencyController($pdo, $modelApplications, $contentManagement, $rateLimiter, $modelApplicantRights, $views);
         $adminModelAgency = new AdminModelAgencyController($authentication, $modelApplications, $views, $brandName);
-        $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views, $brandName);
+        $adminModelCasting = new AdminModelCastingController($authentication,$modelCasting,$views,$brandName);
+        $modelAssignments = new ModelAssignmentService($pdo,$audit,$modelAgencyCipher,$mediaStorage,static fn():bool=>$castingAvailability->enabled('model-agency.assignments'));
+        $adminModelAssignments = new AdminModelAssignmentController($authentication,$modelAssignments,$views,$brandName);
+        $modelSettlements = new ModelSettlementService($pdo,$audit,$modelAgencyCipher,static fn():bool=>$castingAvailability->enabled('model-agency.settlements'));
+        $adminModelSettlements = new AdminModelSettlementController($authentication,$modelSettlements,$views,$brandName);
+        $adminModelPortfolio = new AdminModelPortfolioController($authentication,$modelPortfolio,$modelImageLicences,$views,$brandName);
+        $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views, $brandName, $modelPortfolio);
         $bookingPolicies = new BookingPolicyRepository($pdo);
-        $bookingService = new BookingService($pdo, $bookingPolicies, $audit);
-        $bookingCommands = new BookingCommandService($pdo, $bookingPolicies, $audit);
+        $bookingQuotes = new BookingQuoteService($pdo,$audit,$bookingPolicies);
+        $adminBookingQuotes = new AdminBookingQuoteController($authentication,$bookingQuotes,$views,$brandName);
+        $bookingNotifications = new \Talyvane\Application\Bookings\BookingNotificationOutbox($pdo,new SecretBox($config['app_key']),hash('sha256',$config['app_key'].'|booking-notification-fingerprint-v1',true));
+        $bookingService = new BookingService($pdo, $bookingPolicies, $audit, $bookingNotifications);
+        $bookingCommands = new BookingCommandService($pdo, $bookingPolicies, $audit, $bookingNotifications);
         $bookingQueries = new BookingQueryService($pdo);
-        $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $discovery, $views, $brandName);
-        $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit), $views, $brandName);
+        $bookingCalendar = new \Talyvane\Application\Bookings\BookingCalendarService($pdo,hash_hmac('sha256','talyvane-calendar-uid-v1',$config['app_key'],true));
+        $calendarFeedTokens = new \Talyvane\Application\Bookings\CalendarFeedTokenService($pdo,$audit);
+        $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $bookingCalendar, $calendarFeedTokens, $bookingQuotes, $discovery, $views, $brandName);
+        $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit, $membershipAvailability), $views, $brandName);
         $clientMemberships = new ClientMembershipService($pdo,$audit,$membershipAvailability);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery, $clientMemberships);
-        $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName);
+        $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName,$portalEmailChanges);
         $portalPrivacy = new PortalPrivacyController($authentication,new PortalPrivacyExportService($pdo,$audit,$rateLimiter));
+        $portalPrivacyRightsController = new \Talyvane\Http\PortalPrivacyRightsController($authentication,$portalPrivacyRights,$views,$brandName);
+        $privacyOutcomeOutbox = new \Talyvane\Application\Identity\PortalPrivacyOutcomeOutbox($pdo,new SecretBox($config['app_key']));
+        $adminPrivacyRights = new \Talyvane\Application\Identity\PortalPrivacyRightsAdminService($pdo,new SecretBox($config['app_key']),$audit,$privacyOutcomeOutbox);
+        $adminPrivacyRightsController = new \Talyvane\Http\AdminPrivacyRightsController($authentication,$adminPrivacyRights,$views,$brandName);
+        $adminPrivacyRightsController = new \Talyvane\Http\AdminPrivacyRightsController($authentication,$adminPrivacyRights,$views,$brandName);
         $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
         $clientPrivateGallery = new ClientPrivateGalleryController($authentication,$profileMedia,$views,$brandName);
         $adminClients = new AdminClientController($pdo,$authentication,$clientMemberships,$views,$brandName);
@@ -215,6 +282,7 @@ final class Bootstrap
         $router->add('POST', '/model-agency/privacy/correct', static fn(Request $request): Response => $publicModelAgencyRights->correct($request));
         $router->add('POST', '/model-agency/privacy/withdraw', static fn(Request $request): Response => $publicModelAgencyRights->withdraw($request));
         $router->add('POST', '/model-agency/privacy/erase', static fn(Request $request): Response => $publicModelAgencyRights->erase($request));
+        $router->add('POST', '/model-agency/privacy/withdraw-portfolio', static fn(Request $request): Response => $publicModelAgencyRights->withdrawPortfolio($request));
         $router->add('GET', '/destinations', static fn(Request $request): Response => $publicDiscovery->destinations($request));
         $router->add('GET', '/companions', static fn(Request $request): Response => $publicDiscovery->companions($request));
         $router->add('GET', '/companions/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->companion($request,$params));
@@ -227,8 +295,17 @@ final class Bootstrap
         $router->add('GET', '/terms', static fn(Request $request): Response => $public->page($request, ['slug'=>'terms']));
 
         $router->add('GET', '/portal/privacy/export', static fn(Request $request): Response => $portalPrivacy->export($request));
+        $router->add('GET', '/portal/privacy', static fn(Request $request): Response => $portalPrivacyRightsController->index($request));
+        $router->add('POST', '/portal/privacy/requests', static fn(Request $request): Response => $portalPrivacyRightsController->request($request));
+        $router->add('POST', '/portal/privacy/verify', static fn(Request $request): Response => $portalPrivacyRightsController->verify($request));
+        $router->add('GET', '/admin/privacy/requests', static fn(Request $request): Response => $adminPrivacyRightsController->index($request));
+        $router->add('POST', '/admin/privacy/requests/review', static fn(Request $request): Response => $adminPrivacyRightsController->review($request));
+        $router->add('GET', '/admin/privacy/requests', static fn(Request $request): Response => $adminPrivacyRightsController->index($request));
+        $router->add('POST', '/admin/privacy/requests/review', static fn(Request $request): Response => $adminPrivacyRightsController->review($request));
         $router->add('GET', '/portal/security', static fn(Request $request): Response => $portalSecurity->index($request));
         $router->add('POST', '/portal/security', static fn(Request $request): Response => $portalSecurity->changePassword($request));
+        $router->add('POST', '/portal/security/email/request', static fn(Request $request): Response => $portalSecurity->requestEmailChange($request));
+        $router->add('POST', '/portal/security/email/verify', static fn(Request $request): Response => $portalSecurity->verifyEmailChange($request));
         $router->add('GET', '/portal/register', static fn(Request $request): Response => $portalAuth->registerForm($request));
         $router->add('POST', '/portal/register', static fn(Request $request): Response => $portalAuth->register($request));
         $router->add('GET', '/portal/verify', static fn(Request $request): Response => $portalAuth->verifyForm($request));
@@ -241,6 +318,13 @@ final class Bootstrap
         $router->add('POST', '/portal/login', static fn(Request $request): Response => $portalAuth->login($request));
         $router->add('GET', '/portal', static fn(Request $request): Response => $portalAuth->dashboard($request));
         $router->add('POST', '/portal/logout', static fn(Request $request): Response => $portalAuth->logout($request));
+        $router->add('GET', '/portal/calendar/feed.ics', static fn(Request $request): Response => $portalBookings->calendarFeed($request));
+        $router->add('POST', '/portal/calendar/feed-tokens', static fn(Request $request): Response => $portalBookings->createCalendarFeedToken($request));
+        $router->add('POST', '/portal/calendar/feed-tokens/{id}/revoke', static fn(Request $request,array $params): Response => $portalBookings->revokeCalendarFeedToken($request,$params));
+        $router->add('GET', '/portal/calendar', static fn(Request $request): Response => $portalBookings->clientCalendar($request));
+        $router->add('GET', '/portal/calendar.ics', static fn(Request $request): Response => $portalBookings->clientCalendarIcs($request));
+        $router->add('GET', '/portal/companion/calendar', static fn(Request $request): Response => $portalBookings->companionCalendar($request));
+        $router->add('GET', '/portal/companion/calendar.ics', static fn(Request $request): Response => $portalBookings->companionCalendarIcs($request));
         $router->add('GET', '/portal/bookings', static fn(Request $request): Response => $portalBookings->clientIndex($request));
         $router->add('GET', '/portal/favorites', static fn(Request $request): Response => $clientFavorites->index($request));
         $router->add('GET', '/portal/gallery', static fn(Request $request): Response => $clientPrivateGallery->index($request));
@@ -248,7 +332,10 @@ final class Bootstrap
         $router->add('POST', '/portal/favorites/{slug}', static fn(Request $request, array $params): Response => $clientFavorites->add($request, $params));
         $router->add('POST', '/portal/favorites/{slug}/remove', static fn(Request $request, array $params): Response => $clientFavorites->remove($request, $params));
         $router->add('GET', '/portal/bookings/new', static fn(Request $request): Response => $portalBookings->newForm($request));
+        $router->add('POST', '/portal/quotes/{id}/accept', static fn(Request $request,array $params): Response => $portalBookings->acceptQuote($request,$params));
         $router->add('POST', '/portal/bookings', static fn(Request $request): Response => $portalBookings->store($request));
+        $router->add('GET', '/portal/bookings/{id}/reschedule', static fn(Request $request, array $params): Response => $portalBookings->rescheduleForm($request, $params));
+        $router->add('POST', '/portal/bookings/{id}/reschedule', static fn(Request $request, array $params): Response => $portalBookings->reschedule($request, $params));
         $router->add('POST', '/portal/bookings/{id}/cancel', static fn(Request $request, array $params): Response => $portalBookings->cancel($request, $params));
         $router->add('GET', '/portal/companion/bookings', static fn(Request $request): Response => $portalBookings->companionIndex($request));
         $router->add('GET', '/portal/companion/media', static fn(Request $request): Response => $companionMedia->index($request));
@@ -260,6 +347,7 @@ final class Bootstrap
         $router->add('POST', '/portal/companion/publication/renew', static fn(Request $request): Response => $companionMedia->renewPublicationConsent($request));
         $router->add('GET', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->index($request));
         $router->add('POST', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->save($request));
+        $router->add('POST', '/portal/companion/automatic-booking', static fn(Request $request): Response => $companionAvailability->automaticBookingPreference($request));
         $router->add('POST', '/portal/companion/availability/{id}/delete', static fn(Request $request, array $params): Response => $companionAvailability->delete($request, $params));
         $router->add('POST', '/portal/companion/bookings/{id}/decision', static fn(Request $request, array $params): Response => $portalBookings->companionDecision($request, $params));
 
@@ -281,13 +369,63 @@ final class Bootstrap
         $router->add('GET', '/admin/brand', static fn(Request $request): Response => $adminBrand->show($request));
         $router->add('POST', '/admin/brand', static fn(Request $request): Response => $adminBrand->update($request));
         $router->add('GET', '/admin/bookings', static fn(Request $request): Response => $portalBookings->adminIndex($request));
+        $router->add('GET', '/admin/booking-quotes', static fn(Request $request): Response => $adminBookingQuotes->index($request));
+        $router->add('POST', '/admin/booking-quotes', static fn(Request $request): Response => $adminBookingQuotes->create($request));
         $router->add('POST', '/admin/bookings/{id}/status', static fn(Request $request, array $params): Response => $portalBookings->adminTransition($request, $params));
         $router->add('GET', '/admin/model-agency', static fn(Request $request): Response => $adminModelAgency->index($request));
         $router->add('GET', '/admin/model-agency/verifications', static fn(Request $request): Response => $adminModelAgency->verificationQueue($request));
         $router->add('POST', '/admin/model-agency/{id}/review', static fn(Request $request, array $params): Response => $adminModelAgency->review($request, $params));
         $router->add('POST', '/admin/model-agency/{id}/verify', static fn(Request $request, array $params): Response => $adminModelAgency->verify($request, $params));
         $router->add('POST', '/admin/model-agency/{id}/legal-hold', static fn(Request $request, array $params): Response => $adminModelAgency->legalHold($request, $params));
+        $router->add('GET', '/admin/model-agency/portfolio', static fn(Request $request): Response => $adminModelPortfolio->index($request));
+        $router->add('POST', '/admin/model-agency/portfolio', static fn(Request $request): Response => $adminModelPortfolio->store($request));
+        $router->add('GET', '/admin/model-agency/portfolio/{id}/preview', static fn(Request $request,array $params): Response => $adminModelPortfolio->preview($request,$params));
+        $router->add('POST', '/admin/model-agency/portfolio/{id}/review', static fn(Request $request,array $params): Response => $adminModelPortfolio->review($request,$params));
+        $router->add('POST', '/admin/model-agency/portfolio/{id}/withdraw', static fn(Request $request,array $params): Response => $adminModelPortfolio->withdrawConsent($request,$params));
+        $router->add('POST', '/admin/model-agency/portfolio/licences', static fn(Request $request): Response => $adminModelPortfolio->createLicence($request));
+        $router->add('POST', '/admin/model-agency/portfolio/licences/{id}/activate', static fn(Request $request,array $params): Response => $adminModelPortfolio->activateLicence($request,$params));
+        $router->add('POST', '/admin/model-agency/portfolio/licences/{id}/revoke', static fn(Request $request,array $params): Response => $adminModelPortfolio->revokeLicence($request,$params));
+        $router->add('GET', '/admin/model-agency/settlements', static fn(Request $request): Response => $adminModelSettlements->index($request));
+        $router->add('POST', '/admin/model-agency/settlements/assignments/{id}/expenses', static fn(Request $request,array $params): Response => $adminModelSettlements->addExpense($request,$params));
+        $router->add('POST', '/admin/model-agency/settlements/assignments/{id}/draft', static fn(Request $request,array $params): Response => $adminModelSettlements->createDraft($request,$params));
+        $router->add('POST', '/admin/model-agency/settlements/expenses/{id}/review', static fn(Request $request,array $params): Response => $adminModelSettlements->reviewExpense($request,$params));
+        foreach (['approve','payment','reverse','dispute'] as $settlementAction) {
+            $router->add('POST', '/admin/model-agency/settlements/{id}/'.$settlementAction,
+                static fn(Request $request,array $params): Response => match($settlementAction) {
+                    'approve'=>$adminModelSettlements->approve($request,$params),
+                    'payment'=>$adminModelSettlements->recordPayment($request,$params),
+                    'reverse'=>$adminModelSettlements->reverse($request,$params),
+                    'dispute'=>$adminModelSettlements->dispute($request,$params),
+                });
+        }
+        $router->add('GET', '/admin/model-agency/assignments', static fn(Request $request): Response => $adminModelAssignments->index($request));
+        $router->add('POST', '/admin/model-agency/assignments', static fn(Request $request): Response => $adminModelAssignments->create($request));
+        foreach (['offer','accept','confirm','start','complete','decline','cancel','dispute'] as $assignmentAction) {
+            $router->add('POST', '/admin/model-agency/assignments/{id}/'.$assignmentAction,
+                static fn(Request $request,array $params): Response => $adminModelAssignments->{$assignmentAction}($request,$params));
+        }
+        $router->add('GET', '/admin/model-agency/casting', static fn(Request $request): Response => $adminModelCasting->index($request));
+        $router->add('POST', '/admin/model-agency/casting', static fn(Request $request): Response => $adminModelCasting->create($request));
+        $router->add('POST', '/admin/model-agency/casting/{id}/publish', static fn(Request $request,array $params): Response => $adminModelCasting->publish($request,$params));
+        $router->add('POST', '/admin/model-agency/casting/{id}/close', static fn(Request $request,array $params): Response => $adminModelCasting->close($request,$params));
+        $router->add('POST', '/admin/model-agency/casting/{id}/cancel', static fn(Request $request,array $params): Response => $adminModelCasting->cancel($request,$params));
+        $router->add('POST', '/admin/model-agency/casting/{id}/submissions', static fn(Request $request,array $params): Response => $adminModelCasting->submit($request,$params));
+        $router->add('POST', '/admin/model-agency/casting/submissions/{id}/decision', static fn(Request $request,array $params): Response => $adminModelCasting->decide($request,$params));
+        $router->add('POST', '/admin/model-agency/casting/submissions/{id}/withdraw', static fn(Request $request,array $params): Response => $adminModelCasting->withdraw($request,$params));
         $router->add('GET', '/admin/markets', static fn(Request $request): Response => $adminMarkets->index($request));
+        $router->add('GET', '/admin/globalization', static fn(Request $request): Response => $adminGlobalization->index($request));
+        $router->add('GET', '/admin/payment-settings', static fn(Request $request): Response => $adminPaymentSettings->index($request));
+        $router->add('POST', '/admin/payment-settings', static fn(Request $request): Response => $adminPaymentSettings->update($request));
+        $router->add('GET', '/admin/bookings/settings', static fn(Request $request): Response => $adminBookingSettings->index($request));
+        $router->add('POST', '/admin/bookings/settings', static fn(Request $request): Response => $adminBookingSettings->update($request));
+        $router->add('GET', '/admin/payment-methods', static fn(Request $request): Response => $adminPaymentMethods->index($request));
+        $router->add('POST', '/admin/payment-methods', static fn(Request $request): Response => $adminPaymentMethods->create($request));
+        $router->add('POST', '/admin/payment-methods/{id}/review', static fn(Request $request,array $params): Response => $adminPaymentMethods->review($request,$params));
+        $router->add('POST', '/admin/payment-methods/{id}/toggle', static fn(Request $request,array $params): Response => $adminPaymentMethods->toggle($request,$params));
+        $router->add('POST', '/admin/globalization/defaults', static fn(Request $request): Response => $adminGlobalization->updateDefaults($request));
+        $router->add('POST', '/admin/globalization/currencies/{code}/toggle', static fn(Request $request,array $params): Response => $adminGlobalization->toggleCurrency($request,$params));
+        $router->add('GET', '/admin/features', static fn(Request $request): Response => $adminFeatures->index($request));
+        $router->add('POST', '/admin/features/{key}', static fn(Request $request,array $params): Response => $adminFeatures->update($request,$params));
         $router->add('POST', '/admin/markets/{country_code}/review', static fn(Request $request, array $params): Response => $adminMarkets->review($request, $params));
         $router->add('GET', '/admin/destinations', static fn(Request $request): Response => $adminDestinations->index($request));
         $router->add('POST', '/admin/destinations', static fn(Request $request): Response => $adminDestinations->save($request));
@@ -314,6 +452,10 @@ final class Bootstrap
         $router->add('POST', '/admin/memberships/{id}/suspend', static fn(Request $request,array $params): Response => $adminClients->suspend($request,$params));
         $router->add('GET', '/admin/enquiries', static fn(Request $request): Response => $adminEnquiries->index($request));
         $router->add('POST', '/admin/enquiries/{reference}', static fn(Request $request, array $params): Response => $adminEnquiries->update($request, $params));
+        $router->add('POST', '/admin/enquiries/{reference}/assign', static fn(Request $request, array $params): Response => $adminEnquiries->assign($request, $params));
+        $router->add('POST', '/admin/enquiries/{reference}/notes', static fn(Request $request, array $params): Response => $adminEnquiries->addNote($request, $params));
+        $router->add('POST', '/admin/enquiries/{reference}/reminders', static fn(Request $request, array $params): Response => $adminEnquiries->scheduleReminder($request, $params));
+        $router->add('POST', '/admin/enquiry-reminders/{reminder}/complete', static fn(Request $request, array $params): Response => $adminEnquiries->completeReminder($request, $params));
         $router->add('GET', '/admin/navigation', static fn(Request $request): Response => $adminNavigation->index($request));
         $router->add('POST', '/admin/navigation', static fn(Request $request, array $params): Response => $adminNavigation->save($request));
         $router->add('POST', '/admin/navigation/{id}', static fn(Request $request, array $params): Response => $adminNavigation->save($request, $params));

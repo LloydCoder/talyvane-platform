@@ -1,5 +1,7 @@
 # Deployment, release and upgrade operations
 
+This runbook describes the Laravel deployment path unless a section explicitly says otherwise. Native PHP has a separate private cPanel runtime, CLI, migrations and package; follow [its operator guide](../implementations/php-native/README.md) and [reconciled status](NATIVE-PHP-PORT-STATUS.md). Never run Laravel Artisan commands against the native PHP installation.
+
 ## Release policy
 
 - Deploy only tagged, reviewed releases with green CI.

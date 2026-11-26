@@ -1,0 +1,96 @@
+<?php
+declare(strict_types=1);
+
+namespace Talyvane\Http;
+
+use DomainException;
+use Talyvane\Application\Identity\AuthenticationService;
+use Talyvane\Application\Identity\PortalPrivacyRightsAdminService;
+use Talyvane\Security\Csrf;
+use Talyvane\Security\SessionManager;
+
+final class AdminPrivacyRightsController
+{
+    public function __construct(
+        private AuthenticationService $authentication,
+        private PortalPrivacyRightsAdminService $rights,
+        private ViewRenderer $views,
+        private string $brandName
+    ) {}
+
+    public function index(Request $request,string $notice='',string $error='',int $status=200): Response
+    {
+        SessionManager::start();
+        $actor=$this->authentication->currentPrincipal();
+        if($actor===null) return Response::redirect('/admin/login');
+        try {
+            $items=$this->rights->queue($actor,$request->requestId);
+            return Response::html($this->views->render('admin/privacy-rights',[
+                'items'=>$items,'notice'=>$notice,'error'=>$error,
+                'csrf'=>Csrf::issue(),'brandName'=>$this->brandName,
+            ]),$status);
+        } catch(DomainException) {
+            return Response::html('You do not have permission to review privacy requests.',403);
+        }
+    }
+
+    public function review(Request $request): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) {
+            return $this->index($request,'','Your session expired. Refresh and try again.',419);
+        }
+        $actor=$this->authentication->currentPrincipal();
+        if($actor===null) return Response::redirect('/admin/login');
+        try {
+            if ($this->field($request,'decision')==='fulfill_client_correction') {
+                $this->rights->fulfillClientCorrection($actor,$this->field($request,'request_id'),
+                    $this->field($request,'client_name'),$this->field($request,'reason'),$request->requestId);
+                return $this->index($request,'Verified client account name correction applied. Contact email was not changed.');
+            }
+            if ($this->field($request,'decision')==='fulfill_client_erasure') {
+                if ($this->field($request,'confirm_erasure')!=='yes') {
+                    throw new \InvalidArgumentException('Explicit erasure confirmation is required.');
+                }
+                $this->rights->fulfillClientErasure($actor,$this->field($request,'request_id'),
+                    $this->field($request,'reason'),$request->requestId);
+                return $this->index($request,'Client account anonymized after all automated dependency checks passed. Backup expiry and third-party propagation remain separate obligations.');
+            }
+            if ($this->field($request,'decision')==='fulfill_companion_erasure') {
+                if ($this->field($request,'confirm_erasure')!=='yes') {
+                    throw new \InvalidArgumentException('Explicit erasure confirmation is required.');
+                }
+                $this->rights->fulfillCompanionErasure($actor,$this->field($request,'request_id'),
+                    $this->field($request,'reason'),$request->requestId);
+                return $this->index($request,'Companion account anonymized and profile withdrawn after all automated dependency checks passed. Backup expiry and third-party propagation remain separate obligations.');
+            }
+            if ($this->field($request,'decision')==='fulfill_companion_correction') {
+                $rawLanguages=$this->field($request,'languages');
+                $languages=array_values(array_filter(array_map('trim',explode(',',$rawLanguages)),static fn(string $value):bool=>$value!==''));
+                $this->rights->fulfillCompanionCorrection($actor,$this->field($request,'request_id'),
+                    $this->field($request,'display_name'),$this->field($request,'biography'),$languages,
+                    $this->field($request,'reason'),$request->requestId);
+                return $this->index($request,'Verified companion profile correction applied. The profile is now unpublished pending a fresh publication review.');
+            }
+            $this->rights->review($actor,$this->field($request,'request_id'),
+                $this->field($request,'decision'),$this->field($request,'reason'),$request->requestId);
+            return $this->index($request,'Privacy request review decision recorded. No data was erased or corrected automatically.');
+        } catch(DomainException $error) {
+            $message=str_contains($error->getMessage(),'blocked by retained') || str_contains($error->getMessage(),'Only an active account') ||
+                str_contains($error->getMessage(),'profile is unavailable')
+                ? 'Erasure is blocked by retained records or unresolved account dependencies. No data was changed; complete a documented retention review.'
+                : 'The privacy request is no longer awaiting review or you lack permission.';
+            return $this->index($request,'',$message,403);
+        } catch(\InvalidArgumentException) {
+            return $this->index($request,'','Provide a valid review decision and a reason of at least 10 characters.',422);
+        } catch(\Throwable) {
+            return $this->index($request,'','The privacy review could not be recorded.',503);
+        }
+    }
+
+    private function field(Request $request,string $name): string
+    {
+        $value=$request->body[$name]??'';
+        return is_string($value)?$value:'';
+    }
+}

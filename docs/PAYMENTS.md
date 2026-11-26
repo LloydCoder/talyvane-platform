@@ -29,7 +29,7 @@ Each receiving method is configured separately by network/chain. Network labels 
 
 The manual review is not proof of wallet ownership and is not proof that a customer payment was received.
 
-## Not implemented — do not activate payments
+## Customer payment processing — not implemented; do not activate payment rails
 
 - Public checkout and invoice generation.
 - Immutable invoice snapshots.
@@ -52,3 +52,8 @@ Payment state must be server-derived. A screenshot, wallet redirect, browser cal
 ## Legal and commercial gates
 
 The operating entity, payment purpose, jurisdictions, provider terms, sanctions controls, tax treatment and any applicable licensing requirements require qualified review. Direct-to-wallet does not automatically eliminate payment-services or other regulatory obligations. The business must obtain written approval from any card processor and hosting provider for the actual business model before enabling those rails.
+
+
+## Separate model-agency settlement ledger
+
+The native PHP branch has a separate administrator-only model settlement ledger. It supports private expense claims and evidence references, assignment expense caps, independent expense review, integer-minor-unit commission/net calculations, immutable calculation snapshots, maker-checker approval, and external payment/reversal/dispute attestations. The `paid` state is an internal record that an administrator attests to an external payment; it does not initiate, custody, route or independently verify funds. This is not customer checkout and does not satisfy the payment-provider, blockchain-observation, invoice/reconciliation, refund or card-underwriting requirements above. See [native PHP port status](NATIVE-PHP-PORT-STATUS.md) and [model settlement ledger](MODEL-SETTLEMENTS.md).

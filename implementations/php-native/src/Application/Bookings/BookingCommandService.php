@@ -19,7 +19,8 @@ final class BookingCommandService
     public function __construct(
         private PDO $pdo,
         private BookingPolicyRepository $policies,
-        private AuditLogger $audit
+        private AuditLogger $audit,
+        private ?BookingNotificationOutbox $notifications = null
     ) {}
 
     public function transition(Principal $actor, string $bookingId, string $toState, string $reason, string $requestId): string
@@ -33,7 +34,7 @@ final class BookingCommandService
         $this->pdo->beginTransaction();
         try {
             $query = $this->pdo->prepare(
-                'SELECT b.id,b.client_user_id,b.profile_id,b.status,b.deposit_status,p.user_id AS companion_user_id
+                'SELECT b.id,b.client_user_id,b.profile_id,b.status,b.deposit_status,b.starts_at_utc,p.user_id AS companion_user_id
                  FROM bookings b JOIN companion_profiles p ON p.id = b.profile_id
                  WHERE b.id = :id FOR UPDATE'
             );
@@ -44,6 +45,19 @@ final class BookingCommandService
             }
             $this->assertBookingOwnership($actor,$actorRole,$booking);
             $fromState = (string) $booking['status'];
+            if ($actorRole === 'client' && $toState === 'cancelled') {
+                $policy = $this->policies->current();
+                $cancellation = new \Talyvane\Domain\Booking\BookingCancellationPolicy(
+                    $policy->clientCancellationEnabled,
+                    $policy->clientCancellationCutoffMinutes
+                );
+                $cancellation->assertAllowed(
+                    'client',
+                    $fromState,
+                    new DateTimeImmutable((string) $booking['starts_at_utc'],new DateTimeZone('UTC')),
+                    new DateTimeImmutable('now',new DateTimeZone('UTC'))
+                );
+            }
             $newState = BookingStateMachine::transition($fromState,$toState,$actorRole);
             if ($toState === 'confirmed' && !in_array($booking['deposit_status'],['paid','not_required'],true)) {
                 throw new \DomainException('Booking cannot be confirmed until the required deposit is verified.');
@@ -54,6 +68,25 @@ final class BookingCommandService
                 throw new \DomainException('Booking state changed concurrently; reload and retry.');
             }
             $this->recordEvent($bookingId,$actor->id,$actorRole,$fromState,$newState,trim($reason),$requestId);
+            if ($this->notifications !== null && $newState !== $fromState) {
+                $eventKey=match($newState) {
+                    'accepted'=>'booking.accepted',
+                    'confirmed'=>'booking.confirmed',
+                    'declined'=>'booking.declined',
+                    'cancelled'=>'booking.cancelled',
+                    default=>null,
+                };
+                if ($eventKey !== null) {
+                    if ($actorRole === 'client') {
+                        $this->notifications->enqueue($bookingId,(string)$booking['companion_user_id'],$eventKey);
+                    } elseif ($actorRole === 'companion') {
+                        $this->notifications->enqueue($bookingId,(string)$booking['client_user_id'],$eventKey);
+                    } else {
+                        $this->notifications->enqueue($bookingId,(string)$booking['client_user_id'],$eventKey);
+                        $this->notifications->enqueue($bookingId,(string)$booking['companion_user_id'],$eventKey);
+                    }
+                }
+            }
             $this->audit->record($actor->id,'booking.state.changed','booking',$bookingId,trim($reason),['status'=>$fromState],['status'=>$newState],$requestId,'booking-lifecycle-v1');
             $this->pdo->commit();
             return $newState;
@@ -195,6 +228,12 @@ final class BookingCommandService
                 'id'=>$bookingId,
             ]);
             $this->recordEvent($bookingId,$actor->id,$actorRole,(string) $booking['status'],(string) $booking['status'],'Rescheduled: ' . trim($reason),$requestId);
+            if ($this->notifications !== null) {
+                $this->notifications->enqueue($bookingId,(string)$booking['companion_user_id'],'booking.rescheduled');
+                if ($actorRole !== 'client') {
+                    $this->notifications->enqueue($bookingId,(string)$booking['client_user_id'],'booking.rescheduled');
+                }
+            }
             $this->audit->record($actor->id,'booking.rescheduled','booking',$bookingId,trim($reason),[
                 'starts_at_utc'=>$booking['starts_at_utc'],
                 'ends_at_utc'=>$booking['ends_at_utc'],
@@ -213,6 +252,15 @@ final class BookingCommandService
 
     private function actorRole(Principal $actor): string
     {
+        // Portal identities are mutually exclusive: a client/companion principal
+        // must never inherit an administrator's broader booking authority through
+        // a mixed-role session or stale role assignment.
+        if (($actor->hasRole('client') || $actor->hasRole('companion')) && count($actor->roles)!==1) {
+            throw new \DomainException('Portal booking actions require a single-purpose client or companion identity.');
+        }
+        if ($actor->hasRole('client') && $actor->hasRole('companion')) {
+            throw new \DomainException('A booking principal cannot be both client and companion.');
+        }
         foreach (['super_admin','owner','admin','companion','client'] as $role) {
             if ($actor->hasRole($role)) {
                 return $role;

@@ -1,5 +1,7 @@
 # Standalone release packaging
 
+The Laravel standalone artifact and the native PHP single-ZIP candidate are separate release products with different package contracts. Native PHP current-head evidence and outstanding acceptance gates are maintained in [NATIVE-PHP-PORT-STATUS.md](NATIVE-PHP-PORT-STATUS.md). A passing package job is not a signed customer release.
+
 ## Current CI artifact
 
 After every complete PHP 8.3/8.4/8.5 test matrix passes, CI performs a production-only Composer installation on PHP 8.3 and creates a standalone package smoke artifact from the exact tested commit.
@@ -31,3 +33,10 @@ Production release engineering remains open. The one-download cPanel bootstrap c
 - Backup/restore and upgrade/rollback drills.
 
 Until the signed/tagged release and provider acceptance gates are completed, do not deploy the browser-installer smoke artifact as a production release. Use only an approved, documented deployment path on a verified compatible host, and obtain written hosting, payment and legal approvals for the actual deployment model.
+
+
+## Native PHP cPanel candidate SBOM
+
+The native PHP single-ZIP candidate now includes `SBOM.spdx.json` at the customer ZIP root. It is an SPDX 2.3 file-level inventory of the exact private native payload staged into `.talyvane-native-payload.zip`. Every file record carries a SHA-256 digest, and the package contract test compares the SBOM inventory and every digest against the actual nested ZIP contents. The SBOM namespace and version are bound to the full source commit; its creation timestamp is derived from that commit, making the generated document reproducible for the same source tree.
+
+This is a source-file inventory, not a complete dependency/component SBOM for the Laravel/Composer distribution, and it is not a vulnerability scan, signature, provenance attestation or independent verification. The native implementation currently has no Composer runtime dependency tree. The native customer ZIP and checksum are still a non-production acceptance candidate. Signed/tagged release, GitHub build-provenance attestation, key management and independent release approval remain outstanding.

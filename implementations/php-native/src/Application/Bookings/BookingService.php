@@ -20,7 +20,8 @@ final class BookingService
     public function __construct(
         private PDO $pdo,
         private BookingPolicyRepository $policies,
-        private AuditLogger $audit
+        private AuditLogger $audit,
+        private ?BookingNotificationOutbox $notifications = null
     ) {}
 
     public function request(
@@ -59,7 +60,7 @@ final class BookingService
         $this->pdo->beginTransaction();
         try {
             $profileQuery = $this->pdo->prepare(
-                'SELECT p.id,p.status,p.adult_eligibility_status,p.adult_verified_at,p.adult_verified_by,
+                'SELECT p.id,p.user_id AS companion_user_id,p.status,p.adult_eligibility_status,p.adult_verified_at,p.adult_verified_by,
                         p.publication_consent_version,p.publication_consent_withdrawn_at,p.auto_booking_opt_in,
                         d.id AS destination_id,d.country_code,d.time_zone,d.status AS destination_status,
                         c.enabled AS country_enabled,m.enabled AS market_enabled,m.decision AS market_decision,
@@ -139,13 +140,20 @@ final class BookingService
                 if ($quoteSnapshotId === null) {
                     throw new \DomainException('An accepted quote is required by the deposit policy.');
                 }
-                $quoteQuery = $this->pdo->prepare('SELECT country_code,expires_at,accepted_at FROM quote_snapshots WHERE id = :id FOR UPDATE');
+                $quoteQuery = $this->pdo->prepare(
+                    'SELECT client_user_id,profile_id,destination_id,country_code,expires_at,accepted_at,accepted_by,
+                            consumed_at,consumed_booking_id,policy_version
+                     FROM quote_snapshots WHERE id = :id FOR UPDATE'
+                );
                 $quoteQuery->execute(['id'=>$quoteSnapshotId]);
                 $quote = $quoteQuery->fetch();
-                if (!is_array($quote) || $quote['country_code'] !== $profile['country_code'] ||
-                    $quote['accepted_at'] === null ||
+                if (!is_array($quote) || $quote['client_user_id'] !== $client->id ||
+                    $quote['profile_id'] !== $profileId || $quote['destination_id'] !== $profile['destination_id'] ||
+                    $quote['country_code'] !== $profile['country_code'] || $quote['accepted_at'] === null ||
+                    $quote['accepted_by'] !== $client->id || $quote['consumed_at'] !== null || $quote['consumed_booking_id'] !== null ||
+                    $quote['policy_version'] !== $policy->version ||
                     new DateTimeImmutable((string) $quote['expires_at'],$utc) <= $now) {
-                    throw new \DomainException('Quote is missing, expired, unaccepted or belongs to another market.');
+                    throw new \DomainException('Quote is missing, expired, unaccepted, consumed or not bound to this client, profile, market and policy.');
                 }
             }
 
@@ -164,7 +172,7 @@ final class BookingService
                 throw new \DomainException('Requested time overlaps an existing booking or pending request.');
             }
 
-            $autoEligible = $policy->automaticEnabled && (bool) $profile['auto_booking_opt_in'] &&
+            $autoEligible = $policy->automaticEnabled && $policy->autoConfirmEnabled && (bool) $profile['auto_booking_opt_in'] &&
                 !$policy->depositRequired && $this->isWithinCompanionAvailability($profileId,$start,$end) &&
                 $this->automaticFeatureAvailable($market,$consent,$profileId,$now);
             $mode = $autoEligible ? 'automatic' : 'manual';
@@ -192,12 +200,32 @@ final class BookingService
                 'policy'=>$policy->version,
                 'note'=>$note,
             ]);
+            if($quoteSnapshotId!==null) {
+                $consumeQuote=$this->pdo->prepare(
+                    'UPDATE quote_snapshots SET consumed_at=UTC_TIMESTAMP(),consumed_booking_id=:booking
+                     WHERE id=:quote AND client_user_id=:client AND profile_id=:profile
+                       AND accepted_by=:accepted_by AND accepted_at IS NOT NULL AND consumed_at IS NULL
+                       AND consumed_booking_id IS NULL AND expires_at>UTC_TIMESTAMP()'
+                );
+                $consumeQuote->execute([
+                    'booking'=>$bookingId,'quote'=>$quoteSnapshotId,'client'=>$client->id,
+                    'profile'=>$profileId,'accepted_by'=>$client->id,
+                ]);
+                if($consumeQuote->rowCount()!==1) throw new \DomainException('Accepted quote was consumed concurrently; request a new quote.');
+            }
             $this->recordEvent($bookingId,$client->id,'client','draft','requested','Client submitted booking request',$policy->version);
             if ($autoEligible) {
                 BookingStateMachine::transition('requested','confirmed','system');
                 $confirm = $this->pdo->prepare('UPDATE bookings SET status = "confirmed", updated_at = UTC_TIMESTAMP() WHERE id = :id AND status = "requested"');
                 $confirm->execute(['id'=>$bookingId]);
                 $this->recordEvent($bookingId,null,'system','requested','confirmed','Automatic rules and companion opt-in satisfied',$policy->version);
+            }
+            if ($this->notifications !== null) {
+                $eventKey=$autoEligible?'booking.confirmed':'booking.requested';
+                $this->notifications->enqueue($bookingId,(string)$profile['companion_user_id'],$eventKey);
+                if ($autoEligible) {
+                    $this->notifications->enqueue($bookingId,$client->id,'booking.confirmed');
+                }
             }
             $this->audit->record($client->id,'booking.requested','booking',$bookingId,'Client booking request created',null,[
                 'status'=>$autoEligible ? 'confirmed' : 'requested',
