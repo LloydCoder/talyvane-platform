@@ -27,6 +27,38 @@ final class ModelImageLicenceService
         $this->usageRightsEnabled=Closure::fromCallable($usageRightsEnabled);
     }
 
+    /** @return array{assets:list<array<string,mixed>>,agreements:list<array<string,mixed>>,licences:list<array<string,mixed>>} */
+    public function dashboard(Principal $actor,int $limit=100): array
+    {
+        $this->authorize($actor);
+        $limit=max(1,min(100,$limit));
+        $assetsQuery=$this->pdo->prepare(
+            'SELECT a.id,a.application_id,m.application_reference,m.country_code,a.status,a.mime_type,a.width,a.height,a.created_at
+             FROM model_portfolio_assets a JOIN model_talent_applications m ON m.id=a.application_id
+             WHERE a.status="approved" AND a.consent_withdrawn_at IS NULL AND a.private_storage_key IS NOT NULL
+             ORDER BY a.created_at DESC LIMIT :limit'
+        );
+        $assetsQuery->bindValue(':limit',$limit,PDO::PARAM_INT);$assetsQuery->execute();
+        $agreementsQuery=$this->pdo->prepare(
+            'SELECT id,agreement_reference,application_id,effective_from,effective_until
+             FROM model_representation_agreements WHERE status="executed" AND effective_until>UTC_TIMESTAMP()
+             ORDER BY created_at DESC LIMIT :limit'
+        );
+        $agreementsQuery->bindValue(':limit',$limit,PDO::PARAM_INT);$agreementsQuery->execute();
+        $licencesQuery=$this->pdo->prepare(
+            'SELECT id,licence_reference,application_id,portfolio_asset_id,status,purpose,territory_code,
+                    channels,starts_on,ends_on,exclusivity,compensation_amount,currency_code,
+                    licence_policy_version,activated_at,revoked_at,expired_at,created_at
+             FROM model_image_licences ORDER BY created_at DESC LIMIT :limit'
+        );
+        $licencesQuery->bindValue(':limit',$limit,PDO::PARAM_INT);$licencesQuery->execute();
+        return [
+            'assets'=>$assetsQuery->fetchAll(PDO::FETCH_ASSOC),
+            'agreements'=>$agreementsQuery->fetchAll(PDO::FETCH_ASSOC),
+            'licences'=>$licencesQuery->fetchAll(PDO::FETCH_ASSOC),
+        ];
+    }
+
     /** @param array<string,mixed> $terms */
     public function createDraft(Principal $actor,string $assetId,string $agreementId,array $terms,string $requestId): string
     {
