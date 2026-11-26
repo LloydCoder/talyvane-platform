@@ -715,6 +715,15 @@ function runIdentityIntegration(PDO $pdo): int
     try { $portalRightsAdmin->queue($clientPrincipal,bin2hex(random_bytes(16))); }
     catch (DomainException) { $clientPrivacyReviewDenied=true; }
     $assert($clientPrivacyReviewDenied,'client and companion accounts cannot access the administrator privacy review queue');
+    $pdo->prepare('UPDATE users SET email_verified_at=NULL WHERE id=:id')->execute(['id'=>$registeredId]);
+    $unverifiedPrivacyNoticeDenied=false;
+    try {
+        $portalRightsAdmin->review($superAdmin,$erasureRequestId,'deferred',
+            'Legal retention and active service records require further assessment.',bin2hex(random_bytes(16)));
+    } catch (DomainException) { $unverifiedPrivacyNoticeDenied=true; }
+    $assert($unverifiedPrivacyNoticeDenied,
+        'privacy review outcome notices are not queued to an unverified email address');
+    $pdo->prepare('UPDATE users SET email_verified_at=UTC_TIMESTAMP() WHERE id=:id')->execute(['id'=>$registeredId]);
     $portalRightsAdmin->review($superAdmin,$erasureRequestId,'deferred',
         'Legal retention and active service records require further assessment.',bin2hex(random_bytes(16)));
     $deferredRequest=$pdo->prepare('SELECT status,decision_reason FROM portal_privacy_requests WHERE id=:id');
