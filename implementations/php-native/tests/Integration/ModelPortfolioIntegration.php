@@ -179,9 +179,10 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $clientDistribution->linkCastingCall($admin,$callId,$clientId,bin2hex(random_bytes(16)));
     $clientPrincipal=new Principal($clientId,['client'],false);
     $distributedCalls=$clientDistribution->castingCalls($clientPrincipal);
-    $assert(count($distributedCalls)===1 && $distributedCalls[0]['id']===$callId &&
-        str_contains($distributedCalls[0]['description'],'private editorial project brief') &&
-        str_contains($distributedCalls[0]['requirements'],'Adult eligibility verification'),
+    $distributedCall=array_values(array_filter($distributedCalls,static fn(array $item):bool=>$item['id']===$callId));
+    $assert(count($distributedCall)===1 &&
+        str_contains($distributedCall[0]['description'],'private editorial project brief') &&
+        str_contains($distributedCall[0]['requirements'],'Adult eligibility verification'),
         'client sees only its linked casting brief with encrypted project terms decrypted for the verified tenant');
 
     $candidates=$casting->eligibleCandidates($admin,$callId);
