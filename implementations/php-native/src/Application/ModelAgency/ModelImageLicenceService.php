@@ -35,6 +35,7 @@ final class ModelImageLicenceService
         $assetsQuery=$this->pdo->prepare(
             'SELECT a.id,a.application_id,m.application_reference,m.country_code,a.status,a.mime_type,a.width,a.height,a.created_at
              FROM model_portfolio_assets a JOIN model_talent_applications m ON m.id=a.application_id
+             JOIN consent_grants g ON g.id=a.consent_grant_id AND g.granted=1 AND g.withdrawn_at IS NULL
              WHERE a.status="approved" AND a.consent_withdrawn_at IS NULL AND a.private_storage_key IS NOT NULL
              ORDER BY a.created_at DESC LIMIT :limit'
         );
