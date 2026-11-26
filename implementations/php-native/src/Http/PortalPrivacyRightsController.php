@@ -51,7 +51,8 @@ final class PortalPrivacyRightsController
                 $request->ipAddress,$request->requestId);
             return $this->index($request,'A verification code has been sent to your verified account email. It expires in 10 minutes.','',$id);
         } catch(DomainException $error) {
-            return $this->index($request,'',$error->getMessage(),null,429);
+            $limited=str_contains(strtolower($error->getMessage()),'rate limited');
+            return $this->index($request,'',$limited?'Privacy requests are temporarily rate limited. Try again later.':'Privacy requests are not available for this account.',null,$limited?429:403);
         } catch(\InvalidArgumentException $error) {
             return $this->index($request,'','Check the request details and try again.',null,422);
         } catch(RuntimeException) {
