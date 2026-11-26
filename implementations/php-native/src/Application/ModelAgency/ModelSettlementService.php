@@ -302,6 +302,21 @@ final class ModelSettlementService
     }
 
     /** @return list<array<string,mixed>> */
+    public function assignments(Principal $actor,int $limit=100): array
+    {
+        $this->authorize($actor);$limit=max(1,min(200,$limit));
+        $query=$this->pdo->prepare(
+            'SELECT a.id,a.assignment_reference,a.status,a.currency_code,a.compensation_minor,
+                    a.expense_cap_minor,a.commission_basis_points,a.shoot_starts_at,a.shoot_ends_at,
+                    s.id AS settlement_id,s.status AS settlement_status
+             FROM model_assignments a LEFT JOIN model_settlements s ON s.assignment_id=a.id
+             WHERE a.status IN ("in_progress","completed")
+             ORDER BY a.created_at DESC LIMIT :limit'
+        );
+        $query->bindValue(':limit',$limit,PDO::PARAM_INT);$query->execute();return $query->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** @return list<array<string,mixed>> */
     public function expenses(Principal $actor,string $assignmentId): array
     {
         $this->authorize($actor);
