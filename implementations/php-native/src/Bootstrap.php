@@ -342,6 +342,9 @@ final class Bootstrap
         $router->add('POST', '/admin/model-agency/casting/{id}/publish', static fn(Request $request,array $params): Response => $adminModelCasting->publish($request,$params));
         $router->add('POST', '/admin/model-agency/casting/{id}/close', static fn(Request $request,array $params): Response => $adminModelCasting->close($request,$params));
         $router->add('POST', '/admin/model-agency/casting/{id}/cancel', static fn(Request $request,array $params): Response => $adminModelCasting->cancel($request,$params));
+        $router->add('POST', '/admin/model-agency/casting/{id}/submissions', static fn(Request $request,array $params): Response => $adminModelCasting->submit($request,$params));
+        $router->add('POST', '/admin/model-agency/casting/submissions/{id}/decision', static fn(Request $request,array $params): Response => $adminModelCasting->decide($request,$params));
+        $router->add('POST', '/admin/model-agency/casting/submissions/{id}/withdraw', static fn(Request $request,array $params): Response => $adminModelCasting->withdraw($request,$params));
         $router->add('GET', '/admin/markets', static fn(Request $request): Response => $adminMarkets->index($request));
         $router->add('POST', '/admin/markets/{country_code}/review', static fn(Request $request, array $params): Response => $adminMarkets->review($request, $params));
         $router->add('GET', '/admin/destinations', static fn(Request $request): Response => $adminDestinations->index($request));
