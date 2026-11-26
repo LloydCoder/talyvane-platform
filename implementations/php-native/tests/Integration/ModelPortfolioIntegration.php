@@ -94,7 +94,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert(is_array($approvedRow) && $approvedRow['review_note']!=='Asset rights and adult-subject evidence reviewed and approved.','portfolio review note is encrypted at rest');
 
     $portalAsset=$makeAsset('portal-withdraw');
-    $rightsMailer=new class implements \\Talyvane\\Infrastructure\\Mail\\Mailer {
+    $rightsMailer=new class implements \Talyvane\\Infrastructure\\Mail\\Mailer {
         public array $messages=[];
         public function send(string $recipient,string $subject,string $textBody): void {
             $this->messages[]=['recipient'=>$recipient,'subject'=>$subject,'body'=>$textBody];
