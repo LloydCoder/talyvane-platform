@@ -32,6 +32,7 @@ See COMMERCIAL-LICENSING.md for the intended commercial model.
 - docs/SAFEGUARDING-OPERATIONS.md
 - docs/COMPLIANCE-RELEASE-GATES.md
 - docs/ROADMAP.md
+- docs/NATIVE-PHP-PORT-STATUS.md (reconciled native implementation matrix, exact-head CI evidence and release blockers)
 - docs/COMPETITIVE-REFERENCE.md
 - docs/LOCAL-DEVELOPMENT.md
 - docs/DEPENDENCY-MANAGEMENT.md
@@ -56,7 +57,7 @@ Implemented foundations include public destination/profile discovery, role-separ
 
 `implementations/php-native/` is a separate, framework-independent PHP application for constrained cPanel deployments. It has its own runtime, configuration, migrations, installer, private storage and deployment boundary; it does not replace or share runtime dependencies with the Laravel application. Laravel and the canonical product/security documents remain the behavioral reference until parity is formally accepted.
 
-The native port includes the hardened browser installer, role-separated portals, discovery, booking/membership foundations, safeguarding and audit workflows, and a consent-checked members-only gallery behind an explicit deployment policy/feature gate. It remains a work in progress: the canonical [native PHP parity tracker](implementations/php-native/PORTING-TRACKER.md) records implementation status and acceptance evidence. CI passing for an individual slice is not a claim of complete feature parity, legal approval, provider certification or production readiness. The native application must not be released until all required tracker rows have complete tests, security review, documentation and target-host acceptance.
+The native port now includes 36 ordered migrations and partial workflows for the hardened browser installer, role-separated portals, discovery, booking/rescheduling, companion availability, client membership entitlements, consent-checked private gallery, privacy-rights fulfilment and guarded anonymization, model casting/assignment/settlement, CRM reminders/pagination, safeguarding governance and notification dispatch. It remains a work in progress: see the [reconciled native PHP port status](docs/NATIVE-PHP-PORT-STATUS.md) and [feature-by-feature parity tracker](implementations/php-native/PORTING-TRACKER.md) for exact-head validation and remaining gates. CI passing for an individual slice is not a claim of complete feature parity, legal approval, provider certification or production readiness. The native application must not be released until all required tracker rows have complete tests, security review, documentation and target-host acceptance.
 
 See [native PHP architecture](implementations/php-native/ARCHITECTURE.md) and [native PHP operator/developer guide](implementations/php-native/README.md).
 
