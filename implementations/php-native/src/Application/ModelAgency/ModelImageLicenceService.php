@@ -207,10 +207,12 @@ final class ModelImageLicenceService
         $query->execute(['application'=>$application['id']]);
         $rows=[];
         foreach($query->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $row['licensee_name']=$this->cipher->decrypt((string)$row['licensee_name'],'model-image-licence-v1:'.$row['id'].':licensee_name');
+            $row['licensee_name']=is_string($row['licensee_name']) && $row['licensee_name']!==''
+                ? $this->cipher->decrypt($row['licensee_name'],'model-image-licence-v1:'.$row['id'].':licensee_name') : '';
             $row['licensee_reference']=is_string($row['licensee_reference']) && $row['licensee_reference']!==''
                 ? $this->cipher->decrypt($row['licensee_reference'],'model-image-licence-v1:'.$row['id'].':licensee_reference') : null;
-            $row['purpose_details']=$this->cipher->decrypt((string)$row['purpose_details'],'model-image-licence-v1:'.$row['id'].':purpose_details');
+            $row['purpose_details']=is_string($row['purpose_details']) && $row['purpose_details']!==''
+                ? $this->cipher->decrypt($row['purpose_details'],'model-image-licence-v1:'.$row['id'].':purpose_details') : '';
             $row['channels']=json_decode((string)$row['channels'],true,512,JSON_THROW_ON_ERROR);
             $row['model_consent_recorded']=is_string($row['model_consent_evidence_reference']) && $row['model_consent_evidence_reference']!=='';
             $row['model_consent_granted']=(int)$row['granted']===1 && $row['withdrawn_at']===null;
@@ -253,6 +255,13 @@ final class ModelImageLicenceService
                     (int)$grant['granted']!==0 || $grant['withdrawn_at']!==null) {
                     throw new \DomainException('This draft licence is not eligible for applicant consent.');
                 }
+                if(!is_string($licence['licensee_name']) || $licence['licensee_name']==='' ||
+                    !is_string($licence['purpose_details']) || $licence['purpose_details']==='') {
+                    throw new \DomainException('The licence is missing a named licensee or intelligible purpose details.');
+                }
+                $licenseeName=$this->cipher->decrypt($licence['licensee_name'],'model-image-licence-v1:'.$licenceId.':licensee_name');
+                $purposeDetails=$this->cipher->decrypt($licence['purpose_details'],'model-image-licence-v1:'.$licenceId.':purpose_details');
+                if(trim($licenseeName)==='' || trim($purposeDetails)==='') throw new \DomainException('The licence terms are incomplete and cannot receive applicant consent.');
                 $policy=$this->approvedPolicy();
                 $terms=[
                     'purpose'=>$licence['purpose'],'channels'=>json_decode((string)$licence['channels'],true,512,JSON_THROW_ON_ERROR),
