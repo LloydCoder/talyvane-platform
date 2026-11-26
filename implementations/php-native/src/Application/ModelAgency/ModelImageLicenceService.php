@@ -247,7 +247,7 @@ final class ModelImageLicenceService
             if($decision==='grant') {
                 $terms=$this->termsFromLicence($licence);
                 $this->assertEligible($application,$asset,$agreement,$terms,$policy['policy_version']);
-                $this->assertNoConflict((string)$asset['id'],$terms);
+                $this->assertNoConflict((string)$asset['id'],$terms,$licenceId);
             }
             $evidenceHash=$decision==='grant'?hash('sha256',$statement.':'.$termsHash):null;
             if($decision==='grant') {
@@ -460,14 +460,15 @@ final class ModelImageLicenceService
     }
 
     /** @param array<string,mixed> $terms */
-    private function assertNoConflict(string $assetId,array $terms): void
+    private function assertNoConflict(string $assetId,array $terms,?string $exceptLicenceId=null): void
     {
         $query=$this->pdo->prepare(
-            'SELECT purpose,channels,exclusivity FROM model_image_licences
+            'SELECT id,purpose,channels,exclusivity FROM model_image_licences
              WHERE portfolio_asset_id=:asset AND territory_code=:territory AND status IN ("active","awaiting_model_consent")
-               AND starts_on<=:ends_on AND ends_on>=:starts_on FOR UPDATE'
+               AND starts_on<=:ends_on AND ends_on>=:starts_on
+               AND (:except_null IS NULL OR id<>:except_match) FOR UPDATE'
         );
-        $query->execute(['asset'=>$assetId,'territory'=>$terms['country_code'],'ends_on'=>$terms['ends_on'],'starts_on'=>$terms['starts_on']]);
+        $query->execute(['asset'=>$assetId,'territory'=>$terms['country_code'],'ends_on'=>$terms['ends_on'],'starts_on'=>$terms['starts_on'],'except_null'=>$exceptLicenceId,'except_match'=>$exceptLicenceId]);
         foreach($query->fetchAll(PDO::FETCH_ASSOC) as $existing) {
             $channels=json_decode((string)$existing['channels'],true);
             $overlap=is_array($channels)?array_intersect($terms['channels'],$channels):[];
