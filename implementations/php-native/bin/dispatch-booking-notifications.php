@@ -21,7 +21,7 @@ if($real===false || (fileperms($real)&0077)!==0) {
 }
 $config=require $real;
 if(!is_array($config) || !is_array($config['database']??null) ||
-   !is_array($config['mail']['smtp']??null) || !is_string($config['app_key']??null) ||
+   !is_array($config['mail']??null) || !is_string($config['app_key']??null) ||
    !is_array($config['paths']??null) || !is_string($config['paths']['logs']??null)) {
     fwrite(STDERR,"Private application configuration is incomplete.\n");
     exit(78);
@@ -31,7 +31,7 @@ try {
     $dispatcher=new BookingNotificationDispatcher(
         $pdo,
         new SecretBox($config['app_key']),
-        new SmtpMailer($config['mail']['smtp'])
+        new SmtpMailer($config['mail'])
     );
     $result=$dispatcher->dispatchBatch(25);
     fwrite(STDOUT,sprintf(
