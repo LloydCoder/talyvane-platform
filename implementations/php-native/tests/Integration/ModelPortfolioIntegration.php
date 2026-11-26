@@ -364,7 +364,8 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $applicantAssignmentList=$assignments->applicantAssignments($assignmentApplicationId);
     $assert(count($applicantAssignmentList)===1 && $applicantAssignmentList[0]['id']===$assignmentId &&
         $applicantAssignmentList[0]['brief']==='A defined editorial assignment brief for the model and commissioning client.' &&
-        $applicantAssignmentList[0]['compensation_amount']==='800.00' && !array_key_exists('commission_basis_points',$applicantAssignmentList[0]),
+        $applicantAssignmentList[0]['compensation_amount']==='800.00' && $applicantAssignmentList[0]['response_enabled']===true &&
+        !array_key_exists('commission_basis_points',$applicantAssignmentList[0]),
         'model sees only their own offered assignment with decrypted terms and currency-unit compensation, not internal commission');
     $acceptanceRequestId=bin2hex(random_bytes(16));
     $acceptanceIntent=$assignments->respondByApplicant($assignmentApplicationId,$assignmentId,'accept',true,null,$acceptanceRequestId);
@@ -405,6 +406,11 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $acceptedResponse=$pdo->prepare('SELECT applicant_response_status FROM model_assignments WHERE id=:id');
     $acceptedResponse->execute(['id'=>$assignmentId]);
     $assert($acceptedResponse->fetchColumn()==='accepted_executed','agency can complete acceptance only after external execution and model intent evidence are recorded');
+    $adminAssignmentList=$assignments->list($admin);
+    $adminAssignment=array_values(array_filter($adminAssignmentList,static fn(array $row):bool=>$row['id']===$assignmentId));
+    $assert(count($adminAssignment)===1 && $adminAssignment[0]['applicant_response_status']==='accepted_executed' &&
+        str_contains((string)$adminAssignment[0]['applicant_response_reason'],'I have reviewed the assignment terms'),
+        'authorized assignment administrators can see the model response and its decrypted attestation for execution review');
     $assignments->confirm($admin,$assignmentId,bin2hex(random_bytes(16)));
     $assignments->start($admin,$assignmentId,bin2hex(random_bytes(16)));
     $assignmentRow=$pdo->prepare('SELECT status,compensation_minor,expense_cap_minor,commission_basis_points,client_name FROM model_assignments WHERE id=:id');
