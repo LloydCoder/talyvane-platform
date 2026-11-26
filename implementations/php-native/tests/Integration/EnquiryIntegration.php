@@ -56,6 +56,8 @@ $attribution = is_array($saved) ? json_decode((string) $saved['attribution_json'
 
     $adminId = (string) $pdo->query('SELECT id FROM users WHERE email = "native-admin@example.test"')->fetchColumn();
     $admin = new Principal($adminId,['admin'],true);
+    $assert($service->count($admin) >= 1 && count($service->list($admin,1,0)) === 1,
+        'CRM inbox exposes a permission-gated total count and bounded offset pagination');
     $service->updateStatus($admin,$reference,'responded','Customer support has replied',bin2hex(random_bytes(16)));
     $status = $pdo->prepare('SELECT status,responded_at,closed_at FROM enquiries WHERE reference = :reference');
     $status->execute(['reference'=>$reference]);
