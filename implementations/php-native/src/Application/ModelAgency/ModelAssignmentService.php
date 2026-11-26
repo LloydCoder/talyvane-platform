@@ -319,7 +319,7 @@ final class ModelAssignmentService
                     CASE WHEN a.executed_document_reference IS NOT NULL AND a.executed_document_reference<>"" THEN 1 ELSE 0 END AS execution_evidence_ready,
                     a.offered_at,a.accepted_at,a.confirmed_at,a.started_at,a.completed_at
              FROM model_assignments a LEFT JOIN currencies c ON c.code=a.currency_code
-             WHERE a.application_id=:application
+             WHERE a.application_id=:application AND a.status<>"draft"
              ORDER BY a.created_at DESC LIMIT 100'
         );
         $query->execute(['application'=>$applicationId]);$rows=$query->fetchAll(PDO::FETCH_ASSOC);
