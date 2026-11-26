@@ -212,6 +212,27 @@ $attribution = is_array($saved) ? json_decode((string) $saved['attribution_json'
     $assert(is_array($responseRow) && $responseRow['status']==='responded' && $responseRow['responded_at']!==null,
         'queueing a CRM response advances the enquiry to responded within the same transaction');
 
+    $noticeBox=new SecretBox(str_repeat('E',32));
+    $modelNoticeId=sprintf('%08x-%04x-4%03x-8%03x-%012x',random_int(0,0xffffffff),random_int(0,0xffff),random_int(0,0xfff),random_int(0,0xfff),random_int(0,0xffffffffffff));
+    $modelNoticePayload=json_encode([
+        'subject'=>'An image-usage consent offer is waiting',
+        'body'=>'An image-usage consent offer is waiting in your model workspace. The licence is not active unless you grant consent.',
+    ],JSON_THROW_ON_ERROR);
+    $pdo->prepare(
+        'INSERT INTO communication_outbox
+         (id,idempotency_key,related_type,related_id,channel,recipient_ciphertext,payload_ciphertext,status,attempts,available_at,created_at)
+         VALUES (:id,:key,"model_licence",:related,"email",:recipient,:payload,"pending",0,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+    )->execute([
+        'id'=>$modelNoticeId,'key'=>'model-licence-integration:'.bin2hex(random_bytes(16)),'related'=>$enquiryId,
+        'recipient'=>$noticeBox->encrypt('model@example.test','communication-outbox-v1:recipient:'.$modelNoticeId),
+        'payload'=>$noticeBox->encrypt($modelNoticePayload,'communication-outbox-v1:payload:'.$modelNoticeId),
+    ]);
+    $modelMailer=new EnquiryIntegrationMailer();
+    $modelDispatch=(new CrmCommunicationDispatcher($pdo,$noticeBox,$modelMailer))->dispatchBatch(10);
+    $assert($modelDispatch['delivered']>=1 && count(array_filter($modelMailer->messages,static fn(array $message):bool=>
+        $message['recipient']==='model@example.test' && str_contains($message['body'],'model workspace')))===1,
+        'shared communications dispatcher delivers model-agency notices from the encrypted outbox');
+
     try {
         $service->updateStatus(new Principal($clientId,['client'],false),$reference,'closed','Forbidden',bin2hex(random_bytes(16)));
         $assert(false,'client cannot change enquiry pipeline state');
