@@ -115,7 +115,7 @@ final class PublicModelAgencyRightsController
             $this->portfolio->withdrawByVerifiedApplicantRights($id,$this->field($request,'asset_id'),$request->requestId);
             $this->clearContext();
             return $this->page('complete',['notice'=>'Your portfolio asset withdrawal has been recorded. The private image and dependent usage permissions have been withdrawn.']);
-        } catch(\\Throwable) {
+        } catch(\Throwable) {
             return $this->page('confirm',['error'=>'The portfolio asset could not be withdrawn. The request may have expired or require safeguarding review.'],422);
         }
     }
