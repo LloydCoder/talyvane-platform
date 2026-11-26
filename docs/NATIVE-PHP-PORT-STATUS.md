@@ -1,7 +1,7 @@
 # Native PHP port — reconciled implementation status
 
 **Repository:** `LloydCoder/talyvane-platform`  
-**Main baseline:** `e885851c6a8becb27f9163586b1f9e8fec2cf352`  
+**Main baseline:** `d58ebea85e04ee334a76743df098d168d2c3bbf3`  
 **Status:** substantial native implementation in progress; not complete, not a production release, and not approved for deployment.
 
 ## Authority and how to read this status
