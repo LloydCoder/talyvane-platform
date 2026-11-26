@@ -5,12 +5,13 @@ namespace Talyvane\Http;
 
 use Talyvane\Application\ModelAgency\ModelApplicantRightsService;
 use Talyvane\Application\ModelAgency\ModelPortfolioService;
+use Talyvane\Application\ModelAgency\ModelImageLicenceService;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\SessionManager;
 
 final class PublicModelAgencyRightsController
 {
-    public function __construct(private ?ModelApplicantRightsService $rights, private ViewRenderer $views, private string $brandName, private ?ModelPortfolioService $portfolio=null) {}
+    public function __construct(private ?ModelApplicantRightsService $rights, private ViewRenderer $views, private string $brandName, private ?ModelPortfolioService $portfolio=null,private ?ModelImageLicenceService $licences=null) {}
 
     public function requestForm(Request $request): Response
     {
@@ -115,6 +116,27 @@ final class PublicModelAgencyRightsController
             return $this->showPortal($id,$request->requestId,'Your image was uploaded privately and is awaiting human review.');
         } catch(\Throwable) {
             return $this->showPortal($id,$request->requestId,'The portfolio image could not be uploaded. Check the image and consent details.',422);
+        }
+    }
+
+    /** @param array<string,string> $params */
+    public function portalLicenceDecision(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
+        $id=$this->rightsId();
+        if($id===null || $this->licences===null) return Response::redirect('/model-agency/privacy');
+        try {
+            $this->licences->recordApplicantDecision(
+                $id,(string)($params['id']??''),$this->field($request,'decision'),
+                $this->field($request,'reason'),$request->requestId
+            );
+            $notice=$this->field($request,'decision')==='grant'
+                ? 'Your affirmative consent was recorded. The licence remains inactive until external execution is verified.'
+                : 'Your decline or withdrawal was recorded and dependent casting submissions were invalidated.';
+            return $this->showPortal($id,$request->requestId,$notice);
+        } catch(\Throwable) {
+            return $this->showPortal($id,$request->requestId,'The consent decision could not be recorded. Check the licence status and required reason.',422);
         }
     }
 
@@ -247,6 +269,7 @@ final class PublicModelAgencyRightsController
     {
         try {
             $record=$this->rights?->portalRead($id,$requestId)??[];
+            if($this->licences!==null) $record['image_licences']=$this->licences->applicantPortalLicences($id);
             return $this->page('portal',['record'=>$record,'notice'=>$notice],$status);
         } catch(\Throwable) {
             $this->clearContext();
