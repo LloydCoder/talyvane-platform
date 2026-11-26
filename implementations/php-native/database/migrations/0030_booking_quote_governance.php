@@ -37,12 +37,21 @@ return [
         IF (NEW.accepted_at IS NULL) <> (NEW.accepted_by IS NULL) THEN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Quote acceptance timestamp and actor must be recorded together';
         END IF;
+        IF NEW.accepted_at IS NOT NULL AND NEW.accepted_by <> NEW.client_user_id THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Only the quote-bound client can accept a quote';
+        END IF;
         IF OLD.accepted_at IS NOT NULL AND NOT (NEW.accepted_at <=> OLD.accepted_at AND NEW.accepted_by <=> OLD.accepted_by) THEN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Quote acceptance is append-only';
         END IF;
         IF (NEW.consumed_at IS NULL) <> (NEW.consumed_booking_id IS NULL) OR
            (NEW.consumed_at IS NOT NULL AND NEW.accepted_at IS NULL) THEN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Quote consumption requires an accepted quote and booking reference';
+        END IF;
+        IF NEW.consumed_booking_id IS NOT NULL AND NOT EXISTS (
+            SELECT 1 FROM bookings b WHERE b.id=NEW.consumed_booking_id
+              AND b.quote_snapshot_id=NEW.id AND b.client_user_id=NEW.client_user_id AND b.profile_id=NEW.profile_id
+        ) THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Quote consumption must reference its matching booking';
         END IF;
         IF OLD.consumed_at IS NOT NULL AND NOT (NEW.consumed_at <=> OLD.consumed_at AND NEW.consumed_booking_id <=> OLD.consumed_booking_id) THEN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Quote consumption is append-only';
