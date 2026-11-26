@@ -450,6 +450,8 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'compensation_amount'=>'400.00','currency_code'=>'GBP','expense_cap_amount'=>'25.00',
     ],bin2hex(random_bytes(16)));
     $assignments->offer($admin,$secondAssignmentId,bin2hex(random_bytes(16)));
+    $secondAcceptanceIntent=$assignments->respondByApplicant($assignmentApplicationId,$secondAssignmentId,'accept',true,null,bin2hex(random_bytes(16)));
+    $assert($secondAcceptanceIntent==='acceptance_pending_execution','model can record a second assignment acceptance intent before external execution');
     $declineRequestId=bin2hex(random_bytes(16));
     $declinedResponse=$assignments->respondByApplicant($assignmentApplicationId,$secondAssignmentId,'decline',true,
         'I cannot accept the proposed dates due to a scheduling conflict.',$declineRequestId);
@@ -469,6 +471,10 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert($assignments->respondByApplicant($assignmentApplicationId,$secondAssignmentId,'decline',true,
         'I cannot accept the proposed dates due to a scheduling conflict.',$declineRequestId)==='declined',
         'replayed model decline response is idempotent');
+    $secondApplicantAssignmentList=$assignments->applicantAssignments($assignmentApplicationId);
+    $secondApplicantAssignment=array_values(array_filter($secondApplicantAssignmentList,static fn(array $row):bool=>$row['id']===$secondAssignmentId));
+    $assert(count($secondApplicantAssignment)===1 && str_contains((string)$secondApplicantAssignment[0]['applicant_response_reason'],'withdraw my acceptance intent'),
+        'model can retract acceptance intent before external execution and the final response is shown accurately in the portal');
 
 
     $assignmentEventId=(string)$pdo->query('SELECT id FROM model_assignment_events WHERE assignment_id='.$pdo->quote($assignmentId).' ORDER BY occurred_at LIMIT 1')->fetchColumn();
