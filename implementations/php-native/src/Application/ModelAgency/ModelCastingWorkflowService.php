@@ -127,7 +127,7 @@ final class ModelCastingWorkflowService
             $this->pdo->prepare(
                 'UPDATE model_casting_calls SET status="closed",closed_by=:actor,closed_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE id=:id'
             )->execute(['actor'=>$actor->id,'id'=>$callId]);
-            $this->event($callId,null,$actor->id,'administrator','casting.call_closed',$reason);
+            $this->event($callId,null,$actor->id,'administrator','casting.call_closed','Private casting call closed by agency operations.');
             $this->audit->record($actor->id,'model_casting.call_closed','model_casting_call',$callId,
                 'Closed a private casting call',['status'=>'open'],['status'=>'closed','reason_sha256'=>hash('sha256',$reason)],$requestId,'model-casting-v1');
             $this->pdo->commit();
