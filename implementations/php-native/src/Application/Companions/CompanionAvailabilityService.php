@@ -15,7 +15,7 @@ use Talyvane\Security\Principal;
 /** Companion-owned weekly availability, stored as destination-local wall-clock windows. */
 final class CompanionAvailabilityService
 {
-    public function __construct(private PDO $pdo, private AuditLogger $audit) {}
+    public function __construct(private PDO $pdo, private AuditLogger $audit, private ?FeatureAvailability $features = null) {}
 
     /** @return array<string,mixed>|null */
     public function profileForCompanion(Principal $actor): ?array
@@ -185,6 +185,79 @@ final class CompanionAvailabilityService
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
+            throw $error;
+        }
+    }
+
+    /** Companion may always opt out; opt-in is fail-closed behind every deployment and profile gate. */
+    public function setAutomaticBookingPreference(Principal $actor,string $profileId,bool $enabled,string $requestId): void
+    {
+        $this->assertCompanion($actor);
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare(
+                'SELECT p.id,p.status,p.adult_eligibility_status,p.publication_consent_version,
+                        p.publication_consent_withdrawn_at,p.auto_booking_opt_in,d.country_code,
+                        m.enabled AS market_enabled,m.decision AS market_decision,m.expires_at,m.reviewer_id,
+                        CASE WHEN reviewer.user_id IS NULL THEN 0 ELSE 1 END AS reviewer_mfa_valid
+                 FROM companion_profiles p
+                 JOIN destinations d ON d.id=p.destination_id
+                 LEFT JOIN market_policies m ON m.country_code=d.country_code
+                 LEFT JOIN (SELECT ur.user_id FROM user_roles ur
+                            JOIN admin_mfa_credentials mfa ON mfa.user_id=ur.user_id
+                            WHERE ur.role_key IN ("owner","admin","super_admin") AND mfa.enabled_at IS NOT NULL
+                            GROUP BY ur.user_id) reviewer ON reviewer.user_id=m.reviewer_id
+                 WHERE p.id=:profile AND p.user_id=:actor LIMIT 1 FOR UPDATE'
+            );
+            $query->execute(['profile'=>$profileId,'actor'=>$actor->id]);
+            $profile=$query->fetch();
+            if(!is_array($profile)) {
+                throw new DomainException('You can change automatic-booking preferences only for your own profile.');
+            }
+            $consent=false;
+            if($profile['publication_consent_version']!==null) {
+                $grant=$this->pdo->prepare(
+                    'SELECT id FROM consent_grants
+                     WHERE subject_type="companion_profile" AND subject_id=:profile
+                       AND purpose="profile.publication" AND audience="public"
+                       AND policy_version=:version AND granted=1 AND withdrawn_at IS NULL
+                     LIMIT 1 FOR UPDATE'
+                );
+                $grant->execute(['profile'=>$profileId,'version'=>$profile['publication_consent_version']]);
+                $consent=$grant->fetchColumn()!==false;
+            }
+            $marketApproved=(bool)$profile['market_enabled'] &&
+                $profile['market_decision']==='approved' &&
+                $profile['expires_at']!==null &&
+                strtotime((string)$profile['expires_at'].' UTC')>time() &&
+                (bool)$profile['reviewer_mfa_valid'];
+            $policyProfile=[
+                'status'=>(string)$profile['status'],
+                'adult_eligibility_status'=>(string)$profile['adult_eligibility_status'],
+                'publication_consent_version'=>$consent ? (string)$profile['publication_consent_version'] : null,
+                'publication_consent_withdrawn_at'=>$profile['publication_consent_withdrawn_at'],
+                'market_approved'=>$marketApproved,
+            ];
+            CompanionAutomaticBookingPolicy::assertPreference(
+                $enabled,$policyProfile,$this->features?->enabled('bookings.automatic') ?? false
+            );
+            $before=['auto_booking_opt_in'=>(bool)$profile['auto_booking_opt_in']];
+            $update=$this->pdo->prepare(
+                'UPDATE companion_profiles SET auto_booking_opt_in=:enabled,updated_at=UTC_TIMESTAMP()
+                 WHERE id=:profile AND user_id=:actor'
+            );
+            $update->execute(['enabled'=>$enabled?1:0,'profile'=>$profileId,'actor'=>$actor->id]);
+            if($update->rowCount()!==1 && $before['auto_booking_opt_in']!==$enabled) {
+                throw new DomainException('Automatic-booking preference changed concurrently; reload and retry.');
+            }
+            $this->audit->record(
+                $actor->id,$enabled?'companion.automatic_booking.opted_in':'companion.automatic_booking.opted_out',
+                'companion_profile',$profileId,'Companion changed their automatic-booking preference.',
+                $before,['auto_booking_opt_in'=>$enabled],$requestId,'companion-automatic-booking-v1'
+            );
+            $this->pdo->commit();
+        } catch(\\Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $error;
         }
     }
