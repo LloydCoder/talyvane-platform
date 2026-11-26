@@ -18,7 +18,13 @@ final readonly class BookingCancellationPolicy
 
     public function assertAllowed(string $actorRole,string $bookingState,DateTimeImmutable $startsAt,DateTimeImmutable $now): void
     {
-        if ($actorRole !== 'client' || $bookingState !== 'confirmed' || !$this->clientCancellationEnabled) {
+        if ($actorRole !== 'client') {
+            throw new \DomainException('Client cancellation is not permitted for this booking.');
+        }
+        if ($bookingState === 'pending_review') {
+            return;
+        }
+        if ($bookingState !== 'confirmed' || !$this->clientCancellationEnabled) {
             throw new \DomainException('Client cancellation is not permitted for this booking.');
         }
         if ($startsAt <= $now->modify('+' . $this->clientCancellationCutoffMinutes . ' minutes')) {
