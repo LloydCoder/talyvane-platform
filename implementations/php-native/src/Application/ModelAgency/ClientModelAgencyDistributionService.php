@@ -173,6 +173,7 @@ final class ClientModelAgencyDistributionService
         $this->assertClient($client);
         $call=$this->clientCall($client,$callId);
         if(!in_array($call['status'],['open','closed'],true)) return [];
+        $this->assertCandidateWindow($call);
         $this->assertCallPolicy($call);
         $query=$this->pdo->prepare(
             'SELECT s.id,s.submission_reference,s.status,lic.id AS licence_id,lic.licensee_name
@@ -294,6 +295,17 @@ final class ClientModelAgencyDistributionService
             throw new \DomainException('The client-authorized casting image failed integrity verification.');
         }
         return ['bytes'=>$bytes,'mime'=>'image/webp'];
+    }
+
+    /** @param array<string,mixed> $call */
+    private function assertCandidateWindow(array $call): void
+    {
+        if($call['status']!=='open') return;
+        $now=new \DateTimeImmutable('now',new \DateTimeZone('UTC'));
+        if(new \DateTimeImmutable((string)$call['opens_at'],new \DateTimeZone('UTC'))>$now ||
+            new \DateTimeImmutable((string)$call['closes_at'],new \DateTimeZone('UTC'))<=$now) {
+            throw new \DomainException('The casting submission window is not currently open.');
+        }
     }
 
     /** @return array<string,mixed> */
