@@ -23,7 +23,7 @@ final class BookingCalendarService
     public function clientEvents(Principal $client): array
     {
         Authorization::require($client,'client.booking.manage',false);
-        if (!$client->hasRole('client')) {
+        if (!$client->hasRole('client') || count($client->roles)!==1) {
             throw new \DomainException('Client role is required.');
         }
         return $this->events('b.client_user_id = :actor',$client->id);
@@ -33,7 +33,7 @@ final class BookingCalendarService
     public function companionEvents(Principal $companion): array
     {
         Authorization::require($companion,'companion.self.view',false);
-        if (!$companion->hasRole('companion')) {
+        if (!$companion->hasRole('companion') || count($companion->roles)!==1) {
             throw new \DomainException('Companion role is required.');
         }
         return $this->events('p.user_id = :actor',$companion->id);
