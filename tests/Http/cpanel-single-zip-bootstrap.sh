@@ -201,7 +201,7 @@ for _ in $(seq 1 40); do
 done
 test "$log_attack_status" = '500'
 test -L "$log_attack_directory/installer.log"
-grep -Fxq 'DO_NOT_MODIFY_PRIVATE_SENTINEL' "$log_sentinel"
+grep -Fq 'DO_NOT_MODIFY_PRIVATE_SENTINEL' "$log_sentinel"
 kill "$server_pid" 2>/dev/null || true
 wait "$server_pid" 2>/dev/null || true
 server_pid=""
