@@ -10,7 +10,7 @@ use Talyvane\Security\SessionManager;
 
 final class PublicModelAgencyRightsController
 {
-    public function __construct(private ?ModelApplicantRightsService $rights, private ViewRenderer $views, private string $brandName, private ?ModelPortfolioService $portfolio=null) {}
+    public function __construct(private ?ModelApplicantRightsService $rights, private ViewRenderer $views, private string $brandName, private ?ModelPortfolioService $portfolio=null, private ?ModelCastingWorkflowService $casting=null) {}
 
     public function requestForm(Request $request): Response
     {
@@ -134,6 +134,29 @@ final class PublicModelAgencyRightsController
     }
 
     /** @param array<string,string> $params */
+    public function portalSubmitCasting(Request $request): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
+        $id=$this->rightsId();
+        if($id===null || $this->rights===null || $this->casting===null) return Response::redirect('/model-agency/privacy');
+        try {
+            $applicationId=$this->rights->portalApplicationId($id);
+            $this->casting->submitByApplicant(
+                $applicationId,
+                $this->field($request,'casting_call_id'),
+                $this->field($request,'portfolio_asset_id'),
+                $this->field($request,'image_licence_id'),
+                $request->requestId
+            );
+            return $this->showPortal($id,$request->requestId,'Your casting submission was received. The agency will review it privately.');
+        } catch(\\InvalidArgumentException|\\DomainException $error) {
+            return $this->showPortal($id,$request->requestId,$error->getMessage(),422);
+        } catch(\\Throwable) {
+            return $this->showPortal($id,$request->requestId,'The casting submission could not be completed securely.',503);
+        }
+    }
+
     public function portalPreview(Request $request,array $params): Response
     {
         SessionManager::start();
