@@ -222,6 +222,21 @@ function runModelPortfolioIntegration(PDO $pdo): int
     } catch(DomainException) {
         $assert(true,'overlapping active same-purpose licence is rejected');
     }
+
+    $applicantWithdrawAsset=$makeAsset('applicant-licence-withdraw');
+    $service->review($admin,$applicantWithdrawAsset['id'],'approved','Asset approved for applicant-controlled licence consent test.',bin2hex(random_bytes(16)));
+    $applicantWithdrawLicence=$licences->createDraft($admin,$applicantWithdrawAsset['id'],$agreementId,$licenceTerms,bin2hex(random_bytes(16)));
+    $licences->recordApplicantDecision((string)$portalRightsId,$applicantWithdrawLicence,'grant','',bin2hex(random_bytes(16)));
+    $licences->activate($admin,$applicantWithdrawLicence,'private/model-licences/applicant-execution-evidence-0002','',bin2hex(random_bytes(16)));
+    $licences->recordApplicantDecision((string)$portalRightsId,$applicantWithdrawLicence,'withdraw',
+        'Applicant withdrew consent for this active licence and its proposed image usage.',bin2hex(random_bytes(16)));
+    $applicantLicenceWithdrawal=$pdo->prepare(
+        'SELECT l.status,cg.granted,cg.withdrawn_at FROM model_image_licences l INNER JOIN consent_grants cg ON cg.id=l.consent_grant_id WHERE l.id=:id'
+    );
+    $applicantLicenceWithdrawal->execute(['id'=>$applicantWithdrawLicence]);$applicantLicenceWithdrawalRow=$applicantLicenceWithdrawal->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($applicantLicenceWithdrawalRow) && $applicantLicenceWithdrawalRow['status']==='revoked' &&
+        (int)$applicantLicenceWithdrawalRow['granted']===0 && $applicantLicenceWithdrawalRow['withdrawn_at']!==null,
+        'model applicant can withdraw consent from an active image licence without administrator mediation');
     $casting=new ModelCastingWorkflowService($pdo,new AuditLogger($pdo),$storage,$secretBox,static fn():bool=>true);
     $now=new DateTimeImmutable('now',new DateTimeZone('UTC'));
     $callId=$casting->createDraft($admin,[
