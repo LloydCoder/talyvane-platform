@@ -10,6 +10,8 @@ use Talyvane\Application\Companions\CompanionProfilePublicationService;
 use Talyvane\Application\Companions\CompanionOnboardingService;
 use Talyvane\Application\Companions\CompanionAvailabilityService;
 use Talyvane\Features\FeatureAvailability;
+use Talyvane\Application\Features\FeatureManagementService;
+use Talyvane\Infrastructure\Database\FeatureStateRepository;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Destinations\DestinationManagementService;
 use Talyvane\Application\Globalization\MarketPolicyManagementService;
@@ -694,6 +696,33 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(count($portalRightsAdmin->queue($superAdmin,bin2hex(random_bytes(16))))===1,
         'fulfilled privacy requests leave the active review queue');
 
+
+
+    // The feature control plane requires a separate Super Admin step-up and records state changes.
+    $featureAdminId=(string)$pdo->query('SELECT UUID()')->fetchColumn();
+    $featureAdminCreate=$pdo->prepare('INSERT INTO users (id,email,password_hash,status,email_verified_at,first_login_required,admin_session_version,created_at,updated_at) VALUES (:id,"native-feature-admin@example.test",:hash,"active",UTC_TIMESTAMP(),0,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())');
+    $featureAdminCreate->execute(['id'=>$featureAdminId,'hash'=>PasswordHasher::hash($password)]);
+    $role->execute(['id'=>$featureAdminId,'role'=>'super_admin']);
+    $featureAdmin=new Principal($featureAdminId,['super_admin'],true);
+    $featureSecret=$mfa->beginEnrollment($featureAdmin);
+    $mfa->confirmEnrollment($featureAdmin,Totp::codeAt($featureSecret,time()),bin2hex(random_bytes(16)));
+    $featureManager=new FeatureManagementService(
+        $pdo,new FeatureStateRepository($pdo),$audit,new SecretBox(str_repeat('K',32)),
+        static fn(string $dependency):bool=>false
+    );
+    $featureOutcome=$featureManager->change(
+        $featureAdmin,'crm.enquiries',false,
+        'Temporarily disable the enquiry module during a controlled incident response.',
+        $password,Totp::codeAt($featureSecret,(intdiv(time(),30)+1)*30),bin2hex(random_bytes(16))
+    );
+    $featureState=(new FeatureStateRepository($pdo))->enabledStates();
+    $assert($featureOutcome['changed']===true && ($featureState['crm.enquiries']??true)===false,
+        'Super Admin can change a configurable feature after password and one-time TOTP step-up');
+    $featureAudit=$pdo->prepare('SELECT event_key FROM audit_events WHERE actor_user_id=:actor AND target_id="crm.enquiries" AND event_key="platform.feature.disabled"');
+    $featureAudit->execute(['actor'=>$featureAdminId]);
+    $assert($featureAudit->fetchColumn()==='platform.feature.disabled',
+        'feature state changes are recorded in the append-only audit log');
+    (new FeatureStateRepository($pdo))->set('crm.enquiries',true,null,$id);
 
     return $assertions;
 }
