@@ -214,6 +214,7 @@ final class ModelImageLicenceService
             $row['purpose_details']=is_string($row['purpose_details']) && $row['purpose_details']!==''
                 ? $this->cipher->decrypt($row['purpose_details'],'model-image-licence-v1:'.$row['id'].':purpose_details') : '';
             $row['channels']=json_decode((string)$row['channels'],true,512,JSON_THROW_ON_ERROR);
+            $row['consent_action_available']=$row['licensee_name']!=='' && $row['purpose_details']!=='' && is_array($row['channels']) && count($row['channels'])>0;
             $row['model_consent_recorded']=is_string($row['model_consent_evidence_reference']) && $row['model_consent_evidence_reference']!=='';
             $row['model_consent_granted']=(int)$row['granted']===1 && $row['withdrawn_at']===null;
             $row['execution_evidence_present']=is_string($row['execution_evidence_reference']) && $row['execution_evidence_reference']!=='';
