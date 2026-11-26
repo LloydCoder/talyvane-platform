@@ -114,6 +114,7 @@ final class PortalPrivacyRightsAdminService
         string $correlationId
     ): void {
         Authorization::require($actor,'privacy.requests.review');
+        $this->requireOutcomeOutbox();
         $displayName=trim($displayName);
         $biography=trim($biography);
         $reason=trim($reason);
@@ -203,6 +204,7 @@ final class PortalPrivacyRightsAdminService
         Principal $actor,string $requestId,string $name,string $reason,string $correlationId
     ): void {
         Authorization::require($actor,'privacy.requests.review');
+        $this->requireOutcomeOutbox();
         $name=trim($name);
         $reason=trim($reason);
         if(!self::isUuid($requestId) || $name==='' || mb_strlen($name,'UTF-8')>120 ||
@@ -271,6 +273,7 @@ final class PortalPrivacyRightsAdminService
         Principal $actor,string $requestId,string $reason,string $correlationId
     ): void {
         Authorization::require($actor,'privacy.requests.review');
+        $this->requireOutcomeOutbox();
         $reason=trim($reason);
         if(!self::isUuid($requestId) || strlen($reason)<20 || strlen($reason)>500 ||
             strlen($correlationId)<16 || strlen($correlationId)>64) {
@@ -289,7 +292,7 @@ final class PortalPrivacyRightsAdminService
                 throw new \DomainException('Only a verified client erasure request awaiting review can be fulfilled.');
             }
             $userQuery=$this->pdo->prepare(
-                'SELECT id,email,status FROM users WHERE id=:id FOR UPDATE'
+                'SELECT id,email,status,email_verified_at FROM users WHERE id=:id FOR UPDATE'
             );
             $userQuery->execute(['id'=>$request['user_id']]);
             $user=$userQuery->fetch(PDO::FETCH_ASSOC);
@@ -318,7 +321,10 @@ final class PortalPrivacyRightsAdminService
                 }
             }
 
-            $this->outcomes?->enqueue($requestId,(string)$user['email'],'client');
+            if($user['email_verified_at']===null || !filter_var((string)$user['email'],FILTER_VALIDATE_EMAIL)) {
+                throw new \DomainException('The client has no active verified notification destination; erasure was not performed.');
+            }
+            $this->outcomes->enqueue($requestId,(string)$user['email'],'client');
             $this->pdo->prepare('DELETE FROM client_favorites WHERE client_user_id=:id')
                 ->execute(['id'=>$user['id']]);
             $this->pdo->prepare('DELETE FROM auth_challenges WHERE user_id=:id')
@@ -366,6 +372,7 @@ final class PortalPrivacyRightsAdminService
         Principal $actor,string $requestId,string $reason,string $correlationId
     ): void {
         Authorization::require($actor,'privacy.requests.review');
+        $this->requireOutcomeOutbox();
         $reason=trim($reason);
         if(!self::isUuid($requestId) || strlen($reason)<20 || strlen($reason)>500 ||
             strlen($correlationId)<16 || strlen($correlationId)>64) {
@@ -383,7 +390,7 @@ final class PortalPrivacyRightsAdminService
                 $request['request_type']!=='erasure' || $request['account_type']!=='companion') {
                 throw new \DomainException('Only a verified companion erasure request awaiting review can be fulfilled.');
             }
-            $userQuery=$this->pdo->prepare('SELECT id,email,status FROM users WHERE id=:id FOR UPDATE');
+            $userQuery=$this->pdo->prepare('SELECT id,email,status,email_verified_at FROM users WHERE id=:id FOR UPDATE');
             $userQuery->execute(['id'=>$request['user_id']]);
             $user=$userQuery->fetch(PDO::FETCH_ASSOC);
             $rolesQuery=$this->pdo->prepare('SELECT role_key FROM user_roles WHERE user_id=:id ORDER BY role_key');
@@ -413,7 +420,10 @@ final class PortalPrivacyRightsAdminService
                 }
             }
 
-            $this->outcomes?->enqueue($requestId,(string)$user['email'],'companion');
+            if($user['email_verified_at']===null || !filter_var((string)$user['email'],FILTER_VALIDATE_EMAIL)) {
+                throw new \DomainException('The companion has no active verified notification destination; erasure was not performed.');
+            }
+            $this->outcomes->enqueue($requestId,(string)$user['email'],'companion');
             $this->pdo->prepare('DELETE FROM companion_availability WHERE profile_id=:id')
                 ->execute(['id'=>$profile['id']]);
             $this->pdo->prepare('DELETE FROM client_favorites WHERE profile_id=:id')
@@ -465,6 +475,13 @@ final class PortalPrivacyRightsAdminService
         } catch(Throwable $error) {
             if($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $error;
+        }
+    }
+
+    private function requireOutcomeOutbox(): void
+    {
+        if($this->outcomes===null) {
+            throw new \DomainException('Privacy fulfilment requires the encrypted outcome notification outbox.');
         }
     }
 
