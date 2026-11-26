@@ -30,8 +30,19 @@ final class ModelSettlementService
         $description=trim($description);
         if(strlen($description)<12 || strlen($description)>500) throw new \InvalidArgumentException('Expense description must contain 12 to 500 characters.');
         $this->assertEvidenceReference($evidenceReference,'private/model-expenses/');
+        $requestFingerprint=hash('sha256',$actor->id."\0".$requestId);
         $this->pdo->beginTransaction();
         try {
+            $prior=$this->pdo->prepare('SELECT id,assignment_id,submitted_by FROM model_assignment_expenses WHERE request_fingerprint=:fingerprint LIMIT 1 FOR UPDATE');
+            $prior->execute(['fingerprint'=>$requestFingerprint]);
+            $priorRow=$prior->fetch(PDO::FETCH_ASSOC);
+            if(is_array($priorRow)) {
+                if($priorRow['assignment_id']!==$assignmentId || $priorRow['submitted_by']!==$actor->id) {
+                    throw new \\DomainException('Expense submission idempotency key was already used for a different operation.');
+                }
+                $this->pdo->commit();
+                return (string)$priorRow['id'];
+            }
             $assignment=$this->lock('model_assignments',$assignmentId);
             if(!in_array($assignment['status'],['in_progress','completed'],true) ||
                 $assignment['currency_code']!==$currency || (int)$assignment['expense_cap_minor']<=0) {
@@ -48,13 +59,13 @@ final class ModelSettlementService
             $this->pdo->prepare(
                 'INSERT INTO model_assignment_expenses
                  (id,assignment_id,settlement_id,amount_minor,currency_code,description,private_evidence_key,status,
-                  created_by,submitted_by,encryption_version,created_at,updated_at)
-                 VALUES (:id,:assignment,NULL,:amount,:currency,:description,:evidence,"pending",:created_by,:submitted_by,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+                  created_by,submitted_by,encryption_version,request_fingerprint,created_at,updated_at)
+                 VALUES (:id,:assignment,NULL,:amount,:currency,:description,:evidence,"pending",:created_by,:submitted_by,1,:fingerprint,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
             )->execute([
                 'id'=>$id,'assignment'=>$assignmentId,'amount'=>$amountMinor,'currency'=>$currency,
                 'description'=>$this->encrypt($id,'description',$description),
                 'evidence'=>$this->encrypt($id,'private_evidence_key',$evidenceReference),
-                'created_by'=>$actor->id,'submitted_by'=>$actor->id,
+                'created_by'=>$actor->id,'submitted_by'=>$actor->id,'fingerprint'=>$requestFingerprint,
             ]);
             $this->event($assignmentId,null,$id,$actor->id,$this->actorRole($actor),'expense.submitted','Expense claim submitted for independent finance review.');
             $this->audit->record($actor->id,'model_expense.submitted','model_assignment_expense',$id,
