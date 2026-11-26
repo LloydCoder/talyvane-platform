@@ -4,7 +4,7 @@
 
 The casting module is an internal agency register for creating private casting briefs, submitting eligible models, recording manual shortlists/selections/declines, closing/cancelling calls and invalidating submissions when their image licence ends.
 
-It is not a public casting board, client portal, applicant portal, image CDN, assignment, booking, payment or settlement workflow. No portfolio image is transferred or exposed to a client by this phase.
+It is not a public casting board, client portal, applicant portal or image CDN. On the native PHP branch, a selected submission can progress into a separate administrator-only assignment lifecycle and finance settlement ledger; these are distinct workflows and do not turn the casting register into client distribution, booking, payment processing or media delivery.
 
 ## Activation
 
@@ -50,7 +50,9 @@ Casting compensation is recorded as agreed metadata in an enabled currency. It i
 - No client account or client-facing casting review.
 - No model self-service portal or direct model submission; administrators record verified external model approval.
 - No automated eligibility ranking or matching.
-- No assignment, booking, call sheet, shoot delivery, expenses, cancellation settlement or payments.
+- Assignment lifecycle and internal settlement ledger exist as separate native PHP domains; client-facing distribution, model self-service, assignment booking/rescheduling, call sheets, shoot delivery and automated payment processing remain open.
 - No public image transfer, client downloads, CDN or campaign publication.
 - No external campaign compliance monitoring.
+
+The casting implementation is part of the native PHP feature branch. It must not be assumed to be merged into or deployed with the Laravel reference application; see [native PHP port status](NATIVE-PHP-PORT-STATUS.md) and [the parity tracker](../implementations/php-native/PORTING-TRACKER.md).
 - Qualified legal review is required for the actual call brief, compensation, image use and market before activation.
