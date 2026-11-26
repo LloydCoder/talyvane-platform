@@ -24,6 +24,7 @@ use Talyvane\Domain\ModelAgency\SettlementCalculator;
 use Talyvane\Domain\ModelAgency\SettlementStateMachine;
 use Talyvane\Features\FeatureAvailability;
 use Talyvane\Features\FeatureRegistry;
+use Talyvane\Domain\Booking\CompanionAutomaticBookingPolicy;
 use Talyvane\Http\Request;
 use Talyvane\Http\Response;
 use Talyvane\Http\Router;
@@ -45,6 +46,36 @@ use Talyvane\Installer\SetupKey;
 use Talyvane\Installer\InstallerLock;
 use Talyvane\Installer\PrivateConfigStore;
 use Talyvane\Installer\SafeZipExtractor;
+
+$automaticProfile = [
+    'status'=>'published','adult_eligibility_status'=>'verified',
+    'publication_consent_version'=>'v1','publication_consent_withdrawn_at'=>null,
+    'market_approved'=>true,
+];
+CompanionAutomaticBookingPolicy::assertPreference(false,$automaticProfile,false);
+$assert(true,'companion can always opt out of automatic booking even when the feature is disabled');
+CompanionAutomaticBookingPolicy::assertPreference(true,$automaticProfile,true);
+$assert(true,'automatic booking opt-in is accepted only for a fully eligible published profile with an enabled feature');
+foreach ([
+    ['status'=>'draft'],
+    ['adult_eligibility_status'=>'unverified'],
+    ['publication_consent_version'=>null],
+    ['publication_consent_withdrawn_at'=>'2026-11-26 09:00:00'],
+    ['market_approved'=>false],
+] as $invalidState) {
+    try {
+        CompanionAutomaticBookingPolicy::assertPreference(true,array_merge($automaticProfile,$invalidState),true);
+        $assert(false,'ineligible companion profile cannot opt in to automatic booking');
+    } catch (DomainException) {
+        $assert(true,'ineligible companion profile cannot opt in to automatic booking');
+    }
+}
+try {
+    CompanionAutomaticBookingPolicy::assertPreference(true,$automaticProfile,false);
+    $assert(false,'companion cannot opt in while deployment feature gates are closed');
+} catch (DomainException) {
+    $assert(true,'companion cannot opt in while deployment feature gates are closed');
+}
 
 $tests = 0;
 $assert = static function (bool $condition, string $message) use (&$tests): void {
