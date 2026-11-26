@@ -3,12 +3,14 @@
 import argparse
 import hashlib
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--root", required=True, type=Path)
 parser.add_argument("--output", required=True, type=Path)
 parser.add_argument("--commit", required=True)
+parser.add_argument("--created", required=True, help="ISO-8601 commit timestamp")
 args = parser.parse_args()
 if len(args.commit) != 40 or any(c not in "0123456789abcdef" for c in args.commit):
     raise SystemExit("commit must be a full lowercase Git SHA-1")
@@ -34,6 +36,7 @@ for path in files:
         "relationshipType": "CONTAINS",
         "relatedSpdxElement": file_id
     })
+created = datetime.fromisoformat(args.created.replace("Z", "+00:00")).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 document = {
     "spdxVersion": "SPDX-2.3",
     "dataLicense": "CC0-1.0",
@@ -42,7 +45,7 @@ document = {
     "documentNamespace": f"https://talyvane.invalid/spdx/native-php/{args.commit}",
     "creationInfo": {
         "creators": ["Tool: talyvane-native-sbom/1.0"],
-        "created": "2026-01-01T00:00:00Z",
+        "created": created,
         "comment": f"Deterministic source-file inventory for commit {args.commit}; generated at package build time."
     },
     "packages": [{
