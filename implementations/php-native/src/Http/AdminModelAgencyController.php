@@ -25,9 +25,9 @@ final class AdminModelAgencyController
         $actor=$this->authentication->currentPrincipal();
         if ($actor===null) return Response::redirect('/admin/login');
         try {
-            return $this->page('applications',$this->applications->pendingForReview($actor),$error,$status);
+            return $this->page('applications',$this->applications->pendingForReview($actor),$error,$status,$actor->hasRole('owner')||$actor->hasRole('super_admin'));
         } catch (DomainException) {
-            return $this->page('applications',[],'You do not have permission to manage model-agency applications.',403);
+            return $this->page('applications',[],'You do not have permission to manage model-agency applications.',403,$actor->hasRole('owner')||$actor->hasRole('super_admin'));
         }
     }
 
@@ -37,9 +37,9 @@ final class AdminModelAgencyController
         $actor=$this->authentication->currentPrincipal();
         if ($actor===null) return Response::redirect('/admin/login');
         try {
-            return $this->page('verifications',$this->applications->verificationQueue($actor),$error,$status);
+            return $this->page('verifications',$this->applications->verificationQueue($actor),$error,$status,$actor->hasRole('owner')||$actor->hasRole('super_admin'));
         } catch (DomainException) {
-            return $this->page('verifications',[],'You do not have permission to verify adult eligibility.',403);
+            return $this->page('verifications',[],'You do not have permission to verify adult eligibility.',403,$actor->hasRole('owner')||$actor->hasRole('super_admin'));
         }
     }
 
@@ -100,10 +100,10 @@ final class AdminModelAgencyController
     }
 
     /** @param list<array<string,mixed>> $items */
-    private function page(string $mode,array $items,string $error,int $status): Response
+    private function page(string $mode,array $items,string $error,int $status,bool $canViewSettlements=false): Response
     {
         return Response::html($this->views->render('admin/model-agency',[
-            'mode'=>$mode,'items'=>$items,'error'=>$error,'csrf'=>Csrf::issue(),'brandName'=>$this->brandName,
+            'mode'=>$mode,'items'=>$items,'error'=>$error,'csrf'=>Csrf::issue(),'brandName'=>$this->brandName,'canViewSettlements'=>$canViewSettlements,
         ]),$status);
     }
 }
