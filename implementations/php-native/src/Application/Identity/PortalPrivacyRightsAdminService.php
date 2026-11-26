@@ -16,9 +16,10 @@ final class PortalPrivacyRightsAdminService
     public function __construct(private PDO $pdo,private SecretBox $box,private AuditLogger $audit) {}
 
     /** @return list<array<string,mixed>> */
-    public function queue(Principal $actor): array
+    public function queue(Principal $actor,string $requestId): array
     {
         Authorization::require($actor,'privacy.requests.review');
+        if(strlen($requestId)<16 || strlen($requestId)>64) throw new \\InvalidArgumentException('Privacy queue request reference is invalid.');
         $query=$this->pdo->query(
             'SELECT r.id,r.user_id,r.account_type,r.request_type,r.status,r.payload_ciphertext,
                     r.verified_at,r.created_at,u.email
@@ -42,6 +43,8 @@ final class PortalPrivacyRightsAdminService
             unset($row['payload_ciphertext']);
         }
         unset($row);
+        $this->audit->record($actor->id,'portal.privacy.queue.viewed','portal_privacy_request',null,
+            'Administrator accessed the verified privacy request review queue',null,['request_count'=>count($rows)],$requestId,'portal-privacy-rights-v1');
         return $rows;
     }
 
