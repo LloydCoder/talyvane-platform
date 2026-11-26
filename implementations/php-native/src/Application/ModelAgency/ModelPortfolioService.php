@@ -94,8 +94,9 @@ final class ModelPortfolioService
      * @param array{name?:string,type?:string,tmp_name?:string,error?:int,size?:int} $upload
      * @param array{source_description:string,consent_scope:string} $evidence
      */
-    public function storeByVerifiedApplicantPortal(string $rightsRequestId,array $upload,array $evidence,string $requestId): string
+    public function storeByVerifiedApplicantPortal(string $rightsRequestId,array $upload,array $evidence,bool $attested,string $requestId): string
     {
+        if(!$attested) throw new \DomainException('The applicant must explicitly attest to image rights and private portfolio consent.');
         $this->assertFeature();
         $this->assertRequestId($requestId);
         foreach(['source_description','consent_scope'] as $field) {
@@ -174,14 +175,16 @@ final class ModelPortfolioService
         $this->assertRequestId($requestId);
         $query=$this->pdo->prepare(
             'SELECT a.id,a.application_id,a.private_storage_key,a.mime_type,a.sha256,a.status,a.consent_withdrawn_at,
-                    r.application_id AS portal_application_id,r.status AS portal_status,r.request_type,r.expires_at,r.completed_at
+                    r.application_id AS portal_application_id,r.status AS portal_status,r.request_type,r.expires_at,r.completed_at,
+                    app.anonymized_at
              FROM model_portfolio_assets a
              INNER JOIN model_applicant_rights_requests r ON r.id=:rights
+             INNER JOIN model_talent_applications app ON app.id=r.application_id
              WHERE a.id=:asset AND a.application_id=r.application_id LIMIT 1'
         );
         $query->execute(['rights'=>$rightsRequestId,'asset'=>$assetId]);$row=$query->fetch(PDO::FETCH_ASSOC);
         if(!is_array($row) || $row['portal_status']!=='verified' || $row['request_type']!=='portal_access' ||
-            $row['completed_at']!==null || $row['consent_withdrawn_at']!==null ||
+            $row['completed_at']!==null || $row['anonymized_at']!==null || $row['consent_withdrawn_at']!==null ||
             !in_array($row['status'],['pending_review','approved'],true) ||
             !is_string($row['private_storage_key']) || $row['private_storage_key']==='' ||
             new \DateTimeImmutable((string)$row['expires_at'],new \DateTimeZone('UTC'))<=new \DateTimeImmutable('now',new \DateTimeZone('UTC'))) {
