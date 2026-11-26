@@ -240,6 +240,7 @@ final class ModelImageLicenceService
                 throw new \DomainException('This licence does not belong to the authenticated applicant.');
             }
             $asset=$this->lockRow('model_portfolio_assets',(string)$licence['portfolio_asset_id']);
+            $application=$this->lockRow('model_talent_applications',(string)$application['id']);
             $agreement=$this->lockRow('model_representation_agreements',(string)$licence['agreement_id']);
             $grantQuery=$this->pdo->prepare(
                 'SELECT id,granted,withdrawn_at,policy_version FROM consent_grants
@@ -521,22 +522,41 @@ final class ModelImageLicenceService
     }
 
     /** @return array{0:array<string,mixed>,1:array<string,mixed>} */
+    /** @return array{0:array<string,mixed>,1:array<string,mixed>} */
     private function applicantPortalContext(string $rightsRequestId,bool $lock): array
     {
-        $sql='SELECT r.id,r.application_id,r.status,r.request_type,r.expires_at,r.completed_at,
-                     a.status AS application_status,a.legal_hold,a.anonymized_at,a.country_code
-              FROM model_applicant_rights_requests r
-              INNER JOIN model_talent_applications a ON a.id=r.application_id
-              WHERE r.id=:id LIMIT 1'.($lock?' FOR UPDATE':'');
-        $query=$this->pdo->prepare($sql);$query->execute(['id'=>$rightsRequestId]);$row=$query->fetch(PDO::FETCH_ASSOC);
-        if(!is_array($row) || $row['status']!=='verified' || $row['request_type']!=='portal_access' ||
-            $row['completed_at']!==null || $row['anonymized_at']!==null ||
+        if($lock) {
+            $query=$this->pdo->prepare(
+                'SELECT id,application_id,status,request_type,expires_at,completed_at
+                 FROM model_applicant_rights_requests WHERE id=:id LIMIT 1 FOR UPDATE'
+            );
+            $query->execute(['id'=>$rightsRequestId]);$row=$query->fetch(PDO::FETCH_ASSOC);
+            if(!is_array($row)) throw new \DomainException('The verified model workspace session is invalid or expired.');
+            $applicationQuery=$this->pdo->prepare(
+                'SELECT id,status,legal_hold,anonymized_at,country_code FROM model_talent_applications WHERE id=:id LIMIT 1'
+            );
+            $applicationQuery->execute(['id'=>$row['application_id']]);$application=$applicationQuery->fetch(PDO::FETCH_ASSOC);
+        } else {
+            $query=$this->pdo->prepare(
+                'SELECT r.id,r.application_id,r.status,r.request_type,r.expires_at,r.completed_at,
+                        a.id AS app_id,a.status AS application_status,a.legal_hold,a.anonymized_at,a.country_code
+                 FROM model_applicant_rights_requests r
+                 INNER JOIN model_talent_applications a ON a.id=r.application_id
+                 WHERE r.id=:id LIMIT 1'
+            );
+            $query->execute(['id'=>$rightsRequestId]);$row=$query->fetch(PDO::FETCH_ASSOC);
+            $application=is_array($row)?[
+                'id'=>$row['app_id'],'status'=>$row['application_status'],'legal_hold'=>$row['legal_hold'],
+                'anonymized_at'=>$row['anonymized_at'],'country_code'=>$row['country_code'],
+            ]:null;
+        }
+        if(!is_array($row) || !is_array($application) || $row['status']!=='verified' ||
+            $row['request_type']!=='portal_access' || $row['completed_at']!==null ||
+            $application['anonymized_at']!==null ||
             new \DateTimeImmutable((string)$row['expires_at'],new \DateTimeZone('UTC'))<=new \DateTimeImmutable('now',new \DateTimeZone('UTC'))) {
             throw new \DomainException('The verified model workspace session is invalid or expired.');
         }
         $rights=['id'=>$row['id'],'application_id'=>$row['application_id'],'status'=>$row['status']];
-        $application=['id'=>$row['application_id'],'status'=>$row['application_status'],
-            'legal_hold'=>$row['legal_hold'],'anonymized_at'=>$row['anonymized_at'],'country_code'=>$row['country_code']];
         return [$rights,$application];
     }
 
