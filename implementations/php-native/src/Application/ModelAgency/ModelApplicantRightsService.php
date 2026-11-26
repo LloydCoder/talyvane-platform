@@ -247,7 +247,7 @@ final class ModelApplicantRightsService
             );
             $castings->execute(['application'=>$application['id']]);
             $availableCalls=$this->pdo->prepare(
-                'SELECT id,casting_reference,title,project_purpose,country_code,description,requirements,
+                'SELECT id,casting_reference,title,project_purpose,country_code,
                         opens_at,closes_at,shoot_starts_at,shoot_ends_at,compensation_amount,currency_code
                  FROM model_casting_calls
                  WHERE status="open" AND country_code=:country
