@@ -226,11 +226,13 @@ function runProfileMediaIntegration(PDO $pdo): int
             'booking quotes are issued to one verified client and the exact companion profile');
         $bookingQuotes->accept($companionClient,$quoteId,bin2hex(random_bytes(16)));
         $bookingQuotes->accept($companionClient,$quoteId,bin2hex(random_bytes(16)));
-        $acceptedQuote=$pdo->prepare('SELECT accepted_at,accepted_by,client_user_id,profile_id,policy_version FROM quote_snapshots WHERE id=:id');
+        $acceptedQuote=$pdo->prepare('SELECT accepted_at,accepted_by,client_user_id,profile_id,policy_version,original_amount_minor,original_currency,fees_json FROM quote_snapshots WHERE id=:id');
         $acceptedQuote->execute(['id'=>$quoteId]);$acceptedQuoteRow=$acceptedQuote->fetch(PDO::FETCH_ASSOC);
         $assert(is_array($acceptedQuoteRow) && $acceptedQuoteRow['accepted_at']!==null &&
             $acceptedQuoteRow['accepted_by']===$clientId && $acceptedQuoteRow['client_user_id']===$clientId &&
-            $acceptedQuoteRow['profile_id']===$profileId,
+            $acceptedQuoteRow['profile_id']===$profileId && (int)$acceptedQuoteRow['original_amount_minor']===12000 &&
+            $acceptedQuoteRow['original_currency']==='GBP' &&
+            (json_decode((string)$acceptedQuoteRow['fees_json'],true)['service_fee']??null)===1000,
             'client acceptance is idempotent and permanently records the accepting client and quote binding');
         $bookingService=new BookingService($pdo,$bookingPolicies,$audit);
         $bookingStart=(new DateTimeImmutable('now',new DateTimeZone('UTC')))->modify('+10 days');
