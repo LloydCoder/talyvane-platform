@@ -26,7 +26,7 @@ use Talyvane\Application\Bookings\CalendarFeedTokenService;
 use Talyvane\Application\Bookings\BookingQueryService;
 use Talyvane\Application\Bookings\BookingNotificationOutbox;
 use Talyvane\Application\Bookings\BookingNotificationDispatcher;
-use Talyvane\Infrastructure\Database\BookingPolicyRepository;
+
 use Talyvane\Application\Identity\EmailVerificationService;
 use Talyvane\Application\Identity\PortalPrivacyRightsService;
 use Talyvane\Application\Identity\PortalPrivacyRightsAdminService;
