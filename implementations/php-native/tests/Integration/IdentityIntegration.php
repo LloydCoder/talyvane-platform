@@ -529,6 +529,7 @@ function runIdentityIntegration(PDO $pdo): int
     $exportAudit=$pdo->prepare('SELECT COUNT(*) FROM audit_events WHERE event_key="portal.privacy.exported" AND actor_user_id IN (:client,:companion)');
     $exportAudit->execute(['client'=>$clientPrincipal->id,'companion'=>$companionPrincipal->id]);
     $assert((int)$exportAudit->fetchColumn()===4,'each successful client/companion privacy export emits a correlated audit event');
+    $pdo->exec('UPDATE deployment_settings SET setting_json=JSON_SET(setting_json,\'$.client_cancellation_enabled\',false) WHERE setting_key=\'booking.rules\'');
     $requestedCancellationStart=$localBookingStart->modify('+8 hours');
     $requestedCancellationId=$bookingService->request($clientPrincipal,$profileId,
         $requestedCancellationStart->setTimezone(new DateTimeZone('UTC')),
