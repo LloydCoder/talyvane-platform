@@ -349,6 +349,18 @@ function runModelPortfolioIntegration(PDO $pdo): int
         $assert(true,'agency cannot record assignment execution before the model explicitly responds to the offer');
     }
     $assignmentApplicationId=$rights->portalApplicationId((string)$portalRightsId);
+    try {
+        $assignments->respondByApplicant('00000000-0000-4000-8000-000000000001',$assignmentId,'accept',true,null,bin2hex(random_bytes(16)));
+        $assert(false,'a model cannot respond to an assignment owned by another application');
+    } catch(DomainException) {
+        $assert(true,'a model cannot respond to an assignment owned by another application');
+    }
+    try {
+        $assignments->respondByApplicant($assignmentApplicationId,$assignmentId,'accept',false,null,bin2hex(random_bytes(16)));
+        $assert(false,'assignment acceptance requires the explicit model attestation');
+    } catch(DomainException) {
+        $assert(true,'assignment acceptance requires the explicit model attestation');
+    }
     $applicantAssignmentList=$assignments->applicantAssignments($assignmentApplicationId);
     $assert(count($applicantAssignmentList)===1 && $applicantAssignmentList[0]['id']===$assignmentId &&
         $applicantAssignmentList[0]['brief']==='A defined editorial assignment brief for the model and commissioning client.' &&
