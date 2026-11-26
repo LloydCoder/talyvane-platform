@@ -8,6 +8,8 @@ use Talyvane\Application\Identity\PasswordChangeService;
 use Talyvane\Application\Identity\UserRegistrationService;
 use Talyvane\Application\Companions\CompanionProfilePublicationService;
 use Talyvane\Application\Companions\CompanionOnboardingService;
+use Talyvane\Application\Companions\CompanionAvailabilityService;
+use Talyvane\Features\FeatureAvailability;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Destinations\DestinationManagementService;
 use Talyvane\Application\Globalization\MarketPolicyManagementService;
