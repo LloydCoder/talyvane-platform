@@ -30,7 +30,7 @@ final class CompanionAvailabilityController
         try {
             $profile = $this->availability->profileForCompanion($actor);
             $items = $this->availability->listForCompanion($actor);
-            $notice = ($request->query['saved'] ?? '') === '1' ? 'Your availability window has been saved.' : ((($request->query['removed'] ?? '') === '1') ? 'Your availability window has been removed.' : '');
+            $notice = ($request->query['saved'] ?? '') === '1' ? 'Your availability window has been saved.' : ((($request->query['removed'] ?? '') === '1') ? 'Your availability window has been removed.' : ((($request->query['preference'] ?? '') === 'saved') ? 'Your automatic-booking preference has been updated.' : ''));
             return $this->page($profile,$items,$error,$status,$notice);
         } catch (DomainException) {
             return $this->page(null,[],'You do not have permission to manage this availability.',403);
@@ -66,6 +66,30 @@ final class CompanionAvailabilityController
             return $this->index($request,$error->getMessage(),422);
         } catch (\Throwable) {
             return $this->index($request,'Availability could not be saved. Please try again.',503);
+        }
+    }
+
+    public function automaticBookingPreference(Request $request): Response
+    {
+        SessionManager::start();
+        if (!Csrf::verify($this->field($request,'_csrf'))) {
+            return $this->index($request,'Your session expired. Refresh this page and try again.',419);
+        }
+        $actor=$this->companion();
+        if($actor===null) return Response::redirect('/portal/login');
+        $enabled=$this->field($request,'enabled');
+        if(!in_array($enabled,['0','1'],true)) {
+            return $this->index($request,'Choose whether automatic booking should be enabled or disabled.',422);
+        }
+        try {
+            $this->availability->setAutomaticBookingPreference(
+                $actor,$this->field($request,'profile_id'),$enabled==='1',$request->requestId
+            );
+            return Response::redirect('/portal/companion/availability?preference=saved');
+        } catch (DomainException|InvalidArgumentException $error) {
+            return $this->index($request,$error->getMessage(),422);
+        } catch (\\Throwable) {
+            return $this->index($request,'Your automatic-booking preference could not be updated. Please try again.',503);
         }
     }
 
