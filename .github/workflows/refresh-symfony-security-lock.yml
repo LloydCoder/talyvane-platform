@@ -1,0 +1,42 @@
+name: Refresh Symfony security lock
+
+on:
+  push:
+    branches: [feat/native-private-gallery]
+    paths:
+      - '.github/workflows/refresh-symfony-security-lock.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: true
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.3'
+          coverage: none
+      - name: Update vulnerable Symfony components within Laravel constraints
+        run: |
+          set -euo pipefail
+          composer update symfony/http-kernel symfony/mailer symfony/routing -W --no-interaction --no-progress
+          composer audit --no-interaction
+      - name: Commit refreshed lockfile
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- composer.lock; then
+            echo "Composer lockfile already current."
+            exit 0
+          fi
+          git add composer.lock
+          git commit -m "security: update Symfony packages for November 2026 advisories"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
