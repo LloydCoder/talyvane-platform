@@ -93,6 +93,45 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert(is_array($approvedRow) && $approvedRow['status']==='approved' && $approvedRow['review_status']==='approved' && $approvedRow['private_storage_key']===$asset['key'],'approved portfolio asset remains private and retains its sanitized file');
     $assert(is_array($approvedRow) && $approvedRow['review_note']!=='Asset rights and adult-subject evidence reviewed and approved.','portfolio review note is encrypted at rest');
 
+    $portalAsset=$makeAsset('portal-withdraw');
+    $rightsMailer=new class implements \\Talyvane\\Infrastructure\\Mail\\Mailer {
+        public array $messages=[];
+        public function send(string $recipient,string $subject,string $textBody): void {
+            $this->messages[]=['recipient'=>$recipient,'subject'=>$subject,'body'=>$textBody];
+        }
+    };
+    $rights=new ModelApplicantRightsService($pdo,$rightsMailer,new RateLimiter($pdo,str_repeat('R',32)),
+        new AuditLogger($pdo),str_repeat('S',32));
+    $applicationReference=(string)$pdo->query('SELECT application_reference FROM model_talent_applications WHERE id='.$pdo->quote($applicationId))->fetchColumn();
+    $rights->request($applicationReference,'portfolio-applicant@example.test','portal_access','203.0.113.41',bin2hex(random_bytes(16)));
+    preg_match('/one-time verification code is: ([0-9]{8})/',$rightsMailer->messages[0]['body'],$portalCode);
+    $portalRightsId=$rights->verify($applicationReference,'portfolio-applicant@example.test',$portalCode[1]??'','203.0.113.42',bin2hex(random_bytes(16)));
+    $portalRecord=$rights->portalRead((string)$portalRightsId,bin2hex(random_bytes(16)));
+    $assert($portalRecord['application_reference']===$applicationReference &&
+        count($portalRecord['portfolio_assets'])===2 && $portalRecord['status']==='accepted',
+        'OTP-authenticated model workspace exposes only the applicant own profile and portfolio inventory');
+    $rights->portalCorrect((string)$portalRightsId,[
+        'applicant_name'=>'Portfolio Test Applicant Updated','phone'=>'+442071234567','city'=>'London',
+        'portfolio_url'=>'https://portfolio.example.test/model','experience_summary'=>'Updated model experience and portfolio biography for the applicant self-service integration test.',
+    ],bin2hex(random_bytes(16)));
+    $correctedPortal=$rights->portalRead((string)$portalRightsId,bin2hex(random_bytes(16)));
+    $assert($correctedPortal['applicant_name']==='Portfolio Test Applicant Updated' &&
+        $correctedPortal['portfolio_url']==='https://portfolio.example.test/model',
+        'verified model workspace can correct its own profile without completing the 30-minute portal session');
+    $applicantPreview=$service->previewForVerifiedApplicantPortal((string)$portalRightsId,$asset['id'],bin2hex(random_bytes(16)));
+    $assert($applicantPreview['mime']==='image/webp' && hash('sha256',$applicantPreview['bytes'])===hash_file('sha256',$asset['path']),
+        'model applicant can preview only their own private portfolio asset with byte-integrity verification');
+    $service->withdrawByVerifiedApplicantRights((string)$portalRightsId,$portalAsset['id'],bin2hex(random_bytes(16)));
+    $portalWithdrawn=$pdo->prepare('SELECT status,private_storage_key,consent_withdrawn_at FROM model_portfolio_assets WHERE id=:id');
+    $portalWithdrawn->execute(['id'=>$portalAsset['id']]);$portalWithdrawnRow=$portalWithdrawn->fetch(PDO::FETCH_ASSOC);
+    $portalSession=$pdo->prepare('SELECT status FROM model_applicant_rights_requests WHERE id=:id');
+    $portalSession->execute(['id'=>$portalRightsId]);
+    $assert(is_array($portalWithdrawnRow) && $portalWithdrawnRow['status']==='withdrawn' &&
+        $portalWithdrawnRow['private_storage_key']===null && $portalWithdrawnRow['consent_withdrawn_at']!==null &&
+        !file_exists($portalAsset['path']) && $portalSession->fetchColumn()==='verified',
+        'applicant can withdraw one portfolio image while retaining the verified workspace session for further self-service');
+
+
     $pdo->prepare(
         'UPDATE deployment_settings SET setting_json=:settings,version=version+1,updated_by=:actor,updated_at=UTC_TIMESTAMP() WHERE setting_key="model_agency.portfolio"'
     )->execute(['settings'=>json_encode(['enabled'=>false,'policy_approved'=>false,'policy_version'=>''],JSON_THROW_ON_ERROR),'actor'=>$adminId]);
