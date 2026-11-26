@@ -16,7 +16,7 @@ final class SafeguardingNotificationOutbox
         }
     }
 
-    public function enqueue(string $caseId,string $specialistId,string $caseReference,string $category,string $severity): void
+    public function enqueue(string $caseId,string $specialistId,string $caseReference,string $category,string $severity,string $eventKey='case.created',?string $eventId=null): void
     {
         $query=$this->pdo->prepare(
             'SELECT u.email FROM users u
@@ -40,14 +40,14 @@ final class SafeguardingNotificationOutbox
             'INSERT INTO safeguarding_notification_outbox
              (id,case_id,event_key,recipient_ciphertext,recipient_fingerprint,dedupe_key,payload_ciphertext,
               status,is_external,attempts,available_at,created_at)
-             VALUES (:id,:case,"case.created",:recipient,:fingerprint,:dedupe,:payload,
+             VALUES (:id,:case,:event_key,:recipient,:fingerprint,:dedupe,:payload,
                      "pending",0,0,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
         );
         $insert->execute([
-            'id'=>$id,'case'=>$caseId,
+            'id'=>$id,'case'=>$caseId,'event_key'=>$eventKey,
             'recipient'=>$this->box->encrypt($recipient,'safeguarding-outbox-v1:recipient:'.$id),
             'fingerprint'=>hash_hmac('sha256',strtolower($recipient),$this->fingerprintKey),
-            'dedupe'=>hash('sha256','safeguarding-case-created-v1:'.$caseId.':'.$specialistId),
+            'dedupe'=>hash('sha256','safeguarding-notification-v1:'.$caseId.':'.$eventKey.':'.$specialistId.':'.($eventId??'initial')),
             'payload'=>$this->box->encrypt($payload,'safeguarding-outbox-v1:payload:'.$id),
         ]);
     }
