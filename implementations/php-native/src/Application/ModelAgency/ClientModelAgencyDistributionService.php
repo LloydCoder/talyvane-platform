@@ -9,6 +9,7 @@ use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
 use Talyvane\Security\Authorization;
 use Talyvane\Security\Principal;
+use Talyvane\Security\SecretBox;
 
 /**
  * Explicit client distribution for model-agency records.
@@ -88,7 +89,7 @@ final class ClientModelAgencyDistributionService
                 throw new \DomainException('The source casting call must be linked to a verified client before assignment distribution.');
             }
             $this->assertVerifiedClient((string)$call['client_user_id'],true);
-            if(in_array((string)$assignment['status'],['declined','cancelled','disputed'],true)) throw new \\DomainException('Closed or disputed assignments cannot be newly distributed.');
+            if(in_array((string)$assignment['status'],['declined','cancelled','disputed'],true)) throw new \DomainException('Closed or disputed assignments cannot be newly distributed.');
             if(is_string($assignment['client_user_id']??null) && $assignment['client_user_id']!=='' &&
                 !hash_equals((string)$assignment['client_user_id'],(string)$call['client_user_id'])) {
                 throw new \DomainException('An assignment cannot be reassigned to a different client.');
@@ -275,7 +276,7 @@ final class ClientModelAgencyDistributionService
         $callClientName=$this->cipher->decrypt((string)$call['client_name'],'model-casting-call-v1:'.$call['id'].':client_name');
         $licenseeName=$this->cipher->decrypt((string)$asset['licensee_name'],'model-image-licence-v1:'.$asset['licence_id'].':licensee_name');
         if(!hash_equals(mb_strtolower(trim($callClientName)),mb_strtolower(trim($licenseeName)))) {
-            throw new \\DomainException('The active image licence does not name this casting client as its licensee.');
+            throw new \DomainException('The active image licence does not name this casting client as its licensee.');
         }
         $bytes=$this->storage->read((string)$asset['private_storage_key'],8_388_608);
         if(!hash_equals((string)$asset['sha256'],hash('sha256',$bytes))) {
