@@ -23,6 +23,30 @@ final class BookingQuoteService
     ) {}
 
     /** @param array<string,int|string> $fees */
+    public function createFromMajor(
+        Principal $actor,string $clientId,string $profileId,string $amountMajor,string $currency,
+        array $fees,DateTimeImmutable $expiresAt,string $requestId
+    ): string {
+        $currency=strtoupper(trim($currency));
+        if(preg_match('/^(?:0|[1-9][0-9]{0,13})(?:\.[0-9]{1,4})?$/D',$amountMajor)!==1) {
+            throw new \InvalidArgumentException('Quote amount must be a positive decimal value.');
+        }
+        $query=$this->pdo->prepare('SELECT minor_units,enabled FROM currencies WHERE code=:currency LIMIT 1');
+        $query->execute(['currency'=>$currency]);$row=$query->fetch(PDO::FETCH_ASSOC);
+        if(!is_array($row) || (int)$row['enabled']!==1) throw new \DomainException('Quote currency is not enabled.');
+        $precision=(int)$row['minor_units'];
+        if($precision<0 || $precision>4) throw new \DomainException('Quote currency precision is unsupported.');
+        [$whole,$fraction]=array_pad(explode('.',$amountMajor,2),2,'');
+        if(strlen($fraction)>$precision && trim(substr($fraction,$precision),'0')!=='') {
+            throw new \InvalidArgumentException('Quote amount exceeds currency minor-unit precision.');
+        }
+        $scale=10**$precision;$fractionMinor=(int)str_pad(substr($fraction,0,$precision),$precision,'0');
+        if((int)$whole>intdiv(PHP_INT_MAX-$fractionMinor,$scale)) throw new \InvalidArgumentException('Quote amount exceeds the supported integer range.');
+        $amountMinor=((int)$whole*$scale)+$fractionMinor;
+        return $this->create($actor,$clientId,$profileId,$amountMinor,$currency,$fees,$expiresAt,$requestId);
+    }
+
+    /** @param array<string,int|string> $fees */
     public function create(
         Principal $actor,
         string $clientId,
@@ -159,9 +183,11 @@ final class BookingQuoteService
         Authorization::require($client,'client.booking.create',false);
         if(!$client->hasRole('client')) throw new \DomainException('Client role is required.');
         $query=$this->pdo->prepare(
-            'SELECT id,quote_reference,original_amount_minor,original_currency,fees_json,expires_at,accepted_at,consumed_at
-             FROM quote_snapshots WHERE client_user_id=:client AND profile_id=:profile
-             ORDER BY created_at DESC LIMIT 50'
+            'SELECT q.id,q.quote_reference,q.original_amount_minor,q.original_currency,q.fees_json,q.expires_at,
+                    q.accepted_at,q.consumed_at,p.slug AS profile_slug,p.display_name AS profile_name
+             FROM quote_snapshots q JOIN companion_profiles p ON p.id=q.profile_id
+             WHERE q.client_user_id=:client AND q.profile_id=:profile
+             ORDER BY q.created_at DESC LIMIT 50'
         );
         $query->execute(['client'=>$client->id,'profile'=>$profileId]);
         $rows=$query->fetchAll(PDO::FETCH_ASSOC);
