@@ -367,8 +367,8 @@ final class ModelPortfolioService
             $rightsQuery->execute(['rights'=>$rightsRequestId]);
             $rights=$rightsQuery->fetch(PDO::FETCH_ASSOC);
             if(!is_array($rights) || $rights['status']!=='verified' ||
-                $rights['request_type']!=='portfolio_withdrawal' ||
-                !hash_equals((string)$rights['related_asset_id'],$assetId) ||
+                !in_array($rights['request_type'],['portfolio_withdrawal','portal_access'],true) ||
+                ($rights['request_type']==='portfolio_withdrawal' && !hash_equals((string)$rights['related_asset_id'],$assetId)) ||
                 $rights['anonymized_at']!==null ||
                 new \DateTimeImmutable((string)$rights['expires_at'],new \DateTimeZone('UTC'))<=new \DateTimeImmutable('now',new \DateTimeZone('UTC'))) {
                 throw new \DomainException('The verified applicant portfolio-withdrawal session is invalid or expired.');
@@ -446,10 +446,12 @@ final class ModelPortfolioService
                  VALUES (:id,:application,NULL,"applicant",:from_status,:to_status,
                          "Applicant withdrew a specific portfolio asset through verified privacy rights.","applicant-portfolio-rights-v1",UTC_TIMESTAMP())'
             )->execute(['id'=>self::uuid(),'application'=>$rights['application_id'],'from_status'=>$rights['application_status'],'to_status'=>$rights['application_status']]);
-            $this->pdo->prepare(
-                'UPDATE model_applicant_rights_requests SET status="completed",otp_hash="",completed_at=UTC_TIMESTAMP()
-                 WHERE id=:id AND status="verified"'
-            )->execute(['id'=>$rightsRequestId]);
+            if($rights['request_type']==='portfolio_withdrawal') {
+                $this->pdo->prepare(
+                    'UPDATE model_applicant_rights_requests SET status="completed",otp_hash="",completed_at=UTC_TIMESTAMP()
+                     WHERE id=:id AND status="verified"'
+                )->execute(['id'=>$rightsRequestId]);
+            }
             $this->audit->record(null,'model_application.portfolio_asset.withdrawn','model_portfolio_asset',$assetId,
                 'Applicant withdrew a specific portfolio asset through verified email rights',
                 ['status'=>$asset['status']],['status'=>'withdrawn','private_storage_deleted'=>true,'dependent_licences_revoked'=>true],
