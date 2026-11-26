@@ -118,6 +118,7 @@ final class Bootstrap
         $registration = null;
         $recovery = null;
         $modelApplicantRights = null;
+        $portalPrivacyRights = null;
         $mailConfig = is_array($config['mail']['smtp'] ?? null)
             ? $config['mail']['smtp']
             : (is_array($config['mail'] ?? null) ? $config['mail'] : null);
@@ -134,6 +135,7 @@ final class Bootstrap
                 $registration = new UserRegistrationService($pdo, $emailVerification, $rateLimiter, $audit);
                 $recovery = new AccountRecoveryService($pdo, $emailVerification, $rateLimiter, $audit);
                 $modelApplicantRights = new ModelApplicantRightsService($pdo, $mailer, $rateLimiter, $audit, hash_hmac('sha256', 'talyvane-model-applicant-rights-v1', $config['app_key']));
+                $portalPrivacyRights = new \Talyvane\Application\Identity\PortalPrivacyRightsService($pdo,$mailer,$rateLimiter,$audit,new SecretBox($config['app_key']),hash_hmac('sha256','talyvane-portal-privacy-rights-v1',$config['app_key']));
             } catch (\InvalidArgumentException) {
                 // Mail-dependent account creation stays unavailable; the public site and existing accounts remain usable.
             }
@@ -192,6 +194,7 @@ final class Bootstrap
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery, $clientMemberships);
         $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName);
         $portalPrivacy = new PortalPrivacyController($authentication,new PortalPrivacyExportService($pdo,$audit,$rateLimiter));
+        $portalPrivacyRightsController = new PortalPrivacyRightsController($authentication,$portalPrivacyRights,$views,$brandName);
         $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
         $clientPrivateGallery = new ClientPrivateGalleryController($authentication,$profileMedia,$views,$brandName);
         $adminClients = new AdminClientController($pdo,$authentication,$clientMemberships,$views,$brandName);
@@ -232,6 +235,9 @@ final class Bootstrap
         $router->add('GET', '/terms', static fn(Request $request): Response => $public->page($request, ['slug'=>'terms']));
 
         $router->add('GET', '/portal/privacy/export', static fn(Request $request): Response => $portalPrivacy->export($request));
+        $router->add('GET', '/portal/privacy', static fn(Request $request): Response => $portalPrivacyRightsController->index($request));
+        $router->add('POST', '/portal/privacy/requests', static fn(Request $request): Response => $portalPrivacyRightsController->request($request));
+        $router->add('POST', '/portal/privacy/verify', static fn(Request $request): Response => $portalPrivacyRightsController->verify($request));
         $router->add('GET', '/portal/security', static fn(Request $request): Response => $portalSecurity->index($request));
         $router->add('POST', '/portal/security', static fn(Request $request): Response => $portalSecurity->changePassword($request));
         $router->add('GET', '/portal/register', static fn(Request $request): Response => $portalAuth->registerForm($request));
