@@ -85,7 +85,7 @@ final class ModelAssignmentService
                 'compensation'=>$compensation,'currency'=>$currency,'expense_cap'=>$expenseCap,'commission'=>$commission,
                 'snapshot'=>json_encode($snapshot,JSON_THROW_ON_ERROR),'actor'=>$actor->id,
             ]);
-            $this->event($id,$actor->id,'assignment.created','Private assignment draft created.',$policy['policy_version']);
+            $this->event($id,$actor->id,'assignment.created','none','draft','Private assignment draft created.',$policy['policy_version']);
             $this->audit->record($actor->id,'model_assignment.created','model_assignment',$id,
                 'Created a private assignment draft',null,
                 ['submission_id'=>$submissionId,'application_id'=>$application['id'],'currency'=>$currency,
@@ -230,7 +230,7 @@ final class ModelAssignmentService
             if($toStatus==='accepted' && is_array($updates)) $set[]='acceptance_evidence_reference=:acceptance_evidence_reference';
             if($toStatus==='accepted' && is_array($updates)) $params['acceptance_evidence_reference']=$this->encryptField($assignmentId,'acceptance_evidence_reference',(string)($updates['executed_document_reference']??''));
             $this->pdo->prepare('UPDATE model_assignments SET '.implode(',',$set).' WHERE id=:id')->execute($params);
-            $this->event($assignmentId,$actor->id,'assignment.'.$toStatus,'Assignment status changed to '.$toStatus.'.',$this->policyVersionOrLegacy($assignment));
+            $this->event($assignmentId,$actor->id,'assignment.'.$toStatus,$from,$toStatus,'Assignment status changed to '.$toStatus.'.',$this->policyVersionOrLegacy($assignment));
             $this->audit->record($actor->id,'model_assignment.'.$toStatus,'model_assignment',$assignmentId,
                 'Assignment status changed',['status'=>$from],['status'=>$toStatus,'evidence_present'=>$evidenceReference!==null],
                 $requestId,'model-assignment-v1');
@@ -243,24 +243,46 @@ final class ModelAssignmentService
 
     private function assertCurrentEligibility(array $assignment,array $submission,array $application,array $asset,array $licence,array $call,array $agreement): void
     {
-        if($submission['status']!=='selected' || $application['status']!=='accepted' || (int)$application['legal_hold']===1 ||
-            $application['anonymized_at']!==null || $asset['status']!=='approved' || $asset['consent_withdrawn_at']!==null ||
+        if($submission['status']!=='selected') throw new \DomainException('Assignment requires a currently selected casting submission.');
+        $terms=[
+            'project_purpose'=>$assignment['project_purpose'],
+            'client_name'=>$this->cipher->decrypt((string)$assignment['client_name'],'model-assignment-v1:'.$assignment['id'].':client_name'),
+            'shoot_starts_at'=>$assignment['shoot_starts_at'],
+            'shoot_ends_at'=>$assignment['shoot_ends_at'],
+        ];
+        $this->assertEligible($application,$asset,$licence,$call,$agreement,$terms,(string)$assignment['assignment_policy_version']);
+        $this->assertScheduleAvailable((string)$application['id'],(string)$assignment['shoot_starts_at'],(string)$assignment['shoot_ends_at'],(string)$assignment['id']);
+    }
+
+    /** @param array<string,mixed> $terms */
+    private function assertEligible(array $application,array $asset,array $licence,array $call,array $agreement,array $terms,string $assignmentPolicyVersion): void
+    {
+        if($application['status']!=='accepted' || (int)$application['legal_hold']===1 || $application['anonymized_at']!==null ||
+            $asset['application_id']!==$application['id'] || $asset['status']!=='approved' || $asset['consent_withdrawn_at']!==null ||
+            !is_string($asset['private_storage_key']) || $asset['private_storage_key']==='' ||
+            $licence['application_id']!==$application['id'] || $licence['portfolio_asset_id']!==$asset['id'] ||
             $licence['status']!=='active' || $licence['purpose']!=='casting_distribution' ||
-            $licence['territory_code']!==$assignment['country_code'] || $agreement['status']!=='executed' ||
-            $agreement['application_id']!==$application['id']) {
-            throw new \DomainException('Assignment requires a selected submission, accepted verified model, approved private asset, active licence and executed agreement.');
+            $licence['territory_code']!==$application['country_code'] || $call['country_code']!==$application['country_code'] ||
+            $call['project_purpose']!==$terms['project_purpose'] || $call['status']==='cancelled' ||
+            $agreement['application_id']!==$application['id'] || $agreement['status']!=='executed' ||
+            $agreement['id']!==$licence['agreement_id'] || $agreement['effective_from']===null || $agreement['effective_until']===null) {
+            throw new \DomainException('Assignment requires an accepted verified model, selected call, approved private asset, active matching licence and executed agreement.');
+        }
+        $callClient=$this->cipher->decrypt((string)$call['client_name'],'model-casting-call-v1:'.$call['id'].':client_name');
+        if(!hash_equals($callClient,(string)$terms['client_name']) ||
+            (string)$call['shoot_starts_at']!==(string)$terms['shoot_starts_at'] ||
+            (string)$call['shoot_ends_at']!==(string)$terms['shoot_ends_at']) {
+            throw new \DomainException('Assignment client, purpose and schedule must match the selected casting call snapshot.');
         }
         $policy=$this->approvedPolicy();
-        if(!hash_equals((string)$assignment['assignment_policy_version'],$policy['policy_version'])) {
-            throw new \DomainException('Assignment policy changed; this assignment requires re-review.');
-        }
+        if(!hash_equals($assignmentPolicyVersion,$policy['policy_version'])) throw new \DomainException('Assignment policy changed; this assignment requires re-review.');
         $verification=$this->pdo->prepare('SELECT outcome,expires_at FROM model_applicant_verifications WHERE application_id=:application ORDER BY decision_order DESC LIMIT 1 FOR UPDATE');
         $verification->execute(['application'=>$application['id']]);$v=$verification->fetch(PDO::FETCH_ASSOC);
         if(!is_array($v) || $v['outcome']!=='verified' || $v['expires_at']===null ||
             new DateTimeImmutable((string)$v['expires_at'],new DateTimeZone('UTC'))<=new DateTimeImmutable('now',new DateTimeZone('UTC'))) {
             throw new \DomainException('Current independent adult-eligibility verification is required.');
         }
-        $this->assertMarketApproved((string)$assignment['country_code']);
+        $this->assertMarketApproved((string)$application['country_code']);
         $portfolioPolicy=$this->approvedPolicySetting('model_agency.portfolio');
         $licencePolicy=$this->approvedPolicySetting('model_agency.image_licence');
         if(!hash_equals((string)$asset['consent_policy_version'],$portfolioPolicy['policy_version']) ||
@@ -277,15 +299,20 @@ final class ModelAssignmentService
             !hash_equals((string)$licence['licence_policy_version'],(string)$lg['policy_version'])) {
             throw new \DomainException('Current model portfolio and image-use consent are required.');
         }
-        $terms=json_decode((string)$agreement['terms_snapshot'],true);
-        if(!is_array($terms) || !in_array('casting_submissions',$terms['service_scope']??[],true) ||
-            substr((string)$agreement['effective_until'],0,10)<substr((string)$assignment['shoot_ends_at'],0,10) ||
-            substr((string)$agreement['effective_from'],0,10)>substr((string)$assignment['shoot_starts_at'],0,10)) {
+        $licenceChannels=json_decode((string)$licence['channels'],true);
+        if(!is_array($licenceChannels) || !in_array('casting_platform',$licenceChannels,true) ||
+            (string)$licence['starts_on']>substr((string)$terms['shoot_starts_at'],0,10) ||
+            (string)$licence['ends_on']<substr((string)$terms['shoot_ends_at'],0,10)) {
+            throw new \DomainException('The active image licence must cover the complete assignment and casting channel.');
+        }
+        $agreementTerms=json_decode((string)$agreement['terms_snapshot'],true);
+        if(!is_array($agreementTerms) || !in_array('casting_submissions',$agreementTerms['service_scope']??[],true) ||
+            substr((string)$agreement['effective_from'],0,10)>substr((string)$terms['shoot_starts_at'],0,10) ||
+            substr((string)$agreement['effective_until'],0,10)<substr((string)$terms['shoot_ends_at'],0,10)) {
             throw new \DomainException('Executed representation agreement does not cover the assignment period.');
         }
         $bytes=$this->storage->read((string)$asset['private_storage_key'],8_388_608);
         if(!hash_equals((string)$asset['sha256'],hash('sha256',$bytes))) throw new \DomainException('Private portfolio asset failed integrity verification.');
-        $this->assertScheduleAvailable((string)$application['id'],(string)$assignment['shoot_starts_at'],(string)$assignment['shoot_ends_at'],$assignment['id']);
     }
 
     /** @param array<string,mixed> $terms */
@@ -321,9 +348,9 @@ final class ModelAssignmentService
             'SELECT id FROM model_assignments WHERE application_id=:application
              AND status IN ("offered","accepted","confirmed","in_progress")
              AND shoot_starts_at<:ends_at AND shoot_ends_at>:starts_at
-             AND (:except_id IS NULL OR id<>:except_id) LIMIT 1 FOR UPDATE'
+             AND (:except_null IS NULL OR id<>:except_match) LIMIT 1 FOR UPDATE'
         );
-        $query->execute(['application'=>$applicationId,'ends_at'=>$endsAt,'starts_at'=>$startsAt,'except_id'=>$exceptId]);
+        $query->execute(['application'=>$applicationId,'ends_at'=>$endsAt,'starts_at'=>$startsAt,'except_null'=>$exceptId,'except_match'=>$exceptId]);
         if($query->fetchColumn()!==false) throw new \DomainException('The model has an overlapping active assignment.');
     }
 
@@ -370,13 +397,12 @@ final class ModelAssignmentService
         return $minor;
     }
 
-    private function event(string $assignmentId,string $actorId,string $type,string $reason,string $policyVersion): void
+    private function event(string $assignmentId,string $actorId,string $type,string $fromStatus,string $toStatus,string $reason,string $policyVersion): void
     {
-        $assignment=$this->pdo->prepare('SELECT status FROM model_assignments WHERE id=:id LIMIT 1');$assignment->execute(['id'=>$assignmentId]);$status=(string)$assignment->fetchColumn();
         $this->pdo->prepare(
             'INSERT INTO model_assignment_events (id,assignment_id,actor_user_id,actor_type,from_status,to_status,event_type,reason,evidence_reference,occurred_at,created_at,updated_at)
              VALUES (:id,:assignment,:actor,"administrator",:from_status,:to_status,:event,:reason,NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
-        )->execute(['id'=>self::uuid(),'assignment'=>$assignmentId,'actor'=>$actorId,'from_status'=>$status,'to_status'=>$status,'event'=>$type,
+        )->execute(['id'=>self::uuid(),'assignment'=>$assignmentId,'actor'=>$actorId,'from_status'=>$fromStatus,'to_status'=>$toStatus,'event'=>$type,
             'reason'=>$this->cipher->encrypt($reason,'model-assignment-event-v1:'.$assignmentId.':'.$type)]);
     }
 
