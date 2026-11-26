@@ -199,7 +199,7 @@ function runIdentityIntegration(PDO $pdo): int
     $autoPreference=$pdo->prepare('SELECT auto_booking_opt_in FROM companion_profiles WHERE id=:id');
     $autoPreference->execute(['id'=>$profileId]);
     $assert(!(bool)$autoPreference->fetchColumn(),'companion can immediately opt out of automatic booking while deployment feature gates are closed');
-    $optOutAudit=$pdo->prepare('SELECT event_key FROM audit_events WHERE actor_user_id=:actor AND subject_id=:subject AND event_key="companion.automatic_booking.opted_out"');
+    $optOutAudit=$pdo->prepare('SELECT event_key FROM audit_events WHERE actor_user_id=:actor AND target_id=:subject AND event_key="companion.automatic_booking.opted_out"');
     $optOutAudit->execute(['actor'=>$companionId,'subject'=>$profileId]);
     $assert($optOutAudit->fetchColumn()==='companion.automatic_booking.opted_out','companion automatic-booking opt-out is audited');
     try {
