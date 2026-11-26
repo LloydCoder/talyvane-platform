@@ -147,7 +147,7 @@ The native branch now has 31 ordered PHP migrations and connected slices for ide
 
 | Capability | Laravel reference | Native status | Acceptance evidence |
 |---|---|---:|---|
-| Enquiry inbox/assignment/pipeline | EnquiryAdminController | IN_PROGRESS | MFA-gated inbox, 100 most recent records, status updates with reason and atomic audit; assignment, pagination, notes, reminders, response delivery and browser acceptance remain open |
+| Enquiry inbox/assignment/pipeline | EnquiryAdminController | IN_PROGRESS | MFA-gated inbox, 100 most recent records, reasoned status transitions and atomic audit; assignment/unassignment now validates active admin/owner/super-admin accounts, uses row locking and transactional audit, with an eligible-assignee directory and MySQL integration assertions. Pagination, encrypted notes, reminders, response delivery and browser acceptance remain open |
 | Attribution/notes/reminders | PRODUCT-REQUIREMENTS | NOT_STARTED | Permissioned, auditable CRM data |
 | SMTP/provider adapters | ARCHITECTURE | NOT_STARTED | Authenticated TLS, retries and delivery logs |
 | Message templates/channels | PRODUCT-REQUIREMENTS | NOT_STARTED | Versioned templates and safe rendering |
