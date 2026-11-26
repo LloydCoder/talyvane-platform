@@ -113,6 +113,8 @@ function runModelPortfolioIntegration(PDO $pdo): int
         $assert(true,'portfolio upload must require an explicit applicant attestation at the domain boundary');
     }
     $portalRecord=$rights->portalRead((string)$portalRightsId,bin2hex(random_bytes(16)));
+    $assert($rights->portalApplicationId((string)$portalRightsId)===$applicationId,
+        'casting applicant identity is resolved only from the live OTP-verified portal rights session');
     $assert($portalRecord['application_reference']===$applicationReference &&
         count($portalRecord['portfolio_assets'])===2 && $portalRecord['status']==='accepted',
         'OTP-authenticated model workspace exposes only the applicant own profile and portfolio inventory');
@@ -140,6 +142,12 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $portalSession->execute(['id'=>$portalRightsId]);
     $assert($portalSession->fetchColumn()==='completed',
         'model workspace logout revokes the verified portal session in the database');
+    try {
+        $rights->portalApplicationId((string)$portalRightsId);
+        $assert(false,'a revoked model workspace session cannot resolve a casting application identity');
+    } catch(DomainException) {
+        $assert(true,'a revoked model workspace session cannot resolve a casting application identity');
+    }
     try {
         $rights->portalRead((string)$portalRightsId,bin2hex(random_bytes(16)));
         $assert(false,'a revoked model workspace session cannot be reused');
