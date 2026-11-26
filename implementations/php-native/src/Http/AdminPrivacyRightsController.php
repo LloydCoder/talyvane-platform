@@ -25,12 +25,45 @@ final class AdminPrivacyRightsController
         if($actor===null) return Response::redirect('/admin/login');
         try {
             $items=$this->rights->queue($actor,$request->requestId);
+            $externalEvidence=[];
+            foreach($items as $item) {
+                if(($item['request_type']??'')==='erasure') {
+                    $externalEvidence[(string)$item['id']]=$this->rights->externalErasureEvidence($actor,(string)$item['id']);
+                }
+            }
             return Response::html($this->views->render('admin/privacy-rights',[
-                'items'=>$items,'notice'=>$notice,'error'=>$error,
+                'items'=>$items,'notice'=>$notice,'error'=>$error,'externalEvidence'=>$externalEvidence,
+                'canAttestExternalEvidence'=>$actor->hasRole('owner')||$actor->hasRole('super_admin'),
                 'csrf'=>Csrf::issue(),'brandName'=>$this->brandName,
             ]),$status);
         } catch(DomainException) {
             return Response::html('You do not have permission to review privacy requests.',403);
+        }
+    }
+
+    public function recordExternalEvidence(Request $request): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) {
+            return $this->index($request,'','Your session expired. Refresh and try again.',419);
+        }
+        $actor=$this->authentication->currentPrincipal();
+        if($actor===null) return Response::redirect('/admin/login');
+        try {
+            $retention=$this->field($request,'retention_until');
+            $this->rights->recordExternalErasureEvidence(
+                $actor,$this->field($request,'request_id'),$this->field($request,'system_key'),
+                $this->field($request,'decision'),$this->field($request,'evidence_reference'),
+                $this->field($request,'legal_basis_reference'),$retention!==''?$retention:null,
+                $this->field($request,'reason'),$request->requestId
+            );
+            return $this->index($request,'Owner-reviewed external evidence recorded as an operator attestation. It is not independent proof of provider deletion.');
+        } catch(DomainException $error) {
+            return $this->index($request,'',$error->getMessage(),403);
+        } catch(\InvalidArgumentException $error) {
+            return $this->index($request,'',$error->getMessage(),422);
+        } catch(\Throwable) {
+            return $this->index($request,'','External erasure evidence could not be recorded.',503);
         }
     }
 
@@ -76,6 +109,11 @@ final class AdminPrivacyRightsController
                 $this->field($request,'decision'),$this->field($request,'reason'),$request->requestId);
             return $this->index($request,'Privacy request review decision recorded. No data was erased or corrected automatically.');
         } catch(DomainException $error) {
+            if (str_contains($error->getMessage(),'external processor evidence')) {
+                return $this->index($request,'',
+                    'Erasure is locked until an MFA-verified Owner or Super Admin records evidence for every external processor, backup and key-custody gate.',
+                    409);
+            }
             if (str_contains($error->getMessage(),'notification outbox') ||
                 str_contains($error->getMessage(),'verified notification destination')) {
                 return $this->index($request,'',
