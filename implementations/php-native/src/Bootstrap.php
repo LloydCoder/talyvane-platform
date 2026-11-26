@@ -32,6 +32,7 @@ use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Media\ProfileMediaService;
 use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
+use Talyvane\Application\ModelAgency\ModelCastingWorkflowService;
 use Talyvane\Application\ModelAgency\ModelApplicantRightsService;
 use Talyvane\Application\CRM\EnquiryService;
 use Talyvane\Application\Identity\AccountRecoveryService;
@@ -53,6 +54,7 @@ use Talyvane\Http\AdminAuthController;
 use Talyvane\Http\AdminBrandController;
 use Talyvane\Http\AdminAuditController;
 use Talyvane\Http\AdminModelAgencyController;
+use Talyvane\Http\AdminModelCastingController;
 use Talyvane\Http\AdminProfileMediaController;
 use Talyvane\Http\AdminNavigationController;
 use Talyvane\Http\AdminEnquiryController;
@@ -156,6 +158,13 @@ final class Bootstrap
             return false;
         };
         $membershipAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(),$membershipEligibility);
+        $castingEligibility = static function(string $dependency) use ($pdo,$brandName): bool {
+            if ($dependency==='market.policy') return MembershipGalleryPolicyReadiness::marketApproved($pdo);
+            if ($dependency==='consent.current') return MembershipGalleryPolicyReadiness::approved($pdo,$brandName);
+            // Legal, provider and independent safeguarding approvals are never inferred.
+            return false;
+        };
+        $castingAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(),$castingEligibility);
         $membershipEntitlements = new MembershipEntitlementService($pdo,$membershipAvailability);
         $publicRoot = (string) ($config['paths']['document_root'] ?? ($_SERVER['DOCUMENT_ROOT'] ?? ''));
         $mediaStorage = new PrivateMediaStorage((string) ($config['paths']['storage'] ?? ''),$publicRoot);
@@ -179,8 +188,10 @@ final class Bootstrap
         $publicDestinationCovers = new PublicDestinationCoverController($destinationCovers);
         $adminMarkets = new AdminMarketController($authentication, new MarketPolicyManagementService($pdo, $audit), $views, $brandName);
         $modelApplications = new ModelAgencyApplicationService($pdo, $audit);
+        $modelCasting = new ModelCastingWorkflowService($pdo,$audit,static fn():bool=>$castingAvailability->enabled('model-agency.casting'));
         $publicModelAgency = new PublicModelAgencyController($pdo, $modelApplications, $contentManagement, $rateLimiter, $modelApplicantRights, $views);
         $adminModelAgency = new AdminModelAgencyController($authentication, $modelApplications, $views, $brandName);
+        $adminModelCasting = new AdminModelCastingController($authentication,$modelCasting,$views,$brandName);
         $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views, $brandName);
         $bookingPolicies = new BookingPolicyRepository($pdo);
         $bookingNotifications = new \Talyvane\Application\Bookings\BookingNotificationOutbox($pdo,new SecretBox($config['app_key']),hash('sha256',$config['app_key'].'|booking-notification-fingerprint-v1',true));
@@ -311,6 +322,11 @@ final class Bootstrap
         $router->add('POST', '/admin/model-agency/{id}/review', static fn(Request $request, array $params): Response => $adminModelAgency->review($request, $params));
         $router->add('POST', '/admin/model-agency/{id}/verify', static fn(Request $request, array $params): Response => $adminModelAgency->verify($request, $params));
         $router->add('POST', '/admin/model-agency/{id}/legal-hold', static fn(Request $request, array $params): Response => $adminModelAgency->legalHold($request, $params));
+        $router->add('GET', '/admin/model-agency/casting', static fn(Request $request): Response => $adminModelCasting->index($request));
+        $router->add('POST', '/admin/model-agency/casting', static fn(Request $request): Response => $adminModelCasting->create($request));
+        $router->add('POST', '/admin/model-agency/casting/{id}/publish', static fn(Request $request,array $params): Response => $adminModelCasting->publish($request,$params));
+        $router->add('POST', '/admin/model-agency/casting/{id}/close', static fn(Request $request,array $params): Response => $adminModelCasting->close($request,$params));
+        $router->add('POST', '/admin/model-agency/casting/{id}/cancel', static fn(Request $request,array $params): Response => $adminModelCasting->cancel($request,$params));
         $router->add('GET', '/admin/markets', static fn(Request $request): Response => $adminMarkets->index($request));
         $router->add('POST', '/admin/markets/{country_code}/review', static fn(Request $request, array $params): Response => $adminMarkets->review($request, $params));
         $router->add('GET', '/admin/destinations', static fn(Request $request): Response => $adminDestinations->index($request));
