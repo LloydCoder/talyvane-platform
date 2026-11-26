@@ -421,6 +421,13 @@ function runIdentityIntegration(PDO $pdo): int
     $clientPrincipal = new Principal($registeredId,['client'],false);
     $bookingNotifications = new BookingNotificationOutbox($pdo,new SecretBox(str_repeat('B',32)),str_repeat('F',32));
     $bookingService = new BookingService($pdo,new BookingPolicyRepository($pdo),$audit,$bookingNotifications);
+    $manualRules=json_encode(['automatic_enabled'=>false,'auto_confirm_enabled'=>false,'deposit_required'=>false,
+        'minimum_notice_minutes'=>60,'maximum_advance_days'=>90,'minimum_duration_minutes'=>60,
+        'maximum_duration_minutes'=>480,'client_cancellation_enabled'=>false,'client_cancellation_cutoff_minutes'=>120],JSON_THROW_ON_ERROR);
+    $seedManualRules=$pdo->prepare('INSERT INTO deployment_settings (setting_key,setting_json,version,updated_by,updated_at)
+        VALUES ("booking.rules",:settings,1,:actor,UTC_TIMESTAMP())
+        ON DUPLICATE KEY UPDATE setting_json=VALUES(setting_json),version=version+1,updated_by=VALUES(updated_by),updated_at=VALUES(updated_at)');
+    $seedManualRules->execute(['settings'=>$manualRules,'actor'=>$id]);
     $manualBookingId = $bookingService->request($clientPrincipal,$profileId,$localBookingStart->setTimezone(new DateTimeZone('UTC')),$localBookingStart->modify('+60 minutes')->setTimezone(new DateTimeZone('UTC')),null,'Manual booking integration test',bin2hex(random_bytes(16)));
     $manualState = $pdo->prepare('SELECT status,booking_mode,deposit_status FROM bookings WHERE id = :id');
     $manualState->execute(['id'=>$manualBookingId]);
@@ -445,7 +452,7 @@ function runIdentityIntegration(PDO $pdo): int
     }
     $pdo->prepare('UPDATE companion_profiles SET auto_booking_opt_in = 1 WHERE id = :id')->execute(['id'=>$profileId]);
     $bookingRules = json_encode(['automatic_enabled'=>true,'auto_confirm_enabled'=>true,'deposit_required'=>false,'minimum_notice_minutes'=>60,'maximum_advance_days'=>90,'minimum_duration_minutes'=>60,'maximum_duration_minutes'=>480,'client_cancellation_enabled'=>true,'client_cancellation_cutoff_minutes'=>0],JSON_THROW_ON_ERROR);
-    $settings = $pdo->prepare('INSERT INTO deployment_settings (setting_key,setting_json,version,updated_by,updated_at) VALUES ("booking.rules",:settings,1,:actor,UTC_TIMESTAMP())');
+    $settings = $pdo->prepare('UPDATE deployment_settings SET setting_json=:settings,version=version+1,updated_by=:actor,updated_at=UTC_TIMESTAMP() WHERE setting_key="booking.rules"');
     $settings->execute(['settings'=>$bookingRules,'actor'=>$id]);
     $pdo->prepare('INSERT INTO feature_states (feature_key,enabled,config_json,updated_by,updated_at) VALUES ("bookings.automatic",1,NULL,:actor,UTC_TIMESTAMP())')->execute(['actor'=>$id]);
     $autoStart = $localBookingStart->modify('+2 hours');
