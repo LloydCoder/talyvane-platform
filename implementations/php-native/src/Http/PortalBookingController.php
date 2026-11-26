@@ -13,6 +13,8 @@ use Talyvane\Application\Bookings\BookingQuoteService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Identity\AuthenticationService;
+use Talyvane\Domain\Booking\AmbiguousLocalTimeException;
+use Talyvane\Domain\Booking\LocalDateTimeResolver;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\Principal;
 use Talyvane\Security\SessionManager;
@@ -45,7 +47,7 @@ final class PortalBookingController
         }
     }
 
-    public function newForm(Request $request,string $error='',int $status=200): Response
+    public function newForm(Request $request,string $error='',int $status=200,array $extra=[]): Response
     {
         SessionManager::start();
         $client=$this->principal('client');
@@ -60,7 +62,7 @@ final class PortalBookingController
         } else {
             $quotes=$this->quotes->clientQuotes($client,(string)$profile['id']);
         }
-        return $this->page('client-new',[],$error,$status,['profile'=>$profile,'profiles'=>$options,'quotes'=>$quotes]);
+        return $this->page('client-new',[],$error,$status,array_replace(['profile'=>$profile,'profiles'=>$options,'quotes'=>$quotes,'formValues'=>$request->body],$extra));
     }
 
     public function store(Request $request): Response
@@ -73,14 +75,19 @@ final class PortalBookingController
         if ($profile===null) return $this->newForm($request,'This profile is not currently available for booking.',422);
         try {
             $zone=new DateTimeZone((string)$profile['time_zone']);
-            $start=$this->parseLocalTime($this->field($request,'starts_at'),$zone);
-            $end=$this->parseLocalTime($this->field($request,'ends_at'),$zone);
+            $start=LocalDateTimeResolver::resolve($this->field($request,'starts_at'),$zone,$this->offset($this->field($request,'starts_at_offset')));
+            $end=LocalDateTimeResolver::resolve($this->field($request,'ends_at'),$zone,$this->offset($this->field($request,'ends_at_offset')));
             $quoteId=$this->nullable($this->field($request,'quote_snapshot_id'));
             $this->bookings->request(
                 $client,(string)$profile['id'],$start,$end,$quoteId,
                 $this->nullable($this->field($request,'request_note')),$request->requestId
             );
             return Response::redirect('/portal/bookings?created=1');
+        } catch (AmbiguousLocalTimeException $error) {
+            $field=$this->field($request,'starts_at_offset')===''?'starts_at_offset':'ends_at_offset';
+            $retry=new Request($request->method,$request->path,$request->headers,
+                ['profile'=>(string)$profile['slug']],$request->body,$request->ipAddress,$request->requestId,$request->files);
+            return $this->newForm($retry,$error->getMessage(),422,['ambiguousTime'=>['field'=>$field,'candidates'=>$error->candidates]]);
         } catch (InvalidArgumentException|DomainException $error) {
             $retry=new Request($request->method,$request->path,$request->headers,
                 ['profile'=>(string)$profile['slug']],$request->body,$request->ipAddress,$request->requestId,$request->files);
@@ -129,7 +136,7 @@ final class PortalBookingController
     }
 
     /** @param array<string,string> $params */
-    public function rescheduleForm(Request $request,array $params,string $error='',int $status=200): Response
+    public function rescheduleForm(Request $request,array $params,string $error='',int $status=200,array $extra=[]): Response
     {
         SessionManager::start();
         $client=$this->principal('client');
@@ -150,7 +157,8 @@ final class PortalBookingController
             $localStart=(new DateTimeImmutable((string) $booking['starts_at_utc'],new DateTimeZone('UTC')))->setTimezone($zone)->format('Y-m-d\TH:i');
             $localEnd=(new DateTimeImmutable((string) $booking['ends_at_utc'],new DateTimeZone('UTC')))->setTimezone($zone)->format('Y-m-d\TH:i');
             return $this->page('client-reschedule',[],$error,$status,[
-                'booking'=>$booking,'localStart'=>$localStart,'localEnd'=>$localEnd,
+                'booking'=>$booking,'localStart'=>$localStart,'localEnd'=>$localEnd,'formValues'=>$request->body,
+            ],$extra);
             ]);
         } catch (DomainException) {
             return $this->clientIndex($request,'You do not have permission to reschedule this booking.',403);
@@ -178,13 +186,16 @@ final class PortalBookingController
                 return $this->clientIndex($request,'This booking is not available for rescheduling.',422);
             }
             $zone=new DateTimeZone((string) $booking['time_zone']);
-            $start=$this->parseLocalTime($this->field($request,'starts_at'),$zone);
-            $end=$this->parseLocalTime($this->field($request,'ends_at'),$zone);
+            $start=LocalDateTimeResolver::resolve($this->field($request,'starts_at'),$zone,$this->offset($this->field($request,'starts_at_offset')));
+            $end=LocalDateTimeResolver::resolve($this->field($request,'ends_at'),$zone,$this->offset($this->field($request,'ends_at_offset')));
             $this->commands->reschedule(
                 $client,(string) $booking['id'],$start,$end,
                 $this->field($request,'reason'),$request->requestId
             );
             return Response::redirect('/portal/bookings?rescheduled=1');
+        } catch (AmbiguousLocalTimeException $error) {
+            $field=$this->field($request,'starts_at_offset')===''?'starts_at_offset':'ends_at_offset';
+            return $this->rescheduleForm($request,$params,$error->getMessage(),422,['ambiguousTime'=>['field'=>$field,'candidates'=>$error->candidates]]);
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->rescheduleForm($request,$params,$error->getMessage(),422);
         } catch (\Throwable) {
@@ -317,19 +328,13 @@ final class PortalBookingController
         return is_string($value)?$value:'';
     }
 
-    private function parseLocalTime(string $value,DateTimeZone $zone): DateTimeImmutable
+    private function offset(string $value): ?int
     {
-        $parsed=DateTimeImmutable::createFromFormat('!Y-m-d\\TH:i',$value,$zone);
-        $errors=DateTimeImmutable::getLastErrors();
-        if (!$parsed instanceof DateTimeImmutable ||
-            (is_array($errors) && ($errors['warning_count']>0 || $errors['error_count']>0)) ||
-            $parsed->format('Y-m-d\\TH:i') !== $value) {
-            // PHP otherwise normalizes a wall-clock time inside a DST spring-forward
-            // gap (for example 02:30 becomes 03:30). Reject it instead of silently
-            // booking a different local time than the client explicitly selected.
-            throw new InvalidArgumentException('That local time does not exist in the destination time zone. Choose another time.');
+        if($value==='') return null;
+        if(preg_match('/^-?\\d{1,5}$/D',$value)!==1 || abs((int)$value)>50400) {
+            throw new InvalidArgumentException('Selected destination UTC offset is invalid.');
         }
-        return $parsed;
+        return (int)$value;
     }
 
     private function nullable(string $value): ?string
