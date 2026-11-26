@@ -23,6 +23,7 @@ final class PortalBookingController
         private BookingService $bookings,
         private BookingCommandService $commands,
         private BookingQueryService $queries,
+        private \Talyvane\Application\Bookings\BookingCalendarService $calendar,
         private DiscoveryService $discovery,
         private ViewRenderer $views,
         private string $brandName
@@ -35,7 +36,7 @@ final class PortalBookingController
         if ($client===null) return Response::redirect('/portal/login');
         try {
             return $this->page('client-list',$this->queries->clientHistory($client),$error,$status,[
-                'notice'=>($request->query['created']??'')==='1'?'Your booking request has been submitted for review.':'',
+                'notice'=>($request->query['created']??'')==='1'?'Your booking request has been submitted for review.':((($request->query['rescheduled']??'')==='1')?'Your booking has been rescheduled.':''),
             ]);
         } catch (DomainException) {
             return $this->page('client-list',[],'You do not have permission to view these bookings.',403);
@@ -93,6 +94,126 @@ final class PortalBookingController
             return Response::redirect('/portal/bookings');
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->clientIndex($request,$error->getMessage(),422);
+        }
+    }
+
+    /** @param array<string,string> $params */
+    public function rescheduleForm(Request $request,array $params,string $error='',int $status=200): Response
+    {
+        SessionManager::start();
+        $client=$this->principal('client');
+        if ($client===null) return Response::redirect('/portal/login');
+        try {
+            $booking=null;
+            foreach ($this->queries->clientHistory($client) as $item) {
+                if ((string) $item['id'] === (string) ($params['id'] ?? '')) {
+                    $booking=$item;
+                    break;
+                }
+            }
+            if (!is_array($booking)) return $this->clientIndex($request,'Booking not found.',404);
+            if (!in_array($booking['status'],['accepted','confirmed'],true)) {
+                return $this->clientIndex($request,'Only accepted or confirmed bookings can be rescheduled.',422);
+            }
+            $zone=new DateTimeZone((string) $booking['time_zone']);
+            $localStart=(new DateTimeImmutable((string) $booking['starts_at_utc'],new DateTimeZone('UTC')))->setTimezone($zone)->format('Y-m-d\TH:i');
+            $localEnd=(new DateTimeImmutable((string) $booking['ends_at_utc'],new DateTimeZone('UTC')))->setTimezone($zone)->format('Y-m-d\TH:i');
+            return $this->page('client-reschedule',[],$error,$status,[
+                'booking'=>$booking,'localStart'=>$localStart,'localEnd'=>$localEnd,
+            ]);
+        } catch (DomainException) {
+            return $this->clientIndex($request,'You do not have permission to reschedule this booking.',403);
+        }
+    }
+
+    /** @param array<string,string> $params */
+    public function reschedule(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if (!Csrf::verify($this->field($request,'_csrf'))) {
+            return $this->rescheduleForm($request,$params,'Your session expired. Refresh this page and try again.',419);
+        }
+        $client=$this->principal('client');
+        if ($client===null) return Response::redirect('/portal/login');
+        try {
+            $booking=null;
+            foreach ($this->queries->clientHistory($client) as $item) {
+                if ((string) $item['id'] === (string) ($params['id'] ?? '')) {
+                    $booking=$item;
+                    break;
+                }
+            }
+            if (!is_array($booking) || !in_array($booking['status'],['accepted','confirmed'],true)) {
+                return $this->clientIndex($request,'This booking is not available for rescheduling.',422);
+            }
+            $zone=new DateTimeZone((string) $booking['time_zone']);
+            $start=$this->parseLocalTime($this->field($request,'starts_at'),$zone);
+            $end=$this->parseLocalTime($this->field($request,'ends_at'),$zone);
+            $this->commands->reschedule(
+                $client,(string) $booking['id'],$start,$end,
+                $this->field($request,'reason'),$request->requestId
+            );
+            return Response::redirect('/portal/bookings?rescheduled=1');
+        } catch (InvalidArgumentException|DomainException $error) {
+            return $this->rescheduleForm($request,$params,$error->getMessage(),422);
+        } catch (\Throwable) {
+            return $this->rescheduleForm($request,$params,'The booking could not be rescheduled. Please try again.',503);
+        }
+    }
+
+    public function clientCalendar(Request $request): Response
+    {
+        return $this->calendarPage('client');
+    }
+
+    public function companionCalendar(Request $request): Response
+    {
+        return $this->calendarPage('companion');
+    }
+
+    public function clientCalendarIcs(Request $request): Response
+    {
+        return $this->calendarDownload('client');
+    }
+
+    public function companionCalendarIcs(Request $request): Response
+    {
+        return $this->calendarDownload('companion');
+    }
+
+    private function calendarPage(string $role): Response
+    {
+        SessionManager::start();
+        $actor=$this->principal($role);
+        if ($actor===null) return Response::redirect('/portal/login');
+        try {
+            $events=$role==='client'?$this->calendar->clientEvents($actor):$this->calendar->companionEvents($actor);
+            return Response::html($this->views->render('portal/calendar',[
+                'events'=>$events,'role'=>$role,'brandName'=>$this->brandName,
+            ]));
+        } catch (DomainException) {
+            return Response::html('You do not have permission to view this calendar.',403);
+        }
+    }
+
+    private function calendarDownload(string $role): Response
+    {
+        SessionManager::start();
+        $actor=$this->principal($role);
+        if ($actor===null) return Response::redirect('/portal/login');
+        try {
+            $events=$role==='client'?$this->calendar->clientEvents($actor):$this->calendar->companionEvents($actor);
+            $body=$this->calendar->toIcalendar($actor,$events,new DateTimeImmutable('now',new DateTimeZone('UTC')));
+            $filename=$role==='client'?'talyvane-client-calendar.ics':'talyvane-companion-calendar.ics';
+            return new Response($body,200,[
+                'content-type'=>'text/calendar; charset=utf-8',
+                'content-disposition'=>'attachment; filename="' . $filename . '"',
+                'cache-control'=>'no-store, private',
+                'pragma'=>'no-cache',
+                'x-content-type-options'=>'nosniff',
+            ]);
+        } catch (DomainException) {
+            return Response::html('You do not have permission to export this calendar.',403);
         }
     }
 
@@ -191,7 +312,7 @@ final class PortalBookingController
     {
         $data=array_replace([
             'mode'=>$mode,'items'=>$items,'error'=>$error,'csrf'=>Csrf::issue(),'brandName'=>$this->brandName,
-            'notice'=>'','profile'=>null,'profiles'=>[],
+            'notice'=>'','profile'=>null,'profiles'=>[],'booking'=>null,'localStart'=>'','localEnd'=>'',
         ],$extra);
         return Response::html($this->views->render('portal/bookings',$data),$status);
     }

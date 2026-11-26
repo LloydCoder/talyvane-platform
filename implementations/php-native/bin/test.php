@@ -9,6 +9,8 @@ use Talyvane\Domain\Money\Currency;
 use Talyvane\Domain\Money\QuoteSnapshot;
 use Talyvane\Domain\Payments\PaymentStateMachine;
 use Talyvane\Domain\Booking\BookingStateMachine;
+use Talyvane\Domain\Booking\BookingCancellationPolicy;
+use Talyvane\Application\Bookings\BookingCalendarService;
 use Talyvane\Domain\Consent\ConsentGrant;
 use Talyvane\Domain\Market\MarketPolicy;
 use Talyvane\Domain\Membership\MembershipAccess;
@@ -51,6 +53,40 @@ $assert = static function (bool $condition, string $message) use (&$tests): void
     }
 };
 
+$cancelPolicy = new BookingCancellationPolicy(true, 120);
+$cancelPolicy->assertAllowed('client','confirmed',new DateTimeImmutable('2026-12-01T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00'));
+$assert(true, 'client may cancel a confirmed booking outside the configured cutoff');
+try { $cancelPolicy->assertAllowed('client','confirmed',new DateTimeImmutable('2026-12-01T09:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'client cancellation inside cutoff is rejected'); }
+catch (DomainException) { $assert(true, 'client cancellation inside cutoff is rejected'); }
+$cancelPolicyDisabled = new BookingCancellationPolicy(false,120);
+$cancelPolicyDisabled->assertAllowed('client','pending_review',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00'));
+$assert(true, 'client may cancel a pending review request without confirmed-booking cancellation policy');
+try { $cancelPolicyDisabled->assertAllowed('client','confirmed',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'disabled confirmed-booking cancellation is rejected'); }
+catch (DomainException) { $assert(true, 'disabled client cancellation is rejected'); }
+try { $cancelPolicy->assertAllowed('client','accepted',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'unsupported client cancellation state is rejected'); }
+catch (DomainException) { $assert(true, 'unsupported client cancellation state is rejected'); }
+try { $cancelPolicy->assertAllowed('companion','confirmed',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'companion cannot use client cancellation policy'); }
+catch (DomainException) { $assert(true, 'companion cannot use client cancellation policy'); }
+
+$assert(BookingStateMachine::transition('pending_review','cancelled','client') === 'cancelled', 'client may cancel a pending-review booking');
+
+$calendarPdo = new class extends PDO { public function __construct() {} };
+$calendar = new BookingCalendarService($calendarPdo,str_repeat('C',32));
+$calendarNow = new DateTimeImmutable('2026-11-26T09:00:00+00:00');
+$calendarEvents = [[
+    'id'=>'booking-private-1','status'=>'confirmed',
+    'starts_at_utc'=>'2026-12-01 12:00:00','ends_at_utc'=>'2026-12-01 13:00:00',
+    'updated_at'=>'2026-11-26 08:00:00','profile_name'=>"Alex, Example\nVIP",
+    'destination_name'=>'London; United Kingdom',
+    'client_note'=>'PRIVATE NOTE MUST NOT APPEAR','client_user_id'=>'client-secret-id',
+]];
+$clientCalendar = $calendar->toIcalendar(new Principal('client-calendar-id',['client'],false),$calendarEvents,$calendarNow);
+$assert(str_contains($clientCalendar,'BEGIN:VCALENDAR') && str_contains($clientCalendar,'DTSTART:20261201T120000Z'), 'calendar export emits RFC5545 UTC event times');
+$assert(str_contains($clientCalendar,'SUMMARY:Booking with Alex\\, Example\\nVIP — London\\; United Kingdom') && !str_contains($clientCalendar,'PRIVATE NOTE') && !str_contains($clientCalendar,'client-secret-id'), 'client calendar escapes text and excludes notes and account identifiers');
+$companionCalendar = $calendar->toIcalendar(new Principal('companion-calendar-id',['companion'],false),$calendarEvents,$calendarNow);
+$assert(str_contains($companionCalendar,'SUMMARY:Appointment — London\\; United Kingdom') && !str_contains($companionCalendar,'Alex'), 'companion calendar projection excludes client-facing profile identity details');
+$cancelledCalendar = $calendar->toIcalendar(new Principal('client-calendar-id',['client'],false),[array_merge($calendarEvents[0],['status'=>'cancelled'])],$calendarNow);
+$assert(str_contains($cancelledCalendar,'STATUS:CANCELLED'), 'calendar export carries cancellation tombstones for synchronization clients');
 $assert(Money::fromDecimal('123.45', 'USD', 2)->minorUnits === 12345, 'two-decimal money uses integer minor units');
 $assert(Money::fromDecimal('120', 'JPY', 0)->toDecimal() === '120', 'zero-decimal currency formats correctly');
 $assert(Money::fromDecimal('1.234', 'KWD', 3)->toDecimal() === '1.234', 'three-decimal currency formats correctly');

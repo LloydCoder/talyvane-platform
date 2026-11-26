@@ -14,6 +14,8 @@ use Talyvane\Application\Globalization\MarketPolicyManagementService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Bookings\BookingCommandService;
 use Talyvane\Application\Bookings\BookingQueryService;
+use Talyvane\Application\Bookings\BookingNotificationOutbox;
+use Talyvane\Application\Bookings\BookingNotificationDispatcher;
 use Talyvane\Infrastructure\Database\BookingPolicyRepository;
 use Talyvane\Application\Identity\EmailVerificationService;
 use Talyvane\Infrastructure\Mail\Mailer;
@@ -32,6 +34,14 @@ final class NativeTestMailer implements Mailer
     public function send(string $recipient, string $subject, string $textBody): void
     {
         $this->messages[] = ['recipient'=>$recipient,'subject'=>$subject,'body'=>$textBody];
+    }
+}
+
+final class NativeFailingBookingMailer implements Mailer
+{
+    public function send(string $recipient,string $subject,string $textBody): void
+    {
+        throw new RuntimeException('Synthetic SMTP outage for retry coverage.');
     }
 }
 
@@ -380,12 +390,24 @@ function runIdentityIntegration(PDO $pdo): int
     try { $availabilityService->save(new Principal($registeredId,['client'],false),$profileId,$weekday,'12:00','13:00',$localDate,null,bin2hex(random_bytes(16))); $assert(false,'client cannot mutate companion availability'); }
     catch (DomainException) { $assert(true,'client cannot mutate companion availability'); }
     $clientPrincipal = new Principal($registeredId,['client'],false);
-    $bookingService = new BookingService($pdo,new BookingPolicyRepository($pdo),$audit);
+    $bookingNotifications = new BookingNotificationOutbox($pdo,new SecretBox(str_repeat('B',32)),str_repeat('F',32));
+    $bookingService = new BookingService($pdo,new BookingPolicyRepository($pdo),$audit,$bookingNotifications);
     $manualBookingId = $bookingService->request($clientPrincipal,$profileId,$localBookingStart->setTimezone(new DateTimeZone('UTC')),$localBookingStart->modify('+60 minutes')->setTimezone(new DateTimeZone('UTC')),null,'Manual booking integration test',bin2hex(random_bytes(16)));
     $manualState = $pdo->prepare('SELECT status,booking_mode,deposit_status FROM bookings WHERE id = :id');
     $manualState->execute(['id'=>$manualBookingId]);
     $manual = $manualState->fetch();
     $assert(is_array($manual) && $manual['status'] === 'requested' && $manual['booking_mode'] === 'manual','booking requests default to manual review unless all automatic gates pass');
+    $bookingOutboxQuery=$pdo->prepare('SELECT id,idempotency_key,recipient_ciphertext,payload_ciphertext,status FROM communication_outbox WHERE related_type="booking" AND related_id=:booking');
+    $bookingOutboxQuery->execute(['booking'=>$manualBookingId]);
+    $requestNotifications=$bookingOutboxQuery->fetchAll(PDO::FETCH_ASSOC);
+    $assert(count($requestNotifications)===1 && $requestNotifications[0]['status']==='pending' &&
+        !str_contains($requestNotifications[0]['recipient_ciphertext'],'native-companion@example.test') &&
+        !str_contains($requestNotifications[0]['payload_ciphertext'],'TVN-'),
+        'booking request creates one pending outbox record with encrypted recipient and payload');
+    $bookingNotifications->enqueue($manualBookingId,$companionId,'booking.requested');
+    $bookingOutboxCount=$pdo->prepare('SELECT COUNT(*) FROM communication_outbox WHERE related_type="booking" AND related_id=:booking');
+    $bookingOutboxCount->execute(['booking'=>$manualBookingId]);
+    $assert((int)$bookingOutboxCount->fetchColumn()===1,'booking notification enqueue is idempotent for the same booking, event and recipient');
     try {
         $bookingService->request($clientPrincipal,$profileId,$localBookingStart->setTimezone(new DateTimeZone('UTC')),$localBookingStart->modify('+60 minutes')->setTimezone(new DateTimeZone('UTC')),null,null,bin2hex(random_bytes(16)));
         $assert(false,'overlapping booking request is rejected');
@@ -393,7 +415,7 @@ function runIdentityIntegration(PDO $pdo): int
         $assert(true,'overlapping booking request is rejected');
     }
     $pdo->prepare('UPDATE companion_profiles SET auto_booking_opt_in = 1 WHERE id = :id')->execute(['id'=>$profileId]);
-    $bookingRules = json_encode(['automatic_enabled'=>true,'deposit_required'=>false,'minimum_notice_minutes'=>60,'maximum_advance_days'=>90,'minimum_duration_minutes'=>60,'maximum_duration_minutes'=>480],JSON_THROW_ON_ERROR);
+    $bookingRules = json_encode(['automatic_enabled'=>true,'deposit_required'=>false,'minimum_notice_minutes'=>60,'maximum_advance_days'=>90,'minimum_duration_minutes'=>60,'maximum_duration_minutes'=>480,'client_cancellation_enabled'=>true,'client_cancellation_cutoff_minutes'=>0],JSON_THROW_ON_ERROR);
     $settings = $pdo->prepare('INSERT INTO deployment_settings (setting_key,setting_json,version,updated_by,updated_at) VALUES ("booking.rules",:settings,1,:actor,UTC_TIMESTAMP())');
     $settings->execute(['settings'=>$bookingRules,'actor'=>$id]);
     $pdo->prepare('INSERT INTO feature_states (feature_key,enabled,config_json,updated_by,updated_at) VALUES ("bookings.automatic",1,NULL,:actor,UTC_TIMESTAMP())')->execute(['actor'=>$id]);
@@ -404,7 +426,7 @@ function runIdentityIntegration(PDO $pdo): int
     $automatic = $autoState->fetch();
     $assert(is_array($automatic) && $automatic['status'] === 'requested' && $automatic['booking_mode'] === 'manual' && (bool) $automatic['companion_opt_in_snapshot'],'automatic booking remains manual until deployment feature, provider, legal and safeguarding prerequisites are operational');
 
-    $bookingCommands = new BookingCommandService($pdo,new BookingPolicyRepository($pdo),$audit);
+    $bookingCommands = new BookingCommandService($pdo,new BookingPolicyRepository($pdo),$audit,$bookingNotifications);
     $superAdmin = new Principal($id,['super_admin'],true);
     $companionPrincipal = new Principal($companionId,['companion'],false);
     $bookingCommands->transition($companionPrincipal,$manualBookingId,'accepted','Companion accepted the requested booking',bin2hex(random_bytes(16)));
@@ -413,6 +435,9 @@ function runIdentityIntegration(PDO $pdo): int
     $cancelledState = $pdo->prepare('SELECT status FROM bookings WHERE id = :id');
     $cancelledState->execute(['id'=>$manualBookingId]);
     $assert($cancelledState->fetchColumn() === 'cancelled','companion acceptance, administrator confirmation and client cancellation follow authorized transitions');
+    $notificationEvents=$pdo->prepare('SELECT COUNT(*) FROM communication_outbox WHERE related_type="booking" AND related_id=:booking');
+    $notificationEvents->execute(['booking'=>$manualBookingId]);
+    $assert((int)$notificationEvents->fetchColumn()===5,'companion acceptance, administrator confirmation and client cancellation enqueue the corresponding role-scoped alerts');
 
     $pdo->prepare('UPDATE companion_profiles SET auto_booking_opt_in = 0 WHERE id = :id')->execute(['id'=>$profileId]);
     $thirdStart = $localBookingStart->modify('+4 hours');
@@ -425,6 +450,9 @@ function runIdentityIntegration(PDO $pdo): int
     $rescheduled->execute(['id'=>$thirdBookingId]);
     $rescheduledRow = $rescheduled->fetch();
     $assert(is_array($rescheduledRow) && $rescheduledRow['status'] === 'confirmed' && $rescheduledRow['starts_at_utc'] === $newStart->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),'client rescheduling preserves confirmed state and uses UTC storage');
+    $rescheduleNotificationCount=$pdo->prepare('SELECT COUNT(*) FROM communication_outbox WHERE related_type="booking" AND related_id=:booking AND idempotency_key LIKE "%booking.rescheduled%"');
+    $rescheduleNotificationCount->execute(['booking'=>$thirdBookingId]);
+    $assert((int)$rescheduleNotificationCount->fetchColumn()===1,'client rescheduling notifies the companion without exposing the client note');
     $bookingQueries = new BookingQueryService($pdo);
     $clientHistory = $bookingQueries->clientHistory($clientPrincipal);
     $companionHistory = $bookingQueries->companionHistory($companionPrincipal);
@@ -432,6 +460,35 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(count($clientHistory) === 3 && count($companionHistory) === 3,'client and companion booking histories are scoped to their own identities');
     $assert(count($adminBookingQueue) === 3 && array_key_exists('client_user_id',$adminBookingQueue[0]),'MFA-authorized administrators can inspect the booking operations queue');
     $assert(!array_key_exists('client_user_id',$companionHistory[0]) && !array_key_exists('client_user_id',$clientHistory[0]),'client and companion booking read models omit internal account identifiers');
+
+    $bookingCalendar = new \Talyvane\Application\Bookings\BookingCalendarService($pdo,str_repeat('C',32));
+    $clientCalendarEvents = $bookingCalendar->clientEvents($clientPrincipal);
+    $companionCalendarEvents = $bookingCalendar->companionEvents($companionPrincipal);
+    $assert(count($clientCalendarEvents) === 2 && count($companionCalendarEvents) === 2,
+        'client and companion calendars contain only their own active or recently changed bookings');
+    $companionCalendarIcs = $bookingCalendar->toIcalendar($companionPrincipal,$companionCalendarEvents,new DateTimeImmutable('now',new DateTimeZone('UTC')));
+    $assert(!str_contains($companionCalendarIcs,'native-client@example.test') && !str_contains($companionCalendarIcs,'client_user_id'),
+        'companion iCalendar export excludes client identity and account identifiers');
+    $assert(str_contains($companionCalendarIcs,'STATUS:CANCELLED'),
+        'calendar export preserves cancellation tombstones for downstream calendar reconciliation');
+    $bookingTestMailer=new NativeTestMailer();
+    $bookingDispatcher=new BookingNotificationDispatcher($pdo,new SecretBox(str_repeat('B',32)),$bookingTestMailer);
+    $dispatchResult=$bookingDispatcher->dispatchBatch(50);
+    $assert($dispatchResult['claimed']>=5 && $dispatchResult['delivered']===$dispatchResult['claimed'] &&
+        $dispatchResult['retried']===0 && $dispatchResult['dead_lettered']===0,
+        'booking notification dispatcher decrypts and delivers queued alerts through the mail adapter');
+    $assert(count($bookingTestMailer->messages)===$dispatchResult['delivered'] &&
+        !str_contains(implode("\n",array_column($bookingTestMailer->messages,'body')),'Manual booking integration test'),
+        'booking emails contain event details but never disclose private client booking notes');
+    $bookingNotifications->enqueue($manualBookingId,$registeredId,'booking.rescheduled');
+    $failingDispatcher=new BookingNotificationDispatcher($pdo,new SecretBox(str_repeat('B',32)),new NativeFailingBookingMailer());
+    $retryResult=$failingDispatcher->dispatchBatch(1);
+    $retryState=$pdo->prepare('SELECT status,attempts,last_error_code FROM communication_outbox WHERE related_type="booking" AND related_id=:booking AND idempotency_key LIKE "%booking.rescheduled%" AND recipient_fingerprint=:fingerprint ORDER BY created_at DESC LIMIT 1');
+    $retryState->execute(['booking'=>$manualBookingId,'fingerprint'=>hash_hmac('sha256','native-registered-client@example.test',str_repeat('F',32))]);
+    $retryRow=$retryState->fetch(PDO::FETCH_ASSOC);
+    $assert($retryResult['retried']===1 && is_array($retryRow) && $retryRow['status']==='pending' &&
+        (int)$retryRow['attempts']===1 && $retryRow['last_error_code']==='RuntimeException',
+        'SMTP failure schedules a bounded retry and records a sanitized delivery attempt');
     $privacyExports=new \Talyvane\Application\Identity\PortalPrivacyExportService($pdo,$audit,$limiter);
     $clientPrivacyExport=$privacyExports->export($clientPrincipal,bin2hex(random_bytes(16)));
     $companionPrivacyExport=$privacyExports->export($companionPrincipal,bin2hex(random_bytes(16)));

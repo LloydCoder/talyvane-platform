@@ -178,10 +178,12 @@ final class Bootstrap
         $adminModelAgency = new AdminModelAgencyController($authentication, $modelApplications, $views, $brandName);
         $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views, $brandName);
         $bookingPolicies = new BookingPolicyRepository($pdo);
-        $bookingService = new BookingService($pdo, $bookingPolicies, $audit);
-        $bookingCommands = new BookingCommandService($pdo, $bookingPolicies, $audit);
+        $bookingNotifications = new \Talyvane\Application\Bookings\BookingNotificationOutbox($pdo,new SecretBox($config['app_key']),hash('sha256',$config['app_key'].'|booking-notification-fingerprint-v1',true));
+        $bookingService = new BookingService($pdo, $bookingPolicies, $audit, $bookingNotifications);
+        $bookingCommands = new BookingCommandService($pdo, $bookingPolicies, $audit, $bookingNotifications);
         $bookingQueries = new BookingQueryService($pdo);
-        $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $discovery, $views, $brandName);
+        $bookingCalendar = new \Talyvane\Application\Bookings\BookingCalendarService($pdo,hash_hmac('sha256','talyvane-calendar-uid-v1',$config['app_key'],true));
+        $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $bookingCalendar, $discovery, $views, $brandName);
         $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit), $views, $brandName);
         $clientMemberships = new ClientMembershipService($pdo,$audit,$membershipAvailability);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery, $clientMemberships);
@@ -241,6 +243,10 @@ final class Bootstrap
         $router->add('POST', '/portal/login', static fn(Request $request): Response => $portalAuth->login($request));
         $router->add('GET', '/portal', static fn(Request $request): Response => $portalAuth->dashboard($request));
         $router->add('POST', '/portal/logout', static fn(Request $request): Response => $portalAuth->logout($request));
+        $router->add('GET', '/portal/calendar', static fn(Request $request): Response => $portalBookings->clientCalendar($request));
+        $router->add('GET', '/portal/calendar.ics', static fn(Request $request): Response => $portalBookings->clientCalendarIcs($request));
+        $router->add('GET', '/portal/companion/calendar', static fn(Request $request): Response => $portalBookings->companionCalendar($request));
+        $router->add('GET', '/portal/companion/calendar.ics', static fn(Request $request): Response => $portalBookings->companionCalendarIcs($request));
         $router->add('GET', '/portal/bookings', static fn(Request $request): Response => $portalBookings->clientIndex($request));
         $router->add('GET', '/portal/favorites', static fn(Request $request): Response => $clientFavorites->index($request));
         $router->add('GET', '/portal/gallery', static fn(Request $request): Response => $clientPrivateGallery->index($request));
@@ -249,6 +255,8 @@ final class Bootstrap
         $router->add('POST', '/portal/favorites/{slug}/remove', static fn(Request $request, array $params): Response => $clientFavorites->remove($request, $params));
         $router->add('GET', '/portal/bookings/new', static fn(Request $request): Response => $portalBookings->newForm($request));
         $router->add('POST', '/portal/bookings', static fn(Request $request): Response => $portalBookings->store($request));
+        $router->add('GET', '/portal/bookings/{id}/reschedule', static fn(Request $request, array $params): Response => $portalBookings->rescheduleForm($request, $params));
+        $router->add('POST', '/portal/bookings/{id}/reschedule', static fn(Request $request, array $params): Response => $portalBookings->reschedule($request, $params));
         $router->add('POST', '/portal/bookings/{id}/cancel', static fn(Request $request, array $params): Response => $portalBookings->cancel($request, $params));
         $router->add('GET', '/portal/companion/bookings', static fn(Request $request): Response => $portalBookings->companionIndex($request));
         $router->add('GET', '/portal/companion/media', static fn(Request $request): Response => $companionMedia->index($request));
