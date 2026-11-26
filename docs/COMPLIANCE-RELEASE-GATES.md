@@ -1,5 +1,7 @@
 # Compliance and Safeguarding Release Gates
 
+Repository-level Laravel or native PHP implementation evidence is not legal/provider approval. The native PHP candidate's implementation and release status is tracked separately in [NATIVE-PHP-PORT-STATUS.md](NATIVE-PHP-PORT-STATUS.md); all deployment-specific legal, safeguarding, hosting and payment gates apply independently.
+
 This checklist is not legal advice. Obtain current advice from qualified counsel and written approvals from relevant hosting and payment providers.
 
 ## Jurisdiction mapping
