@@ -395,8 +395,18 @@ final class EnquiryService
         }
         self::validateResponseTemplate($subjectTemplate,'subject');
         self::validateResponseTemplate($bodyTemplate,'body');
+        $idempotencyHash=hash('sha256',$requestId);
         $this->pdo->beginTransaction();
         try {
+            $replayed=$this->pdo->prepare(
+                'SELECT version FROM communication_templates WHERE idempotency_key=:key LIMIT 1 FOR UPDATE'
+            );
+            $replayed->execute(['key'=>$idempotencyHash]);
+            $existingVersion=$replayed->fetchColumn();
+            if($existingVersion!==false) {
+                $this->pdo->commit();
+                return (int)$existingVersion;
+            }
             // Lock the locale's template range before incrementing its immutable version.
             $lock=$this->pdo->prepare(
                 'SELECT id FROM communication_templates
@@ -418,11 +428,11 @@ final class EnquiryService
             $id=self::uuid();
             $this->pdo->prepare(
                 'INSERT INTO communication_templates
-                 (id,template_key,channel,locale,subject_template,body_template,version,active,updated_by,created_at,updated_at)
-                 VALUES (:id,"crm.enquiry.response","email",:locale,:subject,:body,:version,1,:actor,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+                 (id,template_key,channel,locale,subject_template,body_template,version,active,idempotency_key,updated_by,created_at,updated_at)
+                 VALUES (:id,"crm.enquiry.response","email",:locale,:subject,:body,:version,1,:idempotency,:actor,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
             )->execute([
                 'id'=>$id,'locale'=>$locale,'subject'=>$subjectTemplate,'body'=>$bodyTemplate,
-                'version'=>$version,'actor'=>$actor->id,
+                'version'=>$version,'idempotency'=>$idempotencyHash,'actor'=>$actor->id,
             ]);
             $this->audit->record($actor->id,'crm.communication.template_published','communication_template',$id,
                 $reason,null,['template_key'=>'crm.enquiry.response','channel'=>'email','locale'=>$locale,'version'=>$version],
