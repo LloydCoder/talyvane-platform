@@ -342,6 +342,31 @@ function runModelPortfolioIntegration(PDO $pdo): int
     ],bin2hex(random_bytes(16)));
     $assignments->offer($admin,$assignmentId,bin2hex(random_bytes(16)));
     try {
+        $assignments->recordAcceptance($admin,$assignmentId,'private/model-assignments/executed-document-before-model-response-0001',
+            'private/model-consent/model-acceptance-before-model-response-0001',bin2hex(random_bytes(16)));
+        $assert(false,'agency cannot record assignment execution before the model explicitly responds to the offer');
+    } catch(DomainException) {
+        $assert(true,'agency cannot record assignment execution before the model explicitly responds to the offer');
+    }
+    $assignmentApplicationId=$rights->portalApplicationId((string)$portalRightsId);
+    $acceptanceRequestId=bin2hex(random_bytes(16));
+    $acceptanceIntent=$assignments->respondByApplicant($assignmentApplicationId,$assignmentId,'accept',true,null,$acceptanceRequestId);
+    $assert($acceptanceIntent==='acceptance_pending_execution','model acceptance is recorded as intent pending external signature, not as an executed assignment');
+    $replayedAcceptance=$assignments->respondByApplicant($assignmentApplicationId,$assignmentId,'accept',true,null,$acceptanceRequestId);
+    $assert($replayedAcceptance===$acceptanceIntent,'replayed model acceptance response is idempotent');
+    $acceptanceRow=$pdo->prepare('SELECT status,applicant_response_status,applicant_response_version,applicant_response_request_fingerprint,applicant_response_terms_hash,applicant_response_reason FROM model_assignments WHERE id=:id');
+    $acceptanceRow->execute(['id'=>$assignmentId]);$acceptanceRecord=$acceptanceRow->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($acceptanceRecord) && $acceptanceRecord['status']==='offered' && $acceptanceRecord['applicant_response_status']==='acceptance_pending_execution' &&
+        $acceptanceRecord['applicant_response_version']==='model-assignment-applicant-response-v1' &&
+        preg_match('/^[a-f0-9]{64}$/D',(string)$acceptanceRecord['applicant_response_terms_hash'])===1 &&
+        $acceptanceRecord['applicant_response_reason']!=='I have reviewed the assignment terms and voluntarily request the external signature process; this is not an executed agreement.',
+        'model acceptance intent is versioned, bound to the exact offer snapshot and encrypted at rest while assignment remains offered');
+    $acceptanceEvent=$pdo->prepare('SELECT actor_user_id,actor_type,from_status,to_status,event_type FROM model_assignment_events WHERE assignment_id=:id AND event_type="assignment.applicant_acceptance_intent"');
+    $acceptanceEvent->execute(['id'=>$assignmentId]);$acceptanceEventRow=$acceptanceEvent->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($acceptanceEventRow) && $acceptanceEventRow['actor_user_id']===null && $acceptanceEventRow['actor_type']==='applicant' &&
+        $acceptanceEventRow['from_status']==='offered' && $acceptanceEventRow['to_status']==='offered',
+        'applicant acceptance intent is attributed to the verified model without a fabricated platform user');
+    try {
         $assignments->confirm($admin,$assignmentId,bin2hex(random_bytes(16)));
         $assert(false,'assignment cannot be confirmed before external execution and model-acceptance evidence are recorded');
     } catch(DomainException) {
@@ -349,6 +374,9 @@ function runModelPortfolioIntegration(PDO $pdo): int
     }
     $assignments->recordAcceptance($admin,$assignmentId,'private/model-assignments/executed-document-0001',
         'private/model-consent/assignment-acceptance-0001',bin2hex(random_bytes(16)));
+    $acceptedResponse=$pdo->prepare('SELECT applicant_response_status FROM model_assignments WHERE id=:id');
+    $acceptedResponse->execute(['id'=>$assignmentId]);
+    $assert($acceptedResponse->fetchColumn()==='accepted_executed','agency can complete acceptance only after external execution and model intent evidence are recorded');
     $assignments->confirm($admin,$assignmentId,bin2hex(random_bytes(16)));
     $assignments->start($admin,$assignmentId,bin2hex(random_bytes(16)));
     $assignmentRow=$pdo->prepare('SELECT status,compensation_minor,expense_cap_minor,commission_basis_points,client_name FROM model_assignments WHERE id=:id');
@@ -364,6 +392,49 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'client receives only the source-casting client assignment with authorized brief and deliverables; agency commission is withheld');
     $assert(!array_key_exists('commission_basis_points',$clientAssignments[0]),
         'internal agency commission terms are not exposed in the client assignment register');
+
+    $secondCallStart=$now->modify('+12 days')->format(DATE_ATOM);
+    $secondCallEnd=$now->modify('+13 days')->format(DATE_ATOM);
+    $secondCallId=$casting->createDraft($admin,[
+        'title'=>'Second private editorial assignment response test','client_name'=>'Verified editorial commissioning client',
+        'client_reference'=>'client-ref-assignment-decline-test','project_purpose'=>'editorial',
+        'description'=>'A separate private editorial opportunity for testing model-originated assignment decline.',
+        'requirements'=>'The model must review and voluntarily accept or decline the assignment schedule.',
+        'country_code'=>'GB','opens_at'=>$now->modify('-1 hour')->format(DATE_ATOM),
+        'closes_at'=>$now->modify('+5 days')->format(DATE_ATOM),'shoot_starts_at'=>$secondCallStart,
+        'shoot_ends_at'=>$secondCallEnd,'compensation_amount'=>null,'currency_code'=>null,'max_submissions'=>2,
+    ],bin2hex(random_bytes(16)));
+    $casting->publish($admin,$secondCallId,bin2hex(random_bytes(16)));
+    $secondSubmissionId=$casting->submitByApplicant($applicationId,$secondCallId,$licensedAsset['id'],$licenceId,bin2hex(random_bytes(16)));
+    $casting->decide($admin,$secondSubmissionId,'selected','Selected for model assignment response decline integration test.',bin2hex(random_bytes(16)));
+    $secondAssignmentId=$assignments->createDraft($admin,$secondSubmissionId,[
+        'project_purpose'=>'editorial','client_name'=>'Verified editorial commissioning client','client_reference'=>'editorial-client-ref-002',
+        'brief'=>'A separate editorial assignment used to verify the applicant decline path.',
+        'location_city'=>'London','shoot_starts_at'=>$now->modify('+12 days')->format('Y-m-d H:i:s'),
+        'shoot_ends_at'=>$now->modify('+13 days')->format('Y-m-d H:i:s'),
+        'deliverables'=>'One editorial shoot with a separately agreed usage scope and deliverables.',
+        'compensation_amount'=>'400.00','currency_code'=>'GBP','expense_cap_amount'=>'25.00',
+    ],bin2hex(random_bytes(16)));
+    $assignments->offer($admin,$secondAssignmentId,bin2hex(random_bytes(16)));
+    $declineRequestId=bin2hex(random_bytes(16));
+    $declinedResponse=$assignments->respondByApplicant($assignmentApplicationId,$secondAssignmentId,'decline',true,
+        'I cannot accept the proposed dates due to a scheduling conflict.',$declineRequestId);
+    $assert($declinedResponse==='declined','model can decline an offered assignment through the verified self-service workspace');
+    $declineRow=$pdo->prepare('SELECT status,declined_by,applicant_response_status,applicant_response_reason,model_decline_evidence_reference FROM model_assignments WHERE id=:id');
+    $declineRow->execute(['id'=>$secondAssignmentId]);$declineRecord=$declineRow->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($declineRecord) && $declineRecord['status']==='declined' && $declineRecord['declined_by']===null &&
+        $declineRecord['applicant_response_status']==='declined' &&
+        $declineRecord['applicant_response_reason']!=='I cannot accept the proposed dates due to a scheduling conflict.' &&
+        $declineRecord['model_decline_evidence_reference']!==null,
+        'model decline is recorded without a synthetic user and sensitive explanation/evidence references remain encrypted');
+    $declineEvent=$pdo->prepare('SELECT actor_user_id,actor_type,from_status,to_status,event_type FROM model_assignment_events WHERE assignment_id=:id AND event_type="assignment.applicant_declined"');
+    $declineEvent->execute(['id'=>$secondAssignmentId]);$declineEventRow=$declineEvent->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($declineEventRow) && $declineEventRow['actor_user_id']===null && $declineEventRow['actor_type']==='applicant' &&
+        $declineEventRow['from_status']==='offered' && $declineEventRow['to_status']==='declined',
+        'model-originated decline is append-only and correctly attributed to the applicant session');
+    $assert($assignments->respondByApplicant($assignmentApplicationId,$secondAssignmentId,'decline',true,
+        'I cannot accept the proposed dates due to a scheduling conflict.',$declineRequestId)==='declined',
+        'replayed model decline response is idempotent');
 
 
     $assignmentEventId=(string)$pdo->query('SELECT id FROM model_assignment_events WHERE assignment_id='.$pdo->quote($assignmentId).' ORDER BY occurred_at LIMIT 1')->fetchColumn();
