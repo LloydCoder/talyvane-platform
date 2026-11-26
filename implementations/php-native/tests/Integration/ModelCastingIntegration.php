@@ -16,6 +16,7 @@ function runModelCastingIntegration(PDO $pdo): int
     if($adminId==='') throw new RuntimeException('Model casting integration requires the identity integration administrator.');
 
     $pdo->prepare('UPDATE countries SET enabled=1 WHERE alpha2="GB"')->execute();
+    $pdo->prepare('UPDATE currencies SET enabled=1 WHERE code="GBP"')->execute();
     $pdo->prepare(
         'INSERT INTO market_policies (country_code,enabled,decision,reviewer_id,reviewed_at,expires_at,evidence_reference,review_summary,policy_version,updated_at)
          VALUES ("GB",1,"approved",:actor,UTC_TIMESTAMP(),DATE_ADD(UTC_TIMESTAMP(),INTERVAL 30 DAY),"private/evidence/market-gb-approval","Test-only market approval fixture","market-policy-test-v1",UTC_TIMESTAMP())
