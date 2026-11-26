@@ -172,7 +172,8 @@ final class ModelAssignmentService
                     hash_equals((string)$assignment['applicant_response_request_fingerprint'],$fingerprint)) {
                     $this->pdo->commit();return $existingStatus;
                 }
-                throw new \DomainException('A response has already been recorded for this assignment offer.');
+                $retractingAcceptance=$existingStatus==='acceptance_pending_execution' && $decision==='decline' && $assignment['status']==='offered';
+                if(!$retractingAcceptance) throw new \DomainException('A response has already been recorded for this assignment offer.');
             }
             if($assignment['status']!=='offered') throw new \DomainException('Only a current offered assignment can receive a model response.');
             $submission=$this->lock('model_casting_submissions',(string)$assignment['submission_id']);
@@ -190,7 +191,9 @@ final class ModelAssignmentService
             $version='model-assignment-applicant-response-v1';
             $statement=$decision==='accept'
                 ?'I have reviewed the assignment terms and voluntarily request the external signature process; this is not an executed agreement.'
-                :'I voluntarily decline this assignment offer.';
+                :(($existingStatus==='acceptance_pending_execution')
+                    ?'I voluntarily withdraw my acceptance intent and decline this assignment offer; no external agreement has been executed.'
+                    :'I voluntarily decline this assignment offer.');
             $responseReason=$decision==='decline' && $reason!==''?$statement.' Reason: '.$reason:$statement;
             $encryptedReason=$this->cipher->encrypt($responseReason,$version.':'.$assignmentId.':reason');
             $params=[
