@@ -648,10 +648,30 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(is_array($deferredRow) && $deferredRow['status']==='deferred' &&
         str_contains($deferredRow['decision_reason'],'Legal retention'),
         'administrator can defer erasure with a mandatory auditable legal-retention reason');
-    $portalRightsAdmin->review($superAdmin,$companionCorrectionId,'rejected',
-        'The requested correction cannot be verified from the supplied details.',bin2hex(random_bytes(16)));
+    $portalRightsAdmin->fulfillCompanionCorrection($superAdmin,$companionCorrectionId,
+        'Verified Talent Corrected','Corrected biography supplied and checked by the administrator.',['en','fr-CA'],
+        'Applicant identity and requested profile corrections were independently checked.',bin2hex(random_bytes(16)));
+    $correctedProfile=$pdo->prepare('SELECT display_name,biography,languages_json,status FROM companion_profiles WHERE user_id=:user');
+    $correctedProfile->execute(['user'=>$companionPrincipal->id]);
+    $correctedProfileRow=$correctedProfile->fetch(PDO::FETCH_ASSOC);
+    $correctedRequest=$pdo->prepare('SELECT status,payload_ciphertext FROM portal_privacy_requests WHERE id=:id');
+    $correctedRequest->execute(['id'=>$companionCorrectionId]);
+    $correctedRequestRow=$correctedRequest->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($correctedProfileRow) && $correctedProfileRow['display_name']==='Verified Talent Corrected' &&
+        $correctedProfileRow['biography']==='Corrected biography supplied and checked by the administrator.' &&
+        json_decode((string)$correctedProfileRow['languages_json'],true)===['en','fr-CA'] &&
+        $correctedProfileRow['status']==='draft',
+        'verified companion correction applies only allowlisted profile fields and suspends public publication for re-review');
+    $assert(is_array($correctedRequestRow) && $correctedRequestRow['status']==='fulfilled' &&
+        $correctedRequestRow['payload_ciphertext']===null,
+        'fulfilled companion correction closes the verified request and clears its encrypted request payload');
+    $correctionAudit=$pdo->prepare('SELECT after_json FROM audit_events WHERE event_key="portal.privacy.correction.fulfilled" AND target_id=:id');
+    $correctionAudit->execute(['id'=>$companionCorrectionId]);
+    $correctionAuditPayload=json_decode((string)$correctionAudit->fetchColumn(),true);
+    $assert(is_array($correctionAuditPayload) && ($correctionAuditPayload['fields']??[])===['display_name','biography','languages'],
+        'companion correction fulfilment records an auditable field-level event without copying corrected personal values into the audit log');
     $assert(count($portalRightsAdmin->queue($superAdmin,bin2hex(random_bytes(16))))===1,
-        'reviewed privacy requests leave the active review queue without implying fulfilment');
+        'fulfilled privacy requests leave the active review queue');
 
 
     return $assertions;
