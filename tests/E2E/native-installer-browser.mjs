@@ -264,7 +264,7 @@ try {
   await page.locator('form[action="/portal/privacy/verify"] [name="code"]').fill(correctionCode);
   await page.getByRole('button', { name: /Verify privacy request/i }).click();
   await page.getByRole('status').getByText(/entered the restricted review queue/i).waitFor();
-  assert.match(await page.locator('body').innerText(), /correction.*in_review/i);
+  assert.match(await page.locator('body').innerText(), /correction[\s\S]*in_review/i);
 
   await page.goto(baseUrl + '/portal/privacy', { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: /Request account erasure/i }).click();
@@ -274,7 +274,7 @@ try {
   await page.locator('form[action="/portal/privacy/verify"] [name="code"]').fill(erasureCode);
   await page.getByRole('button', { name: /Verify privacy request/i }).click();
   await page.getByRole('status').getByText(/Erasure is not automatic/i).waitFor();
-  assert.match(await page.locator('body').innerText(), /erasure.*in_review/i);
+  assert.match(await page.locator('body').innerText(), /erasure[\s\S]*in_review/i);
   await page.goto(baseUrl + '/portal/calendar', { waitUntil: 'networkidle' });
   assert.equal(await page.locator('h1').innerText(), 'Your booking calendar.',
     'Verified erasure requests must not disable or erase the account before human review.');
