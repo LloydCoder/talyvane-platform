@@ -65,8 +65,10 @@ $cancelPolicyDisabled->assertAllowed('client','requested',new DateTimeImmutable(
 $assert(true, 'client may cancel a newly submitted requested booking without confirmed-booking cancellation policy');
 try { $cancelPolicyDisabled->assertAllowed('client','confirmed',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'disabled confirmed-booking cancellation is rejected'); }
 catch (DomainException) { $assert(true, 'disabled client cancellation is rejected'); }
-try { $cancelPolicy->assertAllowed('client','accepted',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'unsupported client cancellation state is rejected'); }
-catch (DomainException) { $assert(true, 'unsupported client cancellation state is rejected'); }
+$cancelPolicyDisabled->assertAllowed('client','accepted',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00'));
+$assert(true, 'client may cancel a companion-accepted booking before administrator confirmation');
+try { $cancelPolicy->assertAllowed('client','declined',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'terminal declined booking cannot be cancelled'); }
+catch (DomainException) { $assert(true, 'terminal declined booking cannot be cancelled'); }
 try { $cancelPolicy->assertAllowed('companion','confirmed',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'companion cannot use client cancellation policy'); }
 catch (DomainException) { $assert(true, 'companion cannot use client cancellation policy'); }
 
