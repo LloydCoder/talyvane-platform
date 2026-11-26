@@ -128,11 +128,19 @@ $attribution = is_array($saved) ? json_decode((string) $saved['attribution_json'
         'CRM reminder completion is stateful and auditable');
 
     $templateReason='Approved customer-response wording for the CRM team';
-    $service->saveResponseTemplate(
+    $templateRequestId=bin2hex(random_bytes(16));
+    $firstTemplateVersion=$service->saveResponseTemplate(
         $admin,'en','Hello {{ customer_name }} — enquiry {{ enquiry_reference }}',
         "Dear {{ customer_name }},\n\n{{ reply_text }}\n\nRegards,\n{{ agency_name }}",
-        $templateReason,bin2hex(random_bytes(16))
+        $templateReason,$templateRequestId
     );
+    $duplicateTemplateVersion=$service->saveResponseTemplate(
+        $admin,'en','This duplicate submission must not publish',
+        'This duplicate must not replace the approved template.',
+        $templateReason,$templateRequestId
+    );
+    $assert($firstTemplateVersion===1 && $duplicateTemplateVersion===1,
+        'replayed template publication token returns the original immutable version without creating a duplicate');
     $templates=$service->responseTemplates($admin);
     $activeTemplate=array_values(array_filter($templates,static fn(array $template):bool=>$template['locale']==='en' && (int)$template['active']===1))[0]??null;
     $assert(is_array($activeTemplate) && (int)$activeTemplate['version']===1,
