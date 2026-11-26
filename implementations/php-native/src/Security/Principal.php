@@ -17,4 +17,9 @@ final readonly class Principal
     {
         return in_array($role, $this->roles, true);
     }
+
+    public function hasOnlyRole(string $role): bool
+    {
+        return count($this->roles) === 1 && $this->hasRole($role);
+    }
 }
