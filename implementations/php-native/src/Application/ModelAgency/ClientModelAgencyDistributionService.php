@@ -142,7 +142,13 @@ final class ClientModelAgencyDistributionService
              ORDER BY published_at DESC LIMIT 100'
         );
         $query->execute(['client'=>$client->id]);
-        return $query->fetchAll(PDO::FETCH_ASSOC);
+        $rows=$query->fetchAll(PDO::FETCH_ASSOC);
+        $visible=[];
+        foreach($rows as $row) {
+            try { $this->assertCallPolicy($row); $visible[]=$row; }
+            catch(\\DomainException) { continue; }
+        }
+        return $visible;
     }
 
     /** @return list<array<string,mixed>> */
@@ -208,10 +214,12 @@ final class ClientModelAgencyDistributionService
             'agreement_start'=>$call['shoot_starts_at'],'agreement_end'=>$call['shoot_ends_at'],
         ]);
         $rows=$query->fetchAll(PDO::FETCH_ASSOC);
+        if(!is_string($call['client_name']??null) || $call['client_name']==='') return [];
         $callClientName=$this->cipher->decrypt((string)$call['client_name'],'model-casting-call-v1:'.$call['id'].':client_name');
         $clientNameKey=mb_strtolower(trim($callClientName));
         $visible=[];
         foreach($rows as $row) {
+            if(!is_string($row['licensee_name']??null) || $row['licensee_name']==='') continue;
             $licenseeName=$this->cipher->decrypt((string)$row['licensee_name'],'model-image-licence-v1:'.$row['licence_id'].':licensee_name');
             if(hash_equals($clientNameKey,mb_strtolower(trim($licenseeName)))) {
                 $visible[]=['id'=>(string)$row['id'],'reference'=>(string)$row['submission_reference'],'status'=>(string)$row['status']];
@@ -272,6 +280,9 @@ final class ClientModelAgencyDistributionService
         if(!is_array($asset) || !is_string($asset['private_storage_key']) || $asset['private_storage_key']==='' ||
             $asset['mime_type']!=='image/webp') {
             throw new \DomainException('The client-authorized casting image is unavailable.');
+        }
+        if(!is_string($call['client_name']??null) || $call['client_name']==='' || !is_string($asset['licensee_name']??null) || $asset['licensee_name']==='') {
+            throw new \\DomainException('The casting client and active image licensee cannot be verified.');
         }
         $callClientName=$this->cipher->decrypt((string)$call['client_name'],'model-casting-call-v1:'.$call['id'].':client_name');
         $licenseeName=$this->cipher->decrypt((string)$asset['licensee_name'],'model-image-licence-v1:'.$asset['licence_id'].':licensee_name');
