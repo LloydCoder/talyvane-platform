@@ -19,10 +19,12 @@ final class SettlementCalculator
         // Integer-only basis-point calculation with half-up rounding; no binary floats.
         $commission = intdiv($grossMinor, 10000) * $commissionBasisPoints
             + intdiv((($grossMinor % 10000) * $commissionBasisPoints) + 5000, 10000);
-        if ($approvedExpensesMinor > $grossMinor - $commission) {
-            throw new \DomainException('Approved expenses and commission exceed gross compensation.');
+        $netBeforeReimbursement = $grossMinor - $commission;
+        if ($approvedExpensesMinor > PHP_INT_MAX - $netBeforeReimbursement) {
+            throw new \DomainException('Settlement reimbursement total exceeds the supported integer range.');
         }
-        $net = $grossMinor - $approvedExpensesMinor - $commission;
+        // Approved expenses are reimbursed to the model separately from compensation.
+        $net = $netBeforeReimbursement + $approvedExpensesMinor;
         return [
             'gross_minor' => $grossMinor,
             'approved_expenses_minor' => $approvedExpensesMinor,
