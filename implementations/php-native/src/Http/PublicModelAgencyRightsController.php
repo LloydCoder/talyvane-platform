@@ -93,7 +93,7 @@ final class PublicModelAgencyRightsController
                 'experience_summary'=>$this->field($request,'experience_summary'),
             ],$request->requestId);
             return $this->showPortal($id,$request->requestId,'Your profile changes have been saved.');
-        } catch(\\Throwable) {
+        } catch(\Throwable) {
             return $this->showPortal($id,$request->requestId,'The profile could not be updated. Check the fields and try again.',422);
         }
     }
@@ -112,7 +112,7 @@ final class PublicModelAgencyRightsController
                 'consent_scope'=>$this->field($request,'consent_scope'),
             ],$request->requestId);
             return $this->showPortal($id,$request->requestId,'Your image was uploaded privately and is awaiting human review.');
-        } catch(\\Throwable) {
+        } catch(\Throwable) {
             return $this->showPortal($id,$request->requestId,'The portfolio image could not be uploaded. Check the image and consent details.',422);
         }
     }
@@ -127,7 +127,7 @@ final class PublicModelAgencyRightsController
         try {
             $this->portfolio->withdrawByVerifiedApplicantRights($id,(string)($params['id']??''),$request->requestId);
             return $this->showPortal($id,$request->requestId,'Portfolio consent was withdrawn and dependent licences/submissions were invalidated.');
-        } catch(\\Throwable) {
+        } catch(\Throwable) {
             return $this->showPortal($id,$request->requestId,'The image could not be withdrawn. Safeguarding/legal-hold review may be required.',422);
         }
     }
@@ -146,7 +146,7 @@ final class PublicModelAgencyRightsController
                 'x-content-type-options'=>'nosniff','referrer-policy'=>'no-referrer',
                 'content-security-policy'=>"default-src 'none'; sandbox",
             ]);
-        } catch(\\Throwable) {
+        } catch(\Throwable) {
             return Response::html('Not found',404)->withHeaders(['cache-control'=>'private, no-store','x-content-type-options'=>'nosniff']);
         }
     }
@@ -242,7 +242,7 @@ final class PublicModelAgencyRightsController
         try {
             $record=$this->rights?->portalRead($id,$requestId)??[];
             return $this->page('portal',['record'=>$record,'notice'=>$notice],$status);
-        } catch(\\Throwable) {
+        } catch(\Throwable) {
             $this->clearContext();
             return Response::redirect('/model-agency/privacy');
         }
