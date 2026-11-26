@@ -9,6 +9,7 @@ use DomainException;
 use InvalidArgumentException;
 use Talyvane\Application\Bookings\BookingCommandService;
 use Talyvane\Application\Bookings\BookingQueryService;
+use Talyvane\Application\Bookings\BookingQuoteService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Identity\AuthenticationService;
@@ -46,16 +47,19 @@ final class PortalBookingController
     public function newForm(Request $request,string $error='',int $status=200): Response
     {
         SessionManager::start();
-        if ($this->principal('client')===null) return Response::redirect('/portal/login');
+        $client=$this->principal('client');
+        if ($client===null) return Response::redirect('/portal/login');
         $slug=$request->query['profile']??'';
         $profile=is_string($slug)&&$slug!==''?$this->discovery->profile($slug):null;
-        $options=[];
+        $options=[];$quotes=[];
         if ($profile===null) {
             foreach ($this->discovery->destinations() as $destination) {
                 foreach ($this->discovery->profiles((string)$destination['slug'],48) as $item) $options[]=$item;
             }
+        } else {
+            $quotes=$this->quotes->clientQuotes($client,(string)$profile['id']);
         }
-        return $this->page('client-new',[],$error,$status,['profile'=>$profile,'profiles'=>$options]);
+        return $this->page('client-new',[],$error,$status,['profile'=>$profile,'profiles'=>$options,'quotes'=>$quotes]);
     }
 
     public function store(Request $request): Response
@@ -70,8 +74,9 @@ final class PortalBookingController
             $zone=new DateTimeZone((string)$profile['time_zone']);
             $start=$this->parseLocalTime($this->field($request,'starts_at'),$zone);
             $end=$this->parseLocalTime($this->field($request,'ends_at'),$zone);
+            $quoteId=$this->nullable($this->field($request,'quote_snapshot_id'));
             $this->bookings->request(
-                $client,(string)$profile['id'],$start,$end,null,
+                $client,(string)$profile['id'],$start,$end,$quoteId,
                 $this->nullable($this->field($request,'request_note')),$request->requestId
             );
             return Response::redirect('/portal/bookings?created=1');
@@ -83,6 +88,27 @@ final class PortalBookingController
     }
 
     /** @param array<string,string> $params */
+
+    public function acceptQuote(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->newForm($request,'Your session expired. Refresh and try again.',419);
+        $client=$this->principal('client');
+        if($client===null) return Response::redirect('/portal/login');
+        try {
+            $this->quotes->accept($client,(string)($params['id']??''),$request->requestId);
+            $slug=$this->field($request,'profile_slug');
+            $target='/portal/bookings/new';
+            if($slug!=='' && preg_match('/^[a-z0-9][a-z0-9-]{1,100}$/D',$slug)===1) $target.='?profile='.rawurlencode($slug);
+            return Response::redirect($target);
+        } catch(InvalidArgumentException|DomainException $error) {
+            $slug=$this->field($request,'profile_slug');
+            $retry=new Request($request->method,$request->path,$request->headers,['profile'=>$slug],$request->body,
+                $request->ipAddress,$request->requestId,$request->files);
+            return $this->newForm($retry,$error->getMessage(),422);
+        }
+    }
+
     public function cancel(Request $request,array $params): Response
     {
         SessionManager::start();
@@ -312,7 +338,7 @@ final class PortalBookingController
     {
         $data=array_replace([
             'mode'=>$mode,'items'=>$items,'error'=>$error,'csrf'=>Csrf::issue(),'brandName'=>$this->brandName,
-            'notice'=>'','profile'=>null,'profiles'=>[],'booking'=>null,'localStart'=>'','localEnd'=>'',
+            'notice'=>'','profile'=>null,'profiles'=>[],'quotes'=>[],'booking'=>null,'localStart'=>'','localEnd'=>'',
         ],$extra);
         return Response::html($this->views->render('portal/bookings',$data),$status);
     }
