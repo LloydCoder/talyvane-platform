@@ -140,6 +140,7 @@ final class PublicModelAgencyRightsController
         if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
         $id=$this->rightsId();
         if($id===null || $this->rights===null || $this->casting===null) return Response::redirect('/model-agency/privacy');
+        if($this->field($request,'casting_attestation')!=='yes') return $this->showPortal($id,$request->requestId,'Confirm the voluntary casting submission attestation before continuing.',422);
         try {
             $applicationId=$this->rights->portalApplicationId($id);
             $this->casting->submitByApplicant(
