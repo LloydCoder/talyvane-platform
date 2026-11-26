@@ -40,7 +40,8 @@ async function waitForCode(address, digits = 6, subject = null, reference = null
       if (subject && (message.Subject ?? message.subject) !== subject) continue;
       const body = [message.Text, message.HTML, message.text, message.html, message.Snippet].filter(Boolean).join('\n');
       if (reference && !body.includes(reference)) continue;
-      const match = body.match(new RegExp('\\b([0-9]{' + digits + '})\\b'));
+      const labeled = body.match(new RegExp('(?:one-time\\s+)?verification code\\s*:\\s*([0-9]{' + digits + '})', 'i'));
+      const match = labeled ?? body.match(new RegExp('\\b([0-9]{' + digits + '})\\b'));
       if (match) return match[1];
     }
     await sleep(400);
@@ -273,7 +274,10 @@ try {
   const erasureCode = await waitForCode(clientEmail, 8, 'Your Talyvane privacy request', erasureRequestId);
   await page.locator('form[action="/portal/privacy/verify"] [name="code"]').fill(erasureCode);
   await page.getByRole('button', { name: /Verify privacy request/i }).click();
-  await page.getByRole('status').getByText(/Erasure is not automatic/i).waitFor();
+  const erasureStatus = page.getByRole('status');
+  await erasureStatus.waitFor({ state: 'visible' });
+  const erasureNotice = await erasureStatus.innerText();
+  assert.match(erasureNotice, /Erasure is not automatic/i, 'Verified erasure requests must explicitly remain subject to human review.');
   assert.match(await page.locator('body').innerText(), /erasure[\s\S]*in_review/i);
   await page.goto(baseUrl + '/portal/calendar', { waitUntil: 'networkidle' });
   assert.equal(await page.locator('h1').innerText(), 'Your booking calendar.',
