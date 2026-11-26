@@ -451,7 +451,7 @@ final class ModelAssignmentService
             !is_string($asset['private_storage_key']) || $asset['private_storage_key']==='' ||
             $licence['application_id']!==$application['id'] || $licence['portfolio_asset_id']!==$asset['id'] ||
             $licence['status']!=='active' || $licence['purpose']!=='casting_distribution' ||
-            $licence['model_consent_evidence_reference']===null || $licence['execution_evidence_reference']===null ||
+            ($licence['model_consent_evidence_reference']===null && $licence['applicant_consent_at']===null) || $licence['execution_evidence_reference']===null ||
             $licence['territory_code']!==$application['country_code'] || $call['country_code']!==$application['country_code'] ||
             $call['project_purpose']!==$terms['project_purpose'] || $call['status']==='cancelled' ||
             $agreement['application_id']!==$application['id'] || $agreement['status']!=='executed' ||
