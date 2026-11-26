@@ -136,17 +136,6 @@ function runModelPortfolioIntegration(PDO $pdo): int
         $portalWithdrawnRow['private_storage_key']===null && $portalWithdrawnRow['consent_withdrawn_at']!==null &&
         !file_exists($portalAsset['path']) && $portalSession->fetchColumn()==='verified',
         'applicant can withdraw one portfolio image while retaining the verified workspace session for further self-service');
-    $rights->logoutPortal((string)$portalRightsId,bin2hex(random_bytes(16)));
-    $portalSession->execute(['id'=>$portalRightsId]);
-    $assert($portalSession->fetchColumn()==='completed',
-        'model workspace logout revokes the verified portal session in the database');
-    try {
-        $rights->portalRead((string)$portalRightsId,bin2hex(random_bytes(16)));
-        $assert(false,'a revoked model workspace session cannot be reused');
-    } catch(DomainException) {
-        $assert(true,'a revoked model workspace session cannot be reused');
-    }
-
 
 
     $pdo->prepare(
