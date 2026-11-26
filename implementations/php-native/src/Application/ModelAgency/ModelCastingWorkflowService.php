@@ -339,7 +339,7 @@ final class ModelCastingWorkflowService
                  VALUES (:id,:call,:application,:asset,:licence,:reference,"submitted",NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
             )->execute(['id'=>$id,'call'=>$callId,'application'=>$applicationId,'asset'=>$assetId,'licence'=>$licenceId,'reference'=>$reference]);
             $this->event($callId,$id,'','applicant','casting.applicant_submitted',
-                'model-casting-voluntary-submission-v1: I am applying voluntarily and understand this submission uses only the selected image and its existing licence scope.');
+                'model-casting-voluntary-submission-v1: I confirm I am applying voluntarily and understand this submission uses only the selected image and existing licence scope.');
             $this->audit->record(null,'model_casting.applicant_submitted','model_casting_submission',$id,
                 'Applicant submitted an eligible private casting application',null,
                 ['call_id'=>$callId,'asset_id'=>$assetId,'licence_id'=>$licenceId,'status'=>'submitted',
