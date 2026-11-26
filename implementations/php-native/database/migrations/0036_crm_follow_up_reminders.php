@@ -11,10 +11,10 @@ return [
         due_at DATETIME NOT NULL,
         completed_at DATETIME NULL,
         created_at DATETIME NOT NULL,
-        CONSTRAINT crm_reminder_enquiry_fk FOREIGN KEY (enquiry_id) REFERENCES enquiries(id),
-        CONSTRAINT crm_reminder_creator_fk FOREIGN KEY (created_by) REFERENCES users(id),
-        CONSTRAINT crm_reminder_completer_fk FOREIGN KEY (completed_by) REFERENCES users(id),
-        INDEX crm_reminder_due_idx (due_at,completed_at),
-        INDEX crm_reminder_enquiry_idx (enquiry_id,due_at)
+        CONSTRAINT crm_enquiry_reminders_enquiry_fk FOREIGN KEY (enquiry_id) REFERENCES enquiries(id),
+        CONSTRAINT crm_enquiry_reminders_creator_fk FOREIGN KEY (created_by) REFERENCES users(id),
+        CONSTRAINT crm_enquiry_reminders_completer_fk FOREIGN KEY (completed_by) REFERENCES users(id),
+        INDEX crm_enquiry_reminders_due_idx (due_at,completed_at),
+        INDEX crm_enquiry_reminders_enquiry_idx (enquiry_id,due_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
 ];
