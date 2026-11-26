@@ -31,7 +31,7 @@ $escape=static fn(mixed $value):string=>htmlspecialchars((string)$value,ENT_QUOT
 <?php foreach($items as $item):?>
 <article class="item">
 <div class="meta"><?= $escape($item['account_type']??'') ?> · <?= $escape($item['request_type']??'') ?> · <?= $escape($item['status']??'') ?></div>
-<h2><?= $escape($item['email']??'Account unavailable') ?></h2>
+<h2>Account reference · <?= $escape(substr((string)($item['user_id']??'unknown'),0,8)) ?></h2>
 <p class="meta">Request <?= $escape($item['id']??'') ?> · Submitted <?= $escape($item['created_at']??'') ?> · Verified <?= $escape($item['verified_at']??'') ?></p>
 <?php if(($item['request_type']??'')==='correction'):?>
 <div class="summary"><?= $escape($item['correction_summary']??'No correction summary available.') ?></div>
