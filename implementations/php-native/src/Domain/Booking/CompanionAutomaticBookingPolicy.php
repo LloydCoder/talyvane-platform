@@ -9,11 +9,14 @@ use DomainException;
 final class CompanionAutomaticBookingPolicy
 {
     /** @param array<string,mixed> $profile */
-    public static function assertPreference(bool $enabled,array $profile,bool $featureAvailable): void
+    public static function assertPreference(bool $enabled,array $profile,bool $featureAvailable,bool $consentConfirmed=false): void
     {
         // Opt-out must always remain available, even during an outage or policy suspension.
         if (!$enabled) {
             return;
+        }
+        if (!$consentConfirmed) {
+            throw new DomainException('Explicit companion confirmation is required before enabling automatic booking.');
         }
         if (!$featureAvailable) {
             throw new DomainException('Automatic booking is not operationally enabled for this deployment.');
