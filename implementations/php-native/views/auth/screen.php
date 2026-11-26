@@ -93,6 +93,7 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
   <div class="role-list"><?php foreach ($roles as $role): ?><span><?= $escape($role) ?></span><?php endforeach; ?></div>
   <div class="rule"></div>
   <p class="hint">Authentication and administrator MFA are complete. Operational workspaces are exposed only to the roles and workflows that have passed their authorization gates.</p>
+  <?php if (array_intersect($roles, ['finance','owner','super_admin']) !== []): ?><a class="button" href="/admin/model-agency/settlements" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open finance &amp; settlement workspace</a><?php endif; ?>
   <?php if (array_intersect($roles, ['super_admin','owner','admin']) !== []): ?>
   <a class="button" href="/admin/content" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open content workspace</a>
   <a class="button" href="/admin/destinations" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage destinations</a>
@@ -101,6 +102,7 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
   <a class="button" href="/admin/companions" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review companion profiles</a>
   <a class="button" href="/admin/profile-media" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review profile media</a>
   <a class="button" href="/admin/model-agency" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage model-agency applications</a>
+  <a class="button" href="/admin/model-agency/assignments" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage model assignments</a>
   <a class="button" href="/admin/bookings" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage bookings</a>
   <a class="button" href="/admin/safeguarding/reports" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Submit confidential safeguarding report</a>
   <a class="button" href="/admin/clients" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage client memberships</a>
