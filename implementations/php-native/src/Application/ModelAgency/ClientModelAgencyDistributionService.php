@@ -294,6 +294,10 @@ final class ClientModelAgencyDistributionService
         if(!hash_equals((string)$asset['sha256'],hash('sha256',$bytes))) {
             throw new \DomainException('The client-authorized casting image failed integrity verification.');
         }
+        $this->assertRequestId($requestId);
+        $this->audit->record($client->id,'client_model_casting.image_viewed','model_casting_submission',$submissionId,
+            'Verified client viewed a current rights-cleared casting portfolio preview',null,
+            ['casting_call_id'=>$callId,'media_sha256'=>(string)$asset['sha256']],$requestId,'model-client-distribution-v1');
         return ['bytes'=>$bytes,'mime'=>'image/webp'];
     }
 
