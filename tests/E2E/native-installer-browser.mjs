@@ -34,16 +34,17 @@ async function messagesFor(address) {
   return details;
 }
 
-async function waitForCode(address) {
+async function waitForCode(address, digits = 6, subject = null) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     for (const message of await messagesFor(address)) {
+      if (subject && (message.Subject ?? message.subject) !== subject) continue;
       const body = [message.Text, message.HTML, message.text, message.html, message.Snippet].filter(Boolean).join('\n');
-      const match = body.match(/\b([0-9]{6})\b/);
+      const match = body.match(new RegExp('\\\\b([0-9]{' + digits + '})\\\\b'));
       if (match) return match[1];
     }
     await sleep(400);
   }
-  throw new Error(`No native installer verification code arrived for ${address}.`);
+  throw new Error(`No ${digits}-digit verification code arrived for ${address}.`);
 }
 
 function base32Decode(value) {
@@ -252,6 +253,29 @@ try {
   const clientIcs = await clientCalendarResponse.text();
   assert.match(clientIcs, /BEGIN:VCALENDAR[\s\S]*END:VCALENDAR/);
   assert.ok(!clientIcs.includes(clientEmail), 'Client calendar export must not include the client email address.');
+
+  await page.goto(baseUrl + '/portal/privacy', { waitUntil: 'networkidle' });
+  await page.locator('#summary').fill('Please correct the spelling of my account details.');
+  await page.getByRole('button', { name: /Request a correction/i }).click();
+  await page.waitForSelector('form[action="/portal/privacy/verify"] [name="code"]');
+  const correctionCode = await waitForCode(clientEmail, 8, 'Your Talyvane privacy request');
+  await page.locator('form[action="/portal/privacy/verify"] [name="code"]').fill(correctionCode);
+  await page.getByRole('button', { name: /Verify privacy request/i }).click();
+  await page.getByRole('status').getByText(/entered the restricted review queue/i).waitFor();
+  assert.match(await page.locator('body').innerText(), /correction.*in_review/i);
+
+  await page.goto(baseUrl + '/portal/privacy', { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: /Request account erasure/i }).click();
+  await page.waitForSelector('form[action="/portal/privacy/verify"] [name="code"]');
+  const erasureCode = await waitForCode(clientEmail, 8, 'Your Talyvane privacy request');
+  await page.locator('form[action="/portal/privacy/verify"] [name="code"]').fill(erasureCode);
+  await page.getByRole('button', { name: /Verify privacy request/i }).click();
+  await page.getByRole('status').getByText(/Erasure is not automatic/i).waitFor();
+  assert.match(await page.locator('body').innerText(), /erasure.*in_review/i);
+  await page.goto(baseUrl + '/portal/calendar', { waitUntil: 'networkidle' });
+  assert.equal(await page.locator('h1').innerText(), 'Your booking calendar.',
+    'Verified erasure requests must not disable or erase the account before human review.');
+
   await page.goto(baseUrl + '/portal/companion/calendar', { waitUntil: 'networkidle' });
   assert.equal(new URL(page.url()).pathname, '/portal/login', 'Client sessions cannot open the companion calendar.');
   await signOutPortal();
