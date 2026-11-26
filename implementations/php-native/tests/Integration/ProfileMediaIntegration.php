@@ -236,6 +236,13 @@ function runProfileMediaIntegration(PDO $pdo): int
         } catch(PDOException) {
             $assert(true,'database trigger prevents deletion of immutable quote history');
         }
+        try {
+            $pdo->prepare('UPDATE quote_snapshots SET accepted_at=UTC_TIMESTAMP(),accepted_by=:actor WHERE id=:id')
+                ->execute(['actor'=>$reviewerId,'id'=>$quoteId]);
+            $assert(false,'database trigger prevents acceptance by an actor other than the bound client');
+        } catch(PDOException) {
+            $assert(true,'database trigger prevents acceptance by an actor other than the bound client');
+        }
         $bookingQuotes->accept($companionClient,$quoteId,bin2hex(random_bytes(16)));
         $bookingQuotes->accept($companionClient,$quoteId,bin2hex(random_bytes(16)));
         $acceptedQuote=$pdo->prepare('SELECT accepted_at,accepted_by,client_user_id,profile_id,policy_version,original_amount_minor,original_currency,fees_json FROM quote_snapshots WHERE id=:id');
