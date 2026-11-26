@@ -47,7 +47,7 @@ $record=is_array($record??null)?$record:[];
 <?php foreach(($record['available_casting_calls']??[]) as $call):?>
 <article class="record"><strong><?= $escape($call['title']??'Private casting opportunity') ?></strong>
 <p><?= $escape($call['project_purpose']??'') ?> · <?= $escape($call['country_code']??'') ?></p>
-<p><?= nl2br($escape($call['description']??'')) ?></p><p><strong>Requirements</strong><br><?= nl2br($escape($call['requirements']??'')) ?></p>
+<p class="hint">Project details and full requirements are shared by the agency after an eligibility review.</p>
 <p class="hint">Application closes <?= $escape($call['closes_at']??'') ?> · Shoot <?= $escape($call['shoot_starts_at']??'') ?> – <?= $escape($call['shoot_ends_at']??'') ?></p>
 <?php if(($record['legal_hold_restricts_mutations']??false)!==true && ($record['status']??'')==='accepted'):?>
 <form method="post" action="/model-agency/portal/casting"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><input type="hidden" name="casting_call_id" value="<?= $escape($call['id']) ?>">
