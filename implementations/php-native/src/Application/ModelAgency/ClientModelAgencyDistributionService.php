@@ -222,7 +222,7 @@ final class ClientModelAgencyDistributionService
                AND v.outcome="verified" AND v.expires_at>UTC_TIMESTAMP()
                AND asset.status="approved" AND asset.consent_withdrawn_at IS NULL
                AND lic.status="active" AND lic.purpose="casting_distribution"
-               AND lic.model_consent_evidence_reference IS NOT NULL
+               AND (lic.model_consent_evidence_reference IS NOT NULL OR lic.applicant_consent_at IS NOT NULL)
                AND asset.consent_policy_version=(SELECT JSON_UNQUOTE(JSON_EXTRACT(setting_json,"$.policy_version")) FROM deployment_settings WHERE setting_key="model_agency.portfolio")
                AND lic.licence_policy_version=(SELECT JSON_UNQUOTE(JSON_EXTRACT(setting_json,"$.policy_version")) FROM deployment_settings WHERE setting_key="model_agency.image_licence")
                AND lic.territory_code=:territory AND lic.starts_on<=DATE(:shoot_start)
