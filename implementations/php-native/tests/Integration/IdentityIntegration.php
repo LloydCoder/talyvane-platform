@@ -758,6 +758,20 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(is_array($correctedRequestRow) && $correctedRequestRow['status']==='fulfilled' &&
         $correctedRequestRow['payload_ciphertext']===null,
         'fulfilled companion correction closes the verified request and clears its encrypted request payload');
+    $companionCorrectionNoticeQuery=$pdo->prepare(
+        'SELECT id,recipient_ciphertext,payload_ciphertext FROM communication_outbox
+         WHERE idempotency_key=:key'
+    );
+    $companionCorrectionNoticeQuery->execute(['key'=>'portal-privacy-correction-v1:'.$companionCorrectionId]);
+    $companionCorrectionNotice=$companionCorrectionNoticeQuery->fetch(PDO::FETCH_ASSOC);
+    $companionCorrectionNoticePayload=is_array($companionCorrectionNotice)
+        ? json_decode($privacyOutboxBox->decrypt((string)$companionCorrectionNotice['payload_ciphertext'],
+            'communication-outbox-v1:payload:'.$companionCorrectionNotice['id']),true,8,JSON_THROW_ON_ERROR)
+        : null;
+    $assert(is_array($companionCorrectionNoticePayload) &&
+        str_contains((string)$companionCorrectionNoticePayload['body'],'returned to draft') &&
+        !str_contains((string)$companionCorrectionNoticePayload['body'],'Corrected biography'),
+        'companion correction queues an encrypted generic completion notice without exposing corrected personal data');
     $correctionAudit=$pdo->prepare('SELECT after_json FROM audit_events WHERE event_key="portal.privacy.correction.fulfilled" AND target_id=:id');
     $correctionAudit->execute(['id'=>$companionCorrectionId]);
     $correctionAuditPayload=json_decode((string)$correctionAudit->fetchColumn(),true);
@@ -777,6 +791,20 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(is_array($clientCorrectionRequestRow) && $clientCorrectionRequestRow['status']==='fulfilled' &&
         $clientCorrectionRequestRow['payload_ciphertext']===null,
         'fulfilled client correction closes the verified request and clears encrypted request payload');
+    $clientCorrectionNoticeQuery=$pdo->prepare(
+        'SELECT id,recipient_ciphertext,payload_ciphertext FROM communication_outbox
+         WHERE idempotency_key=:key'
+    );
+    $clientCorrectionNoticeQuery->execute(['key'=>'portal-privacy-correction-v1:'.$correctionRequestId]);
+    $clientCorrectionNotice=$clientCorrectionNoticeQuery->fetch(PDO::FETCH_ASSOC);
+    $clientCorrectionNoticePayload=is_array($clientCorrectionNotice)
+        ? json_decode($privacyOutboxBox->decrypt((string)$clientCorrectionNotice['payload_ciphertext'],
+            'communication-outbox-v1:payload:'.$clientCorrectionNotice['id']),true,8,JSON_THROW_ON_ERROR)
+        : null;
+    $assert(is_array($clientCorrectionNoticePayload) &&
+        str_contains((string)$clientCorrectionNoticePayload['body'],'account name was updated') &&
+        !str_contains((string)$clientCorrectionNoticePayload['body'],'Verified Client Corrected'),
+        'client correction queues an encrypted generic completion notice without exposing corrected personal data');
     $clientCorrectionAudit=$pdo->prepare('SELECT after_json FROM audit_events WHERE event_key="portal.privacy.correction.fulfilled" AND target_id=:id');
     $clientCorrectionAudit->execute(['id'=>$correctionRequestId]);
     $clientCorrectionAuditPayload=json_decode((string)$clientCorrectionAudit->fetchColumn(),true);
