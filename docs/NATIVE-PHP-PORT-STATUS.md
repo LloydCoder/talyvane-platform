@@ -21,7 +21,7 @@ A route, view, table, stub, static test or successful package build is not by it
 
 ## Current head and validation
 
-Latest PR head observed during this reconciliation: `7eeb5c49acb37d2a9a861837d8c74daf581ca9b2`.
+Latest runtime-affecting implementation head observed during this reconciliation: `7eeb5c49acb37d2a9a861837d8c74daf581ca9b2`. The PR head subsequently advanced to `dea7cc763eaa4493b819f832dedb8b6ce478f99c` through documentation-only reconciliation commits; those commits do not change PHP runtime behavior. New workflows were triggered for the documentation head and were still running at the last check.
 
 | Check on latest head | Observed result |
 |---|---|
