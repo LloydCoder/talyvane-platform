@@ -6,12 +6,13 @@ namespace Talyvane\Http;
 use Talyvane\Application\ModelAgency\ModelApplicantRightsService;
 use Talyvane\Application\ModelAgency\ModelPortfolioService;
 use Talyvane\Application\ModelAgency\ModelCastingWorkflowService;
+use Talyvane\Application\ModelAgency\ModelAssignmentService;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\SessionManager;
 
 final class PublicModelAgencyRightsController
 {
-    public function __construct(private ?ModelApplicantRightsService $rights, private ViewRenderer $views, private string $brandName, private ?ModelPortfolioService $portfolio=null, private ?ModelCastingWorkflowService $casting=null) {}
+    public function __construct(private ?ModelApplicantRightsService $rights, private ViewRenderer $views, private string $brandName, private ?ModelPortfolioService $portfolio=null, private ?ModelCastingWorkflowService $casting=null, private ?ModelAssignmentService $assignments=null) {}
 
     public function requestForm(Request $request): Response
     {
@@ -159,6 +160,34 @@ final class PublicModelAgencyRightsController
         }
     }
 
+    /** @param array<string,string> $params */
+    public function portalRespondAssignment(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
+        $id=$this->rightsId();
+        if($id===null || $this->rights===null || $this->assignments===null) return Response::redirect('/model-agency/privacy');
+        try {
+            $applicationId=$this->rights->portalApplicationId($id);
+            $status=$this->assignments->respondByApplicant(
+                $applicationId,(string)($params['id']??''),$this->field($request,'decision'),
+                $this->field($request,'assignment_attestation')==='yes',
+                $this->nullable($this->field($request,'reason')),$request->requestId
+            );
+            $notice=match($status) {
+                'acceptance_pending_execution'=>'Your acceptance intent is recorded. The assignment remains offered until the agency records the executed external signature and model-acceptance evidence.',
+                'accepted_executed'=>'The agency has recorded external execution evidence for your acceptance.',
+                'declined'=>'Your voluntary decline has been recorded.',
+                default=>'Your assignment response has been recorded.',
+            };
+            return $this->showPortal($id,$request->requestId,$notice);
+        } catch(\InvalidArgumentException|\DomainException $error) {
+            return $this->showPortal($id,$request->requestId,$error->getMessage(),422);
+        } catch(\Throwable) {
+            return $this->showPortal($id,$request->requestId,'The assignment response could not be recorded securely.',503);
+        }
+    }
+
     public function portalPreview(Request $request,array $params): Response
     {
         SessionManager::start();
@@ -272,6 +301,10 @@ final class PublicModelAgencyRightsController
     {
         try {
             $record=$this->rights?->portalRead($id,$requestId)??[];
+            if($this->rights!==null && $this->assignments!==null) {
+                $applicationId=$this->rights->portalApplicationId($id);
+                $record['assignments']=$this->assignments->applicantAssignments($applicationId);
+            }
             return $this->page('portal',['record'=>$record,'notice'=>$notice],$status);
         } catch(\Throwable) {
             $this->clearContext();
