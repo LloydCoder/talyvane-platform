@@ -53,6 +53,7 @@ final class PortalPrivacyOutcomeOutbox
         $body="Your verified Talyvane privacy ".$requestType." request was ".$decisionText.". ".
             "No account data was erased or changed by this decision. Sign in to your portal or contact the privacy team through the published support channel if you need clarification. ".
             "This notice intentionally excludes sensitive request details; the restricted case record contains the decision rationale.";
+        $id=self::uuid();
         $payload=json_encode([
             'subject'=>'An update on your Talyvane privacy request',
             'body'=>$body,
@@ -65,10 +66,10 @@ final class PortalPrivacyOutcomeOutbox
                      "pending",0,UTC_TIMESTAMP(),UTC_TIMESTAMP())
              ON DUPLICATE KEY UPDATE id=id'
         )->execute([
-            'id'=>self::uuid(),'dedupe'=>'portal-privacy-review-v1:'.$requestId,
+            'id'=>$id,'dedupe'=>'portal-privacy-review-v1:'.$requestId,
             'related'=>$requestId,
-            'recipient'=>$this->box->encrypt($recipient,'communication-outbox-v1:recipient:'.$requestId),
-            'payload'=>$this->box->encrypt($payload,'communication-outbox-v1:payload:'.$requestId),
+            'recipient'=>$this->box->encrypt($recipient,'communication-outbox-v1:recipient:'.$id),
+            'payload'=>$this->box->encrypt($payload,'communication-outbox-v1:payload:'.$id),
         ]);
     }
 
