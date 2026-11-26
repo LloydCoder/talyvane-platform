@@ -203,8 +203,8 @@ final class EnquiryService
         $limit = max(1,min(100,$limit));
         $offset = max(0,min(100000,$offset));
         $query = $this->pdo->prepare(
-            'SELECT e.reference,e.name,e.email,e.phone,e.city,e.subject,e.status,e.created_at,e.responded_at,e.closed_at,e.assigned_to,u.email AS assignee_email
-             FROM enquiries e LEFT JOIN users u ON u.id=e.assigned_to ORDER BY created_at DESC,id DESC LIMIT :limit OFFSET :offset'
+            'SELECT e.reference,e.name,e.email,e.phone,e.city,e.subject,e.message,e.status,e.created_at,e.responded_at,e.closed_at,e.assigned_to,u.email AS assignee_email
+             FROM enquiries e LEFT JOIN users u ON u.id=e.assigned_to ORDER BY e.created_at DESC,e.id DESC LIMIT :limit OFFSET :offset'
         );
         $query->bindValue(':limit',$limit,PDO::PARAM_INT);
         $query->bindValue(':offset',$offset,PDO::PARAM_INT);
