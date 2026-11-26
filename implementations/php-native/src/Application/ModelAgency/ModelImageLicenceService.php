@@ -100,6 +100,7 @@ final class ModelImageLicenceService
                 'currency_code'=>$licence['currency_code'],
             ];
             $this->assertEligible($application,$asset,$agreement,$terms,$policy['policy_version']);
+            $this->assertNoConflict((string)$asset['id'],$terms);
             if(!hash_equals((string)$licence['licence_policy_version'],$policy['policy_version'])) {
                 throw new \DomainException('Image licence draft uses a stale policy version.');
             }
@@ -204,9 +205,14 @@ final class ModelImageLicenceService
         $this->assertMarketApproved((string)$application['country_code']);
         $assetGrant=$this->pdo->prepare('SELECT granted,withdrawn_at,policy_version FROM consent_grants WHERE id=:id LIMIT 1 FOR UPDATE');
         $assetGrant->execute(['id'=>$asset['consent_grant_id']]);$g=$assetGrant->fetch(PDO::FETCH_ASSOC);
+        $portfolioPolicyQuery=$this->pdo->prepare('SELECT setting_json FROM deployment_settings WHERE setting_key="model_agency.portfolio" LIMIT 1');
+        $portfolioPolicyQuery->execute();$portfolioRaw=$portfolioPolicyQuery->fetchColumn();
+        $portfolioPolicy=is_string($portfolioRaw)?json_decode($portfolioRaw,true):null;
         if(!is_array($g) || (int)$g['granted']!==1 || $g['withdrawn_at']!==null ||
-            !hash_equals((string)$asset['consent_policy_version'],(string)$g['policy_version'])) {
-            throw new \DomainException('The underlying private portfolio consent is not current.');
+            !hash_equals((string)$asset['consent_policy_version'],(string)$g['policy_version']) ||
+            !is_array($portfolioPolicy) || !($portfolioPolicy['enabled']??false) || !($portfolioPolicy['policy_approved']??false) ||
+            !is_string($portfolioPolicy['policy_version']??null) || !hash_equals((string)$asset['consent_policy_version'],(string)$portfolioPolicy['policy_version'])) {
+            throw new \DomainException('The underlying private portfolio consent and its current policy are not approved.');
         }
         $termsSnapshot=json_decode((string)$agreement['terms_snapshot'],true);
         $requiredScope=$terms['purpose']==='casting_distribution'?'casting_submissions':'portfolio_development';
@@ -231,8 +237,8 @@ final class ModelImageLicenceService
             $q=$this->pdo->prepare('SELECT enabled FROM currencies WHERE code=:code LIMIT 1 FOR UPDATE');$q->execute(['code'=>$currency]);
             if((int)$q->fetchColumn()!==1) throw new \DomainException('Licence compensation requires an enabled ISO currency.');
         }
-        if(!$this->storage->read((string)$asset['private_storage_key']) ||
-            !hash_equals((string)$asset['sha256'],hash('sha256',$this->storage->read((string)$asset['private_storage_key'])))) {
+        $assetBytes=$this->storage->read((string)$asset['private_storage_key']);
+        if(!hash_equals((string)$asset['sha256'],hash('sha256',$assetBytes))) {
             throw new \DomainException('The approved portfolio asset is missing or failed integrity verification.');
         }
     }
@@ -241,14 +247,19 @@ final class ModelImageLicenceService
     private function validateTerms(array $terms): void
     {
         $channels=$terms['channels']??null;
+        $validDate=static function(mixed $value): bool {
+            if(!is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}$/D',$value)!==1) return false;
+            $date=DateTimeImmutable::createFromFormat('!Y-m-d',$value,new DateTimeZone('UTC'));
+            $errors=DateTimeImmutable::getLastErrors();
+            return $date!==false && ($errors===false || ($errors['warning_count']===0 && $errors['error_count']===0)) && $date->format('Y-m-d')===$value;
+        };
         if(!is_string($terms['licensee_name']??null) || strlen(trim($terms['licensee_name']))<2 || strlen($terms['licensee_name'])>160 ||
             !in_array($terms['purpose']??null,self::PURPOSES,true) || !is_array($channels) || !array_is_list($channels) ||
             $channels===[] || count($channels)>8 || count($channels)!==count(array_unique($channels)) ||
             array_diff($channels,self::CHANNELS)!==[] || !is_string($terms['purpose_details']??null) ||
             strlen(trim($terms['purpose_details']))<20 || strlen($terms['purpose_details'])>2000 ||
             !is_string($terms['country_code']??null) || preg_match('/^[A-Z]{2}$/D',$terms['country_code'])!==1 ||
-            !is_string($terms['starts_on']??null) || !is_string($terms['ends_on']??null) ||
-            !preg_match('/^\d{4}-\d{2}-\d{2}$/D',$terms['starts_on']) || !preg_match('/^\d{4}-\d{2}-\d{2}$/D',$terms['ends_on']) ||
+            !$validDate($terms['starts_on']??null) || !$validDate($terms['ends_on']??null) ||
             !is_bool($terms['exclusivity']??null)) {
             throw new \InvalidArgumentException('Image licence terms are invalid.');
         }
