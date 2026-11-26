@@ -665,6 +665,8 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(count($adminPrivacyQueue)===3 &&
         in_array($correctionSummary,array_column($adminPrivacyQueue,'correction_summary'),true),
         'MFA-authorized owner/admin review queue can decrypt correction details while preserving account ownership');
+    $assert(!array_key_exists('email',$adminPrivacyQueue[0]??[]),
+        'privacy review queue does not expose account contact email when account reference is sufficient');
     $mfaPrivacyReviewDenied=false;
     try { $portalRightsAdmin->queue(new Principal($id,['super_admin'],false),bin2hex(random_bytes(16))); }
     catch (DomainException) { $mfaPrivacyReviewDenied=true; }
