@@ -15,7 +15,7 @@ $titles = [
     'first_login' => ['Secure your account', 'Replace the initial password before administrator access can be granted.'],
     'mfa_setup' => ['Set up two-factor authentication', 'Add this account to an authenticator app, then confirm a current six-digit code.'],
     'recovery_codes' => ['Save your recovery codes', 'These codes are shown once. Store them somewhere private and separate from this device.'],
-    'dashboard' => ['Control room', 'Your administrator identity is verified. Operational workspaces are being connected in this release.'],
+    'dashboard' => ['Control room', 'Your administrator identity is verified. Open only the workspaces authorised for your role.'],
 ];
 [$heading, $description] = $titles[$screen] ?? $titles['login'];
 ?>
@@ -112,7 +112,7 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
   <?php endif; ?>
   <?php if (in_array('safeguarding', $roles, true)): ?><a class="button" href="/admin/safeguarding/cases" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open assigned safeguarding cases</a><?php endif; ?>
   <?php if (array_intersect($roles, ['super_admin','owner']) !== []): ?><a class="button" href="/admin/safeguarding/governance" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Safeguarding governance register</a><?php endif; ?>
-  <?php if (in_array('super_admin', $roles, true)): ?><a class="button" href="/admin/brand" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Configure brand identity</a><a class="button" href="/admin/audit" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">View security audit trail</a><a class="button" href="/admin/markets" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review market compliance</a><?php endif; ?>
+  <?php if (in_array('super_admin', $roles, true)): ?><a class="button" href="/admin/features" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage platform features</a><a class="button" href="/admin/brand" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Configure brand identity</a><a class="button" href="/admin/audit" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">View security audit trail</a><a class="button" href="/admin/markets" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review market compliance</a><?php endif; ?>
   <form method="post" action="/admin/logout"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><button class="button" type="submit">Sign out securely</button></form>
   <?php endif; ?>
   <div class="footer">Access attempts are rate-limited. Administrator sessions expire after inactivity and are revoked when account security state changes.</div>
