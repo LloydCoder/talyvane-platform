@@ -194,7 +194,7 @@ final class Bootstrap
         $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
         $adminBrand = new AdminBrandController($authentication, $contentManagement, $views);
         $adminNavigation = new AdminNavigationController($pdo, $authentication, $contentManagement, $views);
-        $enquiries = new EnquiryService($pdo, $rateLimiter, $audit);
+        $enquiries = new EnquiryService($pdo, $rateLimiter, $audit, new SecretBox($config['app_key']));
         $companionMedia = new CompanionMediaController($authentication,$profileMedia,$views,$brandName);
         $adminProfileMedia = new AdminProfileMediaController($authentication,$profileMedia,$views,$brandName);
         $publicProfileMedia = new PublicProfileMediaController($profileMedia);
@@ -445,6 +445,7 @@ final class Bootstrap
         $router->add('GET', '/admin/enquiries', static fn(Request $request): Response => $adminEnquiries->index($request));
         $router->add('POST', '/admin/enquiries/{reference}', static fn(Request $request, array $params): Response => $adminEnquiries->update($request, $params));
         $router->add('POST', '/admin/enquiries/{reference}/assign', static fn(Request $request, array $params): Response => $adminEnquiries->assign($request, $params));
+        $router->add('POST', '/admin/enquiries/{reference}/notes', static fn(Request $request, array $params): Response => $adminEnquiries->addNote($request, $params));
         $router->add('GET', '/admin/navigation', static fn(Request $request): Response => $adminNavigation->index($request));
         $router->add('POST', '/admin/navigation', static fn(Request $request, array $params): Response => $adminNavigation->save($request));
         $router->add('POST', '/admin/navigation/{id}', static fn(Request $request, array $params): Response => $adminNavigation->save($request, $params));
