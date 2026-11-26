@@ -172,7 +172,9 @@ final class ModelAssignmentService
                     hash_equals((string)$assignment['applicant_response_request_fingerprint'],$fingerprint)) {
                     $this->pdo->commit();return $existingStatus;
                 }
-                $retractingAcceptance=$existingStatus==='acceptance_pending_execution' && $decision==='decline' && $assignment['status']==='offered';
+                $retractingAcceptance=$existingStatus==='acceptance_pending_execution' && $decision==='decline' && $assignment['status']==='offered' &&
+                    is_string($assignment['applicant_response_request_fingerprint']??null) &&
+                    !hash_equals((string)$assignment['applicant_response_request_fingerprint'],$fingerprint);
                 if(!$retractingAcceptance) throw new \DomainException('A response has already been recorded for this assignment offer.');
             }
             if($assignment['status']!=='offered') throw new \DomainException('Only a current offered assignment can receive a model response.');
