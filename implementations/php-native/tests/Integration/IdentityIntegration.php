@@ -19,6 +19,7 @@ use Talyvane\Application\Bookings\BookingNotificationDispatcher;
 use Talyvane\Infrastructure\Database\BookingPolicyRepository;
 use Talyvane\Application\Identity\EmailVerificationService;
 use Talyvane\Application\Identity\PortalPrivacyRightsService;
+use Talyvane\Application\Identity\PortalPrivacyRightsAdminService;
 use Talyvane\Infrastructure\Mail\Mailer;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Security\RateLimiter;
@@ -583,6 +584,31 @@ function runIdentityIntegration(PDO $pdo): int
         'companion can submit and verify an independently scoped correction request');
     $assert(count($portalRights->history($companionPrincipal))===1 && count($portalRights->history($clientPrincipal))===2,
         'client and companion privacy request histories remain account-scoped');
+    $portalRightsAdmin=new PortalPrivacyRightsAdminService($pdo,new SecretBox(str_repeat('Q',32)),$audit);
+    $adminPrivacyQueue=$portalRightsAdmin->queue($superAdmin);
+    $assert(count($adminPrivacyQueue)===3 &&
+        in_array($correctionSummary,array_column($adminPrivacyQueue,'correction_summary'),true),
+        'MFA-authorized owner/admin review queue can decrypt correction details while preserving account ownership');
+    $mfaPrivacyReviewDenied=false;
+    try { $portalRightsAdmin->queue(new Principal($id,['super_admin'],false)); }
+    catch (DomainException) { $mfaPrivacyReviewDenied=true; }
+    $assert($mfaPrivacyReviewDenied,'privacy request review requires a verified administrator MFA session');
+    $clientPrivacyReviewDenied=false;
+    try { $portalRightsAdmin->queue($clientPrincipal); }
+    catch (DomainException) { $clientPrivacyReviewDenied=true; }
+    $assert($clientPrivacyReviewDenied,'client and companion accounts cannot access the administrator privacy review queue');
+    $portalRightsAdmin->review($superAdmin,$erasureRequestId,'deferred',
+        'Legal retention and active service records require further assessment.',bin2hex(random_bytes(16)));
+    $deferredRequest=$pdo->prepare('SELECT status,decision_reason FROM portal_privacy_requests WHERE id=:id');
+    $deferredRequest->execute(['id'=>$erasureRequestId]);
+    $deferredRow=$deferredRequest->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($deferredRow) && $deferredRow['status']==='deferred' &&
+        str_contains($deferredRow['decision_reason'],'Legal retention'),
+        'administrator can defer erasure with a mandatory auditable legal-retention reason');
+    $portalRightsAdmin->review($superAdmin,$companionCorrectionId,'rejected',
+        'The requested correction cannot be verified from the supplied details.',bin2hex(random_bytes(16)));
+    $assert(count($portalRightsAdmin->queue($superAdmin))===1,
+        'reviewed privacy requests leave the active review queue without implying fulfilment');
 
 
     return $assertions;
