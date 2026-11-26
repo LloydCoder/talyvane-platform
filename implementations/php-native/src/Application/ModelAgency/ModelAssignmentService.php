@@ -140,6 +140,96 @@ final class ModelAssignmentService
             $modelEvidenceReference,$requestId);
     }
 
+    /**
+     * Record a model-originated response from an OTP-verified portal identity.
+     * Acceptance is only an intent; the assignment stays offered until external execution evidence is recorded.
+     */
+    public function respondByApplicant(
+        string $applicationId,string $assignmentId,string $decision,bool $attested,?string $reason,string $requestId
+    ): string {
+        if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId) || !preg_match('/^[0-9a-f-]{36}$/iD',$assignmentId)) {
+            throw new \\InvalidArgumentException('Assignment identity is invalid.');
+        }
+        if(!in_array($decision,['accept','decline'],true)) throw new \\InvalidArgumentException('Assignment response is invalid.');
+        if(!$attested) throw new \\DomainException('Explicit assignment response attestation is required.');
+        $reason=trim((string)$reason);
+        if($decision==='decline' && $reason!=='' && (strlen($reason)<20 || strlen($reason)>1500)) {
+            throw new \\InvalidArgumentException('Decline explanation must contain 20 to 1500 characters.');
+        }
+        $this->assertFeature();$this->assertRequestId($requestId);
+        $fingerprint=hash('sha256',$requestId);
+        $this->pdo->beginTransaction();
+        try {
+            $assignment=$this->lock('model_assignments',$assignmentId);
+            if(!hash_equals((string)$assignment['application_id'],$applicationId)) {
+                throw new \\DomainException('Assignment does not belong to this verified model.');
+            }
+            $existingStatus=$assignment['applicant_response_status']??null;
+            if(is_string($existingStatus) && $existingStatus!=='') {
+                $sameDecision=($decision==='accept' && in_array($existingStatus,['acceptance_pending_execution','accepted_executed'],true)) ||
+                    ($decision==='decline' && $existingStatus==='declined');
+                if($sameDecision && is_string($assignment['applicant_response_request_fingerprint']??null) &&
+                    hash_equals((string)$assignment['applicant_response_request_fingerprint'],$fingerprint)) {
+                    $this->pdo->commit();return $existingStatus;
+                }
+                throw new \\DomainException('A response has already been recorded for this assignment offer.');
+            }
+            if($assignment['status']!=='offered') throw new \\DomainException('Only a current offered assignment can receive a model response.');
+            $submission=$this->lock('model_casting_submissions',(string)$assignment['submission_id']);
+            $application=$this->lock('model_talent_applications',(string)$assignment['application_id']);
+            $asset=$this->lock('model_portfolio_assets',(string)$submission['portfolio_asset_id']);
+            $licence=$this->lock('model_image_licences',(string)$submission['image_licence_id']);
+            $call=$this->lock('model_casting_calls',(string)$submission['casting_call_id']);
+            $agreement=$this->lock('model_representation_agreements',(string)$assignment['representation_agreement_id']);
+            $this->assertCurrentEligibility($assignment,$submission,$application,$asset,$licence,$call,$agreement);
+            $termsHash=hash('sha256',(string)$assignment['terms_snapshot']);
+            $version='model-assignment-applicant-response-v1';
+            $statement=$decision==='accept'
+                ?'I have reviewed the assignment terms and voluntarily request the external signature process; this is not an executed agreement.'
+                :'I voluntarily decline this assignment offer.';
+            $responseReason=$decision==='decline' && $reason!==''?$statement.' Reason: '.$reason:$statement;
+            $encryptedReason=$this->cipher->encrypt($responseReason,$version.':'.$assignmentId.':reason');
+            $params=[
+                'status'=>$decision==='accept'?'acceptance_pending_execution':'declined',
+                'version'=>$version,'reason'=>$encryptedReason,'fingerprint'=>$fingerprint,'terms_hash'=>$termsHash,'id'=>$assignmentId,
+            ];
+            if($decision==='accept') {
+                $this->pdo->prepare(
+                    'UPDATE model_assignments SET applicant_response_status=:status,applicant_response_version=:version,
+                     applicant_response_at=UTC_TIMESTAMP(),applicant_response_reason=:reason,
+                     applicant_response_request_fingerprint=:fingerprint,applicant_response_terms_hash=:terms_hash,
+                     updated_at=UTC_TIMESTAMP() WHERE id=:id'
+                )->execute($params);
+                $this->event($assignmentId,null,'assignment.applicant_acceptance_intent','offered','offered',$statement,
+                    $this->policyVersionOrLegacy($assignment),'applicant');
+                $this->audit->record(null,'model_assignment.applicant_acceptance_intent','model_assignment',$assignmentId,
+                    'Model recorded voluntary acceptance intent pending external execution',null,
+                    ['response_status'=>'acceptance_pending_execution','attestation_version'=>$version,'terms_hash'=>$termsHash],
+                    $requestId,'model-assignment-applicant-response-v1');
+            } else {
+                AssignmentStateMachine::transition('offered','declined','applicant',null);
+                $declineReason=$this->encryptField($assignmentId,'decline_reason',$responseReason);
+                $this->pdo->prepare(
+                    'UPDATE model_assignments SET status="declined",declined_by=NULL,declined_at=UTC_TIMESTAMP(),
+                     decline_reason=:decline_reason,applicant_response_status=:status,applicant_response_version=:version,
+                     applicant_response_at=UTC_TIMESTAMP(),applicant_response_reason=:reason,
+                     applicant_response_request_fingerprint=:fingerprint,applicant_response_terms_hash=:terms_hash,
+                     updated_at=UTC_TIMESTAMP() WHERE id=:id'
+                )->execute($params+['decline_reason'=>$declineReason]);
+                $this->event($assignmentId,null,'assignment.applicant_declined','offered','declined',$responseReason,
+                    $this->policyVersionOrLegacy($assignment),'applicant');
+                $this->audit->record(null,'model_assignment.applicant_declined','model_assignment',$assignmentId,
+                    'Model voluntarily declined the offered assignment', ['status'=>'offered'],['status'=>'declined',
+                    'attestation_version'=>$version,'terms_hash'=>$termsHash,'reason_present'=>$reason!=='' ],
+                    $requestId,'model-assignment-applicant-response-v1');
+            }
+            $this->pdo->commit();return $decision==='accept'?'acceptance_pending_execution':'declined';
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
     public function cancel(Principal $actor,string $assignmentId,string $reason,string $requestId): void
     {
         $reason=trim($reason);
@@ -194,6 +284,34 @@ final class ModelAssignmentService
     }
 
     /** @return list<array<string,mixed>> */
+    /** @return list<array<string,mixed>> */
+    public function applicantAssignments(string $applicationId): array
+    {
+        if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId)) throw new \\InvalidArgumentException('Applicant identity is invalid.');
+        $query=$this->pdo->prepare(
+            'SELECT id,assignment_reference,application_id,status,project_purpose,country_code,
+                    client_name,brief,location_city,shoot_starts_at,shoot_ends_at,deliverables,
+                    compensation_minor,currency_code,expense_cap_minor,applicant_response_status,
+                    applicant_response_version,applicant_response_at,applicant_response_reason,
+                    applicant_response_terms_hash
+             FROM model_assignments
+             WHERE application_id=:application AND status<>"draft"
+             ORDER BY created_at DESC LIMIT 100'
+        );
+        $query->execute(['application'=>$applicationId]);$rows=$query->fetchAll(PDO::FETCH_ASSOC);
+        foreach($rows as &$row) {
+            foreach(['client_name','brief','location_city','deliverables'] as $field) {
+                $row[$field]=$this->cipher->decrypt((string)$row[$field],'model-assignment-v1:'.$row['id'].':'.$field);
+            }
+            if(is_string($row['applicant_response_reason']) && $row['applicant_response_reason']!=='') {
+                $row['applicant_response_reason']=$this->cipher->decrypt(
+                    $row['applicant_response_reason'],'model-assignment-applicant-response-v1:'.$row['id'].':reason'
+                );
+            }
+        }
+        unset($row);return $rows;
+    }
+
     public function expensesForAssignment(Principal $actor,string $assignmentId): array
     {
         $this->authorize($actor);
@@ -218,6 +336,9 @@ final class ModelAssignmentService
                 $this->assertCurrentEligibility($assignment,$submission,$application,$asset,$licence,$call,$agreement);
             }
             $from=(string)$assignment['status'];
+            if($toStatus==='accepted' && ($assignment['applicant_response_status']??null)!=='acceptance_pending_execution') {
+                throw new \\DomainException('The model must record acceptance intent before external execution can be recorded.');
+            }
             if($toStatus==='confirmed') {
                 foreach(['executed_document_reference','model_acceptance_evidence_reference'] as $evidenceField) {
                     $stored=$assignment[$evidenceField]??null;
@@ -231,7 +352,7 @@ final class ModelAssignmentService
             AssignmentStateMachine::transition($from,$toStatus,$role,$evidenceReference);
             $columns=[
                 'offered'=>['status'=>'offered','offered_by'=>$actor->id,'offered_at'=>true],
-                'accepted'=>['status'=>'accepted','acceptance_recorded_by'=>$actor->id,'accepted_at'=>true],
+                'accepted'=>['status'=>'accepted','acceptance_recorded_by'=>$actor->id,'accepted_at'=>true,'applicant_response_status'=>'accepted_executed'],
                 'confirmed'=>['status'=>'confirmed','confirmed_by'=>$actor->id,'confirmed_at'=>true],
                 'in_progress'=>['status'=>'in_progress','started_by'=>$actor->id,'started_at'=>true],
                 'completed'=>['status'=>'completed','completed_by'=>$actor->id,'completed_at'=>true],
@@ -440,12 +561,14 @@ final class ModelAssignmentService
         return $minor;
     }
 
-    private function event(string $assignmentId,string $actorId,string $type,string $fromStatus,string $toStatus,string $reason,string $policyVersion): void
+    private function event(string $assignmentId,?string $actorId,string $type,string $fromStatus,string $toStatus,string $reason,string $policyVersion,string $actorType='administrator'): void
     {
+        if(!in_array($actorType,['administrator','applicant'],true)) throw new \\InvalidArgumentException('Assignment event actor type is invalid.');
         $this->pdo->prepare(
             'INSERT INTO model_assignment_events (id,assignment_id,actor_user_id,actor_type,from_status,to_status,event_type,reason,evidence_reference,occurred_at,created_at,updated_at)
-             VALUES (:id,:assignment,:actor,"administrator",:from_status,:to_status,:event,:reason,NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
-        )->execute(['id'=>self::uuid(),'assignment'=>$assignmentId,'actor'=>$actorId,'from_status'=>$fromStatus,'to_status'=>$toStatus,'event'=>$type,
+             VALUES (:id,:assignment,:actor,:actor_type,:from_status,:to_status,:event,:reason,NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+        )->execute(['id'=>self::uuid(),'assignment'=>$assignmentId,'actor'=>$actorId,'actor_type'=>$actorType,
+            'from_status'=>$fromStatus,'to_status'=>$toStatus,'event'=>$type,
             'reason'=>$this->cipher->encrypt($reason,'model-assignment-event-v1:'.$assignmentId.':'.$type)]);
     }
 
