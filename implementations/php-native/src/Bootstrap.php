@@ -220,7 +220,7 @@ final class Bootstrap
         $bookingCalendar = new \Talyvane\Application\Bookings\BookingCalendarService($pdo,hash_hmac('sha256','talyvane-calendar-uid-v1',$config['app_key'],true));
         $calendarFeedTokens = new \Talyvane\Application\Bookings\CalendarFeedTokenService($pdo,$audit);
         $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $bookingCalendar, $calendarFeedTokens, $bookingQuotes, $discovery, $views, $brandName);
-        $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit), $views, $brandName);
+        $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit, $membershipAvailability), $views, $brandName);
         $clientMemberships = new ClientMembershipService($pdo,$audit,$membershipAvailability);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery, $clientMemberships);
         $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName);
