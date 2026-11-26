@@ -9,7 +9,7 @@ use Talyvane\Security\SessionManager;
 
 final class PublicModelAgencyRightsController
 {
-    public function __construct(private ?ModelApplicantRightsService $rights, private ViewRenderer $views, private string $brandName) {}
+    public function __construct(private ?ModelApplicantRightsService $rights, private ViewRenderer $views, private string $brandName, private ?ModelPortfolioService $portfolio=null) {}
 
     public function requestForm(Request $request): Response
     {
@@ -25,8 +25,10 @@ final class PublicModelAgencyRightsController
         $reference=strtoupper(trim($this->field($request,'reference')));
         $email=strtolower(trim($this->field($request,'email')));
         $type=$this->field($request,'request_type');
+        $assetId=trim($this->field($request,'asset_id'));
+        $assetId=$assetId===''?null:$assetId;
         try {
-            $this->rights->request($reference,$email,$type,$request->ipAddress,$request->requestId);
+            $this->rights->request($reference,$email,$type,$request->ipAddress,$request->requestId,$assetId);
             $_SESSION['model_rights_context']=['reference'=>$reference,'email'=>$email,'type'=>$type];
             unset($_SESSION['model_rights_id']);
             return Response::redirect('/model-agency/privacy/verify');
@@ -99,6 +101,21 @@ final class PublicModelAgencyRightsController
             return $this->page('complete',['notice'=>'Your application withdrawal has been recorded.']);
         } catch (\Throwable) {
             return $this->page('confirm',['error'=>'The withdrawal request could not be completed.'],422);
+        }
+    }
+
+    public function withdrawPortfolio(Request $request): Response
+    {
+        SessionManager::start();
+        if (!Csrf::verify($this->field($request,'_csrf'))) return $this->page('confirm',['error'=>'Your session expired. Refresh this page and try again.'],419);
+        $id=$this->rightsId();
+        if($id===null || $this->rights===null || $this->portfolio===null) return Response::redirect('/model-agency/privacy');
+        try {
+            $this->portfolio->withdrawByVerifiedApplicantRights($id,$this->field($request,'asset_id'),$request->requestId);
+            $this->clearContext();
+            return $this->page('complete',['notice'=>'Your portfolio asset withdrawal has been recorded. The private image and dependent usage permissions have been withdrawn.']);
+        } catch(\\Throwable) {
+            return $this->page('confirm',['error'=>'The portfolio asset could not be withdrawn. The request may have expired or require safeguarding review.'],422);
         }
     }
 
