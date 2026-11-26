@@ -316,6 +316,10 @@ final class PublicModelAgencyRightsController
     {
         try {
             $record=$this->rights?->portalRead($id,$requestId)??[];
+            if($this->rights!==null && $this->assignments!==null) {
+                $applicationId=$this->rights->portalApplicationId($id);
+                $record['assignments']=$this->assignments->applicantAssignments($applicationId);
+            }
             return $this->page('portal',['record'=>$record,'notice'=>$notice],$status);
         } catch(\Throwable) {
             $this->clearContext();
