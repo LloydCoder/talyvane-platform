@@ -107,6 +107,26 @@ final class ClientModelAgencyDistributionService
     }
 
     /** @return list<array<string,mixed>> */
+    public function adminCastingCalls(Principal $actor): array
+    {
+        $this->authorizeAgency($actor);
+        return $this->pdo->query(
+            'SELECT id,casting_reference,title,status,client_user_id,published_at
+             FROM model_casting_calls ORDER BY created_at DESC LIMIT 100'
+        )->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** @return list<array<string,mixed>> */
+    public function adminAssignments(Principal $actor): array
+    {
+        $this->authorizeAgency($actor);
+        return $this->pdo->query(
+            'SELECT id,assignment_reference,status,client_user_id,submission_id
+             FROM model_assignments ORDER BY created_at DESC LIMIT 100'
+        )->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** @return list<array<string,mixed>> */
     public function castingCalls(Principal $client): array
     {
         $this->assertClient($client);
