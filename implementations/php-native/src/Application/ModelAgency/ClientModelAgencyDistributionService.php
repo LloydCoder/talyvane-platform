@@ -158,8 +158,8 @@ final class ClientModelAgencyDistributionService
         $query=$this->pdo->prepare(
             'SELECT a.id,a.assignment_reference,a.status,a.project_purpose,a.country_code,
                     a.shoot_starts_at,a.shoot_ends_at,a.compensation_minor,a.currency_code,
-                    a.created_at,a.updated_at,a.client_name,a.brief,a.location_city,a.deliverables,
-                    c.id AS casting_call_id,c.client_name,lic.id AS licence_id,lic.licensee_name
+                    a.created_at,a.updated_at,a.client_name AS assignment_client_name,a.brief,a.location_city,a.deliverables,
+                    c.id AS casting_call_id,c.client_name AS casting_client_name,lic.id AS licence_id,lic.licensee_name
              FROM model_assignments a
              INNER JOIN model_casting_submissions s ON s.id=a.submission_id
              INNER JOIN model_casting_calls c ON c.id=s.casting_call_id
@@ -172,20 +172,21 @@ final class ClientModelAgencyDistributionService
         $rows=$query->fetchAll(PDO::FETCH_ASSOC);
         $visible=[];
         foreach($rows as $row) {
-            if(!is_string($row['client_name']??null) || $row['client_name']==='' ||
+            if(!is_string($row['assignment_client_name']??null) || $row['assignment_client_name']==='' ||
+                !is_string($row['casting_client_name']??null) || $row['casting_client_name']==='' ||
                 !is_string($row['licensee_name']??null) || $row['licensee_name']==='' ||
                 !is_string($row['brief']??null) || $row['brief']==='' ||
                 !is_string($row['location_city']??null) || $row['location_city']==='' ||
                 !is_string($row['deliverables']??null) || $row['deliverables']==='') continue;
-            $callClientName=$this->cipher->decrypt((string)$row['client_name'],'model-assignment-v1:'.$row['id'].':client_name');
-            $castingClientName=$this->cipher->decrypt((string)$row['client_name'],'model-casting-call-v1:'.$row['casting_call_id'].':client_name');
+            $assignmentClientName=$this->cipher->decrypt((string)$row['assignment_client_name'],'model-assignment-v1:'.$row['id'].':client_name');
+            $castingClientName=$this->cipher->decrypt((string)$row['casting_client_name'],'model-casting-call-v1:'.$row['casting_call_id'].':client_name');
             $licenseeName=$this->cipher->decrypt((string)$row['licensee_name'],'model-image-licence-v1:'.$row['licence_id'].':licensee_name');
-            if(!hash_equals(mb_strtolower(trim($castingClientName)),mb_strtolower(trim($callClientName))) ||
+            if(!hash_equals(mb_strtolower(trim($castingClientName)),mb_strtolower(trim($assignmentClientName))) ||
                 !hash_equals(mb_strtolower(trim($castingClientName)),mb_strtolower(trim($licenseeName)))) continue;
             $row['brief']=$this->cipher->decrypt((string)$row['brief'],'model-assignment-v1:'.$row['id'].':brief');
             $row['location_city']=$this->cipher->decrypt((string)$row['location_city'],'model-assignment-v1:'.$row['id'].':location_city');
             $row['deliverables']=$this->cipher->decrypt((string)$row['deliverables'],'model-assignment-v1:'.$row['id'].':deliverables');
-            unset($row['casting_call_id'],$row['client_name'],$row['licence_id'],$row['licensee_name']);
+            unset($row['casting_call_id'],$row['assignment_client_name'],$row['casting_client_name'],$row['licence_id'],$row['licensee_name']);
             $visible[]=$row;
         }
         return $visible;
