@@ -34,11 +34,12 @@ async function messagesFor(address) {
   return details;
 }
 
-async function waitForCode(address, digits = 6, subject = null) {
+async function waitForCode(address, digits = 6, subject = null, reference = null) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     for (const message of await messagesFor(address)) {
       if (subject && (message.Subject ?? message.subject) !== subject) continue;
       const body = [message.Text, message.HTML, message.text, message.html, message.Snippet].filter(Boolean).join('\n');
+      if (reference && !body.includes(reference)) continue;
       const match = body.match(new RegExp('\\b([0-9]{' + digits + '})\\b'));
       if (match) return match[1];
     }
@@ -258,7 +259,8 @@ try {
   await page.locator('#summary').fill('Please correct the spelling of my account details.');
   await page.getByRole('button', { name: /Request a correction/i }).click();
   await page.waitForSelector('form[action="/portal/privacy/verify"] [name="code"]');
-  const correctionCode = await waitForCode(clientEmail, 8, 'Your Talyvane privacy request');
+  const correctionRequestId = await page.locator('form[action="/portal/privacy/verify"] [name="request_id"]').inputValue();
+  const correctionCode = await waitForCode(clientEmail, 8, 'Your Talyvane privacy request', correctionRequestId);
   await page.locator('form[action="/portal/privacy/verify"] [name="code"]').fill(correctionCode);
   await page.getByRole('button', { name: /Verify privacy request/i }).click();
   await page.getByRole('status').getByText(/entered the restricted review queue/i).waitFor();
@@ -267,7 +269,8 @@ try {
   await page.goto(baseUrl + '/portal/privacy', { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: /Request account erasure/i }).click();
   await page.waitForSelector('form[action="/portal/privacy/verify"] [name="code"]');
-  const erasureCode = await waitForCode(clientEmail, 8, 'Your Talyvane privacy request');
+  const erasureRequestId = await page.locator('form[action="/portal/privacy/verify"] [name="request_id"]').inputValue();
+  const erasureCode = await waitForCode(clientEmail, 8, 'Your Talyvane privacy request', erasureRequestId);
   await page.locator('form[action="/portal/privacy/verify"] [name="code"]').fill(erasureCode);
   await page.getByRole('button', { name: /Verify privacy request/i }).click();
   await page.getByRole('status').getByText(/Erasure is not automatic/i).waitFor();
