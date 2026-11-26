@@ -543,6 +543,12 @@ final class ModelAssignmentService
         );
         $query->execute(['application'=>$applicationId,'ends_at'=>$endsAt,'starts_at'=>$startsAt,'except_null'=>$exceptId,'except_match'=>$exceptId]);
         if($query->fetchColumn()!==false) throw new \DomainException('The model has an overlapping active assignment.');
+        $unavailable=$this->pdo->prepare(
+            'SELECT id FROM model_availability_blocks WHERE application_id=:application AND status="active"
+             AND starts_at<:ends_at AND ends_at>:starts_at LIMIT 1 FOR UPDATE'
+        );
+        $unavailable->execute(['application'=>$applicationId,'ends_at'=>$endsAt,'starts_at'=>$startsAt]);
+        if($unavailable->fetchColumn()!==false) throw new \DomainException('The model has recorded unavailability during this assignment schedule.');
     }
 
     private function approvedPolicy(): array

@@ -13,6 +13,7 @@ use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
 use Talyvane\Security\Principal;
 use Talyvane\Security\SecretBox;
 use Talyvane\Application\ModelAgency\ModelApplicantRightsService;
+use Talyvane\Application\ModelAgency\ModelAvailabilityService;
 use Talyvane\Infrastructure\Security\RateLimiter;
 
 function runModelPortfolioIntegration(PDO $pdo): int
@@ -331,7 +332,25 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assignments=new ModelAssignmentService($pdo,new AuditLogger($pdo),$secretBox,$storage,static fn():bool=>true);
     $shootStart=$now->modify('+10 days')->format('Y-m-d H:i:s');
     $shootEnd=$now->modify('+11 days')->format('Y-m-d H:i:s');
-    $assignmentId=$assignments->createDraft($admin,$submissionId,[
+    $availability=new ModelAvailabilityService($pdo,new AuditLogger($pdo));
+    $startIso=(new DateTimeImmutable($shootStart,new DateTimeZone('UTC')))->format('Y-m-d\TH:i:s\Z');
+    $endIso=(new DateTimeImmutable($shootEnd,new DateTimeZone('UTC')))->format('Y-m-d\TH:i:s\Z');
+    $availabilityRequestId=bin2hex(random_bytes(16));
+    $availabilityBlockId=$availability->createByApplicant($applicationId,$startIso,$endIso,'travel',$availabilityRequestId);
+    $assert(count(array_filter($availability->listForApplicant($applicationId),static fn(array $block):bool=>$block['id']===$availabilityBlockId && $block['status']==='active' && $block['starts_at']===$shootStart))===1,
+        'model availability is stored in UTC and scoped to the applicant application');
+    $assert($availability->createByApplicant($applicationId,$startIso,$endIso,'travel',$availabilityRequestId)===$availabilityBlockId,
+        'availability create is idempotent for the same request and terms');
+    try {
+        $availability->createByApplicant($applicationId,
+            (new DateTimeImmutable($shootStart,new DateTimeZone('UTC')))->modify('+1 hour')->format('Y-m-d\TH:i:s\Z'),
+            (new DateTimeImmutable($shootEnd,new DateTimeZone('UTC')))->modify('+1 hour')->format('Y-m-d\TH:i:s\Z'),
+            'personal',bin2hex(random_bytes(16)));
+        $assert(false,'overlapping model unavailability blocks are rejected');
+    } catch(DomainException) {
+        $assert(true,'overlapping model unavailability blocks are rejected');
+    }
+    $assignmentTerms=[
         'project_purpose'=>'editorial','client_name'=>'Verified editorial commissioning client',
         'client_reference'=>'editorial-client-ref-001',
         'brief'=>'A defined editorial assignment brief for the model and commissioning client.',
@@ -339,7 +358,16 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'shoot_starts_at'=>$shootStart,'shoot_ends_at'=>$shootEnd,
         'deliverables'=>'One editorial shoot with the agreed image selection and usage scope.',
         'compensation_amount'=>'800.00','currency_code'=>'GBP','expense_cap_amount'=>'75.00',
-    ],bin2hex(random_bytes(16)));
+    ];
+    try {
+        $assignments->createDraft($admin,$submissionId,$assignmentTerms,bin2hex(random_bytes(16)));
+        $assert(false,'assignment creation is blocked by model-recorded unavailability');
+    } catch(DomainException) {
+        $assert(true,'assignment creation is blocked by model-recorded unavailability');
+    }
+    $availability->cancelByApplicant($applicationId,$availabilityBlockId,bin2hex(random_bytes(16)));
+    $availability->cancelByApplicant($applicationId,$availabilityBlockId,bin2hex(random_bytes(16)));
+    $assignmentId=$assignments->createDraft($admin,$submissionId,$assignmentTerms,bin2hex(random_bytes(16)));
     $assert($assignments->applicantAssignments($applicationId)===[],'unoffered assignment drafts are never exposed in the applicant workspace');
     $assignments->offer($admin,$assignmentId,bin2hex(random_bytes(16)));
     $modelAssignmentTerms=$assignments->applicantAssignments($applicationId);
