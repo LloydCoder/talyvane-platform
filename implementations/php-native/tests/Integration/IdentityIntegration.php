@@ -37,6 +37,14 @@ final class NativeTestMailer implements Mailer
     }
 }
 
+final class NativeFailingBookingMailer implements Mailer
+{
+    public function send(string $recipient,string $subject,string $textBody): void
+    {
+        throw new RuntimeException('Synthetic SMTP outage for retry coverage.');
+    }
+}
+
 function runIdentityIntegration(PDO $pdo): int
 {
     $assertions = 0;
@@ -472,6 +480,15 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(count($bookingTestMailer->messages)===$dispatchResult['delivered'] &&
         !str_contains(implode("\n",array_column($bookingTestMailer->messages,'body')),'Manual booking integration test'),
         'booking emails contain event details but never disclose private client booking notes');
+    $bookingNotifications->enqueue($manualBookingId,$registeredId,'booking.rescheduled');
+    $failingDispatcher=new BookingNotificationDispatcher($pdo,new SecretBox(str_repeat('B',32)),new NativeFailingBookingMailer());
+    $retryResult=$failingDispatcher->dispatchBatch(1);
+    $retryState=$pdo->prepare('SELECT status,attempts,last_error_code FROM communication_outbox WHERE related_type="booking" AND related_id=:booking AND idempotency_key LIKE "%booking.rescheduled%" AND recipient_fingerprint=:fingerprint ORDER BY created_at DESC LIMIT 1');
+    $retryState->execute(['booking'=>$manualBookingId,'fingerprint'=>hash_hmac('sha256','native-registered-client@example.test',str_repeat('F',32))]);
+    $retryRow=$retryState->fetch(PDO::FETCH_ASSOC);
+    $assert($retryResult['retried']===1 && is_array($retryRow) && $retryRow['status']==='pending' &&
+        (int)$retryRow['attempts']===1 && $retryRow['last_error_code']==='RuntimeException',
+        'SMTP failure schedules a bounded retry and records a sanitized delivery attempt');
     $privacyExports=new \Talyvane\Application\Identity\PortalPrivacyExportService($pdo,$audit,$limiter);
     $clientPrivacyExport=$privacyExports->export($clientPrincipal,bin2hex(random_bytes(16)));
     $companionPrivacyExport=$privacyExports->export($companionPrincipal,bin2hex(random_bytes(16)));
