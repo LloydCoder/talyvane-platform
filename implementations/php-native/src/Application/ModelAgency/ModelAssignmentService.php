@@ -280,7 +280,8 @@ final class ModelAssignmentService
             throw new \DomainException('Assignment client, purpose and schedule must match the selected casting call snapshot.');
         }
         $policy=$this->approvedPolicy();
-        if(!hash_equals($assignmentPolicyVersion,$policy['policy_version'])) throw new \DomainException('Assignment policy changed; this assignment requires re-review.');
+        $castingPolicy=$this->approvedPolicySetting('model_agency.casting');
+        if(!hash_equals($assignmentPolicyVersion,$policy['policy_version']) || !hash_equals((string)$call['casting_policy_version'],$castingPolicy['policy_version'])) throw new \DomainException('Assignment or casting policy changed; this assignment requires re-review.');
         $verification=$this->pdo->prepare('SELECT outcome,expires_at FROM model_applicant_verifications WHERE application_id=:application ORDER BY decision_order DESC LIMIT 1 FOR UPDATE');
         $verification->execute(['application'=>$application['id']]);$v=$verification->fetch(PDO::FETCH_ASSOC);
         if(!is_array($v) || $v['outcome']!=='verified' || $v['expires_at']===null ||
