@@ -21,25 +21,20 @@ A route, view, table, stub, static test or successful package build is not by it
 
 ## Current head and validation
 
-Latest runtime-affecting implementation head observed during this reconciliation: `7eeb5c49acb37d2a9a861837d8c74daf581ca9b2`. The PR head subsequently advanced to `dea7cc763eaa4493b819f832dedb8b6ce478f99c` through documentation-only reconciliation commits; those commits do not change PHP runtime behavior. New workflows were triggered for the documentation head and were still running at the last check.
+Latest runtime-affecting implementation head validated: `662986f15d1b315df594313946426ee7c2a16d8a`. The subsequent tracker-only reconciliation commit `821bf190d979c7630271aa672c09a14e311b748e` does not change runtime behavior. The implementation head passed all required repository workflows:
 
-| Check on latest head | Observed result |
+| Check | Exact-head result |
 |---|---|
-| PHP 8.3 native tests | Passed |
-| PHP 8.4 native tests | Passed |
-| PHP 8.5 native tests | Passed |
-| MySQL 8.0 migrations/integration | Running at last check; do not claim passed on this head yet |
+| PHP 8.3/8.4/8.5 native implementation tests | Passed |
+| MySQL 8.0 migrations/integration | Passed |
 | Security analysis | Passed |
 | Native cPanel package contract | Passed |
-| Single-ZIP cPanel package build | Running at last check |
-| Native installer browser E2E | Running at last check |
-| Laravel installer browser E2E | Running at last check |
-| General CI | Running at last check |
+| Single-ZIP cPanel package build | Passed |
+| Native installer browser E2E | Passed |
+| Laravel installer browser E2E | Passed |
+| General CI | Passed |
 
-An earlier head, `9dccea3450f70267f9e749261c7b08618e549443`, passed PHP 8.3/8.4/8.5, MySQL 8.0 integration (36 migrations; 362 assertions), security analysis and native cPanel package verification; its single-ZIP package build also passed. That evidence is not silently carried forward to later commits.
-
-The current head has 36 ordered native migrations. Re-run and record all required workflows after the final documentation and implementation commit. Never report a pending or cancelled run as green.
-
+The PR remains open, draft and unmerged. These are repository-level results, not live-host acceptance. Any later runtime change requires fresh exact-head validation.
 ## Implemented native domains — partial vertical slices
 
 | Domain | Implemented on this branch | Remaining parity / acceptance |
