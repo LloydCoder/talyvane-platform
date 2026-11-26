@@ -76,13 +76,13 @@ $calendarNow = new DateTimeImmutable('2026-11-26T09:00:00+00:00');
 $calendarEvents = [[
     'id'=>'booking-private-1','status'=>'confirmed',
     'starts_at_utc'=>'2026-12-01 12:00:00','ends_at_utc'=>'2026-12-01 13:00:00',
-    'updated_at'=>'2026-11-26 08:00:00','profile_name'=>'Alex, Example',
+    'updated_at'=>'2026-11-26 08:00:00','profile_name'=>"Alex, Example\nVIP",
     'destination_name'=>'London; United Kingdom',
     'client_note'=>'PRIVATE NOTE MUST NOT APPEAR','client_user_id'=>'client-secret-id',
 ]];
 $clientCalendar = $calendar->toIcalendar(new Principal('client-calendar-id',['client'],false),$calendarEvents,$calendarNow);
 $assert(str_contains($clientCalendar,'BEGIN:VCALENDAR') && str_contains($clientCalendar,'DTSTART:20261201T120000Z'), 'calendar export emits RFC5545 UTC event times');
-$assert(str_contains($clientCalendar,'SUMMARY:Booking with Alex\\, Example — London\\; United Kingdom') && !str_contains($clientCalendar,'PRIVATE NOTE') && !str_contains($clientCalendar,'client-secret-id'), 'client calendar escapes text and excludes notes and account identifiers');
+$assert(str_contains($clientCalendar,'SUMMARY:Booking with Alex\\, Example\\nVIP — London\\; United Kingdom') && !str_contains($clientCalendar,'PRIVATE NOTE') && !str_contains($clientCalendar,'client-secret-id'), 'client calendar escapes text and excludes notes and account identifiers');
 $companionCalendar = $calendar->toIcalendar(new Principal('companion-calendar-id',['companion'],false),$calendarEvents,$calendarNow);
 $assert(str_contains($companionCalendar,'SUMMARY:Appointment — London\\; United Kingdom') && !str_contains($companionCalendar,'Alex'), 'companion calendar projection excludes client-facing profile identity details');
 $cancelledCalendar = $calendar->toIcalendar(new Principal('client-calendar-id',['client'],false),[array_merge($calendarEvents[0],['status'=>'cancelled'])],$calendarNow);
