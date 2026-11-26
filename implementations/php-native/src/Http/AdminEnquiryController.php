@@ -22,7 +22,7 @@ final class AdminEnquiryController
         if ($principal instanceof Response) {
             return $principal;
         }
-        return $this->page('',200,false,$principal);
+        return $this->page('',200,false,$principal,$this->pageNumber($request));
     }
 
     public function update(Request $request,?array $params = null): Response
@@ -32,7 +32,7 @@ final class AdminEnquiryController
             return $principal;
         }
         if (!Csrf::verify($this->field($request,'_csrf'))) {
-            return $this->page('Your session expired. Refresh and try again.',419,false,$principal);
+            return $this->page('Your session expired. Refresh and try again.',419,false,$principal,$this->pageNumber($request));
         }
         try {
             $this->enquiries->updateStatus(
@@ -42,9 +42,9 @@ final class AdminEnquiryController
                 $this->field($request,'reason'),
                 $request->requestId
             );
-            return $this->page('',200,true,$principal);
+            return $this->page('',200,true,$principal,$this->pageNumber($request));
         } catch (InvalidArgumentException|DomainException $error) {
-            return $this->page($error->getMessage(),422,false,$principal);
+            return $this->page($error->getMessage(),422,false,$principal,$this->pageNumber($request));
         }
     }
 
@@ -121,12 +121,17 @@ final class AdminEnquiryController
         return $principal;
     }
 
-    private function page(string $error = '',int $status = 200,bool $saved = false,?Principal $principal = null): Response
+    private function page(string $error = '',int $status = 200,bool $saved = false,?Principal $principal = null,int $page = 1): Response
     {
         if ($principal === null) {
             return Response::html('Forbidden',403);
         }
-        $items = $this->enquiries->list($principal,100,0);
+        $page = max(1,min(5000,$page));
+        $pageSize = 20;
+        $totalCount = $this->enquiries->count($principal);
+        $items = $this->enquiries->list($principal,$pageSize + 1,($page - 1) * $pageSize);
+        $hasNext = count($items) > $pageSize;
+        if ($hasNext) { $items = array_slice($items,0,$pageSize); }
         $assignees = $this->enquiries->eligibleAssignees($principal);
         $body = $this->views->render('admin/enquiries',[
             'brandName'=>$this->brandName,
@@ -135,6 +140,11 @@ final class AdminEnquiryController
             'saved'=>$saved,
             'items'=>$items,
             'assignees'=>$assignees,
+            'currentPage'=>$page,
+            'totalPages'=>max(1,(int)ceil($totalCount / $pageSize)),
+            'totalCount'=>$totalCount,
+            'hasPrevious'=>$page > 1,
+            'hasNext'=>$hasNext,
         ]);
         return new Response($body,$status,[
             'content-type'=>'text/html; charset=utf-8',
@@ -145,6 +155,14 @@ final class AdminEnquiryController
             'permissions-policy'=>'camera=(), microphone=(), geolocation=()',
             'content-security-policy'=>"default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; style-src 'self' 'unsafe-inline'",
         ]);
+    }
+
+    private function pageNumber(Request $request): int
+    {
+        $value = $request->query['page'] ?? $request->body['page'] ?? '1';
+        if (is_int($value)) { return max(1,min(5000,$value)); }
+        if (!is_string($value) || !ctype_digit($value)) { return 1; }
+        return max(1,min(5000,(int)$value));
     }
 
     private function field(Request $request,string $name): string
