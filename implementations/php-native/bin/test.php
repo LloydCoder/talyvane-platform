@@ -97,6 +97,18 @@ $assert(BookingStateMachine::transition('accepted','cancelled','client') === 'ca
 
 $calendarPdo = new class extends PDO { public function __construct() {} };
 $calendar = new BookingCalendarService($calendarPdo,str_repeat('C',32));
+try {
+    $calendar->clientEvents(new Principal('mixed-client',['client','admin'],true));
+    $assert(false,'calendar query rejects a mixed client/administrator principal before reading bookings');
+} catch (DomainException) {
+    $assert(true,'calendar query rejects a mixed client/administrator principal before reading bookings');
+}
+try {
+    $calendar->companionEvents(new Principal('mixed-companion',['companion','owner'],true));
+    $assert(false,'calendar query rejects a mixed companion/owner principal before reading bookings');
+} catch (DomainException) {
+    $assert(true,'calendar query rejects a mixed companion/owner principal before reading bookings');
+}
 $calendarNow = new DateTimeImmutable('2026-11-26T09:00:00+00:00');
 $calendarEvents = [[
     'id'=>'booking-private-1','status'=>'confirmed',
