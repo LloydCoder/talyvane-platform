@@ -197,6 +197,7 @@ final class Bootstrap
         $portalPrivacyRightsController = new \Talyvane\Http\PortalPrivacyRightsController($authentication,$portalPrivacyRights,$views,$brandName);
         $adminPrivacyRights = new \Talyvane\Application\Identity\PortalPrivacyRightsAdminService($pdo,new SecretBox($config['app_key']),$audit);
         $adminPrivacyRightsController = new \Talyvane\Http\AdminPrivacyRightsController($authentication,$adminPrivacyRights,$views,$brandName);
+        $adminPrivacyRightsController = new \Talyvane\Http\AdminPrivacyRightsController($authentication,$adminPrivacyRights,$views,$brandName);
         $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
         $clientPrivateGallery = new ClientPrivateGalleryController($authentication,$profileMedia,$views,$brandName);
         $adminClients = new AdminClientController($pdo,$authentication,$clientMemberships,$views,$brandName);
@@ -240,6 +241,8 @@ final class Bootstrap
         $router->add('GET', '/portal/privacy', static fn(Request $request): Response => $portalPrivacyRightsController->index($request));
         $router->add('POST', '/portal/privacy/requests', static fn(Request $request): Response => $portalPrivacyRightsController->request($request));
         $router->add('POST', '/portal/privacy/verify', static fn(Request $request): Response => $portalPrivacyRightsController->verify($request));
+        $router->add('GET', '/admin/privacy/requests', static fn(Request $request): Response => $adminPrivacyRightsController->index($request));
+        $router->add('POST', '/admin/privacy/requests/review', static fn(Request $request): Response => $adminPrivacyRightsController->review($request));
         $router->add('GET', '/admin/privacy/requests', static fn(Request $request): Response => $adminPrivacyRightsController->index($request));
         $router->add('POST', '/admin/privacy/requests/review', static fn(Request $request): Response => $adminPrivacyRightsController->review($request));
         $router->add('GET', '/portal/security', static fn(Request $request): Response => $portalSecurity->index($request));
