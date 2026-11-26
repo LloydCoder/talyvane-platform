@@ -364,12 +364,21 @@ function runModelPortfolioIntegration(PDO $pdo): int
         $assert(true,'client cannot read private model portfolio review queue');
     }
 
-    $rightsRequestId=sprintf('%08x-%04x-4%03x-8%03x-%012x',random_int(0,0xffffffff),random_int(0,0xffff),random_int(0,0xfff),random_int(0,0xfff),random_int(0,0xffffffffffff));
-    $pdo->prepare(
-        'INSERT INTO model_applicant_rights_requests
-         (id,application_id,related_asset_id,request_type,status,otp_hash,expires_at,attempts,verified_at,completed_at,created_at)
-         VALUES (:id,:application,:asset,"portfolio_withdrawal","verified","",DATE_ADD(UTC_TIMESTAMP(),INTERVAL 20 MINUTE),1,UTC_TIMESTAMP(),NULL,UTC_TIMESTAMP())'
-    )->execute(['id'=>$rightsRequestId,'application'=>$applicationId,'asset'=>$licensedAsset['id']]);
+    $applicationIdentity=$pdo->prepare('SELECT application_reference,email FROM model_talent_applications WHERE id=:id');
+    $applicationIdentity->execute(['id'=>$applicationId]);
+    $applicationIdentityRow=$applicationIdentity->fetch(PDO::FETCH_ASSOC);
+    $rightsMailer=new NativeTestMailer();
+    $applicantRights=new ModelApplicantRightsService(
+        $pdo,$rightsMailer,new RateLimiter($pdo,str_repeat('R',32)),new AuditLogger($pdo),str_repeat('A',32)
+    );
+    $applicantRights->request((string)$applicationIdentityRow['application_reference'],(string)$applicationIdentityRow['email'],
+        'portfolio_withdrawal','127.0.0.1',bin2hex(random_bytes(16)),$licensedAsset['id']);
+    preg_match('/one-time verification code is: ([0-9]{8})/i',(string)($rightsMailer->messages[0]['body']??''),$rightsCodeMatch);
+    $rightsCode=(string)($rightsCodeMatch[1]??'');
+    $assert($rightsCode!=='','applicant portfolio withdrawal request sends an OTP only after application and asset ownership match');
+    $rightsRequestId=$applicantRights->verify((string)$applicationIdentityRow['application_reference'],(string)$applicationIdentityRow['email'],
+        $rightsCode,'127.0.0.1',bin2hex(random_bytes(16)));
+    $assert(is_string($rightsRequestId),'applicant portfolio withdrawal requires successful email OTP verification');
     $service->withdrawByVerifiedApplicantRights($rightsRequestId,$licensedAsset['id'],bin2hex(random_bytes(16)));
     $applicantWithdrawal=$pdo->prepare(
         'SELECT status,private_storage_key,consent_withdrawn_at FROM model_portfolio_assets WHERE id=:id'
