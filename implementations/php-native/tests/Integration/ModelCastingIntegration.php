@@ -35,6 +35,13 @@ function runModelCastingIntegration(PDO $pdo): int
 
     $service=new ModelCastingWorkflowService($pdo,new AuditLogger($pdo),static fn():bool=>true);
     $admin=new Principal($adminId,['super_admin'],true);
+    $disabledService=new ModelCastingWorkflowService($pdo,new AuditLogger($pdo),static fn():bool=>false);
+    try {
+        $disabledService->createDraft($admin,[],bin2hex(random_bytes(16)));
+        $assert(false,'casting draft creation remains disabled when deployment readiness is false');
+    } catch(DomainException) {
+        $assert(true,'casting draft creation remains disabled when deployment readiness is false');
+    }
     $base=new DateTimeImmutable('now',new DateTimeZone('UTC'));
     $terms=[
         'title'=>'Private editorial campaign casting',
