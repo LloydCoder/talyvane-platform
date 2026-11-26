@@ -371,6 +371,17 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert(is_array($acceptanceEventRow) && $acceptanceEventRow['actor_user_id']===null && $acceptanceEventRow['actor_type']==='applicant' &&
         $acceptanceEventRow['from_status']==='offered' && $acceptanceEventRow['to_status']==='offered',
         'applicant acceptance intent is attributed to the verified model without a fabricated platform user');
+    $termsSnapshotQuery=$pdo->prepare('SELECT terms_snapshot FROM model_assignments WHERE id=:id');
+    $termsSnapshotQuery->execute(['id'=>$assignmentId]);$originalTermsSnapshot=(string)$termsSnapshotQuery->fetchColumn();
+    $pdo->prepare('UPDATE model_assignments SET terms_snapshot=JSON_SET(terms_snapshot, "$.project_purpose", "commercial_campaign") WHERE id=:id')->execute(['id'=>$assignmentId]);
+    try {
+        $assignments->recordAcceptance($admin,$assignmentId,'private/model-assignments/executed-document-tampered-terms-0001',
+            'private/model-consent/model-acceptance-tampered-terms-0001',bin2hex(random_bytes(16)));
+        $assert(false,'external execution cannot be recorded against assignment terms changed after the model response');
+    } catch(DomainException) {
+        $assert(true,'external execution cannot be recorded against assignment terms changed after the model response');
+    }
+    $pdo->prepare('UPDATE model_assignments SET terms_snapshot=:snapshot WHERE id=:id')->execute(['snapshot'=>$originalTermsSnapshot,'id'=>$assignmentId]);
     try {
         $assignments->confirm($admin,$assignmentId,bin2hex(random_bytes(16)));
         $assert(false,'assignment cannot be confirmed before external execution and model-acceptance evidence are recorded');
