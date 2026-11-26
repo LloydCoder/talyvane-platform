@@ -78,7 +78,7 @@ final class AdminSafeguardingController
             return Response::redirect('/admin/safeguarding/governance');
         } catch(InvalidArgumentException|DomainException $error) {
             return $this->governance($request,$error->getMessage());
-        } catch(\\Throwable) {
+        } catch(\Throwable) {
             return $this->governance($request,'Safeguarding reassignment could not be recorded securely.');
         }
     }
