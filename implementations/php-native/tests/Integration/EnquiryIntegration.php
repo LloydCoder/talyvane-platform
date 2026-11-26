@@ -101,6 +101,19 @@ $attribution = is_array($saved) ? json_decode((string) $saved['attribution_json'
         $assert($immutable,'database trigger rejects CRM internal-note mutation when trigger privileges are available');
     }
 
+    $reminderDue = (new DateTimeImmutable('+2 days',new DateTimeZone('UTC')))->format('Y-m-d H:i:s');
+    $reminderId = $service->scheduleReminder($admin,$reference,$reminderDue,'Follow up after sending the requested information',bin2hex(random_bytes(16)));
+    $reminders = $service->list($admin,100,0);
+    $reminderEnquiry = array_values(array_filter($reminders,static fn(array $item):bool=>$item['reference']===$reference))[0]??null;
+    $assert(is_string($reminderId) && count($reminderEnquiry['reminders']??[])===1 &&
+        $reminderEnquiry['reminders'][0]['due_at']===$reminderDue,
+        'CRM follow-up reminder is persisted and visible to authorized administrators');
+    $service->completeReminder($admin,$reminderId,'Follow-up completed by support',bin2hex(random_bytes(16)));
+    $reminders = $service->list($admin,100,0);
+    $reminderEnquiry = array_values(array_filter($reminders,static fn(array $item):bool=>$item['reference']===$reference))[0]??null;
+    $assert(($reminderEnquiry['reminders'][0]['completed_at']??null)!==null,
+        'CRM reminder completion is stateful and auditable');
+
     try {
         $service->updateStatus(new Principal($clientId,['client'],false),$reference,'closed','Forbidden',bin2hex(random_bytes(16)));
         $assert(false,'client cannot change enquiry pipeline state');
