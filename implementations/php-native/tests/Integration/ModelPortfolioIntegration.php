@@ -173,8 +173,13 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'compensation_amount'=>null,'currency_code'=>null,'max_submissions'=>2,
     ],bin2hex(random_bytes(16)));
     $casting->publish($admin,$callId,bin2hex(random_bytes(16)));
-    $clientId=(string)$pdo->query('SELECT id FROM users WHERE email="native-password-client-new@example.test"')->fetchColumn();
-    if($clientId==='') throw new RuntimeException('Model portfolio distribution test requires the verified client fixture.');
+    $clientId=(string)$pdo->query('SELECT UUID()')->fetchColumn();
+    $pdo->prepare(
+        'INSERT INTO users (id,email,password_hash,status,email_verified_at,first_login_required,created_at,updated_at)
+         VALUES (:id,"native-model-distribution-client@example.test",:hash,"active",UTC_TIMESTAMP(),0,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+    )->execute(['id'=>$clientId,'hash'=>password_hash(bin2hex(random_bytes(24)),PASSWORD_DEFAULT)]);
+    $pdo->prepare('INSERT INTO user_roles (user_id,role_key,granted_by,granted_at) VALUES (:id,"client",:actor,UTC_TIMESTAMP())')
+        ->execute(['id'=>$clientId,'actor'=>$adminId]);
     $clientDistribution=new ClientModelAgencyDistributionService($pdo,$storage,new AuditLogger($pdo),$secretBox);
     $clientDistribution->linkCastingCall($admin,$callId,$clientId,bin2hex(random_bytes(16)));
     $clientPrincipal=new Principal($clientId,['client'],false);
