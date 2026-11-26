@@ -32,8 +32,8 @@ final readonly class BookingPolicy
     {
         return new self(
             (bool) ($data['automatic_enabled'] ?? false),
-            (bool) ($data['deposit_required'] ?? false),
-            (int) ($data['minimum_notice_minutes'] ?? 60),
+            (bool) ($data['deposit_required'] ?? true),
+            (int) ($data['minimum_notice_minutes'] ?? 720),
             (int) ($data['maximum_advance_days'] ?? 90),
             (int) ($data['minimum_duration_minutes'] ?? 60),
             (int) ($data['maximum_duration_minutes'] ?? 480),
