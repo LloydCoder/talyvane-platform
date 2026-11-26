@@ -14,6 +14,8 @@ use Talyvane\Application\Features\FeatureManagementService;
 use Talyvane\Application\Globalization\GlobalizationSettingsService;
 use Talyvane\Application\Payments\PaymentSettingsService;
 use Talyvane\Application\Payments\PaymentMethodManagementService;
+use Talyvane\Application\Bookings\BookingSettingsService;
+use Talyvane\Infrastructure\Database\BookingPolicyRepository;
 use Talyvane\Infrastructure\Database\FeatureStateRepository;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Destinations\DestinationManagementService;
@@ -765,6 +767,41 @@ function runIdentityIntegration(PDO $pdo): int
         'payments_enabled'=>false,'crypto_enabled'=>false,'cards_enabled'=>false,
         'manual_enabled'=>false,'booking_payments_enabled'=>false,'membership_payments_enabled'=>false,
     ],bin2hex(random_bytes(16)));
+
+    $bookingSettingsService=new BookingSettingsService($pdo,$audit,new FeatureAvailability([],static fn(string $dependency):bool=>false));
+    $initialBookingSettings=$bookingSettingsService->current($featureAdmin);
+    $assert($initialBookingSettings['minimum_notice_hours']===12 && $initialBookingSettings['auto_requires_verified_deposit']===true,
+        'native booking policy defaults match Laravel 12-hour notice and verified-deposit defaults');
+    $bookingSettingsService->update($featureAdmin,[
+        'booking_mode'=>'manual','auto_confirm_enabled'=>false,'auto_requires_verified_deposit'=>true,
+        'minimum_notice_hours'=>24,'maximum_advance_days'=>60,'client_cancellation_enabled'=>true,
+        'cancellation_cutoff_hours'=>6,
+    ],bin2hex(random_bytes(16)));
+    $currentBookingPolicy=(new BookingPolicyRepository($pdo))->current();
+    $assert(!$currentBookingPolicy->automaticEnabled && $currentBookingPolicy->depositRequired &&
+        $currentBookingPolicy->minimumNoticeMinutes===1440 && $currentBookingPolicy->maximumAdvanceDays===60 &&
+        $currentBookingPolicy->clientCancellationEnabled && $currentBookingPolicy->clientCancellationCutoffMinutes===360,
+        'booking policy settings persist in the runtime policy repository with correct minute/hour conversion');
+    try {
+        $bookingSettingsService->update($featureAdmin,[
+            'booking_mode'=>'automatic','auto_confirm_enabled'=>true,'auto_requires_verified_deposit'=>true,
+            'minimum_notice_hours'=>12,'maximum_advance_days'=>90,'client_cancellation_enabled'=>false,
+            'cancellation_cutoff_hours'=>2,
+        ],bin2hex(random_bytes(16)));
+        $assert(false,'automatic booking mode cannot be configured while independent operational feature gates are closed');
+    } catch (DomainException) {
+        $assert(true,'automatic booking mode cannot be configured while independent operational feature gates are closed');
+    }
+    $bookingSettingsService->update($featureAdmin,[
+        'booking_mode'=>$initialBookingSettings['booking_mode'],
+        'auto_confirm_enabled'=>$initialBookingSettings['auto_confirm_enabled'],
+        'auto_requires_verified_deposit'=>$initialBookingSettings['auto_requires_verified_deposit'],
+        'minimum_notice_hours'=>$initialBookingSettings['minimum_notice_hours'],
+        'maximum_advance_days'=>$initialBookingSettings['maximum_advance_days'],
+        'client_cancellation_enabled'=>$initialBookingSettings['client_cancellation_enabled'],
+        'cancellation_cutoff_hours'=>$initialBookingSettings['cancellation_cutoff_hours'],
+    ],bin2hex(random_bytes(16)));
+
     $paymentAudit=$pdo->prepare('SELECT COUNT(*) FROM audit_events WHERE actor_user_id=:actor AND event_key="payment.configuration.updated"');
     $paymentAudit->execute(['actor'=>$featureAdminId]);
     $assert((int)$paymentAudit->fetchColumn()===2,'payment capability configuration changes are append-only audited');
