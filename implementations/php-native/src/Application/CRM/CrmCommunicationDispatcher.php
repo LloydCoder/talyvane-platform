@@ -8,7 +8,7 @@ use Throwable;
 use Talyvane\Infrastructure\Mail\Mailer;
 use Talyvane\Security\SecretBox;
 
-/** At-least-once SMTP delivery for CRM replies in the shared encrypted outbox. */
+/** At-least-once SMTP delivery for CRM replies and model-agency notices in the shared encrypted outbox. */
 final class CrmCommunicationDispatcher
 {
     public function __construct(private PDO $pdo,private SecretBox $box,private Mailer $mailer) {}
@@ -22,16 +22,16 @@ final class CrmCommunicationDispatcher
         $this->pdo->prepare(
             'UPDATE communication_outbox SET status="failed",claim_token=NULL,claimed_at=NULL,
              last_error_code="retry_limit_after_stale_claim"
-             WHERE related_type="crm_enquiry" AND status="processing" AND attempts>=8
+             WHERE related_type IN ("crm_enquiry","model_licence") AND status="processing" AND attempts>=8
                AND claimed_at<UTC_TIMESTAMP()-INTERVAL 10 MINUTE'
         )->execute();
 
         $this->pdo->beginTransaction();
         try {
             $query=$this->pdo->prepare(
-                'SELECT id,related_id,recipient_ciphertext,payload_ciphertext,attempts
+                'SELECT id,related_id,related_type,recipient_ciphertext,payload_ciphertext,attempts
                  FROM communication_outbox
-                 WHERE related_type="crm_enquiry" AND channel="email"
+                 WHERE related_type IN ("crm_enquiry","model_licence") AND channel="email"
                    AND (((status IN ("pending","failed")) AND available_at<=UTC_TIMESTAMP())
                      OR (status="processing" AND claimed_at<UTC_TIMESTAMP()-INTERVAL 10 MINUTE))
                    AND attempts<8
@@ -87,11 +87,13 @@ final class CrmCommunicationDispatcher
                     );
                     $done->execute(['id'=>$id,'token'=>$row['claim_token']]);
                     if($done->rowCount()===1) {
-                        // The enquiry is marked responded only after the SMTP transport accepts the message.
-                        $this->pdo->prepare(
-                            'UPDATE enquiries SET status="responded",responded_at=COALESCE(responded_at,UTC_TIMESTAMP()),
-                             updated_at=UTC_TIMESTAMP() WHERE id=:id AND status IN ("new","in_progress","responded")'
-                        )->execute(['id'=>$row['related_id']]);
+                        // CRM state changes only for CRM replies; model notices share the encrypted outbox.
+                        if($row['related_type']==='crm_enquiry') {
+                            $this->pdo->prepare(
+                                'UPDATE enquiries SET status="responded",responded_at=COALESCE(responded_at,UTC_TIMESTAMP()),
+                                 updated_at=UTC_TIMESTAMP() WHERE id=:id AND status IN ("new","in_progress","responded")'
+                            )->execute(['id'=>$row['related_id']]);
+                        }
                         $this->attempt($attemptId,$id,'delivered',null);
                         $result['delivered']++;
                     }
