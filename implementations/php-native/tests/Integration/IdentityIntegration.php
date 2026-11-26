@@ -865,6 +865,20 @@ function runIdentityIntegration(PDO $pdo): int
     }
     $assert($missingExternalEvidenceDenied,
         'client erasure remains blocked until every external processor and backup system has reviewed evidence');
+    $ordinaryAdmin=new Principal($id,['admin'],true);
+    $externalAttestationDenied=false;
+    try {
+        $portalRightsAdmin->recordExternalErasureEvidence($ordinaryAdmin,$eligibleErasureId,
+            'encrypted_database_backups','not_applicable','TEST-NO-PROVIDER-BACKUPS',null,null,
+            'Attempted attestation by a non-owner administrator.',bin2hex(random_bytes(16)));
+    } catch(DomainException) { $externalAttestationDenied=true; }
+    $assert($externalAttestationDenied,'external erasure attestations are restricted to MFA-verified Owner and Super Admin principals');
+    $portalRightsAdmin->recordExternalErasureEvidence($superAdmin,$eligibleErasureId,
+        'encrypted_database_backups','retained','BACKUP-RETENTION-TEST','POLICY-RETENTION-2026','2099-12-31',
+        'Database backups are retained under the documented retention policy until the expiry date.',
+        bin2hex(random_bytes(16)));
+    $retainedEvidence=$portalRightsAdmin->externalErasureEvidence($superAdmin,$eligibleErasureId);
+    $assert($retainedEvidence['ready']===false,'external records with an active retention period keep erasure blocked');
     $externalSystems=[
         'encrypted_database_backups','private_storage_backups','smtp_mailbox_providers',
         'payment_processors','analytics_integrations','external_evidence_repositories','safeguarding_key_custody',
