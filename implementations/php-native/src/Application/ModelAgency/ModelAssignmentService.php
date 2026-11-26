@@ -278,6 +278,31 @@ final class ModelAssignmentService
         unset($row);return $rows;
     }
 
+    /** Return only the assignment terms belonging to the verified applicant application. */
+    public function applicantAssignments(string $applicationId): array
+    {
+        if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId)) throw new \InvalidArgumentException('Applicant identity is invalid.');
+        $query=$this->pdo->prepare(
+            'SELECT id,assignment_reference,status,project_purpose,country_code,client_name,client_reference,brief,
+                    location_city,shoot_starts_at,shoot_ends_at,deliverables,compensation_minor,currency_code,
+                    expense_cap_minor,
+                    CASE WHEN executed_document_reference IS NOT NULL AND executed_document_reference<>"" THEN 1 ELSE 0 END AS execution_evidence_ready,
+                    offered_at,accepted_at,confirmed_at,started_at,completed_at
+             FROM model_assignments WHERE application_id=:application
+             ORDER BY created_at DESC LIMIT 100'
+        );
+        $query->execute(['application'=>$applicationId]);$rows=$query->fetchAll(PDO::FETCH_ASSOC);
+        foreach($rows as &$row) {
+            foreach(['client_name','client_reference','brief','location_city','deliverables'] as $field) {
+                $stored=$row[$field]??null;
+                $row[$field]=is_string($stored) && $stored!==''?
+                    $this->cipher->decrypt($stored,'model-assignment-v1:'.$row['id'].':'.$field):null;
+            }
+        }
+        unset($row);
+        return $rows;
+    }
+
     /** @return list<array<string,mixed>> */
     public function expensesForAssignment(Principal $actor,string $assignmentId): array
     {
