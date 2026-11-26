@@ -253,7 +253,6 @@ final class Bootstrap
         $privacyOutcomeOutbox = new \Talyvane\Application\Identity\PortalPrivacyOutcomeOutbox($pdo,new SecretBox($config['app_key']));
         $adminPrivacyRights = new \Talyvane\Application\Identity\PortalPrivacyRightsAdminService($pdo,new SecretBox($config['app_key']),$audit,$privacyOutcomeOutbox);
         $adminPrivacyRightsController = new \Talyvane\Http\AdminPrivacyRightsController($authentication,$adminPrivacyRights,$views,$brandName);
-        $adminPrivacyRightsController = new \Talyvane\Http\AdminPrivacyRightsController($authentication,$adminPrivacyRights,$views,$brandName);
         $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
         $clientPrivateGallery = new ClientPrivateGalleryController($authentication,$profileMedia,$views,$brandName);
         $adminClients = new AdminClientController($pdo,$authentication,$clientMemberships,$views,$brandName);
@@ -300,8 +299,8 @@ final class Bootstrap
         $router->add('POST', '/portal/privacy/verify', static fn(Request $request): Response => $portalPrivacyRightsController->verify($request));
         $router->add('GET', '/admin/privacy/requests', static fn(Request $request): Response => $adminPrivacyRightsController->index($request));
         $router->add('POST', '/admin/privacy/requests/review', static fn(Request $request): Response => $adminPrivacyRightsController->review($request));
+        $router->add('POST', '/admin/privacy/requests/external-evidence', static fn(Request $request): Response => $adminPrivacyRightsController->recordExternalEvidence($request));
         $router->add('GET', '/admin/privacy/requests', static fn(Request $request): Response => $adminPrivacyRightsController->index($request));
-        $router->add('POST', '/admin/privacy/requests/review', static fn(Request $request): Response => $adminPrivacyRightsController->review($request));
         $router->add('GET', '/portal/security', static fn(Request $request): Response => $portalSecurity->index($request));
         $router->add('POST', '/portal/security', static fn(Request $request): Response => $portalSecurity->changePassword($request));
         $router->add('POST', '/portal/security/email/request', static fn(Request $request): Response => $portalSecurity->requestEmailChange($request));
