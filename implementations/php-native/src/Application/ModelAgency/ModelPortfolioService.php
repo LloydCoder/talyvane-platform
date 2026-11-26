@@ -81,7 +81,7 @@ final class ModelPortfolioService
             return $assetId;
         } catch(Throwable $error) {
             if($this->pdo->inTransaction()) $this->pdo->rollBack();
-            $this->storage->delete($image['key']);
+            if(is_array($image) && is_string($image['key']??null)) $this->storage->delete($image['key']);
             throw $error;
         }
     }
@@ -105,7 +105,7 @@ final class ModelPortfolioService
                 throw new \InvalidArgumentException('Portfolio source description and consent scope must each contain 20 to 2000 characters.');
             }
         }
-        $image=$this->storage->storeImage($upload,'model-portfolio',8_388_608);
+        $image=null;
         $assetId=self::uuid();$grantId=self::uuid();
         try {
             $this->pdo->beginTransaction();
@@ -125,6 +125,7 @@ final class ModelPortfolioService
             if((int)$rights['legal_hold']===1) throw new \DomainException('Portfolio uploads are paused while safeguarding/legal-hold review is active.');
             $application=$this->assertEligible((string)$rights['application_id'],true);
             $policy=$this->approvedPolicy();
+            $image=$this->storage->storeImage($upload,'model-portfolio',8_388_608);
             $duplicate=$this->pdo->prepare('SELECT id FROM model_portfolio_assets WHERE application_id=:application AND sha256=:hash LIMIT 1 FOR UPDATE');
             $duplicate->execute(['application'=>$rights['application_id'],'hash'=>$image['sha256']]);
             if($duplicate->fetchColumn()!==false) throw new \DomainException('This exact image is already recorded in your portfolio.');
@@ -176,7 +177,7 @@ final class ModelPortfolioService
         $query=$this->pdo->prepare(
             'SELECT a.id,a.application_id,a.private_storage_key,a.mime_type,a.sha256,a.status,a.consent_withdrawn_at,
                     r.application_id AS portal_application_id,r.status AS portal_status,r.request_type,r.expires_at,r.completed_at,
-                    app.anonymized_at
+                    app.anonymized_at,app.status AS application_status
              FROM model_portfolio_assets a
              INNER JOIN model_applicant_rights_requests r ON r.id=:rights
              INNER JOIN model_talent_applications app ON app.id=r.application_id
@@ -184,7 +185,7 @@ final class ModelPortfolioService
         );
         $query->execute(['rights'=>$rightsRequestId,'asset'=>$assetId]);$row=$query->fetch(PDO::FETCH_ASSOC);
         if(!is_array($row) || $row['portal_status']!=='verified' || $row['request_type']!=='portal_access' ||
-            $row['completed_at']!==null || $row['anonymized_at']!==null || $row['consent_withdrawn_at']!==null ||
+            $row['completed_at']!==null || $row['anonymized_at']!==null || $row['application_status']==='withdrawn' || $row['consent_withdrawn_at']!==null ||
             !in_array($row['status'],['pending_review','approved'],true) ||
             !is_string($row['private_storage_key']) || $row['private_storage_key']==='' ||
             new \DateTimeImmutable((string)$row['expires_at'],new \DateTimeZone('UTC'))<=new \DateTimeImmutable('now',new \DateTimeZone('UTC'))) {
