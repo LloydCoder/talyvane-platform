@@ -446,6 +446,8 @@ final class Bootstrap
         $router->add('POST', '/admin/enquiries/{reference}', static fn(Request $request, array $params): Response => $adminEnquiries->update($request, $params));
         $router->add('POST', '/admin/enquiries/{reference}/assign', static fn(Request $request, array $params): Response => $adminEnquiries->assign($request, $params));
         $router->add('POST', '/admin/enquiries/{reference}/notes', static fn(Request $request, array $params): Response => $adminEnquiries->addNote($request, $params));
+        $router->add('POST', '/admin/enquiries/{reference}/reminders', static fn(Request $request, array $params): Response => $adminEnquiries->scheduleReminder($request, $params));
+        $router->add('POST', '/admin/enquiry-reminders/{reminder}/complete', static fn(Request $request, array $params): Response => $adminEnquiries->completeReminder($request, $params));
         $router->add('GET', '/admin/navigation', static fn(Request $request): Response => $adminNavigation->index($request));
         $router->add('POST', '/admin/navigation', static fn(Request $request, array $params): Response => $adminNavigation->save($request));
         $router->add('POST', '/admin/navigation/{id}', static fn(Request $request, array $params): Response => $adminNavigation->save($request, $params));
