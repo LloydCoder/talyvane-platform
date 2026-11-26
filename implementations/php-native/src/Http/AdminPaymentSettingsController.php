@@ -9,6 +9,7 @@ use Talyvane\Application\Payments\PaymentSettingsService;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\Principal;
 use Talyvane\Security\SessionManager;
+use Talyvane\Features\FeatureAvailability;
 
 final class AdminPaymentSettingsController
 {
@@ -20,6 +21,7 @@ final class AdminPaymentSettingsController
     public function __construct(
         private AuthenticationService $authentication,
         private PaymentSettingsService $payments,
+        private FeatureAvailability $featureAvailability,
         private ViewRenderer $views,
         private string $brandName
     ) {}
@@ -30,6 +32,7 @@ final class AdminPaymentSettingsController
         $actor=$this->actor();
         if($actor===null) return Response::redirect('/admin/login');
         if(!$actor->hasOnlyRole('super_admin') || !$actor->mfaVerified) return Response::html('Forbidden',403);
+        if(!$this->featureAvailability->enabled('payments.configuration')) return Response::html('Payment configuration is not operationally enabled.',403);
         return $this->page($actor,$error,$notice,$status);
     }
 
@@ -39,6 +42,7 @@ final class AdminPaymentSettingsController
         $actor=$this->actor();
         if($actor===null) return Response::redirect('/admin/login');
         if(!$actor->hasOnlyRole('super_admin') || !$actor->mfaVerified) return Response::html('Forbidden',403);
+        if(!$this->featureAvailability->enabled('payments.configuration')) return Response::html('Payment configuration is not operationally enabled.',403);
         if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page($actor,'Your session expired. Refresh and try again.','',419);
         $settings=[];
         foreach(self::FIELDS as $field) {
