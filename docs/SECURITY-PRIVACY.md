@@ -1,5 +1,7 @@
 # Security and Privacy Baseline
 
+The Laravel security/privacy requirements remain canonical. Native PHP parity, current-head CI evidence and native-specific external release blockers are tracked separately in [NATIVE-PHP-PORT-STATUS.md](NATIVE-PHP-PORT-STATUS.md) and [the native parity tracker](../implementations/php-native/PORTING-TRACKER.md).
+
 This is an engineering baseline, not a certification or legal opinion. Use OWASP ASVS 5.0.0 as the version-pinned verification framework and OWASP Top 10:2025 as a risk-awareness taxonomy. ASVS provides testable requirements; the Top 10 is not a substitute for a control catalogue or security assessment. Map applicable ASVS requirements to implementation evidence, automated tests and manual review. Do not claim ASVS compliance or certification without a scoped independent assessment.
 
 Official references:
@@ -57,7 +59,7 @@ Official references:
 - Legal holds require a reason and record the actor, timestamp and encrypted rationale in the case and append-only event history.
 - A legal hold cannot be released by the same actor who placed it. Release requires a different active Super Admin or Owner, a separate reason, and append-only case/access audit events.
 - This control records a platform preservation hold only. It does not place holds on external storage, email, messaging, payment providers, backups or third-party evidence systems.
-- Automated retention and cryptographic erasure are not enabled. A retention schedule must be approved and implemented with per-case key destruction before any automated purge is permitted.
+- Retention execution is implemented behind fail-closed gates and remains disabled by default. It requires an approved case policy, separately approved encrypted-backup expiry, a different active MFA Owner/Super Admin, recent independent restore/key-reconciliation evidence and external per-case key destruction. Local application-key wrapping alone cannot provide global cryptographic erasure.
 
 ## Safeguarding content retention
 
