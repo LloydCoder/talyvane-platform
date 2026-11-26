@@ -1,5 +1,7 @@
 # Architecture
 
+The Laravel application remains the canonical behavioral reference. The parallel framework-independent PHP/cPanel implementation is tracked separately; do not infer parity or deployment from Laravel architecture decisions. See [reconciled native PHP port status](NATIVE-PHP-PORT-STATUS.md) and [native parity tracker](../implementations/php-native/PORTING-TRACKER.md).
+
 ## Deployment model
 Start with one isolated installation per licensed customer, not shared multi-tenant SaaS. Each deployment owns its application runtime, domain/TLS, database, private media storage, secrets, integration credentials, logs, backups, retention policies and configuration. A future entitlement service may validate signed deployment licences but must not become a cross-customer data plane.
 
