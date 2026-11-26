@@ -248,7 +248,7 @@ final class ModelPortfolioService
         try {
             $rightsQuery=$this->pdo->prepare(
                 'SELECT r.id,r.application_id,r.related_asset_id,r.status,r.request_type,r.expires_at,
-                        a.anonymized_at,a.legal_hold
+                        a.anonymized_at,a.legal_hold,a.status AS application_status
                  FROM model_applicant_rights_requests r
                  JOIN model_talent_applications a ON a.id=r.application_id
                  WHERE r.id=:rights FOR UPDATE'
@@ -334,7 +334,7 @@ final class ModelPortfolioService
                  (id,application_id,actor_user_id,actor_type,from_status,to_status,reason,policy_version,created_at)
                  VALUES (:id,:application,NULL,"applicant",:status,:status,
                          "Applicant withdrew a specific portfolio asset through verified privacy rights.","applicant-portfolio-rights-v1",UTC_TIMESTAMP())'
-            )->execute(['id'=>self::uuid(),'application'=>$rights['application_id'],'status'=>'accepted']);
+            )->execute(['id'=>self::uuid(),'application'=>$rights['application_id'],'status'=>$rights['application_status']]);
             $this->pdo->prepare(
                 'UPDATE model_applicant_rights_requests SET status="completed",otp_hash="",completed_at=UTC_TIMESTAMP()
                  WHERE id=:id AND status="verified"'
