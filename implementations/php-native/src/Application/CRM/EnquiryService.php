@@ -151,7 +151,7 @@ final class EnquiryService
             ($assigneeId !== null && !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iD',$assigneeId)) ||
             mb_strlen($reason,'UTF-8') < 8 || mb_strlen($reason,'UTF-8') > 500 ||
             strlen($requestId) < 16 || strlen($requestId) > 190) {
-            throw new \\InvalidArgumentException('Enquiry assignment is invalid.');
+            throw new \InvalidArgumentException('Enquiry assignment is invalid.');
         }
         $this->pdo->beginTransaction();
         try {
@@ -159,7 +159,7 @@ final class EnquiryService
             $query->execute(['reference'=>$reference]);
             $before=$query->fetch();
             if (!is_array($before)) {
-                throw new \\DomainException('Enquiry does not exist.');
+                throw new \DomainException('Enquiry does not exist.');
             }
             if ($assigneeId !== null) {
                 $eligible=$this->pdo->prepare(
@@ -169,7 +169,7 @@ final class EnquiryService
                 );
                 $eligible->execute(['id'=>$assigneeId]);
                 if ($eligible->fetchColumn() === false) {
-                    throw new \\InvalidArgumentException('Choose an active administrator or owner.');
+                    throw new \InvalidArgumentException('Choose an active administrator or owner.');
                 }
             }
             $update=$this->pdo->prepare('UPDATE enquiries SET assigned_to=:assignee,updated_at=UTC_TIMESTAMP() WHERE id=:id');
@@ -177,7 +177,7 @@ final class EnquiryService
             $this->audit->record($actor->id,'crm.enquiry.assigned','enquiry',(string)$before['id'],$reason,
                 ['assigned_to'=>$before['assigned_to']],['assigned_to'=>$assigneeId],$requestId,'crm-enquiry-v1');
             $this->pdo->commit();
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             if ($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $error;
         }
