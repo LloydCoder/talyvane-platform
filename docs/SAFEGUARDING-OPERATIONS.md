@@ -2,6 +2,8 @@
 
 ## Purpose and boundary
 
+The Laravel product requirements remain canonical. The parallel native PHP implementation status and its current test evidence are maintained in [NATIVE-PHP-PORT-STATUS.md](NATIVE-PHP-PORT-STATUS.md) and [the native parity tracker](../implementations/php-native/PORTING-TRACKER.md). Do not infer that native-only changes are deployed in every Laravel environment.
+
 The safeguarding register is an internal, restricted case-management aid for concerns involving consent, coercion or exploitation, trafficking, minor safety, non-consensual content, threats or harassment, and privacy/data risks. It does not determine legal status, replace trained human judgment, provide emergency response, or establish compliance in any jurisdiction.
 
 ## Access model
@@ -42,7 +44,7 @@ Super Admin and Owner accounts have a separate metadata-only governance register
 
 This application-level hold applies only to the safeguarding case record. It does not preserve evidence in external systems, provider logs, email, messaging, payment systems or backups. Those systems require their own preservation procedures.
 
-Automated retention and cryptographic erasure are not yet implemented. Do not configure external deletion or promise automatic expiry based on the current fields. A future retention phase must implement per-case cryptographic erasure, approved retention periods, legal-hold exclusion and restore/backup controls before automated purge can be enabled.
+A gated retention service and scheduled execution path are implemented in the application. Retention remains disabled by default and fails closed unless a versioned case-retention policy, separately approved encrypted-backup expiry policy, independent MFA approver, recent restore/key-reconciliation evidence and a key provider capable of irreversible per-case key destruction are present. Local application-key custody is insufficient for global cryptographic erasure. Do not configure live deletion or promise automatic expiry until the external key-vault, backup expiry and restore requirements below have been operationally verified.
 
 ## Retention and per-case content keys
 
@@ -82,7 +84,7 @@ The current implementation provides email only. SMS, Telegram, provider webhooks
 6. Run independent tabletop exercises and verify access revocation, MFA recovery and evidence preservation.
 7. Complete privacy impact and legal review before collecting real case information.
 
-The application currently does not send case notifications, operate an emergency hotline, perform external statutory reporting, or guarantee a response time. The access and event logs are application-level controls and are not tamper-proof against direct database access.
+The application writes case-notification intents to a transactional encrypted outbox and provides a bounded CLI dispatch path through configured SMTP. This does not itself establish successful delivery, monitoring, emergency response, an emergency hotline, external statutory reporting or a guaranteed response time. Operators must verify real SMTP/cron execution and maintain an independent human response path. The access and event logs are application-level controls and are not tamper-proof against direct database access.
 
 ## External per-case key custody (HashiCorp Vault Transit)
 
