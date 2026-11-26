@@ -220,7 +220,7 @@ final class ModelApplicantRightsService
     /** @return array<string,mixed> */
     public function portalRead(string $rightsRequestId,string $requestId): array
     {
-        if(strlen($requestId)<16 || strlen($requestId)>64) throw new \\InvalidArgumentException('Request identifier is invalid.');
+        if(strlen($requestId)<16 || strlen($requestId)>64) throw new \InvalidArgumentException('Request identifier is invalid.');
         $this->pdo->beginTransaction();
         try {
             [$rights,$application]=$this->verifiedContext($rightsRequestId,'portal_access');
@@ -296,12 +296,12 @@ final class ModelApplicantRightsService
             ($portfolio!==null && (!is_string($portfolio) || strlen($portfolio)>2048 ||
                 filter_var($portfolio,FILTER_VALIDATE_URL)===false || strtolower((string)parse_url($portfolio,PHP_URL_SCHEME))!=='https')) ||
             strlen($requestId)<16 || strlen($requestId)>64) {
-            throw new \\InvalidArgumentException('Applicant profile fields are invalid.');
+            throw new \InvalidArgumentException('Applicant profile fields are invalid.');
         }
         $this->pdo->beginTransaction();
         try {
             [$rights,$application]=$this->verifiedContext($rightsRequestId,'portal_access');
-            if($application['status']==='withdrawn') throw new \\DomainException('A withdrawn application is read-only.');
+            if($application['status']==='withdrawn') throw new \DomainException('A withdrawn application is read-only.');
             $this->pdo->prepare(
                 'UPDATE model_talent_applications SET applicant_name=:name,phone=:phone,city=:city,
                  portfolio_url=:portfolio,experience_summary=:experience,updated_at=UTC_TIMESTAMP()
