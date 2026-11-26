@@ -129,6 +129,8 @@ final class AdminEnquiryController
         $page = max(1,min(5000,$page));
         $pageSize = 20;
         $totalCount = $this->enquiries->count($principal);
+        $totalPages = max(1,(int)ceil($totalCount / $pageSize));
+        $page = min($page,$totalPages);
         $items = $this->enquiries->list($principal,$pageSize + 1,($page - 1) * $pageSize);
         $hasNext = count($items) > $pageSize;
         if ($hasNext) { $items = array_slice($items,0,$pageSize); }
@@ -141,7 +143,7 @@ final class AdminEnquiryController
             'items'=>$items,
             'assignees'=>$assignees,
             'currentPage'=>$page,
-            'totalPages'=>max(1,(int)ceil($totalCount / $pageSize)),
+            'totalPages'=>$totalPages,
             'totalCount'=>$totalCount,
             'hasPrevious'=>$page > 1,
             'hasNext'=>$hasNext,
