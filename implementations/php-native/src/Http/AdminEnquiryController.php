@@ -77,7 +77,7 @@ final class AdminEnquiryController
                 $principal,$this->field($request,'locale'),$this->field($request,'subject_template'),
                 $this->field($request,'body_template'),$this->field($request,'reason'),$request->requestId
             );
-            return $this->page('Response template version '.$version.' is active.',200,true,$principal,$this->pageNumber($request));
+            return $this->page('',200,true,$principal,$this->pageNumber($request));
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->page($error->getMessage(),422,false,$principal,$this->pageNumber($request));
         }
@@ -95,8 +95,7 @@ final class AdminEnquiryController
                 $principal,(string)($params['reference']??''),$this->field($request,'reply_text'),
                 $this->field($request,'locale')?:'en',$this->brandName,$request->requestId
             );
-            return $this->page($queued?'Customer response queued for private SMTP delivery.':'This response was already queued; no duplicate was created.',
-                200,true,$principal,$this->pageNumber($request));
+            return $this->page('',200,true,$principal,$this->pageNumber($request));
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->page($error->getMessage(),422,false,$principal,$this->pageNumber($request));
         }
