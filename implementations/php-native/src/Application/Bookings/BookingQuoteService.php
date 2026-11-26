@@ -115,7 +115,7 @@ final class BookingQuoteService
     public function accept(Principal $client,string $quoteId,string $requestId): void
     {
         Authorization::require($client,'client.booking.create',false);
-        if(!$client->hasRole('client') || count($client->roles)!==1) throw new \DomainException('A single-role client account is required to accept a booking quote.');
+        if(!$client->hasOnlyRole('client')) throw new \DomainException('A single-role client account is required to accept a booking quote.');
         $this->assertRequestId($requestId);
         $utc=new DateTimeZone('UTC');$now=new DateTimeImmutable('now',$utc);
         $this->pdo->beginTransaction();
