@@ -177,11 +177,15 @@ final class ModelAssignmentService
             if($assignment['status']!=='offered') throw new \\DomainException('Only a current offered assignment can receive a model response.');
             $submission=$this->lock('model_casting_submissions',(string)$assignment['submission_id']);
             $application=$this->lock('model_talent_applications',(string)$assignment['application_id']);
-            $asset=$this->lock('model_portfolio_assets',(string)$submission['portfolio_asset_id']);
-            $licence=$this->lock('model_image_licences',(string)$submission['image_licence_id']);
-            $call=$this->lock('model_casting_calls',(string)$submission['casting_call_id']);
-            $agreement=$this->lock('model_representation_agreements',(string)$assignment['representation_agreement_id']);
-            $this->assertCurrentEligibility($assignment,$submission,$application,$asset,$licence,$call,$agreement);
+            if($decision==='accept') {
+                $asset=$this->lock('model_portfolio_assets',(string)$submission['portfolio_asset_id']);
+                $licence=$this->lock('model_image_licences',(string)$submission['image_licence_id']);
+                $call=$this->lock('model_casting_calls',(string)$submission['casting_call_id']);
+                $agreement=$this->lock('model_representation_agreements',(string)$assignment['representation_agreement_id']);
+                $this->assertCurrentEligibility($assignment,$submission,$application,$asset,$licence,$call,$agreement);
+            } elseif($application['anonymized_at']!==null) {
+                throw new \\DomainException('An anonymized applicant record cannot respond to an assignment offer.');
+            }
             $termsHash=hash('sha256',(string)$assignment['terms_snapshot']);
             $version='model-assignment-applicant-response-v1';
             $statement=$decision==='accept'
@@ -306,7 +310,8 @@ final class ModelAssignmentService
             $row['expense_cap_amount']=$this->minorToDecimal((int)$row['expense_cap_minor'],$precision);
             unset($row['terms_snapshot'],$row['compensation_minor'],$row['expense_cap_minor']);
             foreach(['client_name','brief','location_city','deliverables'] as $field) {
-                $row[$field]=$this->cipher->decrypt((string)$row[$field],'model-assignment-v1:'.$row['id'].':'.$field);
+                $row[$field]=is_string($row[$field]) && $row[$field]!==''?
+                    $this->cipher->decrypt($row[$field],'model-assignment-v1:'.$row['id'].':'.$field):'';
             }
             if(is_string($row['applicant_response_reason']) && $row['applicant_response_reason']!=='') {
                 $row['applicant_response_reason']=$this->cipher->decrypt(
