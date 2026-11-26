@@ -5,6 +5,7 @@ use Talyvane\Application\ModelAgency\ModelPortfolioService;
 use Talyvane\Application\ModelAgency\ModelAgencyAgreementService;
 use Talyvane\Application\ModelAgency\ModelImageLicenceService;
 use Talyvane\Application\ModelAgency\ModelCastingWorkflowService;
+use Talyvane\Application\ModelAgency\ClientModelAgencyDistributionService;
 use Talyvane\Application\ModelAgency\ModelAssignmentService;
 use Talyvane\Application\ModelAgency\ModelSettlementService;
 use Talyvane\Infrastructure\Audit\AuditLogger;
@@ -172,6 +173,23 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'compensation_amount'=>null,'currency_code'=>null,'max_submissions'=>2,
     ],bin2hex(random_bytes(16)));
     $casting->publish($admin,$callId,bin2hex(random_bytes(16)));
+    $clientId=(string)$pdo->query('SELECT UUID()')->fetchColumn();
+    $pdo->prepare(
+        'INSERT INTO users (id,email,password_hash,status,email_verified_at,first_login_required,created_at,updated_at)
+         VALUES (:id,"native-model-distribution-client@example.test",:hash,"active",UTC_TIMESTAMP(),0,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+    )->execute(['id'=>$clientId,'hash'=>password_hash(bin2hex(random_bytes(24)),PASSWORD_DEFAULT)]);
+    $pdo->prepare('INSERT INTO user_roles (user_id,role_key,granted_by,granted_at) VALUES (:id,"client",:actor,UTC_TIMESTAMP())')
+        ->execute(['id'=>$clientId,'actor'=>$adminId]);
+    $clientDistribution=new ClientModelAgencyDistributionService($pdo,$storage,new AuditLogger($pdo),$secretBox);
+    $clientDistribution->linkCastingCall($admin,$callId,$clientId,bin2hex(random_bytes(16)));
+    $clientPrincipal=new Principal($clientId,['client'],false);
+    $distributedCalls=$clientDistribution->castingCalls($clientPrincipal);
+    $distributedCall=array_values(array_filter($distributedCalls,static fn(array $item):bool=>$item['id']===$callId));
+    $assert(count($distributedCall)===1 &&
+        str_contains($distributedCall[0]['description'],'private editorial project brief') &&
+        str_contains($distributedCall[0]['requirements'],'Adult eligibility verification'),
+        'client sees only its linked casting brief with encrypted project terms decrypted for the verified tenant');
+
     $candidates=$casting->eligibleCandidates($admin,$callId);
     $assert(count($candidates)===1 && $candidates[0]['application_id']===$applicationId,'eligible-candidate register requires current adult verification, portfolio consent, executed agreement and active casting licence');
     $submissionId=$casting->submit($admin,$callId,$applicationId,$licensedAsset['id'],$licenceId,bin2hex(random_bytes(16)));
@@ -179,6 +197,17 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $casting->decide($admin,$submissionId,'selected','Model selected after final human review and confirmation of the defined project scope.',bin2hex(random_bytes(16)));
     $submissionRows=$casting->submissionsForCall($admin,$callId);
     $assert(count($submissionRows)===1 && $submissionRows[0]['status']==='selected','private casting submission supports audited shortlist and selection decisions');
+    $clientCandidateRows=$clientDistribution->candidates($clientPrincipal,$callId);
+    $assert(count($clientCandidateRows)===1 && $clientCandidateRows[0]['id']===$submissionId &&
+        $clientCandidateRows[0]['status']==='selected',
+        'client distribution exposes only selected, currently consented candidates whose encrypted licencee matches the casting client');
+    $clientImage=$clientDistribution->candidateImage($clientPrincipal,$callId,$submissionId,bin2hex(random_bytes(16)));
+    $assert($clientImage['mime']==='image/webp' && strlen($clientImage['bytes'])>100,
+        'client candidate image endpoint revalidates rights and serves verified private image bytes');
+    $imageAudit=$pdo->prepare('SELECT COUNT(*) FROM audit_events WHERE actor_user_id=:client AND event_key="client_model_casting.image_viewed" AND target_id=:submission');
+    $imageAudit->execute(['client'=>$clientId,'submission'=>$submissionId]);
+    $assert((int)$imageAudit->fetchColumn()===1,'private casting image views are audit logged without recording personal data');
+
 
     foreach([['finance','Finance'],['owner','Owner']] as [$roleKey,$label]) {
         $pdo->prepare('INSERT INTO roles (role_key,label) VALUES (:role,:label) ON DUPLICATE KEY UPDATE label=VALUES(label)')
@@ -236,6 +265,15 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert(is_array($assignmentDraft) && $assignmentDraft['status']==='in_progress' && (int)$assignmentDraft['compensation_minor']===80000 &&
         (int)$assignmentDraft['expense_cap_minor']===7500 && (int)$assignmentDraft['commission_basis_points']===1500,'assignment lifecycle snapshots agreed compensation, expense cap and executed-agreement commission');
     $assert(is_array($assignmentDraft) && $assignmentDraft['client_name']!=='Verified editorial commissioning client','assignment client identity is encrypted at rest');
+    $clientDistribution->linkAssignmentToCastingClient($admin,$assignmentId,bin2hex(random_bytes(16)));
+    $clientAssignments=$clientDistribution->assignments($clientPrincipal);
+    $assert(count($clientAssignments)===1 && $clientAssignments[0]['id']===$assignmentId &&
+        $clientAssignments[0]['brief']==='A defined editorial assignment brief for the model and commissioning client.' &&
+        $clientAssignments[0]['deliverables']==='One editorial shoot with the agreed image selection and usage scope.',
+        'client receives only the source-casting client assignment with authorized brief and deliverables; agency commission is withheld');
+    $assert(!array_key_exists('commission_basis_points',$clientAssignments[0]),
+        'internal agency commission terms are not exposed in the client assignment register');
+
 
     $assignmentEventId=(string)$pdo->query('SELECT id FROM model_assignment_events WHERE assignment_id='.$pdo->quote($assignmentId).' ORDER BY occurred_at LIMIT 1')->fetchColumn();
     try {

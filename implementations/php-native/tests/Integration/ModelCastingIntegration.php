@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use Talyvane\Application\ModelAgency\ModelCastingWorkflowService;
+use Talyvane\Application\ModelAgency\ClientModelAgencyDistributionService;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
 use Talyvane\Security\SecretBox;
@@ -34,6 +35,17 @@ function runModelCastingIntegration(PDO $pdo): int
         'settings'=>json_encode(['enabled'=>true,'policy_approved'=>true,'policy_version'=>'casting-policy-test-v1'],JSON_THROW_ON_ERROR),
         'actor'=>$adminId,
     ]);
+
+    foreach([
+        'model_agency.portfolio'=>['enabled'=>true,'policy_approved'=>true,'policy_version'=>'model-portfolio-policy-client-test-v1'],
+        'model_agency.image_licence'=>['enabled'=>true,'policy_approved'=>true,'policy_version'=>'model-image-licence-policy-client-test-v1'],
+    ] as $settingKey=>$settingValue) {
+        $pdo->prepare(
+            'INSERT INTO deployment_settings (setting_key,setting_json,version,updated_by,updated_at)
+             VALUES (:key,:settings,1,:actor,UTC_TIMESTAMP())
+             ON DUPLICATE KEY UPDATE setting_json=VALUES(setting_json),version=version+1,updated_by=VALUES(updated_by),updated_at=UTC_TIMESTAMP()'
+        )->execute(['key'=>$settingKey,'settings'=>json_encode($settingValue,JSON_THROW_ON_ERROR),'actor'=>$adminId]);
+    }
 
     $basePath=sys_get_temp_dir().DIRECTORY_SEPARATOR.'talyvane-model-casting-'.bin2hex(random_bytes(6));
     $publicRoot=$basePath.DIRECTORY_SEPARATOR.'public';$privateRoot=$basePath.DIRECTORY_SEPARATOR.'private';
@@ -79,6 +91,25 @@ function runModelCastingIntegration(PDO $pdo): int
     $published=$pdo->prepare('SELECT status,published_by,published_at FROM model_casting_calls WHERE id=:id');
     $published->execute(['id'=>$callId]);$publishedRow=$published->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($publishedRow) && $publishedRow['status']==='open' && $publishedRow['published_by']===$adminId && $publishedRow['published_at']!==null,'approved draft can be opened with actor and timestamp provenance');
+
+    $clientId=(string)$pdo->query('SELECT id FROM users WHERE email="native-password-client-new@example.test"')->fetchColumn();
+    if($clientId==='') throw new RuntimeException('Model client distribution integration requires the verified client identity fixture.');
+    $distribution=new ClientModelAgencyDistributionService($pdo,$storage,new AuditLogger($pdo),$cipher);
+    $eligibleClients=$distribution->eligibleClients($admin);
+    $assert(count(array_filter($eligibleClients,static fn(array $client):bool=>$client['id']===$clientId))===1,
+        'agency distribution picker contains only active verified client-only accounts');
+    $distribution->linkCastingCall($admin,$callId,$clientId,bin2hex(random_bytes(16)));
+    $clientPrincipal=new Principal($clientId,['client'],false);
+    $clientCalls=$distribution->castingCalls($clientPrincipal);
+    $assert(count($clientCalls)===1 && $clientCalls[0]['id']===$callId,
+        'client sees only the casting call explicitly linked to its verified account');
+    try {
+        $distribution->candidates(new Principal('00000000-0000-4000-8000-000000000001',['client'],false),$callId);
+        $assert(false,'a different client identity cannot enumerate another client casting call');
+    } catch(DomainException) {
+        $assert(true,'a different client identity cannot enumerate another client casting call');
+    }
+
 
     $service->close($admin,$callId,'Submission window closed by agency operations.',bin2hex(random_bytes(16)));
     $closed=$pdo->prepare('SELECT status,closed_by,closed_at FROM model_casting_calls WHERE id=:id');

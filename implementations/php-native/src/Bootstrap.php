@@ -38,6 +38,7 @@ use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Media\ProfileMediaService;
 use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
+use Talyvane\Application\ModelAgency\ClientModelAgencyDistributionService;
 use Talyvane\Application\ModelAgency\ModelCastingWorkflowService;
 use Talyvane\Application\ModelAgency\ModelPortfolioService;
 use Talyvane\Application\ModelAgency\ModelImageLicenceService;
@@ -71,6 +72,8 @@ use Talyvane\Http\AdminBrandController;
 use Talyvane\Http\AdminAuditController;
 use Talyvane\Http\AdminModelAgencyController;
 use Talyvane\Http\AdminModelCastingController;
+use Talyvane\Http\AdminModelClientDistributionController;
+use Talyvane\Http\ClientModelAgencyController;
 use Talyvane\Http\AdminModelAssignmentController;
 use Talyvane\Http\AdminModelSettlementController;
 use Talyvane\Http\AdminModelPortfolioController;
@@ -228,6 +231,9 @@ final class Bootstrap
         $publicModelAgency = new PublicModelAgencyController($pdo, $modelApplications, $contentManagement, $rateLimiter, $modelApplicantRights, $views);
         $adminModelAgency = new AdminModelAgencyController($authentication, $modelApplications, $views, $brandName);
         $adminModelCasting = new AdminModelCastingController($authentication,$modelCasting,$views,$brandName);
+        $clientModelDistribution = new ClientModelAgencyDistributionService($pdo,$mediaStorage,$audit,$modelAgencyCipher);
+        $adminModelClientDistribution = new AdminModelClientDistributionController($authentication,$clientModelDistribution,$views,$brandName);
+        $clientModelAgency = new ClientModelAgencyController($authentication,$clientModelDistribution,$views,$brandName);
         $modelAssignments = new ModelAssignmentService($pdo,$audit,$modelAgencyCipher,$mediaStorage,static fn():bool=>$castingAvailability->enabled('model-agency.assignments'));
         $adminModelAssignments = new AdminModelAssignmentController($authentication,$modelAssignments,$views,$brandName);
         $modelSettlements = new ModelSettlementService($pdo,$audit,$modelAgencyCipher,static fn():bool=>$castingAvailability->enabled('model-agency.settlements'));
@@ -327,6 +333,8 @@ final class Bootstrap
         $router->add('GET', '/portal/bookings', static fn(Request $request): Response => $portalBookings->clientIndex($request));
         $router->add('GET', '/portal/favorites', static fn(Request $request): Response => $clientFavorites->index($request));
         $router->add('GET', '/portal/gallery', static fn(Request $request): Response => $clientPrivateGallery->index($request));
+        $router->add('GET', '/portal/model-agency', static fn(Request $request): Response => $clientModelAgency->index($request));
+        $router->add('GET', '/portal/model-agency/casting/{call}/candidate/{submission}/image', static fn(Request $request,array $params): Response => $clientModelAgency->candidateImage($request,$params));
         $router->add('GET', '/portal/gallery/{id}', static fn(Request $request,array $params): Response => $clientPrivateGallery->show($request,$params));
         $router->add('POST', '/portal/favorites/{slug}', static fn(Request $request, array $params): Response => $clientFavorites->add($request, $params));
         $router->add('POST', '/portal/favorites/{slug}/remove', static fn(Request $request, array $params): Response => $clientFavorites->remove($request, $params));
@@ -403,6 +411,9 @@ final class Bootstrap
             $router->add('POST', '/admin/model-agency/assignments/{id}/'.$assignmentAction,
                 static fn(Request $request,array $params): Response => $adminModelAssignments->{$assignmentAction}($request,$params));
         }
+        $router->add('GET', '/admin/model-agency/distribution', static fn(Request $request): Response => $adminModelClientDistribution->index($request));
+        $router->add('POST', '/admin/model-agency/distribution/casting/{id}', static fn(Request $request,array $params): Response => $adminModelClientDistribution->linkCastingCall($request,$params));
+        $router->add('POST', '/admin/model-agency/distribution/assignments/{id}', static fn(Request $request,array $params): Response => $adminModelClientDistribution->linkAssignment($request,$params));
         $router->add('GET', '/admin/model-agency/casting', static fn(Request $request): Response => $adminModelCasting->index($request));
         $router->add('POST', '/admin/model-agency/casting', static fn(Request $request): Response => $adminModelCasting->create($request));
         $router->add('POST', '/admin/model-agency/casting/{id}/publish', static fn(Request $request,array $params): Response => $adminModelCasting->publish($request,$params));
