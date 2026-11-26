@@ -140,6 +140,7 @@ final class Bootstrap
         $recovery = null;
         $modelApplicantRights = null;
         $portalPrivacyRights = null;
+        $portalEmailChanges = null;
         $mailConfig = is_array($config['mail']['smtp'] ?? null)
             ? $config['mail']['smtp']
             : (is_array($config['mail'] ?? null) ? $config['mail'] : null);
@@ -152,6 +153,9 @@ final class Bootstrap
                     $rateLimiter,
                     $audit,
                     hash_hmac('sha256', 'talyvane-email-verification-v1', $config['app_key'])
+                );
+                $portalEmailChanges = new \Talyvane\Application\Identity\PortalEmailChangeService(
+                    $pdo,$mailer,$rateLimiter,$audit,hash_hmac('sha256','talyvane-portal-email-change-v1',$config['app_key'])
                 );
                 $registration = new UserRegistrationService($pdo, $emailVerification, $rateLimiter, $audit);
                 $recovery = new AccountRecoveryService($pdo, $emailVerification, $rateLimiter, $audit);
@@ -243,7 +247,7 @@ final class Bootstrap
         $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit, $membershipAvailability), $views, $brandName);
         $clientMemberships = new ClientMembershipService($pdo,$audit,$membershipAvailability);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery, $clientMemberships);
-        $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName);
+        $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName,$portalEmailChanges);
         $portalPrivacy = new PortalPrivacyController($authentication,new PortalPrivacyExportService($pdo,$audit,$rateLimiter));
         $portalPrivacyRightsController = new \Talyvane\Http\PortalPrivacyRightsController($authentication,$portalPrivacyRights,$views,$brandName);
         $privacyOutcomeOutbox = new \Talyvane\Application\Identity\PortalPrivacyOutcomeOutbox($pdo,new SecretBox($config['app_key']));
@@ -300,6 +304,8 @@ final class Bootstrap
         $router->add('POST', '/admin/privacy/requests/review', static fn(Request $request): Response => $adminPrivacyRightsController->review($request));
         $router->add('GET', '/portal/security', static fn(Request $request): Response => $portalSecurity->index($request));
         $router->add('POST', '/portal/security', static fn(Request $request): Response => $portalSecurity->changePassword($request));
+        $router->add('POST', '/portal/security/email/request', static fn(Request $request): Response => $portalSecurity->requestEmailChange($request));
+        $router->add('POST', '/portal/security/email/verify', static fn(Request $request): Response => $portalSecurity->verifyEmailChange($request));
         $router->add('GET', '/portal/register', static fn(Request $request): Response => $portalAuth->registerForm($request));
         $router->add('POST', '/portal/register', static fn(Request $request): Response => $portalAuth->register($request));
         $router->add('GET', '/portal/verify', static fn(Request $request): Response => $portalAuth->verifyForm($request));
