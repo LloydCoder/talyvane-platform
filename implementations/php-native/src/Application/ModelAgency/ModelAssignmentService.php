@@ -152,7 +152,7 @@ final class ModelAssignmentService
             $licence=$this->lock('model_image_licences',(string)$submission['image_licence_id']);
             $call=$this->lock('model_casting_calls',(string)$submission['casting_call_id']);
             $agreement=$this->lock('model_representation_agreements',(string)$assignment['representation_agreement_id']);
-            $this->assertCurrentEligibility($assignment,$submission,$application,$asset,$licence,$call,$agreement);
+            if($decision==='accept') $this->assertCurrentEligibility($assignment,$submission,$application,$asset,$licence,$call,$agreement);
             $policyVersion=$this->policyVersionOrLegacy($assignment);
             if($decision==='accept') {
                 $stored=$assignment['executed_document_reference']??null;
@@ -194,14 +194,10 @@ final class ModelAssignmentService
         }
     }
 
+    /** @deprecated Agency staff may record execution evidence, but only the model may attest acceptance. */
     public function recordAcceptance(Principal $actor,string $assignmentId,string $executedDocumentReference,string $modelConsentEvidenceReference,string $requestId): void
     {
-        $this->assertEvidenceReference($executedDocumentReference,'private/model-assignments/');
-        $this->assertEvidenceReference($modelConsentEvidenceReference,'private/model-consent/');
-        $this->transition($actor,$assignmentId,'accepted',[
-            'executed_document_reference'=>$executedDocumentReference,
-            'model_acceptance_evidence_reference'=>$modelConsentEvidenceReference,
-        ],$executedDocumentReference,$requestId);
+        throw new \\DomainException('Agency staff cannot attest model consent. Record external execution evidence, then obtain the model response in the OTP-verified portal.');
     }
 
     public function confirm(Principal $actor,string $assignmentId,string $requestId): void
