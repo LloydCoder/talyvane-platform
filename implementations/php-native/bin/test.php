@@ -923,7 +923,7 @@ foreach ([$healthConfigDir,$healthStorage,$healthLogs,$healthBackups] as $direct
 $healthConfig = $healthConfigDir . DIRECTORY_SEPARATOR . 'app.php';
 file_put_contents($healthConfig, "<?php\\nreturn " . var_export([
     'app_key'=>str_repeat('K',32),
-    'database'=>[],
+    'database'=>['password'=>'HEALTHCHECK_SECRET_MUST_NOT_LEAK'],
     'paths'=>['storage'=>$healthStorage,'logs'=>$healthLogs,'backups'=>$healthBackups],
 ],true) . ";\\n");
 chmod($healthConfig,0600);
@@ -946,8 +946,9 @@ foreach (($healthResult['checks'] ?? []) as $healthCheck) {
 $assert($healthExit===1 && ($healthStatuses['private_storage']??null)==='failed' &&
     ($healthStatuses['private_logs']??null)==='failed' && ($healthStatuses['private_backups']??null)==='failed',
     'CLI health check fails closed when the configured document root is absent');
-$assert($healthError==='' && is_array($healthResult) && ($healthResult['status']??'')==='degraded',
-    'CLI health check emits machine-readable degraded status without diagnostic leakage');
+$assert($healthError==='' && is_array($healthResult) && ($healthResult['status']??'')==='degraded' &&
+    !str_contains((string)$healthOutput,'HEALTHCHECK_SECRET_MUST_NOT_LEAK'),
+    'CLI health check emits machine-readable degraded status without diagnostic leakage or configuration secrets');
 
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($iterator as $entry) {
