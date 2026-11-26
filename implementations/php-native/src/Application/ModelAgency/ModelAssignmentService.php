@@ -276,7 +276,7 @@ final class ModelAssignmentService
         $this->assertEligible($application,$asset,$licence,$call,$agreement,$terms,(string)$assignment['assignment_policy_version']);
         $agreementTerms=json_decode((string)$agreement['terms_snapshot'],true);
         if(!is_array($agreementTerms) || (int)($agreementTerms['commission_basis_points']??-1)!==(int)$assignment['commission_basis_points']) {
-            throw new \\DomainException('Executed representation commission terms changed after assignment creation.');
+            throw new \DomainException('Executed representation commission terms changed after assignment creation.');
         }
         $this->assertScheduleAvailable((string)$application['id'],(string)$assignment['shoot_starts_at'],(string)$assignment['shoot_ends_at'],(string)$assignment['id']);
     }
