@@ -353,7 +353,7 @@ final class ModelImageLicenceService
         $q->execute(['licence'=>$licenceId]);
         foreach($q->fetchAll(PDO::FETCH_ASSOC) as $submission) {
             $this->pdo->prepare('UPDATE model_casting_submissions SET status="invalidated",invalidated_at=UTC_TIMESTAMP(),invalidation_reason=:reason,updated_at=UTC_TIMESTAMP() WHERE id=:id')
-                ->execute(['reason'=>'Underlying image licence was revoked or expired: '.substr($reason,0,400),'id'=>$submission['id']]);
+                ->execute(['reason'=>$this->cipher->encrypt('Underlying image licence was revoked or expired.','model-casting-submission-v1:'.$submission['id'].':invalidation_reason'),'id'=>$submission['id']]);
             $this->pdo->prepare(
                 'INSERT INTO model_casting_events (id,call_id,submission_id,actor_id,actor_type,event_type,reason,occurred_at,created_at,updated_at)
                  VALUES (:id,:call,:submission,:actor,:actor_type,"casting.submission_invalidated","Submission invalidated because its image licence is no longer active.",UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
