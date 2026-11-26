@@ -78,7 +78,7 @@ final class PortalPrivacyRightsAdminService
                 $recipient=$recipientQuery->fetch(PDO::FETCH_ASSOC);
                 if (!is_array($recipient) || $recipient['status']!=='active' ||
                     !is_string($recipient['email']) || !filter_var($recipient['email'],FILTER_VALIDATE_EMAIL)) {
-                    throw new \\DomainException('The privacy request account has no active verified notification destination.');
+                    throw new \DomainException('The privacy request account has no active verified notification destination.');
                 }
                 $this->outcomes->enqueueReviewDecision(
                     $requestId,(string)$recipient['email'],(string)$request['account_type'],
