@@ -47,7 +47,7 @@ final class PortalPrivacyOutcomeOutbox
             !in_array($accountType,['client','companion'],true) ||
             !in_array($requestType,['correction','erasure'],true) ||
             !in_array($decision,['rejected','deferred'],true)) {
-            throw new \\InvalidArgumentException('Privacy review notification details are invalid.');
+            throw new \InvalidArgumentException('Privacy review notification details are invalid.');
         }
         $decisionText=$decision==='deferred'?'deferred pending further review':'rejected after review';
         $body="Your verified Talyvane privacy ".$requestType." request was ".$decisionText.". ".
