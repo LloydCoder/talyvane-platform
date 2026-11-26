@@ -177,6 +177,104 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $casting->decide($admin,$submissionId,'selected','Model selected after final human review and confirmation of the defined project scope.',bin2hex(random_bytes(16)));
     $submissionRows=$casting->submissionsForCall($admin,$callId);
     $assert(count($submissionRows)===1 && $submissionRows[0]['status']==='selected','private casting submission supports audited shortlist and selection decisions');
+
+    foreach([['finance','Finance'],['owner','Owner']] as [$roleKey,$label]) {
+        $pdo->prepare('INSERT INTO roles (role_key,label) VALUES (:role,:label) ON DUPLICATE KEY UPDATE label=VALUES(label)')
+            ->execute(['role'=>$roleKey,'label'=>$label]);
+    }
+    $makeRoleUser=static function(string $role) use ($pdo,$adminId): string {
+        $id=sprintf('%08x-%04x-4%03x-8%03x-%012x',random_int(0,0xffffffff),random_int(0,0xffff),random_int(0,0xfff),random_int(0,0xfff),random_int(0,0xffffffffffff));
+        $email='model-'.$role.'-'.bin2hex(random_bytes(4)).'@example.test';
+        $pdo->prepare(
+            'INSERT INTO users (id,email,password_hash,status,email_verified_at,first_login_required,created_at,updated_at)
+             VALUES (:id,:email,:hash,"active",UTC_TIMESTAMP(),0,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+        )->execute(['id'=>$id,'email'=>$email,'hash'=>password_hash(bin2hex(random_bytes(24)),PASSWORD_DEFAULT)]);
+        $pdo->prepare('INSERT INTO user_roles (user_id,role_key,granted_by,granted_at) VALUES (:id,:role,:grantor,UTC_TIMESTAMP())')
+            ->execute(['id'=>$id,'role'=>$role,'grantor'=>$adminId]);
+        return $id;
+    };
+    $financeId=$makeRoleUser('finance');$ownerId=$makeRoleUser('owner');
+    $finance=new Principal($financeId,['finance'],true);$owner=new Principal($ownerId,['owner'],true);
+
+    foreach([
+        'model_agency.assignment'=>['enabled'=>true,'policy_approved'=>true,'policy_version'=>'assignment-policy-test-v1'],
+        'model_agency.settlement'=>['enabled'=>true,'policy_approved'=>true,'policy_version'=>'settlement-policy-test-v1'],
+    ] as $settingKey=>$settingValue) {
+        $pdo->prepare(
+            'INSERT INTO deployment_settings (setting_key,setting_json,version,updated_by,updated_at)
+             VALUES (:key,:settings,1,:actor,UTC_TIMESTAMP())
+             ON DUPLICATE KEY UPDATE setting_json=VALUES(setting_json),version=version+1,updated_by=VALUES(updated_by),updated_at=UTC_TIMESTAMP()'
+        )->execute(['key'=>$settingKey,'settings'=>json_encode($settingValue,JSON_THROW_ON_ERROR),'actor'=>$adminId]);
+    }
+    $assignments=new ModelAssignmentService($pdo,new AuditLogger($pdo),$secretBox,$storage,static fn():bool=>true);
+    $shootStart=$now->modify('+10 days')->format('Y-m-d H:i:s');
+    $shootEnd=$now->modify('+11 days')->format('Y-m-d H:i:s');
+    $assignmentId=$assignments->createDraft($admin,$submissionId,[
+        'project_purpose'=>'editorial','client_name'=>'Verified editorial commissioning client',
+        'client_reference'=>'editorial-client-ref-001',
+        'brief'=>'A defined editorial assignment brief for the model and commissioning client.',
+        'location_city'=>'London',
+        'shoot_starts_at'=>$shootStart,'shoot_ends_at'=>$shootEnd,
+        'deliverables'=>'One editorial shoot with the agreed image selection and usage scope.',
+        'compensation_amount'=>'800.00','currency_code'=>'GBP','expense_cap_amount'=>'75.00',
+    ],bin2hex(random_bytes(16)));
+    $assignments->offer($admin,$assignmentId,bin2hex(random_bytes(16)));
+    $assignments->recordAcceptance($admin,$assignmentId,'private/model-assignments/executed-document-0001',
+        'private/model-consent/assignment-acceptance-0001',bin2hex(random_bytes(16)));
+    $assignments->confirm($admin,$assignmentId,bin2hex(random_bytes(16)));
+    $assignments->start($admin,$assignmentId,bin2hex(random_bytes(16)));
+    $assignmentRow=$pdo->prepare('SELECT status,compensation_minor,expense_cap_minor,commission_basis_points,client_name FROM model_assignments WHERE id=:id');
+    $assignmentRow->execute(['id'=>$assignmentId]);$assignmentDraft=$assignmentRow->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($assignmentDraft) && $assignmentDraft['status']==='in_progress' && (int)$assignmentDraft['compensation_minor']===80000 &&
+        (int)$assignmentDraft['expense_cap_minor']===7500 && (int)$assignmentDraft['commission_basis_points']===1500,'assignment lifecycle snapshots agreed compensation, expense cap and executed-agreement commission');
+    $assert(is_array($assignmentDraft) && $assignmentDraft['client_name']!=='Verified editorial commissioning client','assignment client identity is encrypted at rest');
+
+    $settlements=new ModelSettlementService($pdo,new AuditLogger($pdo),$secretBox,static fn():bool=>true);
+    $expenseId=$settlements->addExpense($owner,$assignmentId,'25.00','GBP',
+        'Pre-approved local transport expense for the defined shoot.','private/model-expenses/expense-evidence-0001',bin2hex(random_bytes(16)));
+    try {
+        $settlements->reviewExpense($owner,$expenseId,'approved','Expense reviewed and approved by the submitting owner.',bin2hex(random_bytes(16)));
+        $assert(false,'expense submitter cannot review their own expense claim');
+    } catch(DomainException) {
+        $assert(true,'expense submitter cannot review their own expense claim');
+    }
+    $settlements->reviewExpense($finance,$expenseId,'approved','Transport expense evidence and assignment cap independently verified.',bin2hex(random_bytes(16)));
+    $assignments->complete($admin,$assignmentId,'private/model-assignments/completion-evidence-0001',bin2hex(random_bytes(16)));
+    $settlementId=$settlements->createDraft($finance,$assignmentId,bin2hex(random_bytes(16)));
+    $settlementRow=$pdo->prepare('SELECT status,gross_minor,approved_expenses_minor,commission_minor,model_net_minor,created_by,calculation_snapshot FROM model_settlements WHERE id=:id');
+    $settlementRow->execute(['id'=>$settlementId]);$settlementDraft=$settlementRow->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($settlementDraft) && $settlementDraft['status']==='draft' && (int)$settlementDraft['gross_minor']===80000 &&
+        (int)$settlementDraft['approved_expenses_minor']===2500 && (int)$settlementDraft['commission_minor']===12000 &&
+        (int)$settlementDraft['model_net_minor']===70500,'settlement reconciles gross, 15 percent commission and reimbursable approved expenses using integer minor units');
+    try {
+        $settlements->approve($finance,$settlementId,bin2hex(random_bytes(16)));
+        $assert(false,'settlement creator cannot approve their own settlement');
+    } catch(DomainException) {
+        $assert(true,'settlement creator cannot approve their own settlement');
+    }
+    $settlements->approve($owner,$settlementId,bin2hex(random_bytes(16)));
+    try {
+        $settlements->recordPayment($finance,$settlementId,'bank_transfer','PAYMENT-TEST-001',
+            'private/model-settlements/payment-evidence-0001',bin2hex(random_bytes(16)));
+        $assert(false,'settlement creator cannot attest their own payment');
+    } catch(DomainException) {
+        $assert(true,'settlement creator cannot attest their own payment');
+    }
+    $settlements->recordPayment($admin,$settlementId,'bank_transfer','PAYMENT-TEST-001',
+        'private/model-settlements/payment-evidence-0001',bin2hex(random_bytes(16)));
+    $paid=$pdo->prepare('SELECT status,payment_reference,external_payment_evidence,paid_by FROM model_settlements WHERE id=:id');
+    $paid->execute(['id'=>$settlementId]);$paidRow=$paid->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($paidRow) && $paidRow['status']==='paid' && $paidRow['paid_by']===$adminId &&
+        $paidRow['payment_reference']!=='PAYMENT-TEST-001' && $paidRow['external_payment_evidence']!=='private/model-settlements/payment-evidence-0001',
+        'distinct payer records encrypted external payment evidence without initiating a transfer');
+    $settlements->reverse($finance,$settlementId,'External payment was reversed by the originating payment institution.','private/model-settlements/reversal-evidence-0001',bin2hex(random_bytes(16)));
+    $reversed=$pdo->prepare('SELECT status,reversal_reason,reversal_evidence FROM model_settlements WHERE id=:id');
+    $reversed->execute(['id'=>$settlementId]);$reversedRow=$reversed->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($reversedRow) && $reversedRow['status']==='reversed' &&
+        $reversedRow['reversal_reason']!=='External payment was reversed by the originating payment institution.' &&
+        $reversedRow['reversal_evidence']!=='private/model-settlements/reversal-evidence-0001',
+        'settlement reversal is separately evidenced and sensitive reason/reference data is encrypted');
+
     try {
         $casting->submit($admin,$callId,$applicationId,$licensedAsset['id'],$licenceId,bin2hex(random_bytes(16)));
         $assert(false,'duplicate application submission to one casting call is rejected');
