@@ -299,7 +299,7 @@ final class ClientModelAgencyDistributionService
             $policyData=is_string($policyRaw)?json_decode($policyRaw,true):null;
             if(!is_array($policyData) || !($policyData['enabled']??false) || !($policyData['policy_approved']??false) ||
                 !is_string($policyData['policy_version']??null) || trim($policyData['policy_version'])==='') {
-                throw new \\DomainException('Current portfolio and image-licence approvals are unavailable.');
+                throw new \DomainException('Current portfolio and image-licence approvals are unavailable.');
             }
         }
         $market=$this->pdo->prepare(
