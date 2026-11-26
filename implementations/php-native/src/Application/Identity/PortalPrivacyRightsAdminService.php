@@ -24,7 +24,7 @@ final class PortalPrivacyRightsAdminService
                     r.verified_at,r.created_at,u.email
              FROM portal_privacy_requests r
              JOIN users u ON u.id=r.user_id
-             WHERE r.status IN ("in_review","deferred")
+             WHERE r.status="in_review"
              ORDER BY r.created_at ASC LIMIT 200'
         );
         $rows=$query->fetchAll(PDO::FETCH_ASSOC);
