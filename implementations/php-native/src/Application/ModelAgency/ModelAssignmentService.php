@@ -681,7 +681,7 @@ final class ModelAssignmentService
     {
         $email=strtolower(trim($email));
         if(filter_var($email,FILTER_VALIDATE_EMAIL)===false) {
-            throw new \\DomainException('The model application has no valid email destination for assignment-offer notification.');
+            throw new \DomainException('The model application has no valid email destination for assignment-offer notification.');
         }
         $id=self::uuid();
         $payload=json_encode([
@@ -691,7 +691,7 @@ final class ModelAssignmentService
         $this->pdo->prepare(
             'INSERT INTO communication_outbox
              (id,idempotency_key,related_type,related_id,channel,recipient_ciphertext,payload_ciphertext,status,attempts,available_at,created_at)
-             VALUES (:id,:key,"model_assignment"," :related","email",:recipient,:payload,"pending",0,UTC_TIMESTAMP(),UTC_TIMESTAMP())
+             VALUES (:id,:key,"model_assignment",:related,"email",:recipient,:payload,"pending",0,UTC_TIMESTAMP(),UTC_TIMESTAMP())
              ON DUPLICATE KEY UPDATE id=id'
         )->execute([
             'id'=>$id,'key'=>'model-assignment-offer:'.$assignmentId,'related'=>$assignmentId,
