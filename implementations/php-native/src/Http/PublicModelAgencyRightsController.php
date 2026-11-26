@@ -224,6 +224,27 @@ final class PublicModelAgencyRightsController
         }
     }
 
+    public function portalRespondLicenceConsent(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
+        $rightsId=$this->rightsId();
+        if($rightsId===null || $this->rights===null || $this->licences===null) return Response::redirect('/model-agency/privacy');
+        try {
+            $applicationId=$this->rights->portalApplicationIdForConsentWithdrawal($rightsId);
+            $this->licences->respondByApplicant(
+                $applicationId,(string)($params['id']??''),$this->field($request,'decision'),
+                $this->field($request,'licence_consent_attestation')==='yes',
+                $this->field($request,'statement'),$request->requestId
+            );
+            return $this->showPortal($rightsId,$request->requestId,'Your image-usage consent decision has been recorded.');
+        } catch(\InvalidArgumentException|\DomainException $error) {
+            return $this->showPortal($rightsId,$request->requestId,$error->getMessage(),422);
+        } catch(\Throwable) {
+            return $this->showPortal($rightsId,$request->requestId,'The image-usage consent decision could not be recorded securely.',503);
+        }
+    }
+
     public function portalWithdrawLicence(Request $request,array $params): Response
     {
         SessionManager::start();
@@ -364,6 +385,10 @@ final class PublicModelAgencyRightsController
             if($this->rights!==null && $this->availability!==null) {
                 $applicationId=$this->rights->portalApplicationIdForConsentWithdrawal($id);
                 $record['availability_blocks']=$this->availability->listForApplicant($applicationId);
+            }
+            if($this->rights!==null && $this->licences!==null) {
+                $applicationId=$this->rights->portalApplicationIdForConsentWithdrawal($id);
+                $record['image_licences']=$this->licences->applicantPortalLicences($applicationId);
             }
             return $this->page('portal',['record'=>$record,'notice'=>$notice],$status);
         } catch(\Throwable) {
