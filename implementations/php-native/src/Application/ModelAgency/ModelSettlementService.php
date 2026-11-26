@@ -322,11 +322,20 @@ final class ModelSettlementService
     {
         $this->authorize($actor);
         $query=$this->pdo->prepare(
-            'SELECT id,assignment_id,settlement_id,amount_minor,currency_code,status,created_by,submitted_by,
-                    reviewed_by,reviewed_at,created_at FROM model_assignment_expenses
-             WHERE assignment_id=:assignment ORDER BY created_at DESC'
+            'SELECT id,assignment_id,settlement_id,amount_minor,currency_code,description,private_evidence_key,
+                    status,created_by,submitted_by,reviewed_by,reviewed_at,review_note,created_at
+             FROM model_assignment_expenses WHERE assignment_id=:assignment ORDER BY created_at DESC'
         );
-        $query->execute(['assignment'=>$assignmentId]);return $query->fetchAll(PDO::FETCH_ASSOC);
+        $query->execute(['assignment'=>$assignmentId]);
+        $rows=$query->fetchAll(PDO::FETCH_ASSOC);
+        foreach($rows as &$row) {
+            $row['description']=$this->cipher->decrypt((string)$row['description'],'model-settlement-v1:'.$row['id'].':description');
+            $row['evidence_reference']=$this->cipher->decrypt((string)$row['private_evidence_key'],'model-settlement-v1:'.$row['id'].':private_evidence_key');
+            $row['review_note']=is_string($row['review_note']) && $row['review_note']!==''?
+                $this->cipher->decrypt($row['review_note'],'model-settlement-v1:'.$row['id'].':review_note'):null;
+            unset($row['private_evidence_key']);
+        }
+        unset($row);return $rows;
     }
 
     private function hasSettlement(string $assignmentId): bool
