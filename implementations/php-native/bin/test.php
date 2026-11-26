@@ -64,7 +64,7 @@ catch (DomainException) { $assert(true, 'unsupported client cancellation state i
 try { $cancelPolicy->assertAllowed('companion','confirmed',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'companion cannot use client cancellation policy'); }
 catch (DomainException) { $assert(true, 'companion cannot use client cancellation policy'); }
 
-$assert(Money::fromDecimal('123.45', 'USD', 2)->minorUnits === 12345, 'two-decimal money uses integer minor units');
+$assert(BookingStateMachine::transition('pending_review','cancelled','client') === 'cancelled', 'client may cancel a pending-review booking');\n$assert(Money::fromDecimal('123.45', 'USD', 2)->minorUnits === 12345, 'two-decimal money uses integer minor units');
 $assert(Money::fromDecimal('120', 'JPY', 0)->toDecimal() === '120', 'zero-decimal currency formats correctly');
 $assert(Money::fromDecimal('1.234', 'KWD', 3)->toDecimal() === '1.234', 'three-decimal currency formats correctly');
 $assert(Money::fromDecimal('92233720368547758.07', 'USD', 2)->minorUnits === PHP_INT_MAX, 'maximum supported money amount is accepted exactly');
