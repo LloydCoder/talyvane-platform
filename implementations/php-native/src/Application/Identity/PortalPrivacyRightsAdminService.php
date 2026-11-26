@@ -73,10 +73,10 @@ final class PortalPrivacyRightsAdminService
                  WHERE id=:id'
             )->execute(['status'=>$decision,'reviewer'=>$actor->id,'reason'=>$reason,'id'=>$requestId]);
             if ($this->outcomes!==null) {
-                $recipientQuery=$this->pdo->prepare('SELECT email,status FROM users WHERE id=:id FOR UPDATE');
+                $recipientQuery=$this->pdo->prepare('SELECT email,status,email_verified_at FROM users WHERE id=:id FOR UPDATE');
                 $recipientQuery->execute(['id'=>$request['user_id']]);
                 $recipient=$recipientQuery->fetch(PDO::FETCH_ASSOC);
-                if (!is_array($recipient) || $recipient['status']!=='active' ||
+                if (!is_array($recipient) || $recipient['status']!=='active' || $recipient['email_verified_at']===null ||
                     !is_string($recipient['email']) || !filter_var($recipient['email'],FILTER_VALIDATE_EMAIL)) {
                     throw new \DomainException('The privacy request account has no active verified notification destination.');
                 }
