@@ -136,6 +136,7 @@ $attribution = is_array($saved) ? json_decode((string) $saved['attribution_json'
         'CRM reminder completion is stateful and auditable');
 
     $templateReason='Approved customer-response wording for the CRM team';
+    $pdo->prepare('UPDATE enquiries SET status="in_progress",responded_at=NULL WHERE reference=:reference')->execute(['reference'=>$reference]);
     $templateRequestId=bin2hex(random_bytes(16));
     $firstTemplateVersion=$service->saveResponseTemplate(
         $admin,'en','Hello {{ customer_name }} — enquiry {{ enquiry_reference }}',
