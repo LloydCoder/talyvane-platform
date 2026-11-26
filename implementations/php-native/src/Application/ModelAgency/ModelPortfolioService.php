@@ -87,6 +87,26 @@ final class ModelPortfolioService
     }
 
     /** @return list<array<string,mixed>> */
+    public function eligibleApplications(Principal $actor,int $limit=100): array
+    {
+        $this->authorize($actor);
+        $limit=max(1,min(100,$limit));
+        $query=$this->pdo->prepare(
+            'SELECT a.id,a.application_reference,a.country_code
+             FROM model_talent_applications a
+             WHERE a.status="accepted" AND a.legal_hold=0 AND a.anonymized_at IS NULL
+               AND EXISTS (
+                 SELECT 1 FROM model_applicant_verifications v
+                 WHERE v.application_id=a.id AND v.outcome="verified" AND v.expires_at>UTC_TIMESTAMP()
+                   AND v.decision_order=(SELECT MAX(v2.decision_order) FROM model_applicant_verifications v2 WHERE v2.application_id=a.id)
+               )
+             ORDER BY a.updated_at DESC LIMIT :limit'
+        );
+        $query->bindValue(':limit',$limit,PDO::PARAM_INT);$query->execute();
+        return $query->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** @return list<array<string,mixed>> */
     public function pendingReview(Principal $actor,int $limit=50): array
     {
         $this->authorize($actor);
