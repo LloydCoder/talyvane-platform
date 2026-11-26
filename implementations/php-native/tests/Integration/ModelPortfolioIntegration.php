@@ -518,6 +518,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'compensation_amount'=>'800.00','currency_code'=>'GBP','expense_cap_amount'=>'75.00',
     ],bin2hex(random_bytes(16)));
     $assignments->offer($admin,$declineAssignment,bin2hex(random_bytes(16)));
+    $pdo->prepare('UPDATE communication_outbox SET status="delivered",delivered_at=UTC_TIMESTAMP() WHERE related_type="model_assignment" AND related_id=:id')->execute(['id'=>$declineAssignment]);
     $pausedAssignments=new ModelAssignmentService($pdo,new AuditLogger($pdo),$secretBox,$storage,static fn():bool=>false);
     try {
         $pausedAssignments->respondByApplicant($applicantApplicationId,$declineAssignment,'accept',true,
