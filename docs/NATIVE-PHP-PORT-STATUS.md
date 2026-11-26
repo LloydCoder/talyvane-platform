@@ -1,7 +1,7 @@
 # Native PHP port — reconciled implementation status
 
 **Repository:** `LloydCoder/talyvane-platform`  
-**Main baseline:** `956044031f38514afaf0ef83bd38732f85f339c2`  
+**Main baseline:** `d692dac3bf4e61999c35a2917010d138871969f9`  
 **Status:** substantial native implementation in progress; not complete, not a production release, and not approved for deployment.
 
 ## Authority and how to read this status
@@ -24,6 +24,7 @@ A route, view, table, stub, static test or successful package build is not by it
 - PR #93 merged the 38-migration native booking, privacy, casting, assignment, membership/gallery and safeguarding increment as `b6fd78e342b47e1bbbee9b5e80801a00baa977f8`.
 - PR #87 merged hardened private cPanel installer diagnostics as `9df1a0f7a50f71bf1f4f2a0a81c519cc4db2ddff`.
 - PR #94 merged locale-versioned CRM templates and encrypted idempotent delivery as `956044031f38514afaf0ef83bd38732f85f339c2`, bringing the native migration count to 39.
+- PR #95 merged verified privacy outcome notification safeguards as `d692dac3bf4e61999c35a2917010d138871969f9`.
 - PR #91 was closed as superseded. There were no open PRs from that set after those actions.
 
 Exact native parity head `0d836a9cf7c051ef31f9f42b7d6b2ad3a7662ac3` passed native PHP 8.3/8.4/8.5 tests, MySQL migration/integration, Semgrep, native package verification, single-ZIP cPanel package, native installer browser E2E, Laravel feature CI and standalone release-package smoke (workflow runs 45830668363, 45830668306, 45830668346, 45830668297, 45830668209, 45830668238 and 45830668285). The later private-installer diagnostics head `f6b14f37ebd8ea936e638de91189d8478fa683ab` passed PHP matrix, Semgrep, package, installer browser E2E and standalone package smoke (runs 45832598812, 45832599142, 45832599029 and 45832598827).
@@ -76,3 +77,7 @@ The native safeguarding retention service fails closed unless an external key pr
 - Independent security/accessibility/performance review and documented rollback/recovery plan.
 
 **Do not merge, publish a production ZIP, activate payment rails, or describe the native port as complete solely on the basis of this status document.**
+
+## Current privacy-erasure evidence phase
+
+The current phase adds migration 0040 and an MFA-verified Owner/Super Admin external-evidence registry. Client and companion erasure now requires recorded decisions for encrypted database backups, private storage backups, SMTP/mailbox providers, payment processors, analytics integrations, external evidence repositories and safeguarding key custody. A `retained` decision with a future expiry remains blocking; `cleared` and `not_applicable` require an evidence reference and operator rationale. These are accountable human attestations, not independent proof that an external provider deleted data or that backups expired. Runtime head `52d6733c87e36e37307517364b17a2151fc460fb` passed PHP 8.3/8.4/8.5, MySQL integration (40 migrations and 165 identity assertions), Semgrep, native package verification, single-ZIP cPanel package, native installer browser E2E, Laravel CI, installer browser E2E and standalone release-package smoke (runs 45839353795, 45839353548, 45839353572, 45839353591, 45839353958, 45839353554 and 45839353495). This is repository-level verification; provider/legal/host acceptance remains external.

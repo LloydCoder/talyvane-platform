@@ -292,6 +292,7 @@ final class PortalPrivacyRightsAdminService
                 $request['request_type']!=='erasure' || $request['account_type']!=='client') {
                 throw new \DomainException('Only a verified client erasure request awaiting review can be fulfilled.');
             }
+            $this->assertExternalErasureEvidenceReady($requestId);
             $userQuery=$this->pdo->prepare(
                 'SELECT id,email,status,email_verified_at FROM users WHERE id=:id FOR UPDATE'
             );
@@ -391,6 +392,7 @@ final class PortalPrivacyRightsAdminService
                 $request['request_type']!=='erasure' || $request['account_type']!=='companion') {
                 throw new \DomainException('Only a verified companion erasure request awaiting review can be fulfilled.');
             }
+            $this->assertExternalErasureEvidenceReady($requestId);
             $userQuery=$this->pdo->prepare('SELECT id,email,status,email_verified_at FROM users WHERE id=:id FOR UPDATE');
             $userQuery->execute(['id'=>$request['user_id']]);
             $user=$userQuery->fetch(PDO::FETCH_ASSOC);
@@ -477,6 +479,162 @@ final class PortalPrivacyRightsAdminService
             if($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $error;
         }
+    }
+
+    /** @return array{ready:bool,items:list<array<string,mixed>>} */
+    public function externalErasureEvidence(Principal $actor,string $requestId): array
+    {
+        Authorization::require($actor,'privacy.requests.review');
+        if(!self::isUuid($requestId)) throw new \InvalidArgumentException('Privacy request reference is invalid.');
+        $request=$this->pdo->prepare(
+            'SELECT request_type,status FROM portal_privacy_requests WHERE id=:id'
+        );
+        $request->execute(['id'=>$requestId]);
+        $row=$request->fetch(PDO::FETCH_ASSOC);
+        if(!is_array($row) || $row['request_type']!=='erasure') {
+            throw new \DomainException('External evidence is available only for erasure requests.');
+        }
+        $query=$this->pdo->prepare(
+            'SELECT system_key,decision,evidence_reference,legal_basis_reference,retention_until,reason,reviewed_by,reviewed_at
+             FROM portal_privacy_erasure_external_evidence WHERE request_id=:id'
+        );
+        $query->execute(['id'=>$requestId]);
+        $stored=[];
+        foreach($query->fetchAll(PDO::FETCH_ASSOC) as $item) $stored[(string)$item['system_key']]=$item;
+        $items=[];
+        foreach(self::externalErasureSystems() as $key=>$label) {
+            $item=$stored[$key]??null;
+            $complete=is_array($item) && in_array($item['decision'],['cleared','not_applicable'],true) &&
+                is_string($item['evidence_reference']) && $item['evidence_reference']!=='' && $item['retention_until']===null;
+            $items[]=[
+                'system_key'=>$key,'label'=>$label,'decision'=>is_array($item)?$item['decision']:'pending',
+                'evidence_reference'=>is_array($item)?$item['evidence_reference']:null,
+                'legal_basis_reference'=>is_array($item)?$item['legal_basis_reference']:null,
+                'retention_until'=>is_array($item)?$item['retention_until']:null,
+                'reason'=>is_array($item)?$item['reason']:null,
+                'reviewed_by'=>is_array($item)?$item['reviewed_by']:null,
+                'reviewed_at'=>is_array($item)?$item['reviewed_at']:null,
+                'complete'=>$complete,
+            ];
+        }
+        return ['ready'=>count(array_filter($items,static fn(array $item):bool=>$item['complete']))===count($items),'items'=>$items];
+    }
+
+    public function recordExternalErasureEvidence(
+        Principal $actor,string $requestId,string $systemKey,string $decision,string $evidenceReference,
+        ?string $legalBasisReference,?string $retentionUntil,string $reason,string $correlationId
+    ): void {
+        Authorization::require($actor,'privacy.requests.review',true);
+        if(!$actor->hasRole('owner') && !$actor->hasRole('super_admin')) {
+            throw new \DomainException('Only an MFA-verified Owner or Super Admin may attest to external erasure evidence.');
+        }
+        $reason=trim($reason);
+        if(!self::isUuid($requestId) || !array_key_exists($systemKey,self::externalErasureSystems()) ||
+            !in_array($decision,['cleared','retained','not_applicable'],true) ||
+            preg_match('/^[A-Za-z0-9][A-Za-z0-9._:\/-]{7,189}$/D',$evidenceReference)!==1 ||
+            strlen($reason)<10 || strlen($reason)>500 || strlen($correlationId)<16 || strlen($correlationId)>64) {
+            throw new \InvalidArgumentException('External erasure evidence details are invalid.');
+        }
+        $legalBasisReference=trim((string)$legalBasisReference);
+        if($legalBasisReference!=='' && preg_match('/^[A-Za-z0-9][A-Za-z0-9._:\/()\\-]{7,189}$/D',$legalBasisReference)!==1) {
+            throw new \InvalidArgumentException('Legal-basis references must be opaque identifiers, not URLs or free-form personal data.');
+        }
+        if($decision==='retained') {
+            if(preg_match('/^[A-Za-z0-9][A-Za-z0-9._:\/()\-]{7,189}$/D',$legalBasisReference)!==1 ||
+                !is_string($retentionUntil) || preg_match('/^\d{4}-\d{2}-\d{2}$/D',$retentionUntil)!==1) {
+                throw new \InvalidArgumentException('Retained external records require a legal-basis reference and retention date.');
+            }
+            $date=\DateTimeImmutable::createFromFormat('!Y-m-d',$retentionUntil,new \DateTimeZone('UTC'));
+            $errors=\DateTimeImmutable::getLastErrors();
+            if($date===false || ($errors!==false && ($errors['warning_count']>0 || $errors['error_count']>0)) ||
+                $date->format('Y-m-d')!==$retentionUntil || $date<=new \DateTimeImmutable('today',new \DateTimeZone('UTC'))) {
+                throw new \InvalidArgumentException('External retention date must be a valid future UTC date.');
+            }
+            $retentionUntil=$date->setTime(23,59,59)->format('Y-m-d H:i:s');
+        } else {
+            if($retentionUntil!==null && $retentionUntil!=='') {
+                throw new \InvalidArgumentException('A cleared or not-applicable external system cannot have a retention deadline.');
+            }
+            $retentionUntil=null;
+            $legalBasisReference=$legalBasisReference!==''?$legalBasisReference:null;
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $request=$this->pdo->prepare(
+                'SELECT id,request_type,status FROM portal_privacy_requests WHERE id=:id FOR UPDATE'
+            );
+            $request->execute(['id'=>$requestId]);
+            $row=$request->fetch(PDO::FETCH_ASSOC);
+            if(!is_array($row) || $row['request_type']!=='erasure' || $row['status']!=='in_review') {
+                throw new \DomainException('External evidence can only be recorded for an erasure request awaiting review.');
+            }
+            $id=self::uuid();
+            $this->pdo->prepare(
+                'INSERT INTO portal_privacy_erasure_external_evidence
+                 (id,request_id,system_key,decision,evidence_reference,legal_basis_reference,retention_until,
+                  reason,reviewed_by,reviewed_at,created_at,updated_at)
+                 VALUES (:id,:request,:system,:decision,:evidence,:basis,:retention,:reason,:reviewer,
+                         UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())
+                 ON DUPLICATE KEY UPDATE decision=VALUES(decision),evidence_reference=VALUES(evidence_reference),
+                    legal_basis_reference=VALUES(legal_basis_reference),retention_until=VALUES(retention_until),
+                    reason=VALUES(reason),reviewed_by=VALUES(reviewed_by),reviewed_at=UTC_TIMESTAMP(),
+                    updated_at=UTC_TIMESTAMP()'
+            )->execute([
+                'id'=>$id,'request'=>$requestId,'system'=>$systemKey,'decision'=>$decision,
+                'evidence'=>$evidenceReference,'basis'=>$legalBasisReference,'retention'=>$retentionUntil,
+                'reason'=>$reason,'reviewer'=>$actor->id,
+            ]);
+            $this->audit->record($actor->id,'portal.privacy.erasure.external_evidence_recorded',
+                'portal_privacy_request',$requestId,'Owner-reviewed external erasure evidence recorded',null,
+                ['system_key'=>$systemKey,'decision'=>$decision,'evidence_reference'=>$evidenceReference,
+                 'legal_basis_reference'=>$legalBasisReference,'retention_until'=>$retentionUntil],
+                $correlationId,'portal-privacy-rights-v1');
+            $this->pdo->commit();
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    private function assertExternalErasureEvidenceReady(string $requestId): void
+    {
+        $query=$this->pdo->prepare(
+            'SELECT system_key,decision,evidence_reference,retention_until FROM portal_privacy_erasure_external_evidence
+             WHERE request_id=:id FOR UPDATE'
+        );
+        $query->execute(['id'=>$requestId]);
+        $stored=[];
+        foreach($query->fetchAll(PDO::FETCH_ASSOC) as $row) $stored[(string)$row['system_key']]=$row;
+        foreach(self::externalErasureSystems() as $key=>$label) {
+            $row=$stored[$key]??null;
+            if(!is_array($row) || !in_array($row['decision'],['cleared','not_applicable'],true) ||
+                !is_string($row['evidence_reference']) || $row['evidence_reference']==='' || $row['retention_until']!==null) {
+                throw new \DomainException('Erasure is blocked until owner-reviewed external processor evidence is recorded for every backup, storage and processor system.');
+            }
+        }
+    }
+
+    /** @return array<string,string> */
+    private static function externalErasureSystems(): array
+    {
+        return [
+            'encrypted_database_backups'=>'Encrypted database backups and expiry',
+            'private_storage_backups'=>'Private media/object-storage backups',
+            'smtp_mailbox_providers'=>'SMTP, mailbox and email-provider copies',
+            'payment_processors'=>'Payment processors and financial providers',
+            'analytics_integrations'=>'Analytics and connected integrations',
+            'external_evidence_repositories'=>'External evidence and document repositories',
+            'safeguarding_key_custody'=>'Safeguarding Vault/key custody and backup expiry',
+        ];
+    }
+
+    private static function uuid(): string
+    {
+        $bytes=random_bytes(16);
+        $bytes[6]=chr((ord($bytes[6])&0x0f)|0x40);
+        $bytes[8]=chr((ord($bytes[8])&0x3f)|0x80);
+        $hex=bin2hex($bytes);
+        return substr($hex,0,8).'-'.substr($hex,8,4).'-'.substr($hex,12,4).'-'.substr($hex,16,4).'-'.substr($hex,20,12);
     }
 
     private function requireOutcomeOutbox(): void
