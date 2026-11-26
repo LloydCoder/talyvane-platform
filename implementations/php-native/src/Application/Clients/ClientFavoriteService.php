@@ -107,7 +107,7 @@ final class ClientFavoriteService
     private function assertClient(Principal $actor): void
     {
         Authorization::require($actor,'client.favorites.manage',false);
-        if (!$actor->hasRole('client') || count($actor->roles) !== 1) {
+        if (!$actor->hasOnlyRole('client')) {
             throw new DomainException('Only a client account can manage a private shortlist.');
         }
     }
