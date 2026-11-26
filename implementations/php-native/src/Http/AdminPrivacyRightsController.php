@@ -43,6 +43,14 @@ final class AdminPrivacyRightsController
         $actor=$this->authentication->currentPrincipal();
         if($actor===null) return Response::redirect('/admin/login');
         try {
+            if ($this->field($request,'decision')==='fulfill_companion_correction') {
+                $rawLanguages=$this->field($request,'languages');
+                $languages=array_values(array_filter(array_map('trim',explode(',',$rawLanguages)),static fn(string $value):bool=>$value!==''));
+                $this->rights->fulfillCompanionCorrection($actor,$this->field($request,'request_id'),
+                    $this->field($request,'display_name'),$this->field($request,'biography'),$languages,
+                    $this->field($request,'reason'),$request->requestId);
+                return $this->index($request,'Verified companion profile correction applied. The profile is now unpublished pending a fresh publication review.');
+            }
             $this->rights->review($actor,$this->field($request,'request_id'),
                 $this->field($request,'decision'),$this->field($request,'reason'),$request->requestId);
             return $this->index($request,'Privacy request review decision recorded. No data was erased or corrected automatically.');
