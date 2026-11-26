@@ -259,8 +259,8 @@ final class ModelPortfolioService
                 $rights['request_type']!=='portfolio_withdrawal' ||
                 !hash_equals((string)$rights['related_asset_id'],$assetId) ||
                 $rights['anonymized_at']!==null ||
-                new \\DateTimeImmutable((string)$rights['expires_at'],new \\DateTimeZone('UTC'))<=new \\DateTimeImmutable('now',new \\DateTimeZone('UTC'))) {
-                throw new \\DomainException('The verified applicant portfolio-withdrawal session is invalid or expired.');
+                new \DateTimeImmutable((string)$rights['expires_at'],new \DateTimeZone('UTC'))<=new \DateTimeImmutable('now',new \DateTimeZone('UTC'))) {
+                throw new \DomainException('The verified applicant portfolio-withdrawal session is invalid or expired.');
             }
             $assetQuery=$this->pdo->prepare(
                 'SELECT id,application_id,private_storage_key,status,consent_grant_id,consent_withdrawn_at
@@ -270,10 +270,10 @@ final class ModelPortfolioService
             $asset=$assetQuery->fetch(PDO::FETCH_ASSOC);
             if(!is_array($asset) || !in_array($asset['status'],['pending_review','approved'],true) ||
                 $asset['consent_withdrawn_at']!==null) {
-                throw new \\DomainException('The requested portfolio asset is no longer available for withdrawal.');
+                throw new \DomainException('The requested portfolio asset is no longer available for withdrawal.');
             }
             if((int)$rights['legal_hold']===1) {
-                throw new \\DomainException('Portfolio withdrawal requires safeguarding/legal-hold review before private bytes can be changed.');
+                throw new \DomainException('Portfolio withdrawal requires safeguarding/legal-hold review before private bytes can be changed.');
             }
             if(is_string($asset['private_storage_key']) && $asset['private_storage_key']!=='') {
                 $this->storage->delete($asset['private_storage_key']);
