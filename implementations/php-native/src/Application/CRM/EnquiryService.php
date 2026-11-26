@@ -183,6 +183,35 @@ final class EnquiryService
         }
     }
 
+    public function addInternalNote(Principal $actor,string $reference,string $note,string $requestId): void
+    {
+        Authorization::require($actor,'enquiries.manage',true);
+        $note=trim($note);
+        if(!preg_match('/^TV-[A-F0-9]{10}$/D',$reference) || mb_strlen($note,'UTF-8')<10 ||
+            mb_strlen($note,'UTF-8')>3000 || strlen($requestId)<16 || strlen($requestId)>190 ||
+            $this->notesCipher===null) {
+            throw new \\InvalidArgumentException('Internal note details are invalid or encryption is unavailable.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare('SELECT id FROM enquiries WHERE reference=:reference FOR UPDATE');
+            $query->execute(['reference'=>$reference]);
+            $enquiryId=$query->fetchColumn();
+            if(!is_string($enquiryId)) throw new \\DomainException('Enquiry does not exist.');
+            $id=self::uuid();
+            $ciphertext=$this->notesCipher->encrypt($note,'crm-enquiry-note-v1:'.$enquiryId);
+            $this->pdo->prepare('INSERT INTO crm_enquiry_notes (id,enquiry_id,author_user_id,ciphertext,created_at) VALUES (:id,:enquiry,:author,:ciphertext,UTC_TIMESTAMP())')
+                ->execute(['id'=>$id,'enquiry'=>$enquiryId,'author'=>$actor->id,'ciphertext'=>$ciphertext]);
+            $this->audit->record($actor->id,'crm.enquiry.note_added','enquiry',$enquiryId,
+                'Private internal note appended to enquiry',null,['note_id'=>$id,'character_count'=>mb_strlen($note,'UTF-8')],
+                $requestId,'crm-enquiry-v1');
+            $this->pdo->commit();
+        } catch(\\Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
     /** @return list<array{id:string,email:string,role_key:string}> */
     public function eligibleAssignees(Principal $actor): array
     {
@@ -209,7 +238,36 @@ final class EnquiryService
         $query->bindValue(':limit',$limit,PDO::PARAM_INT);
         $query->bindValue(':offset',$offset,PDO::PARAM_INT);
         $query->execute();
-        return $query->fetchAll();
+        $items=$query->fetchAll();
+        if($items!==[] && $this->notesCipher!==null) {
+            $ids=array_column($items,'reference');
+            $placeholders=[];
+            $params=[];
+            foreach($ids as $index=>$reference){$key='ref'.$index;$placeholders[]=':'.$key;$params[$key]=$reference;}
+            $notesQuery=$this->pdo->prepare(
+                'SELECT n.id,n.enquiry_id,e.reference,n.author_user_id,u.email AS author_email,n.ciphertext,n.created_at
+                 FROM crm_enquiry_notes n INNER JOIN enquiries e ON e.id=n.enquiry_id
+                 INNER JOIN users u ON u.id=n.author_user_id
+                 WHERE e.reference IN ('.implode(',',$placeholders).')
+                 ORDER BY n.created_at DESC,n.id DESC'
+            );
+            $notesQuery->execute($params);
+            $byReference=[];
+            foreach($notesQuery->fetchAll() as $noteRow) {
+                $reference=(string)$noteRow['reference'];
+                $byReference[$reference]??=[];
+                if(count($byReference[$reference])>=10) continue;
+                $noteRow['body']=$this->notesCipher->decrypt((string)$noteRow['ciphertext'],'crm-enquiry-note-v1:'.$noteRow['enquiry_id']);
+                unset($noteRow['ciphertext'],$noteRow['enquiry_id']);
+                $byReference[$reference][]=$noteRow;
+            }
+            foreach($items as &$item) $item['internal_notes']=$byReference[$item['reference']]??[];
+            unset($item);
+        } else {
+            foreach($items as &$item) $item['internal_notes']=[];
+            unset($item);
+        }
+        return $items;
     }
 
     private static function safeAttribution(?string $referer): ?string
