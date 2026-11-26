@@ -627,11 +627,11 @@ $licence = new ImageLicencePolicy('active','portfolio.display','GB','public',tru
 $assert($licence->permits('portfolio.display','GB','public',$now), 'image licence permits only current approved purpose and audience');
 $assert(!$licence->permits('advertising','GB','public',$now), 'image licence cannot be reused for another purpose');
 $calculation = SettlementCalculator::calculate(100000,20000,10000,2000,'GBP');
-$assert($calculation['commission_minor'] === 20000 && $calculation['model_net_minor'] === 70000, 'settlement uses exact integer minor-unit commission');
+$assert($calculation['commission_minor'] === 20000 && $calculation['model_net_minor'] === 90000, 'settlement adds approved reimbursable expenses after commission deduction');
 try { SettlementCalculator::calculate(100000,5000,5001,2000,'GBP'); $assert(false, 'expense cap enforced'); }
 catch (DomainException) { $assert(true, 'expense cap enforced'); }
-try { SettlementCalculator::calculate(1000,1000,1000,2000,'GBP'); $assert(false, 'negative settlement net rejected'); }
-catch (DomainException) { $assert(true, 'negative settlement net rejected'); }
+$reimbursed = SettlementCalculator::calculate(1000,2000,1500,2000,'GBP');
+$assert($reimbursed['model_net_minor'] === 2300, 'approved expenses are reimbursed separately and may exceed gross compensation when within the agreed cap');
 try { SettlementStateMachine::transition('draft','approved','finance','maker-1','maker-1'); $assert(false, 'settlement creator cannot approve own settlement'); }
 catch (DomainException) { $assert(true, 'settlement creator cannot approve own settlement'); }
 try { SettlementStateMachine::transition('approved','paid','finance','maker-1','approver-1','approver-1','external-payment-ref'); $assert(false, 'settlement approver cannot attest own payment'); }
