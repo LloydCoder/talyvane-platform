@@ -61,6 +61,8 @@ catch (DomainException) { $assert(true, 'client cancellation inside cutoff is re
 $cancelPolicyDisabled = new BookingCancellationPolicy(false,120);
 $cancelPolicyDisabled->assertAllowed('client','pending_review',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00'));
 $assert(true, 'client may cancel a pending review request without confirmed-booking cancellation policy');
+$cancelPolicyDisabled->assertAllowed('client','requested',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00'));
+$assert(true, 'client may cancel a newly submitted requested booking without confirmed-booking cancellation policy');
 try { $cancelPolicyDisabled->assertAllowed('client','confirmed',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'disabled confirmed-booking cancellation is rejected'); }
 catch (DomainException) { $assert(true, 'disabled client cancellation is rejected'); }
 try { $cancelPolicy->assertAllowed('client','accepted',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'unsupported client cancellation state is rejected'); }
