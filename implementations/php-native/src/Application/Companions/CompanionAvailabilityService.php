@@ -22,13 +22,18 @@ final class CompanionAvailabilityService
     {
         $this->assertCompanion($actor);
         $query = $this->pdo->prepare(
-            'SELECT p.id,p.display_name,p.status,d.display_name AS destination_name,d.time_zone
+            'SELECT p.id,p.display_name,p.status,p.auto_booking_opt_in,d.display_name AS destination_name,d.time_zone
              FROM companion_profiles p JOIN destinations d ON d.id = p.destination_id
              WHERE p.user_id = :actor LIMIT 1'
         );
         $query->execute(['actor'=>$actor->id]);
         $profile = $query->fetch();
-        return is_array($profile) ? $profile : null;
+        if (is_array($profile)) {
+            $profile['automatic_booking_available']=$this->features?->enabled('bookings.automatic') ?? false;
+            $profile['auto_booking_opt_in']=(bool)$profile['auto_booking_opt_in'];
+            return $profile;
+        }
+        return null;
     }
 
     /** @return list<array<string,mixed>> */
