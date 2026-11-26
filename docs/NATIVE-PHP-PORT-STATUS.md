@@ -23,7 +23,7 @@ A route, view, table, stub, static test or successful package build is not by it
 
 ## Current head and validation
 
-Latest runtime-affecting implementation includes privacy correction completion notices (client and companion) with encrypted generic messages and regression coverage. Runtime commit: `d9ae917d06f0834c088f13112c055c0ff32539a6`; current branch head: `1b713deff01c97e14e5dba770f159da9f6eaa290` (docs-only follow-up). Current-head results observed during this reconciliation: PHP 8.3/8.4/8.5 native tests passed; MySQL migration/integration passed; Semgrep security analysis passed; native cPanel package verification passed; single-ZIP package build passed. Browser installation E2E and general CI were still running. Results are repository-level only, not live-host acceptance. The table below records historical passes at their stated refs and must not be read as current-head browser/CI evidence:
+Latest runtime-affecting implementation includes privacy correction completion notices (client and companion) with encrypted generic messages and regression coverage. Runtime commit: `d9ae917d06f0834c088f13112c055c0ff32539a6`; current branch head: `1b713deff01c97e14e5dba770f159da9f6eaa290` (docs-only follow-up). Current-head results observed during this reconciliation: PHP 8.3/8.4/8.5 native tests passed; MySQL migration/integration passed; Semgrep security analysis passed; native cPanel package verification passed; single-ZIP package build passed. General CI and standalone release package smoke passed at `1b713de`; both browser-installation E2E runs were cancelled when newer commits superseded them. Fresh native/MySQL checks are running at `eef19b7`. Results are repository-level only, not live-host acceptance. The table below records historical passes at their stated refs and must not be read as current-head browser/CI evidence:
 
 | Check | Exact-head result |
 |---|---|
@@ -36,7 +36,7 @@ Latest runtime-affecting implementation includes privacy correction completion n
 | Laravel installer browser E2E | Passed at exact validated branch head `37a4c72` |
 | General CI / Laravel release smoke | Passed at exact validated branch head `37a4c72` |
 
-The PR remains open, draft and unmerged. The current native branch has 38 ordered migrations. Current-head browser E2E and general CI were in progress at reconciliation; poll them before claiming full validation. Real-host acceptance and external release gates remain open. Any later runtime change requires fresh exact-head validation.
+The PR remains open, draft and unmerged. The current native branch has 38 ordered migrations. At `1b713de`, general CI and standalone release package smoke passed; browser-installation E2E runs were cancelled by superseding commits. Fresh native/MySQL checks are running at `eef19b7`; no current-head browser E2E result is available. Real-host acceptance and external release gates remain open. Any later runtime change requires fresh exact-head validation.
 ## Implemented native domains — partial vertical slices
 
 | Domain | Implemented on this branch | Remaining parity / acceptance |
