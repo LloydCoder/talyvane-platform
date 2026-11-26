@@ -67,7 +67,7 @@ $record=is_array($record??null)?$record:[];
 <p><strong>Brief:</strong> <?= nl2br($escape($assignment['brief']??'')) ?></p>
 <p><strong>Deliverables:</strong> <?= nl2br($escape($assignment['deliverables']??'')) ?></p>
 <p><strong>Compensation:</strong> <?= $assignment['compensation_amount']===null?'Not specified':$escape($assignment['compensation_amount'].' '.($assignment['currency_code']??'')) ?> · <strong>Expense cap:</strong> <?= $escape(($assignment['expense_cap_amount']??'0').' '.($assignment['currency_code']??'')) ?></p>
-<?php if(($assignment['status']??'')==='offered' && empty($assignment['applicant_response_status'])):?>
+<?php if(($assignment['response_enabled']??false) && ($assignment['status']??'')==='offered' && empty($assignment['applicant_response_status'])):?>
 <form method="post" action="/model-agency/portal/assignments/<?= $escape($assignment['id']??'') ?>/respond">
 <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><input type="hidden" name="decision" value="accept">
 <label><input type="checkbox" name="assignment_attestation" value="yes" required> I have reviewed the assignment terms and voluntarily request the external signature process; this is not an executed agreement.</label>
