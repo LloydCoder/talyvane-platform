@@ -18,6 +18,7 @@ use Talyvane\Application\Bookings\BookingNotificationOutbox;
 use Talyvane\Application\Bookings\BookingNotificationDispatcher;
 use Talyvane\Infrastructure\Database\BookingPolicyRepository;
 use Talyvane\Application\Identity\EmailVerificationService;
+use Talyvane\Application\Identity\PortalPrivacyRightsService;
 use Talyvane\Infrastructure\Mail\Mailer;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Security\RateLimiter;
@@ -541,6 +542,47 @@ function runIdentityIntegration(PDO $pdo): int
     $requestedCancellationState->execute(['id'=>$requestedCancellationId]);
     $assert($requestedCancellationState->fetchColumn()==='cancelled',
         'client can cancel a newly submitted requested booking before companion review even when confirmed cancellation is disabled');
+    $privacyRightsMailer=new NativeTestMailer();
+    $portalRights=new PortalPrivacyRightsService($pdo,$privacyRightsMailer,$limiter,$audit,
+        new SecretBox(str_repeat('Q',32)),str_repeat('P',32));
+    $correctionSummary='Please correct the spelling of my account details.';
+    $correctionRequestId=$portalRights->request($clientPrincipal,'correction',$correctionSummary,'127.0.0.1',bin2hex(random_bytes(16)));
+    $correctionRowQuery=$pdo->prepare('SELECT status,payload_ciphertext FROM portal_privacy_requests WHERE id=:id AND user_id=:user');
+    $correctionRowQuery->execute(['id'=>$correctionRequestId,'user'=>$registeredId]);
+    $correctionRow=$correctionRowQuery->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($correctionRow) && $correctionRow['status']==='pending' &&
+        !str_contains((string)$correctionRow['payload_ciphertext'],$correctionSummary),
+        'client correction request stores its explanation encrypted and starts in pending verification');
+    preg_match('/One-time verification code: ([0-9]{8})/',(string)$privacyRightsMailer->messages[0]['body'],$correctionCodeMatch);
+    $correctionCode=(string)($correctionCodeMatch[1]??'');
+    $wrongCode=$correctionCode==='99999999'?'00000000':'99999999';
+    $assert(!$portalRights->verify($clientPrincipal,$correctionRequestId,$wrongCode,'127.0.0.1',bin2hex(random_bytes(16))),
+        'incorrect privacy verification codes are rejected without disclosing request existence');
+    $assert($portalRights->verify($clientPrincipal,$correctionRequestId,$correctionCode,'127.0.0.1',bin2hex(random_bytes(16))),
+        'correct email verification code moves the client correction request into restricted review');
+    $correctionHistory=$portalRights->history($clientPrincipal);
+    $assert(count($correctionHistory)===1 && $correctionHistory[0]['status']==='in_review',
+        'client can see privacy request status without retrieving the encrypted explanation');
+    $companionHistoryBefore=$portalRights->history($companionPrincipal);
+    $assert($companionHistoryBefore===[],'companion privacy request history is isolated from client requests');
+    $erasureRequestId=$portalRights->request($clientPrincipal,'erasure',null,'127.0.0.1',bin2hex(random_bytes(16)));
+    preg_match('/One-time verification code: ([0-9]{8})/',(string)$privacyRightsMailer->messages[1]['body'],$erasureCodeMatch);
+    $erasureCode=(string)($erasureCodeMatch[1]??'');
+    $assert($erasureCode!=='' && $portalRights->verify($clientPrincipal,$erasureRequestId,$erasureCode,'127.0.0.1',bin2hex(random_bytes(16))),
+        'client erasure request requires a separate verified one-time code');
+    $clientStillActive=$pdo->prepare('SELECT status,email FROM users WHERE id=:id');
+    $clientStillActive->execute(['id'=>$registeredId]);
+    $clientAfterErasureRequest=$clientStillActive->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($clientAfterErasureRequest) && $clientAfterErasureRequest['status']==='active' &&
+        $clientAfterErasureRequest['email']==='native-registered-client@example.test',
+        'verified erasure requests enter human review and never erase an account automatically');
+    $companionCorrectionId=$portalRights->request($companionPrincipal,'correction','Please correct my companion profile information.','127.0.0.1',bin2hex(random_bytes(16)));
+    preg_match('/One-time verification code: ([0-9]{8})/',(string)$privacyRightsMailer->messages[2]['body'],$companionCodeMatch);
+    $companionCode=(string)($companionCodeMatch[1]??'');
+    $assert($companionCode!=='' && $portalRights->verify($companionPrincipal,$companionCorrectionId,$companionCode,'127.0.0.1',bin2hex(random_bytes(16))),
+        'companion can submit and verify an independently scoped correction request');
+    $assert(count($portalRights->history($companionPrincipal))===1 && count($portalRights->history($clientPrincipal))===2,
+        'client and companion privacy request histories remain account-scoped');
 
 
     return $assertions;
