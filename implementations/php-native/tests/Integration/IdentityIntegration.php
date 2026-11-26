@@ -703,6 +703,25 @@ function runIdentityIntegration(PDO $pdo): int
     $correctionAuditPayload=json_decode((string)$correctionAudit->fetchColumn(),true);
     $assert(is_array($correctionAuditPayload) && ($correctionAuditPayload['fields']??[])===['display_name','biography','languages'],
         'companion correction fulfilment records an auditable field-level event without copying corrected personal values into the audit log');
+    $portalRightsAdmin->fulfillClientCorrection($superAdmin,$correctionRequestId,
+        'Verified Client Corrected','Client identity correction independently verified against supplied evidence.',bin2hex(random_bytes(16)));
+    $correctedClient=$pdo->prepare('SELECT name,email,status FROM users WHERE id=:id');
+    $correctedClient->execute(['id'=>$clientPrincipal->id]);
+    $correctedClientRow=$correctedClient->fetch(PDO::FETCH_ASSOC);
+    $clientCorrectionRequest=$pdo->prepare('SELECT status,payload_ciphertext FROM portal_privacy_requests WHERE id=:id');
+    $clientCorrectionRequest->execute(['id'=>$correctionRequestId]);
+    $clientCorrectionRequestRow=$clientCorrectionRequest->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($correctedClientRow) && $correctedClientRow['name']==='Verified Client Corrected' &&
+        $correctedClientRow['email']==='native-registered-client@example.test' && $correctedClientRow['status']==='active',
+        'verified client name correction changes only the allowlisted account name and preserves contact email and account status');
+    $assert(is_array($clientCorrectionRequestRow) && $clientCorrectionRequestRow['status']==='fulfilled' &&
+        $clientCorrectionRequestRow['payload_ciphertext']===null,
+        'fulfilled client correction closes the verified request and clears encrypted request payload');
+    $clientCorrectionAudit=$pdo->prepare('SELECT after_json FROM audit_events WHERE event_key="portal.privacy.correction.fulfilled" AND target_id=:id');
+    $clientCorrectionAudit->execute(['id'=>$correctionRequestId]);
+    $clientCorrectionAuditPayload=json_decode((string)$clientCorrectionAudit->fetchColumn(),true);
+    $assert(is_array($clientCorrectionAuditPayload) && ($clientCorrectionAuditPayload['fields']??[])===['name'],
+        'client correction audit records the allowlisted field without copying personal values');
     // Restore the pre-existing published fixture for later profile-media integration tests.
     $pdo->prepare('UPDATE companion_profiles SET status="published" WHERE user_id=:user')->execute(['user'=>$companionPrincipal->id]);
     $assert(count($portalRightsAdmin->queue($superAdmin,bin2hex(random_bytes(16))))===1,
