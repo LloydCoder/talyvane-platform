@@ -16,7 +16,7 @@ final class BookingPolicyRepository
         $query->execute(['key'=>'booking.rules']);
         $row = $query->fetch();
         if (!is_array($row)) {
-            return new BookingPolicy(false,false,60,90,60,480,'booking-default-v1');
+            return new BookingPolicy(false,true,720,90,60,480,'booking-default-v1',false,120);
         }
         $data = json_decode((string) $row['setting_json'],true);
         if (!is_array($data)) {
