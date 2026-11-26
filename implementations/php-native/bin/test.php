@@ -988,6 +988,42 @@ $assert($permissionExit===1 && ($permissionStatuses['private_storage']??null)===
 $assert($permissionError==='' && ($permissionStatuses['document_root']??null)==='ok',
     'CLI health check distinguishes a valid document root from unsafe private-directory permissions');
 
+foreach ([$healthStorage,$healthLogs,$healthBackups] as $directory) {
+    chmod($directory,0700);
+}
+$publicConfig = $healthPublic . DIRECTORY_SEPARATOR . 'private-config.php';
+file_put_contents($publicConfig, "<?php\\nreturn " . var_export([
+    'app_key'=>str_repeat('P',32),
+    'database'=>[],
+    'paths'=>[
+        'document_root'=>$healthPublic,
+        'storage'=>$healthStorage,
+        'logs'=>$healthLogs,
+        'backups'=>$healthBackups,
+    ],
+],true) . ";\\n");
+chmod($publicConfig,0600);
+$publicConfigProcess = proc_open($healthCommand,[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$publicConfigPipes,null,['TALYVANE_CONFIG'=>$publicConfig]);
+if (!is_resource($publicConfigProcess)) {
+    throw new RuntimeException('Could not start native health-check public-config regression test process.');
+}
+fclose($publicConfigPipes[0]);
+$publicConfigOutput = stream_get_contents($publicConfigPipes[1]);
+$publicConfigError = stream_get_contents($publicConfigPipes[2]);
+fclose($publicConfigPipes[1]);
+fclose($publicConfigPipes[2]);
+$publicConfigExit = proc_close($publicConfigProcess);
+$publicConfigResult = json_decode((string)$publicConfigOutput,true);
+$publicConfigStatuses = [];
+foreach (($publicConfigResult['checks'] ?? []) as $publicConfigCheck) {
+    $publicConfigStatuses[$publicConfigCheck['check']] = $publicConfigCheck['status'];
+}
+$assert($publicConfigExit===1 && ($publicConfigStatuses['configuration_outside_document_root']??null)==='failed',
+    'CLI health check rejects configuration stored beneath the public document root');
+$assert($publicConfigError==='' && ($publicConfigStatuses['document_root']??null)==='ok',
+    'CLI health check reports the public-root boundary independently from private-config placement');
+
+
 
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($iterator as $entry) {
