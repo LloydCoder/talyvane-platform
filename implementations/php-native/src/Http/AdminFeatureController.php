@@ -86,6 +86,6 @@ final class AdminFeatureController
     private function field(Request $request,string $name): string
     {
         $value=$request->body[$name]??'';
-        return is_string($value)?trim($value):'';
+        return is_string($value)?($name==='password'?$value:trim($value)):'';
     }
 }
