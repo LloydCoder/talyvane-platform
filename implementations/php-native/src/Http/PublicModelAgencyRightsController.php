@@ -176,9 +176,9 @@ final class PublicModelAgencyRightsController
                 $request->requestId
             );
             return $this->showPortal($rightsId,$request->requestId,'Your assignment response has been recorded.');
-        } catch(\\InvalidArgumentException|\\DomainException $error) {
+        } catch(\InvalidArgumentException|\DomainException $error) {
             return $this->showPortal($rightsId,$request->requestId,$error->getMessage(),422);
-        } catch(\\Throwable) {
+        } catch(\Throwable) {
             return $this->showPortal($rightsId,$request->requestId,'The assignment response could not be completed securely.',503);
         }
     }
