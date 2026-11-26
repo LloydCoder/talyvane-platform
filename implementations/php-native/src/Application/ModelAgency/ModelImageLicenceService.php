@@ -117,11 +117,32 @@ final class ModelImageLicenceService
     {
         $this->authorize($actor);$this->assertFeature();$this->assertRequestId($requestId);
         $this->assertEvidenceReference($executionEvidenceReference,'private/model-licences/');
-        $this->assertEvidenceReference($modelConsentEvidenceReference,'private/model-consent/');
+        if($modelConsentEvidenceReference!=='' && !str_starts_with($modelConsentEvidenceReference,'applicant-portal-attestation:')) {
+            $this->assertEvidenceReference($modelConsentEvidenceReference,'private/model-consent/');
+        }
         $this->pdo->beginTransaction();
         try {
             $licence=$this->lockRow('model_image_licences',$licenceId);
             if($licence['status']!=='draft') throw new \DomainException('Only a draft image licence can be activated.');
+            if($modelConsentEvidenceReference==='') {
+                if(!is_string($licence['model_consent_evidence_reference']) || $licence['model_consent_evidence_reference']==='') {
+                    throw new \DomainException('A model applicant must first grant purpose-specific consent through the workspace or provide verified consent evidence.');
+                }
+                $modelConsentEvidenceReference=$this->cipher->decrypt(
+                    $licence['model_consent_evidence_reference'],'model-image-licence-v1:'.$licenceId.':model_consent_evidence_reference'
+                );
+            }
+            $applicantAttestation=str_starts_with($modelConsentEvidenceReference,'applicant-portal-attestation:');
+            if($applicantAttestation) {
+                $storedConsent=$this->cipher->decrypt(
+                    (string)$licence['model_consent_evidence_reference'],'model-image-licence-v1:'.$licenceId.':model_consent_evidence_reference'
+                );
+                if(!hash_equals($storedConsent,$modelConsentEvidenceReference)) {
+                    throw new \DomainException('Applicant consent attestation does not match the recorded model decision.');
+                }
+            } else {
+                $this->assertEvidenceReference($modelConsentEvidenceReference,'private/model-consent/');
+            }
             $asset=$this->lockRow('model_portfolio_assets',(string)$licence['portfolio_asset_id']);
             $application=$this->lockRow('model_talent_applications',(string)$licence['application_id']);
             $agreement=$this->lockRow('model_representation_agreements',(string)$licence['agreement_id']);
@@ -138,13 +159,14 @@ final class ModelImageLicenceService
                 throw new \DomainException('Image licence draft uses a stale policy version.');
             }
             $grant=$this->pdo->prepare(
-                'SELECT id,granted,withdrawn_at,policy_version FROM consent_grants
+                'SELECT id,granted,withdrawn_at,policy_version,evidence_reference FROM consent_grants
                  WHERE id=:id AND subject_type="model_image_licence" AND subject_id=:subject
                  AND purpose="image_usage" AND audience="agency_distribution" LIMIT 1 FOR UPDATE'
             );
             $grant->execute(['id'=>$licence['consent_grant_id'],'subject'=>$licenceId]);$consent=$grant->fetch(PDO::FETCH_ASSOC);
             if(!is_array($consent) || (int)$consent['granted']!==0 || $consent['withdrawn_at']!==null ||
-                !hash_equals($policy['policy_version'],(string)$consent['policy_version'])) {
+                !hash_equals($policy['policy_version'],(string)$consent['policy_version']) ||
+                ($applicantAttestation && !hash_equals(hash('sha256',$modelConsentEvidenceReference),(string)$consent['evidence_reference']))) {
                 throw new \DomainException('A fresh, purpose-specific model consent record is required for activation.');
             }
             $this->pdo->prepare('UPDATE consent_grants SET granted=1,granted_at=UTC_TIMESTAMP(),evidence_reference=:evidence WHERE id=:id')
