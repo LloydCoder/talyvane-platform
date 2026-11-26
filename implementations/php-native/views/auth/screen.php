@@ -104,6 +104,7 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
   <a class="button" href="/admin/model-agency" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage model-agency applications</a>
   <a class="button" href="/admin/model-agency/assignments" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage model assignments</a>
   <a class="button" href="/admin/bookings" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage bookings</a>
+  <a class="button" href="/admin/booking-quotes" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Issue booking quotes</a>
   <a class="button" href="/admin/safeguarding/reports" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Submit confidential safeguarding report</a>
   <a class="button" href="/admin/clients" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage client memberships</a>
   <a class="button" href="/admin/privacy/requests" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Review privacy requests</a>
