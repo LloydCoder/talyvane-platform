@@ -457,6 +457,18 @@ function runIdentityIntegration(PDO $pdo): int
     $rescheduleNotificationCount->execute(['booking'=>$thirdBookingId]);
     $assert((int)$rescheduleNotificationCount->fetchColumn()===1,'client rescheduling notifies the companion without exposing the client note');
     $bookingQueries = new BookingQueryService($pdo);
+    try {
+        $bookingQueries->clientHistory(new Principal($companionId,['client','admin'],true));
+        $assert(false,'mixed portal and privileged roles cannot enter a client-scoped booking read model');
+    } catch (DomainException) {
+        $assert(true,'mixed portal and privileged roles cannot enter a client-scoped booking read model');
+    }
+    try {
+        $bookingCommands->transition(new Principal($companionId,['client','admin'],true),$autoBookingId,'cancelled','Mixed-role identity must not mutate another booking.',bin2hex(random_bytes(16)));
+        $assert(false,'mixed portal and privileged roles cannot use administrator precedence to mutate another booking');
+    } catch (DomainException) {
+        $assert(true,'mixed portal and privileged roles cannot use administrator precedence to mutate another booking');
+    }
     $clientHistory = $bookingQueries->clientHistory($clientPrincipal);
     $companionHistory = $bookingQueries->companionHistory($companionPrincipal);
     $adminBookingQueue = $bookingQueries->adminQueue($superAdmin);
