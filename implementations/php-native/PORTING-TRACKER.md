@@ -12,7 +12,9 @@
 
 A screen, route, database table, stub, or passing unit test alone does not establish feature parity.
 
-**Merged baseline (2026-11-26):** PR #90 merged the initial native runtime/installer foundations into `main` (merge commit `9123d08c4dc47b52a943c5531c6365e9e0d59810`). PR #93 merged the 38-migration native parity increment (merge commit `b6fd78e342b47e1bbbee9b5e80801a00baa977f8`). PR #87 merged hardened private cPanel installer diagnostics (merge commit `9df1a0f7a50f71bf1f4f2a0a81c519cc4db2ddff`). The documentation-only PR #91 was closed as superseded. There are no open PRs from that set.
+**Merged baseline (2026-11-26):** PR #90 merged the initial native runtime/installer foundations into `main` (merge commit `9123d08c4dc47b52a943c5531c6365e9e0d59810`). PR #93 merged the 38-migration native parity increment (merge commit `b6fd78e342b47e1bbbee9b5e80801a00baa977f8`). PR #87 merged hardened private cPanel installer diagnostics (merge commit `9df1a0f7a50f71bf1f4f2a0a81c519cc4db2ddff`). PR #94 merged CRM response templates and encrypted idempotent delivery (merge commit `956044031f38514afaf0ef83bd38732f85f339c2`). The documentation-only PR #91 was closed as superseded. There are no open PRs from that set.
+
+**Merged main now contains 39 ordered native migrations.**
 
 **Latest merged-baseline validation:** exact code head `0d836a9cf7c051ef31f9f42b7d6b2ad3a7662ac3` passed native PHP 8.3/8.4/8.5 tests, MySQL migration/integration, Semgrep, native package verification, single-ZIP cPanel package, native installer browser E2E, Laravel feature CI and standalone release-package smoke (workflow runs 45830668363, 45830668306, 45830668346, 45830668297, 45830668209, 45830668238 and 45830668285). PR #87's later private-diagnostics changes passed exact-head PHP matrix, Semgrep, single-ZIP package, installer browser E2E and standalone package smoke at `f6b14f37ebd8ea936e638de91189d8478fa683ab` (runs 45832598812, 45832599142, 45832599029 and 45832598827). These are repository checks only, not real HostSailor acceptance, independent security certification, legal/provider approval or production readiness.
 

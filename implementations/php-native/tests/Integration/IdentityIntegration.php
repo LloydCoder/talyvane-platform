@@ -849,6 +849,24 @@ function runIdentityIntegration(PDO $pdo): int
     $eligibleErasureCode=(string)($eligibleErasureCodeMatch[1]??'');
     $assert($eligibleErasureCode!=='' && $portalRights->verify($eligiblePrincipal,$eligibleErasureId,$eligibleErasureCode,'127.0.0.1',bin2hex(random_bytes(16))),
         'eligible client erasure requires and completes independent email verification');
+    $noOutcomeAdmin=new PortalPrivacyRightsAdminService($pdo,$privacyOutboxBox,$audit,null);
+    $noOutcomeDenied=false;
+    try {
+        $noOutcomeAdmin->fulfillClientErasure($superAdmin,$eligibleErasureId,
+            'Identity and dependency review are complete; the notification transport is deliberately unavailable.',bin2hex(random_bytes(16)));
+    } catch(DomainException) { $noOutcomeDenied=true; }
+    $assert($noOutcomeDenied,'privacy erasure fails closed when the verified outcome notification outbox is unavailable');
+    $pdo->prepare('UPDATE users SET email_verified_at=NULL WHERE id=:id')->execute(['id'=>$eligibleClientId]);
+    $unverifiedOutcomeDenied=false;
+    try {
+        $portalRightsAdmin->fulfillClientErasure($superAdmin,$eligibleErasureId,
+            'Identity and dependency review are complete; the current notification destination is not verified.',bin2hex(random_bytes(16)));
+    } catch(DomainException) { $unverifiedOutcomeDenied=true; }
+    $outcomeCount=$pdo->prepare('SELECT COUNT(*) FROM communication_outbox WHERE related_type="portal_privacy" AND related_id=:id');
+    $outcomeCount->execute(['id'=>$eligibleErasureId]);
+    $assert($unverifiedOutcomeDenied && (int)$outcomeCount->fetchColumn()===0,
+        'privacy erasure refuses an unverified current email and queues no outcome notice');
+    $pdo->prepare('UPDATE users SET email_verified_at=UTC_TIMESTAMP() WHERE id=:id')->execute(['id'=>$eligibleClientId]);
     $portalRightsAdmin->fulfillClientErasure($superAdmin,$eligibleErasureId,
         'Identity verification and dependency review are complete; no retained service records require the original account identity.',bin2hex(random_bytes(16)));
     $erasedAccountQuery=$pdo->prepare('SELECT email,display_name,status,email_verified_at,remember_token_hash,admin_session_version FROM users WHERE id=:id');

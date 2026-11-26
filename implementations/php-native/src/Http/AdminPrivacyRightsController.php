@@ -76,6 +76,12 @@ final class AdminPrivacyRightsController
                 $this->field($request,'decision'),$this->field($request,'reason'),$request->requestId);
             return $this->index($request,'Privacy request review decision recorded. No data was erased or corrected automatically.');
         } catch(DomainException $error) {
+            if (str_contains($error->getMessage(),'notification outbox') ||
+                str_contains($error->getMessage(),'verified notification destination')) {
+                return $this->index($request,'',
+                    'Privacy fulfilment is unavailable because the verified notification channel is not ready. No data was changed; restore the private mail configuration or verify the current account address, then retry.',
+                    503);
+            }
             $message=str_contains($error->getMessage(),'blocked by retained') || str_contains($error->getMessage(),'Only an active account') ||
                 str_contains($error->getMessage(),'profile is unavailable')
                 ? 'Erasure is blocked by retained records or unresolved account dependencies. No data was changed; complete a documented retention review.'
