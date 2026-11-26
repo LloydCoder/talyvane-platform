@@ -406,6 +406,13 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assignmentId=$assignments->createDraft($admin,$submissionId,$assignmentTerms,bin2hex(random_bytes(16)));
     $assert($assignments->applicantAssignments($applicationId)===[],'unoffered assignment drafts are never exposed in the applicant workspace');
     $assignments->offer($admin,$assignmentId,bin2hex(random_bytes(16)));
+    $assignmentNotice=$pdo->prepare('SELECT id,status,recipient_ciphertext,payload_ciphertext FROM communication_outbox WHERE related_type="model_assignment" AND related_id=:id');
+    $assignmentNotice->execute(['id'=>$assignmentId]);$assignmentNoticeRow=$assignmentNotice->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($assignmentNoticeRow) && $assignmentNoticeRow['status']==='pending' &&
+        $secretBox->decrypt((string)$assignmentNoticeRow['recipient_ciphertext'],'communication-outbox-v1:recipient:'.$assignmentNoticeRow['id'])==='portfolio-applicant@example.test' &&
+        str_contains($secretBox->decrypt((string)$assignmentNoticeRow['payload_ciphertext'],'communication-outbox-v1:payload:'.$assignmentNoticeRow['id']),'not confirmed unless you accept'),
+        'model assignment offer queues an encrypted, minimal notice in the same transaction');
+    $pdo->prepare('UPDATE communication_outbox SET status="delivered",delivered_at=UTC_TIMESTAMP() WHERE id=:id')->execute(['id'=>$assignmentNoticeRow['id']]);
     $modelAssignmentTerms=$assignments->applicantAssignments($applicationId);
     $modelAssignmentTerm=array_values(array_filter($modelAssignmentTerms,static fn(array $item):bool=>$item['id']===$assignmentId));
     $assert(count($modelAssignmentTerm)===1 &&
