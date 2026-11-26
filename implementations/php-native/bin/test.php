@@ -70,7 +70,7 @@ catch (DomainException) { $assert(true, 'companion cannot use client cancellatio
 
 $assert(BookingStateMachine::transition('pending_review','cancelled','client') === 'cancelled', 'client may cancel a pending-review booking');
 
-$calendar = new BookingCalendarService(new PDO('sqlite::memory:'),str_repeat('C',32));
+$calendarPdo = new class extends PDO { public function __construct() {} };\n$calendar = new BookingCalendarService($calendarPdo,str_repeat('C',32));
 $calendarNow = new DateTimeImmutable('2026-11-26T09:00:00+00:00');
 $calendarEvents = [[
     'id'=>'booking-private-1','status'=>'confirmed',
