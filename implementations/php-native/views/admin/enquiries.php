@@ -7,6 +7,8 @@ $saved = ($saved ?? false) === true;
 $items = is_array($items ?? null) ? $items : [];
 $assignees = is_array($assignees ?? null) ? $assignees : [];
 $templates = is_array($templates ?? null) ? $templates : [];
+$replyTokens = is_array($replyTokens ?? null) ? $replyTokens : [];
+$templateToken = is_string($templateToken ?? null) ? $templateToken : '';
 $activeEnglishTemplate = null;
 foreach ($templates as $template) { if (($template['locale'] ?? '') === 'en' && (int)($template['active'] ?? 0) === 1) { $activeEnglishTemplate = $template; break; } }
 $templateSubject = is_array($activeEnglishTemplate) ? (string)$activeEnglishTemplate['subject_template'] : 'Hello {{ customer_name }} — enquiry {{ enquiry_reference }}';
@@ -34,6 +36,7 @@ $statuses = ['new'=>'New','in_progress'=>'In progress','responded'=>'Responded',
   <p class="muted">Plain-text email only. Supported placeholders: <code>{{ customer_name }}</code>, <code>{{ enquiry_reference }}</code>, <code>{{ agency_name }}</code>, and <code>{{ reply_text }}</code>. Publishing creates a new immutable version and deactivates the previous version for that language.</p>
   <form method="post" action="/admin/communications/templates">
     <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+    <input type="hidden" name="idempotency_key" value="<?= $escape($templateToken) ?>">
     <div class="field"><label>Language tag</label><input name="locale" value="en" maxlength="35" required></div>
     <div class="field"><label>Email subject</label><input name="subject_template" value="<?= $escape($templateSubject) ?>" maxlength="160" required></div>
     <div class="field"><label>Plain-text body template</label><textarea name="body_template" rows="6" maxlength="4000" required style="width:100%;border:1px solid #d9d5cc;padding:12px;font:13px/1.6 ui-sans-serif,system-ui,sans-serif"><?= $escape($templateBody) ?></textarea></div>
@@ -57,6 +60,7 @@ $statuses = ['new'=>'New','in_progress'=>'In progress','responded'=>'Responded',
 <button class="button" type="submit">Save status</button></form></div>
 <form method="post" action="<?= $escape('/admin/enquiries/' . rawurlencode((string) ($item['reference'] ?? '')) . '/reply') ?>">
 <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<input type="hidden" name="idempotency_key" value="<?= $escape($replyTokens[$item['reference']] ?? '') ?>">
 <div class="field"><label>Customer response</label><textarea name="reply_text" rows="4" minlength="10" maxlength="3000" required style="width:100%;border:1px solid #d9d5cc;padding:11px;font:13px/1.6 ui-sans-serif,system-ui,sans-serif" placeholder="Write a response. It will be sent using the active language template."></textarea></div>
 <div class="field"><label>Template language</label><input name="locale" value="en" maxlength="35" required></div>
 <button class="button" type="submit">Queue customer response</button>
