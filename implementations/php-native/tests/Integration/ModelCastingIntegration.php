@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 use Talyvane\Application\ModelAgency\ModelCastingWorkflowService;
 use Talyvane\Infrastructure\Audit\AuditLogger;
+use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
+use Talyvane\Security\SecretBox;
 use Talyvane\Security\Principal;
 
 function runModelCastingIntegration(PDO $pdo): int
@@ -33,9 +35,13 @@ function runModelCastingIntegration(PDO $pdo): int
         'actor'=>$adminId,
     ]);
 
-    $service=new ModelCastingWorkflowService($pdo,new AuditLogger($pdo),static fn():bool=>true);
+    $basePath=sys_get_temp_dir().DIRECTORY_SEPARATOR.'talyvane-model-casting-'.bin2hex(random_bytes(6));
+    $publicRoot=$basePath.DIRECTORY_SEPARATOR.'public';$privateRoot=$basePath.DIRECTORY_SEPARATOR.'private';
+    mkdir($publicRoot,0700,true);mkdir($privateRoot,0700,true);
+    $storage=new PrivateMediaStorage($privateRoot,$publicRoot);$cipher=new SecretBox(str_repeat('C',32));
+    $service=new ModelCastingWorkflowService($pdo,new AuditLogger($pdo),$storage,$cipher,static fn():bool=>true);
     $admin=new Principal($adminId,['super_admin'],true);
-    $disabledService=new ModelCastingWorkflowService($pdo,new AuditLogger($pdo),static fn():bool=>false);
+    $disabledService=new ModelCastingWorkflowService($pdo,new AuditLogger($pdo),$storage,$cipher,static fn():bool=>false);
     try {
         $disabledService->createDraft($admin,[],bin2hex(random_bytes(16)));
         $assert(false,'casting draft creation remains disabled when deployment readiness is false');
@@ -65,7 +71,9 @@ function runModelCastingIntegration(PDO $pdo): int
     $assert(is_array($draft) && $draft['status']==='draft','complete casting brief is persisted as a private draft');
     $assert(is_array($draft) && $draft['agreement_id']===null,'draft creation does not fabricate a representation agreement');
     $assert(is_array($draft) && $draft['casting_policy_version']==='casting-policy-test-v1','draft snapshots the approved policy version');
-    $assert(is_array($draft) && $draft['client_name']==='Verified test client' && $draft['currency_code']==='GBP' && (int)$draft['max_submissions']===25,'casting terms and compensation are stored in typed fields');
+    $assert(is_array($draft) && $draft['client_name']!=='Verified test client' && $draft['currency_code']==='GBP' && (int)$draft['max_submissions']===25,'casting terms and compensation are stored in typed fields');
+    $listed=$service->list($admin);
+    $assert(($listed[0]['client_name']??null)==='Verified test client','authorized casting register decrypts client identity only for MFA administrators');
 
     $service->publish($admin,$callId,bin2hex(random_bytes(16)));
     $published=$pdo->prepare('SELECT status,published_by,published_at FROM model_casting_calls WHERE id=:id');
@@ -81,7 +89,7 @@ function runModelCastingIntegration(PDO $pdo): int
     $service->cancel($admin,$cancelId,'Client project withdrawn before publication.',bin2hex(random_bytes(16)));
     $cancelled=$pdo->prepare('SELECT status,cancelled_by,cancelled_at,cancellation_reason FROM model_casting_calls WHERE id=:id');
     $cancelled->execute(['id'=>$cancelId]);$cancelledRow=$cancelled->fetch(PDO::FETCH_ASSOC);
-    $assert(is_array($cancelledRow) && $cancelledRow['status']==='cancelled' && $cancelledRow['cancelled_by']===$adminId && $cancelledRow['cancellation_reason']==='Client project withdrawn before publication.','draft casting call can be cancelled with mandatory reason and provenance');
+    $assert(is_array($cancelledRow) && $cancelledRow['status']==='cancelled' && $cancelledRow['cancelled_by']===$adminId && $cancelledRow['cancellation_reason']!=='Client project withdrawn before publication.','draft casting call can be cancelled with mandatory reason and provenance');
 
     $events=$pdo->prepare('SELECT COUNT(*) FROM model_casting_events WHERE call_id IN (:closed,:cancelled)');
     $events->execute(['closed'=>$callId,'cancelled'=>$cancelId]);
@@ -103,5 +111,6 @@ function runModelCastingIntegration(PDO $pdo): int
     } catch(InvalidArgumentException) {
         $assert(true,'casting submission limit above 500 is rejected');
     }
+    rmdir($privateRoot);rmdir($publicRoot);rmdir($basePath);
     return $assertions;
 }
