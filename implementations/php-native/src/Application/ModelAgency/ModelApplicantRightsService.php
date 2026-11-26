@@ -260,7 +260,7 @@ final class ModelApplicantRightsService
                         shoot_starts_at,shoot_ends_at,compensation_minor,currency_code,
                         CASE WHEN executed_document_reference IS NOT NULL AND executed_document_reference<>"" THEN 1 ELSE 0 END AS execution_evidence_ready,
                         created_at,offered_at,accepted_at,confirmed_at,started_at,completed_at
-                 FROM model_assignments WHERE application_id=:application
+                 FROM model_assignments WHERE application_id=:application AND status<>"draft"
                  ORDER BY created_at DESC LIMIT 100'
             );
             $assignments->execute(['application'=>$application['id']]);
