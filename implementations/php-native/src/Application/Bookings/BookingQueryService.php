@@ -56,8 +56,9 @@ final class BookingQueryService
     public function adminQueue(Principal $administrator,int $limit=100): array
     {
         Authorization::require($administrator,'bookings.manage',true);
-        if (!$administrator->hasRole('admin') && !$administrator->hasRole('owner') && !$administrator->hasRole('super_admin')) {
-            throw new \DomainException('Administrator role is required.');
+        if ((!$administrator->hasRole('admin') && !$administrator->hasRole('owner') && !$administrator->hasRole('super_admin')) ||
+            $administrator->hasRole('client') || $administrator->hasRole('companion')) {
+            throw new \DomainException('A privileged-only administrator principal is required.');
         }
         $limit=max(1,min(200,$limit));
         $query=$this->pdo->prepare(
