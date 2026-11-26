@@ -733,6 +733,8 @@ function runIdentityIntegration(PDO $pdo): int
             'Retained booking and financial records require documented retention review before anonymization.',bin2hex(random_bytes(16)));
     } catch (DomainException) { $blockedErasure=true; }
     $assert($blockedErasure,'client anonymization fails closed while booking, membership or financial records remain');
+    $portalRightsAdmin->review($superAdmin,$blockedErasureId,'deferred',
+        'Retained service records require a separate documented retention and legal review.',bin2hex(random_bytes(16)));
     $eligibleClientId=(string)$pdo->query('SELECT UUID()')->fetchColumn();
     $pdo->prepare(
         'INSERT INTO users (id,email,display_name,password_hash,status,email_verified_at,first_login_required,admin_session_version,created_at,updated_at)
