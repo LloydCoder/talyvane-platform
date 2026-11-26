@@ -16,7 +16,7 @@ final class BookingQueryService
     public function clientHistory(Principal $client,int $limit=50): array
     {
         Authorization::require($client,'client.booking.manage',false);
-        if (!$client->hasRole('client')) throw new \DomainException('Client role is required.');
+        if (!$client->hasRole('client') || count($client->roles)!==1) throw new \DomainException('A client-only principal is required.');
         $limit=max(1,min(100,$limit));
         $query=$this->pdo->prepare(
             'SELECT b.id,b.booking_reference,b.status,b.starts_at_utc,b.ends_at_utc,b.time_zone,
@@ -36,7 +36,7 @@ final class BookingQueryService
     public function companionHistory(Principal $companion,int $limit=50): array
     {
         Authorization::require($companion,'companion.self.view',false);
-        if (!$companion->hasRole('companion')) throw new \DomainException('Companion role is required.');
+        if (!$companion->hasRole('companion') || count($companion->roles)!==1) throw new \DomainException('A companion-only principal is required.');
         $limit=max(1,min(100,$limit));
         $query=$this->pdo->prepare(
             'SELECT b.id,b.booking_reference,b.status,b.starts_at_utc,b.ends_at_utc,b.time_zone,
