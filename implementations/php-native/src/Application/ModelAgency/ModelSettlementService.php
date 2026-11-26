@@ -26,7 +26,7 @@ final class ModelSettlementService
 
     public function addExpense(Principal $actor,string $assignmentId,string $amount,string $currency,string $description,string $evidenceReference,string $requestId): string
     {
-        $this->authorize($actor);$this->assertFeature();$this->assertRequestId($requestId);
+        $this->authorize($actor);$this->requirePermission($actor,'model_settlements.expense.submit');$this->assertFeature();$this->assertRequestId($requestId);
         $description=trim($description);
         if(strlen($description)<12 || strlen($description)>500) throw new \InvalidArgumentException('Expense description must contain 12 to 500 characters.');
         $this->assertEvidenceReference($evidenceReference,'private/model-expenses/');
@@ -69,7 +69,7 @@ final class ModelSettlementService
 
     public function reviewExpense(Principal $actor,string $expenseId,string $decision,string $note,string $requestId): void
     {
-        $this->authorize($actor);$this->assertFeature();$this->assertRequestId($requestId);$note=trim($note);
+        $this->authorize($actor);$this->requirePermission($actor,'model_settlements.expense.review');$this->assertFeature();$this->assertRequestId($requestId);$note=trim($note);
         if(!in_array($decision,['approved','rejected'],true) || strlen($note)<20 || strlen($note)>1500) {
             throw new \InvalidArgumentException('Choose an expense decision and provide a review note of 20 to 1500 characters.');
         }
@@ -110,7 +110,7 @@ final class ModelSettlementService
 
     public function createDraft(Principal $actor,string $assignmentId,string $requestId): string
     {
-        $this->authorize($actor);$this->assertFeature();$this->assertRequestId($requestId);
+        $this->authorize($actor);$this->requirePermission($actor,'model_settlements.create');$this->assertFeature();$this->assertRequestId($requestId);
         $this->pdo->beginTransaction();
         try {
             $assignment=$this->lock('model_assignments',$assignmentId);
@@ -164,7 +164,7 @@ final class ModelSettlementService
 
     public function approve(Principal $actor,string $settlementId,string $requestId): void
     {
-        $this->authorize($actor);$this->assertFeature();$this->assertRequestId($requestId);
+        $this->authorize($actor);$this->requirePermission($actor,'model_settlements.approve');$this->assertFeature();$this->assertRequestId($requestId);
         $this->pdo->beginTransaction();
         try {
             $settlement=$this->lock('model_settlements',$settlementId);
@@ -203,7 +203,7 @@ final class ModelSettlementService
     /** Records an external payment attestation only. It never initiates a transfer. */
     public function recordPayment(Principal $actor,string $settlementId,string $method,string $paymentReference,string $evidenceReference,string $requestId): void
     {
-        $this->authorize($actor);$this->assertRequestId($requestId);
+        $this->authorize($actor);$this->requirePermission($actor,'model_settlements.payment.attest');$this->assertRequestId($requestId);
         if(!in_array($method,['bank_transfer','cash','other_external'],true) || trim($paymentReference)==='' || strlen($paymentReference)>200) {
             throw new \InvalidArgumentException('External payment method and reference are required.');
         }
@@ -234,7 +234,7 @@ final class ModelSettlementService
 
     public function reverse(Principal $actor,string $settlementId,string $reason,string $evidenceReference,string $requestId): void
     {
-        $this->authorize($actor);$this->assertRequestId($requestId);$reason=trim($reason);
+        $this->authorize($actor);$this->requirePermission($actor,'model_settlements.reverse.attest');$this->assertRequestId($requestId);$reason=trim($reason);
         if(strlen($reason)<20 || strlen($reason)>1500) throw new \InvalidArgumentException('Settlement reversal requires a reason of 20 to 1500 characters.');
         $this->assertEvidenceReference($evidenceReference,'private/model-settlements/');
         $this->pdo->beginTransaction();
@@ -262,7 +262,7 @@ final class ModelSettlementService
 
     public function dispute(Principal $actor,string $settlementId,string $reason,string $evidenceReference,string $requestId): void
     {
-        $this->authorize($actor);$this->assertRequestId($requestId);$reason=trim($reason);
+        $this->authorize($actor);$this->requirePermission($actor,'model_settlements.dispute');$this->assertRequestId($requestId);
         if(strlen($reason)<20 || strlen($reason)>1500) throw new \InvalidArgumentException('Settlement dispute requires a reason of 20 to 1500 characters.');
         $this->assertEvidenceReference($evidenceReference,'private/model-settlements/');
         $this->pdo->beginTransaction();
@@ -386,10 +386,24 @@ final class ModelSettlementService
 
     private function authorize(Principal $actor): void
     {
-        Authorization::require($actor,'model_settlements.manage',true);
-        if(!$actor->hasRole('finance') && !$actor->hasRole('owner') && !$actor->hasRole('super_admin')) {
-            throw new \DomainException('MFA-verified finance role is required for settlement operations.');
+        if($actor->hasRole('finance')) {
+            Authorization::require($actor,'model_settlements.view',true);
+            return;
         }
+        if($actor->hasRole('owner') || $actor->hasRole('super_admin')) {
+            Authorization::require($actor,'model_settlements.manage',true);
+            return;
+        }
+        throw new \DomainException('MFA-verified finance role is required for settlement operations.');
+    }
+
+    private function requirePermission(Principal $actor,string $permission): void
+    {
+        if($actor->hasRole('owner') || $actor->hasRole('super_admin')) {
+            Authorization::require($actor,'model_settlements.manage',true);
+            return;
+        }
+        Authorization::require($actor,$permission,true);
     }
 
     private function actorRole(Principal $actor): string
