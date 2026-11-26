@@ -115,7 +115,7 @@ final class BookingQuoteService
     public function accept(Principal $client,string $quoteId,string $requestId): void
     {
         Authorization::require($client,'client.booking.create',false);
-        if(!$client->hasRole('client')) throw new \DomainException('Client role is required to accept a booking quote.');
+        if(!$client->hasRole('client') || count($client->roles)!==1) throw new \DomainException('A single-role client account is required to accept a booking quote.');
         $this->assertRequestId($requestId);
         $utc=new DateTimeZone('UTC');$now=new DateTimeImmutable('now',$utc);
         $this->pdo->beginTransaction();
@@ -187,7 +187,7 @@ final class BookingQuoteService
     public function clientQuotes(Principal $client,string $profileId): array
     {
         Authorization::require($client,'client.booking.create',false);
-        if(!$client->hasRole('client')) throw new \DomainException('Client role is required.');
+        if(!$client->hasRole('client') || count($client->roles)!==1) throw new \DomainException('A single-role client account is required.');
         $query=$this->pdo->prepare(
             'SELECT q.id,q.quote_reference,q.original_amount_minor,q.original_currency,q.fees_json,q.expires_at,
                     q.accepted_at,q.consumed_at,q.consumed_booking_id,p.slug AS profile_slug,p.display_name AS profile_name,c.minor_units AS currency_precision
