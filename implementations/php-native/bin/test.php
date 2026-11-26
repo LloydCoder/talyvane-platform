@@ -54,7 +54,7 @@ $automaticProfile = [
 ];
 CompanionAutomaticBookingPolicy::assertPreference(false,$automaticProfile,false);
 $assert(true,'companion can always opt out of automatic booking even when the feature is disabled');
-CompanionAutomaticBookingPolicy::assertPreference(true,$automaticProfile,true);
+CompanionAutomaticBookingPolicy::assertPreference(true,$automaticProfile,true,true);
 $assert(true,'automatic booking opt-in is accepted only for a fully eligible published profile with an enabled feature');
 foreach ([
     ['status'=>'draft'],
@@ -64,14 +64,20 @@ foreach ([
     ['market_approved'=>false],
 ] as $invalidState) {
     try {
-        CompanionAutomaticBookingPolicy::assertPreference(true,array_merge($automaticProfile,$invalidState),true);
+        CompanionAutomaticBookingPolicy::assertPreference(true,array_merge($automaticProfile,$invalidState),true,true);
         $assert(false,'ineligible companion profile cannot opt in to automatic booking');
     } catch (DomainException) {
         $assert(true,'ineligible companion profile cannot opt in to automatic booking');
     }
 }
 try {
-    CompanionAutomaticBookingPolicy::assertPreference(true,$automaticProfile,false);
+    CompanionAutomaticBookingPolicy::assertPreference(true,$automaticProfile,true,false);
+    $assert(false,'automatic booking opt-in requires explicit companion confirmation');
+} catch (DomainException) {
+    $assert(true,'automatic booking opt-in requires explicit companion confirmation');
+}
+try {
+    CompanionAutomaticBookingPolicy::assertPreference(true,$automaticProfile,false,true);
     $assert(false,'companion cannot opt in while deployment feature gates are closed');
 } catch (DomainException) {
     $assert(true,'companion cannot opt in while deployment feature gates are closed');
