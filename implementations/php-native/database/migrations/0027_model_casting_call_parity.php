@@ -1,0 +1,63 @@
+<?php
+declare(strict_types=1);
+
+/** Align native casting call and submission records with the Laravel private casting workflow. */
+return [
+    "ALTER TABLE model_casting_calls
+        MODIFY agreement_id CHAR(36) NULL,
+        ADD COLUMN client_name TEXT NULL AFTER title,
+        ADD COLUMN client_reference TEXT NULL AFTER client_name,
+        ADD COLUMN project_purpose VARCHAR(40) NULL AFTER client_reference,
+        ADD COLUMN description TEXT NULL AFTER project_purpose,
+        ADD COLUMN requirements TEXT NULL AFTER description,
+        ADD COLUMN opens_at DATETIME NULL AFTER country_code,
+        ADD COLUMN shoot_starts_at DATETIME NULL AFTER closes_at,
+        ADD COLUMN shoot_ends_at DATETIME NULL AFTER shoot_starts_at,
+        ADD COLUMN compensation_amount DECIMAL(20,4) NULL AFTER shoot_ends_at,
+        ADD COLUMN currency_code CHAR(3) NULL AFTER compensation_amount,
+        ADD COLUMN max_submissions SMALLINT UNSIGNED NOT NULL DEFAULT 50 AFTER currency_code,
+        ADD COLUMN casting_policy_version VARCHAR(80) NULL AFTER max_submissions,
+        ADD COLUMN published_by CHAR(36) NULL AFTER created_by,
+        ADD COLUMN published_at DATETIME NULL AFTER published_by,
+        ADD COLUMN closed_by CHAR(36) NULL AFTER published_at,
+        ADD COLUMN closed_at DATETIME NULL AFTER closed_by,
+        ADD COLUMN cancelled_by CHAR(36) NULL AFTER closed_at,
+        ADD COLUMN cancelled_at DATETIME NULL AFTER cancelled_by,
+        ADD COLUMN cancellation_reason TEXT NULL AFTER cancelled_at,
+        ADD KEY model_casting_country_status_idx (country_code,status),
+        ADD CONSTRAINT model_casting_currency_fk FOREIGN KEY (currency_code) REFERENCES currencies(code),
+        ADD CONSTRAINT model_casting_publisher_fk FOREIGN KEY (published_by) REFERENCES users(id),
+        ADD CONSTRAINT model_casting_closer_fk FOREIGN KEY (closed_by) REFERENCES users(id),
+        ADD CONSTRAINT model_casting_canceller_fk FOREIGN KEY (cancelled_by) REFERENCES users(id)",
+    "ALTER TABLE model_casting_submissions
+        ADD COLUMN portfolio_asset_id CHAR(36) NULL AFTER application_id,
+        ADD COLUMN submission_reference VARCHAR(64) NULL AFTER image_licence_id,
+        ADD COLUMN submitted_by CHAR(36) NULL AFTER status,
+        ADD COLUMN submitted_at DATETIME NULL AFTER submitted_by,
+        ADD COLUMN decision_note TEXT NULL AFTER decision_reason,
+        ADD COLUMN invalidated_at DATETIME NULL AFTER decided_at,
+        ADD COLUMN invalidation_reason TEXT NULL AFTER invalidated_at,
+        ADD COLUMN withdrawal_evidence_reference VARCHAR(500) NULL AFTER invalidation_reason,
+        ADD COLUMN updated_at DATETIME NULL AFTER created_at,
+        ADD UNIQUE KEY model_casting_submission_reference_unique (submission_reference),
+        ADD KEY model_casting_submission_asset_idx (portfolio_asset_id,status),
+        ADD CONSTRAINT model_casting_submission_asset_fk FOREIGN KEY (portfolio_asset_id) REFERENCES model_portfolio_assets(id),
+        ADD CONSTRAINT model_casting_submission_submitter_fk FOREIGN KEY (submitted_by) REFERENCES users(id)",
+    "CREATE TABLE IF NOT EXISTS model_casting_events (
+        id CHAR(36) NOT NULL PRIMARY KEY,
+        call_id CHAR(36) NOT NULL,
+        submission_id CHAR(36) NULL,
+        actor_id CHAR(36) NULL,
+        actor_type VARCHAR(24) NOT NULL,
+        event_type VARCHAR(48) NOT NULL,
+        reason TEXT NULL,
+        occurred_at DATETIME NOT NULL,
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME NOT NULL,
+        KEY model_casting_event_call_idx (call_id,occurred_at),
+        KEY model_casting_event_submission_idx (submission_id,occurred_at),
+        CONSTRAINT model_casting_event_call_fk FOREIGN KEY (call_id) REFERENCES model_casting_calls(id),
+        CONSTRAINT model_casting_event_submission_fk FOREIGN KEY (submission_id) REFERENCES model_casting_submissions(id),
+        CONSTRAINT model_casting_event_actor_fk FOREIGN KEY (actor_id) REFERENCES users(id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+];
