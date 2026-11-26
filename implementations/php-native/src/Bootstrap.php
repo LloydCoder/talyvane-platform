@@ -205,7 +205,7 @@ final class Bootstrap
         $globalizationSettings = new GlobalizationSettingsService($pdo,$audit);
         $adminGlobalization = new AdminGlobalizationController($authentication,$globalizationSettings,$views,$brandName);
         $paymentSettings = new PaymentSettingsService($pdo,$audit);
-        $adminPaymentSettings = new AdminPaymentSettingsController($authentication,$paymentSettings,$views,$brandName);
+        $adminPaymentSettings = new AdminPaymentSettingsController($authentication,$paymentSettings,$membershipAvailability,$views,$brandName);
         $featureManagement = new FeatureManagementService($pdo,new FeatureStateRepository($pdo),$audit,new SecretBox($config['app_key']),$membershipEligibility);
         $adminFeatures = new AdminFeatureController($authentication,$featureManagement,$views,$brandName);
         $modelApplications = new ModelAgencyApplicationService($pdo, $audit);
