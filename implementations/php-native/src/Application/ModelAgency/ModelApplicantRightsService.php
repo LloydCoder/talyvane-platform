@@ -319,6 +319,23 @@ final class ModelApplicantRightsService
         }
     }
 
+    public function logoutPortal(string $rightsRequestId,string $requestId): void
+    {
+        if(strlen($requestId)<16 || strlen($requestId)>64) throw new \InvalidArgumentException('Request identifier is invalid.');
+        $this->pdo->beginTransaction();
+        try {
+            [$rights,$application]=$this->verifiedContext($rightsRequestId,'portal_access');
+            $this->completeRequest($rightsRequestId);
+            $this->audit->record(null,'model_application.portal_access.ended','model_application',(string)$application['id'],
+                'Applicant ended their authenticated model workspace session',null,
+                ['rights_request_id'=>$rightsRequestId],$requestId,'model-applicant-portal-v1');
+            $this->pdo->commit();
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
     /** @param array<string,mixed> $input */
     public function correct(string $rightsRequestId,array $input,string $requestId): void
     {
