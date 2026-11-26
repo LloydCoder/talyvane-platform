@@ -181,6 +181,9 @@ final class ClientModelAgencyDistributionService
                AND v.outcome="verified" AND v.expires_at>UTC_TIMESTAMP()
                AND asset.status="approved" AND asset.consent_withdrawn_at IS NULL
                AND lic.status="active" AND lic.purpose="casting_distribution"
+               AND lic.model_consent_evidence_reference IS NOT NULL
+               AND asset.consent_policy_version=(SELECT JSON_UNQUOTE(JSON_EXTRACT(setting_json,"$.policy_version")) FROM deployment_settings WHERE setting_key="model_agency.portfolio")
+               AND lic.licence_policy_version=(SELECT JSON_UNQUOTE(JSON_EXTRACT(setting_json,"$.policy_version")) FROM deployment_settings WHERE setting_key="model_agency.image_licence")
                AND lic.territory_code=:territory AND lic.starts_on<=DATE(:shoot_start)
                AND lic.ends_on>=DATE(:shoot_end)
                AND agreement.status="executed"
@@ -232,6 +235,9 @@ final class ClientModelAgencyDistributionService
                AND asset.status="approved" AND asset.consent_withdrawn_at IS NULL
                AND asset.private_storage_key IS NOT NULL
                AND lic.status="active" AND lic.purpose="casting_distribution"
+               AND lic.model_consent_evidence_reference IS NOT NULL
+               AND asset.consent_policy_version=(SELECT JSON_UNQUOTE(JSON_EXTRACT(setting_json,"$.policy_version")) FROM deployment_settings WHERE setting_key="model_agency.portfolio")
+               AND lic.licence_policy_version=(SELECT JSON_UNQUOTE(JSON_EXTRACT(setting_json,"$.policy_version")) FROM deployment_settings WHERE setting_key="model_agency.image_licence")
                AND lic.territory_code=:territory AND lic.starts_on<=DATE(:shoot_start)
                AND lic.ends_on>=DATE(:shoot_end)
                AND agreement.status="executed"
@@ -285,6 +291,16 @@ final class ClientModelAgencyDistributionService
         if(!is_array($settings) || !($settings['enabled']??false) || !($settings['policy_approved']??false) ||
             !is_string($settings['policy_version']??null) || !hash_equals((string)$call['casting_policy_version'],(string)$settings['policy_version'])) {
             throw new \DomainException('Current casting approval is unavailable.');
+        }
+        foreach(['model_agency.portfolio','model_agency.image_licence'] as $policyKey) {
+            $policyQuery=$this->pdo->prepare('SELECT setting_json FROM deployment_settings WHERE setting_key=:key LIMIT 1');
+            $policyQuery->execute(['key'=>$policyKey]);
+            $policyRaw=$policyQuery->fetchColumn();
+            $policyData=is_string($policyRaw)?json_decode($policyRaw,true):null;
+            if(!is_array($policyData) || !($policyData['enabled']??false) || !($policyData['policy_approved']??false) ||
+                !is_string($policyData['policy_version']??null) || trim($policyData['policy_version'])==='') {
+                throw new \\DomainException('Current portfolio and image-licence approvals are unavailable.');
+            }
         }
         $market=$this->pdo->prepare(
             'SELECT c.enabled,m.enabled AS market_enabled,m.decision,m.expires_at,m.evidence_reference
