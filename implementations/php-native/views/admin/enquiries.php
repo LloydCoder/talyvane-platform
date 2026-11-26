@@ -5,6 +5,7 @@ $csrf = is_string($csrf ?? null) ? $csrf : '';
 $error = is_string($error ?? null) ? $error : '';
 $saved = ($saved ?? false) === true;
 $items = is_array($items ?? null) ? $items : [];
+$assignees = is_array($assignees ?? null) ? $assignees : [];
 $statuses = ['new'=>'New','in_progress'=>'In progress','responded'=>'Responded','closed'=>'Closed','spam'=>'Spam'];
 ?>
 <!doctype html>
@@ -16,7 +17,7 @@ $statuses = ['new'=>'New','in_progress'=>'In progress','responded'=>'Responded',
 <main class="wrap"><a href="/admin" class="muted" style="display:inline-block;text-decoration:none;margin-bottom:20px">← Back to control room</a>
 <div class="heading"><div><div class="eyebrow">Customer relations / Inbox</div><h1>Enquiries</h1></div><div class="muted"><?= count($items) ?> most recent enquiries · Private administrative workspace</div></div>
 <?php if ($error !== ''): ?><div class="error" role="alert"><?= $escape($error) ?></div><?php endif; ?>
-<?php if ($saved): ?><div class="success" role="status">Enquiry status updated and audit event recorded.</div><?php endif; ?>
+<?php if ($saved): ?><div class="success" role="status">Enquiry updated and audit event recorded.</div><?php endif; ?>
 <?php if ($items === []): ?><section class="panel empty"><strong>Your inbox is clear.</strong><p>New public enquiries will appear here.</p></section><?php else: ?>
 <?php foreach ($items as $item): ?><section class="panel"><div class="item"><div>
 <div class="reference"><?= $escape($item['reference'] ?? '') ?> · <?= $escape($item['created_at'] ?? '') ?></div>
@@ -28,6 +29,13 @@ $statuses = ['new'=>'New','in_progress'=>'In progress','responded'=>'Responded',
 <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
 <select name="status"><?php foreach ($statuses as $key=>$label): ?><option value="<?= $escape($key) ?>" <?= ($item['status'] ?? '') === $key ? 'selected' : '' ?>><?= $escape($label) ?></option><?php endforeach; ?></select>
 <div class="field"><label>Change reason</label><input name="reason" minlength="8" maxlength="500" required placeholder="Reason for status change"></div>
-<button class="button" type="submit">Save status</button></form></div><div class="muted" style="font-size:11px">Responded: <?= $escape($item['responded_at'] ?? '—') ?><br>Closed: <?= $escape($item['closed_at'] ?? '—') ?></div></div></div></section><?php endforeach; ?>
+<button class="button" type="submit">Save status</button></form></div>
+<form method="post" action="<?= $escape('/admin/enquiries/' . rawurlencode((string) ($item['reference'] ?? '')) . '/assign') ?>">
+<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<div class="field"><label>Assigned administrator</label><select name="assignee_id"><option value="">Unassigned</option><?php foreach ($assignees as $assignee): ?><option value="<?= $escape($assignee['id']) ?>" <?= ($item['assigned_to'] ?? '') === $assignee['id'] ? 'selected' : '' ?>><?= $escape($assignee['email']) ?> (<?= $escape($assignee['role_key']) ?>)</option><?php endforeach; ?></select></div>
+<div class="field"><label>Assignment reason</label><input name="reason" minlength="8" maxlength="500" required placeholder="Reason for assignment"></div>
+<button class="button" type="submit">Save assignment</button>
+</form>
+<div class="muted" style="font-size:11px">Responded: <?= $escape($item['responded_at'] ?? '—') ?><br>Closed: <?= $escape($item['closed_at'] ?? '—') ?></div></div></div></section><?php endforeach; ?>
 <?php endif; ?>
 </main></body></html>
