@@ -152,9 +152,9 @@ final class PublicModelAgencyRightsController
                 $request->requestId
             );
             return $this->showPortal($id,$request->requestId,'Your casting submission was received. The agency will review it privately.');
-        } catch(\\InvalidArgumentException|\\DomainException $error) {
+        } catch(\InvalidArgumentException|\DomainException $error) {
             return $this->showPortal($id,$request->requestId,$error->getMessage(),422);
-        } catch(\\Throwable) {
+        } catch(\Throwable) {
             return $this->showPortal($id,$request->requestId,'The casting submission could not be completed securely.',503);
         }
     }
