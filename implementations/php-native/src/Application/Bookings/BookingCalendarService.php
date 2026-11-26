@@ -94,7 +94,7 @@ final class BookingCalendarService
     private function events(string $scope,string $actorId): array
     {
         $query=$this->pdo->prepare(
-            'SELECT b.id,b.booking_reference,b.status,b.starts_at_utc,b.ends_at_utc,b.updated_at,
+            'SELECT b.id,b.booking_reference,b.status,b.starts_at_utc,b.ends_at_utc,b.time_zone,b.updated_at,
                     p.display_name AS profile_name,d.display_name AS destination_name
              FROM bookings b
              JOIN companion_profiles p ON p.id=b.profile_id
