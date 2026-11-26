@@ -148,7 +148,7 @@ final class ModelCastingWorkflowService
             $this->pdo->prepare(
                 'UPDATE model_casting_calls SET status="cancelled",cancelled_by=:actor,cancelled_at=UTC_TIMESTAMP(),
                  cancellation_reason=:reason,updated_at=UTC_TIMESTAMP() WHERE id=:id'
-            )->execute(['actor'=>$actor->id,'reason'=>$reason,'id'=>$callId]);
+            )->execute(['actor'=>$actor->id,'reason'=>$this->encryptField($callId,'cancellation_reason',$reason),'id'=>$callId]);
             $submissions=$this->pdo->prepare(
                 'SELECT id,status FROM model_casting_submissions WHERE casting_call_id=:call
                  AND status IN ("submitted","shortlisted","selected") FOR UPDATE'
@@ -185,7 +185,10 @@ final class ModelCastingWorkflowService
              FROM model_casting_calls ORDER BY created_at DESC LIMIT :limit'
         );
         $query->bindValue(':limit',$limit,PDO::PARAM_INT);$query->execute();
-        return $query->fetchAll(PDO::FETCH_ASSOC);
+        $rows=$query->fetchAll(PDO::FETCH_ASSOC);
+        foreach($rows as &$row) $row['client_name']=$this->decryptField((string)$row['id'],'client_name',(string)$row['client_name']);
+        unset($row);
+        return $rows;
     }
 
     /** @return array<string,mixed> */
@@ -282,6 +285,16 @@ final class ModelCastingWorkflowService
             'INSERT INTO model_casting_events (id,call_id,submission_id,actor_id,actor_type,event_type,reason,occurred_at,created_at,updated_at)
              VALUES (:id,:call,:submission,:actor,:actor_type,:event,:reason,UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
         )->execute(['id'=>$id,'call'=>$callId,'submission'=>$submissionId,'actor'=>$actorId,'actor_type'=>$actorType,'event'=>$type,'reason'=>$reason]);
+    }
+
+    private function encryptField(string $callId,string $field,string $value): string
+    {
+        return $this->cipher->encrypt($value,'model-casting-call-v1:'.$callId.':'.$field);
+    }
+
+    private function decryptField(string $callId,string $field,string $value): string
+    {
+        return $this->cipher->decrypt($value,'model-casting-call-v1:'.$callId.':'.$field);
     }
 
     private function authorize(Principal $actor): void
