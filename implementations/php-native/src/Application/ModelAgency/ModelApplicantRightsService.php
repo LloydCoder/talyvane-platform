@@ -182,7 +182,14 @@ final class ModelApplicantRightsService
         $this->pdo->beginTransaction();
         try {
             [$rights,$application] = $this->verifiedContext($rightsRequestId,'access');
+            $assetQuery=$this->pdo->prepare(
+                'SELECT id,status,mime_type,width,height,file_size,created_at,consent_withdrawn_at
+                 FROM model_portfolio_assets WHERE application_id=:application
+                 ORDER BY created_at ASC LIMIT 100'
+            );
+            $assetQuery->execute(['application'=>$application['id']]);
             $result = [
+                'portfolio_assets'=>$assetQuery->fetchAll(PDO::FETCH_ASSOC),
                 'application_reference'=>$application['application_reference'],
                 'applicant_name'=>$application['applicant_name'],
                 'email'=>$application['email'],
