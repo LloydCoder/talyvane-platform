@@ -346,8 +346,15 @@ final class ModelAssignmentService
                 $this->assertCurrentEligibility($assignment,$submission,$application,$asset,$licence,$call,$agreement);
             }
             $from=(string)$assignment['status'];
-            if($toStatus==='accepted' && ($assignment['applicant_response_status']??null)!=='acceptance_pending_execution') {
-                throw new \DomainException('The model must record acceptance intent before external execution can be recorded.');
+            if($toStatus==='accepted') {
+                if(($assignment['applicant_response_status']??null)!=='acceptance_pending_execution') {
+                    throw new \DomainException('The model must record acceptance intent before external execution can be recorded.');
+                }
+                $currentTermsHash=hash('sha256',(string)$assignment['terms_snapshot']);
+                if(!is_string($assignment['applicant_response_terms_hash']??null) ||
+                    !hash_equals($currentTermsHash,(string)$assignment['applicant_response_terms_hash'])) {
+                    throw new \DomainException('Assignment terms changed after the model response; a new offer is required.');
+                }
             }
             if($toStatus==='confirmed') {
                 foreach(['executed_document_reference','model_acceptance_evidence_reference'] as $evidenceField) {
