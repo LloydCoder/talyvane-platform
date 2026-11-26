@@ -505,7 +505,7 @@ final class PortalPrivacyRightsAdminService
         foreach(self::externalErasureSystems() as $key=>$label) {
             $item=$stored[$key]??null;
             $complete=is_array($item) && in_array($item['decision'],['cleared','not_applicable'],true) &&
-                is_string($item['evidence_reference']) && $item['evidence_reference']!=='';
+                is_string($item['evidence_reference']) && $item['evidence_reference']!=='' && $item['retention_until']===null;
             $items[]=[
                 'system_key'=>$key,'label'=>$label,'decision'=>is_array($item)?$item['decision']:'pending',
                 'evidence_reference'=>is_array($item)?$item['evidence_reference']:null,
@@ -596,7 +596,7 @@ final class PortalPrivacyRightsAdminService
     private function assertExternalErasureEvidenceReady(string $requestId): void
     {
         $query=$this->pdo->prepare(
-            'SELECT system_key,decision,evidence_reference FROM portal_privacy_erasure_external_evidence
+            'SELECT system_key,decision,evidence_reference,retention_until FROM portal_privacy_erasure_external_evidence
              WHERE request_id=:id FOR UPDATE'
         );
         $query->execute(['id'=>$requestId]);
@@ -605,7 +605,7 @@ final class PortalPrivacyRightsAdminService
         foreach(self::externalErasureSystems() as $key=>$label) {
             $row=$stored[$key]??null;
             if(!is_array($row) || !in_array($row['decision'],['cleared','not_applicable'],true) ||
-                !is_string($row['evidence_reference']) || $row['evidence_reference']==='') {
+                !is_string($row['evidence_reference']) || $row['evidence_reference']==='' || $row['retention_until']!==null) {
                 throw new \DomainException('Erasure is blocked until owner-reviewed external processor evidence is recorded for every backup, storage and processor system.');
             }
         }
