@@ -137,6 +137,15 @@ $attribution = is_array($saved) ? json_decode((string) $saved['attribution_json'
     $activeTemplate=array_values(array_filter($templates,static fn(array $template):bool=>$template['locale']==='en' && (int)$template['active']===1))[0]??null;
     $assert(is_array($activeTemplate) && (int)$activeTemplate['version']===1,
         'CRM response template is versioned and activated through the authorized admin workflow');
+    $service->saveResponseTemplate(
+        $admin,'en','A reply from {{ agency_name }} about {{ enquiry_reference }}',
+        "Hello {{ customer_name }},\n\n{{ reply_text }}\n\n{{ agency_name }}",
+        'Refined approved customer-response wording',bin2hex(random_bytes(16))
+    );
+    $templateHistory=$service->responseTemplates($admin);
+    $activeVersions=array_values(array_filter($templateHistory,static fn(array $template):bool=>$template['locale']==='en' && (int)$template['active']===1));
+    $assert(count($templateHistory)===2 && count($activeVersions)===1 && (int)$activeVersions[0]['version']===2,
+        'publishing a new CRM template version preserves history and deactivates the previous version');
     try {
         $service->saveResponseTemplate($admin,'en','Invalid {{ recipient_email }}',
             'Body {{ customer_name }} {{ reply_text }}','Reject unknown placeholder',bin2hex(random_bytes(16)));
