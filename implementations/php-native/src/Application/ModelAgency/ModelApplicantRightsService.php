@@ -298,7 +298,7 @@ final class ModelApplicantRightsService
         try {
             [, $application]=$this->verifiedContext($rightsRequestId,'portal_access');
             if($application['status']!=='accepted' || (bool)$application['legal_hold']) {
-                throw new \\DomainException('This model application is not eligible for casting self-service.');
+                throw new \DomainException('This model application is not eligible for casting self-service.');
             }
             $id=(string)$application['id'];
             $this->pdo->commit();
