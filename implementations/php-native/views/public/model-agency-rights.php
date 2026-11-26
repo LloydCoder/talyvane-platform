@@ -79,8 +79,14 @@ $record=is_array($record??null)?$record:[];
 <label>Optional explanation<textarea name="reason" rows="2" maxlength="1500"></textarea></label>
 <button type="submit">Decline offer</button>
 </form>
-<?php elseif(($assignment['applicant_response_status']??'')==='acceptance_pending_execution'):?>
-<p class="hint">Your acceptance intent is recorded. The assignment is not yet accepted or executed; the agency must complete the external signature process.</p>
+<?php elseif(($assignment['status']??'')==='offered' && ($assignment['applicant_response_status']??'')==='acceptance_pending_execution'):?>
+<p class="hint">Your acceptance intent is recorded. The assignment is not yet accepted or executed; the agency must complete the external signature process. You may still withdraw this intent before external execution.</p>
+<form method="post" action="/model-agency/portal/assignments/<?= $escape($assignment['id']??'') ?>/respond">
+<input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><input type="hidden" name="decision" value="decline">
+<label><input type="checkbox" name="assignment_attestation" value="yes" required> I voluntarily withdraw my acceptance intent and decline this assignment offer; no external agreement has been executed.</label>
+<label>Optional explanation<textarea name="reason" rows="2" maxlength="1500"></textarea></label>
+<button type="submit">Withdraw intent and decline</button>
+</form>
 <?php elseif(($assignment['applicant_response_status']??'')==='accepted_executed'):?>
 <p class="hint">External execution and model-acceptance evidence have been recorded.</p>
 <?php elseif(($assignment['applicant_response_status']??'')==='declined'):?>
