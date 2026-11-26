@@ -178,8 +178,9 @@ final class Bootstrap
         $adminModelAgency = new AdminModelAgencyController($authentication, $modelApplications, $views, $brandName);
         $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views, $brandName);
         $bookingPolicies = new BookingPolicyRepository($pdo);
-        $bookingService = new BookingService($pdo, $bookingPolicies, $audit);
-        $bookingCommands = new BookingCommandService($pdo, $bookingPolicies, $audit);
+        $bookingNotifications = new \Talyvane\Application\Bookings\BookingNotificationOutbox($pdo,new SecretBox($config['app_key']),hash('sha256',$config['app_key'].'|booking-notification-fingerprint-v1',true));
+        $bookingService = new BookingService($pdo, $bookingPolicies, $audit, $bookingNotifications);
+        $bookingCommands = new BookingCommandService($pdo, $bookingPolicies, $audit, $bookingNotifications);
         $bookingQueries = new BookingQueryService($pdo);
         $bookingCalendar = new \Talyvane\Application\Bookings\BookingCalendarService($pdo,hash_hmac('sha256','talyvane-calendar-uid-v1',$config['app_key'],true));
         $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $bookingCalendar, $discovery, $views, $brandName);
