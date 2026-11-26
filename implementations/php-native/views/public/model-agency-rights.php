@@ -66,7 +66,7 @@ $record=is_array($record??null)?$record:[];
 <p><strong>Client:</strong> <?= $escape($assignment['client_name']??'') ?> · <strong>Location:</strong> <?= $escape($assignment['location_city']??'') ?>, <?= $escape($assignment['country_code']??'') ?></p>
 <p><strong>Brief:</strong> <?= nl2br($escape($assignment['brief']??'')) ?></p>
 <p><strong>Deliverables:</strong> <?= nl2br($escape($assignment['deliverables']??'')) ?></p>
-<p><strong>Compensation:</strong> <?= $assignment['compensation_amount']===null?'Not specified':$escape($assignment['compensation_amount'].' '.($assignment['currency_code']??'')) ?> · <strong>Expense cap:</strong> <?= $escape(($assignment['expense_cap_amount']??'0').' '.($assignment['currency_code']??'')) ?></p>
+<p><strong>Compensation:</strong> <?= ($assignment['compensation_amount']??null)===null?'Not specified':$escape($assignment['compensation_amount'].' '.($assignment['currency_code']??'')) ?> · <strong>Expense cap:</strong> <?= $escape(($assignment['expense_cap_amount']??'0').' '.($assignment['currency_code']??'')) ?></p>
 <?php if(($assignment['response_enabled']??false) && ($assignment['status']??'')==='offered' && empty($assignment['applicant_response_status'])):?>
 <form method="post" action="/model-agency/portal/assignments/<?= $escape($assignment['id']??'') ?>/respond">
 <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><input type="hidden" name="decision" value="accept">
