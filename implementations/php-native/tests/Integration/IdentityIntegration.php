@@ -489,6 +489,16 @@ function runIdentityIntegration(PDO $pdo): int
     $assert($retryResult['retried']===1 && is_array($retryRow) && $retryRow['status']==='pending' &&
         (int)$retryRow['attempts']===1 && $retryRow['last_error_code']==='RuntimeException',
         'SMTP failure schedules a bounded retry and records a sanitized delivery attempt');
+    $bookingNotifications->enqueue($manualBookingId,$registeredId,'booking.declined');
+    $staleOutbox=$pdo->prepare('UPDATE communication_outbox SET status="processing",attempts=8,claim_token=UUID(),claimed_at=DATE_SUB(UTC_TIMESTAMP(),INTERVAL 20 MINUTE) WHERE related_type="booking" AND related_id=:booking AND idempotency_key LIKE "%booking.declined%"');
+    $staleOutbox->execute(['booking'=>$manualBookingId]);
+    $staleResult=$bookingDispatcher->dispatchBatch(5);
+    $staleState=$pdo->prepare('SELECT status,last_error_code FROM communication_outbox WHERE related_type="booking" AND related_id=:booking AND idempotency_key LIKE "%booking.declined%"');
+    $staleState->execute(['booking'=>$manualBookingId]);
+    $staleRow=$staleState->fetch(PDO::FETCH_ASSOC);
+    $assert($staleResult['claimed']===0 && is_array($staleRow) && $staleRow['status']==='failed' &&
+        $staleRow['last_error_code']==='retry_limit_after_stale_claim',
+        'exhausted stale notification claims are moved to a terminal failed state rather than stranded forever');
     $privacyExports=new \Talyvane\Application\Identity\PortalPrivacyExportService($pdo,$audit,$limiter);
     $clientPrivacyExport=$privacyExports->export($clientPrincipal,bin2hex(random_bytes(16)));
     $companionPrivacyExport=$privacyExports->export($companionPrincipal,bin2hex(random_bytes(16)));
