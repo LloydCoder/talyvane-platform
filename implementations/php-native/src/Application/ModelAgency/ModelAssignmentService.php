@@ -218,7 +218,7 @@ final class ModelAssignmentService
                 foreach(['executed_document_reference','model_acceptance_evidence_reference'] as $evidenceField) {
                     $stored=$assignment[$evidenceField]??null;
                     if(!is_string($stored) || $stored==='') {
-                        throw new \\DomainException('Confirmation requires recorded external execution and model-acceptance evidence.');
+                        throw new \DomainException('Confirmation requires recorded external execution and model-acceptance evidence.');
                     }
                     $this->cipher->decrypt($stored,'model-assignment-v1:'.$assignmentId.':'.$evidenceField);
                 }
