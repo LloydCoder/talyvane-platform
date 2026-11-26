@@ -195,7 +195,7 @@ final class CompanionAvailabilityService
     }
 
     /** Companion may always opt out; opt-in is fail-closed behind every deployment and profile gate. */
-    public function setAutomaticBookingPreference(Principal $actor,string $profileId,bool $enabled,string $requestId): void
+    public function setAutomaticBookingPreference(Principal $actor,string $profileId,bool $enabled,bool $consentConfirmed,string $requestId): void
     {
         $this->assertCompanion($actor);
         $this->pdo->beginTransaction();
@@ -245,7 +245,7 @@ final class CompanionAvailabilityService
                 'market_approved'=>$marketApproved,
             ];
             CompanionAutomaticBookingPolicy::assertPreference(
-                $enabled,$policyProfile,$this->features?->enabled('bookings.automatic') ?? false
+                $enabled,$policyProfile,$this->features?->enabled('bookings.automatic') ?? false,$consentConfirmed
             );
             $before=['auto_booking_opt_in'=>(bool)$profile['auto_booking_opt_in']];
             $update=$this->pdo->prepare(
