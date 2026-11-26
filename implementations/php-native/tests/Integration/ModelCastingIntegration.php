@@ -83,7 +83,7 @@ function runModelCastingIntegration(PDO $pdo): int
 
     $clientId=(string)$pdo->query('SELECT id FROM users WHERE email="native-password-client@example.test"')->fetchColumn();
     if($clientId==='') throw new RuntimeException('Model client distribution integration requires the verified client identity fixture.');
-    $distribution=new ClientModelAgencyDistributionService($pdo,$storage,new AuditLogger($pdo));
+    $distribution=new ClientModelAgencyDistributionService($pdo,$storage,new AuditLogger($pdo),$cipher);
     $eligibleClients=$distribution->eligibleClients($admin);
     $assert(count(array_filter($eligibleClients,static fn(array $client):bool=>$client['id']===$clientId))===1,
         'agency distribution picker contains only active verified client-only accounts');
