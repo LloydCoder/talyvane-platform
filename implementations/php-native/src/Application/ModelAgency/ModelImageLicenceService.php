@@ -270,6 +270,7 @@ final class ModelImageLicenceService
                     'currency_code'=>$licence['currency_code'],
                 ];
                 $this->assertEligible($application,$asset,$agreement,$terms,$policy['policy_version']);
+                $this->assertNoConflict((string)$asset['id'],$terms);
                 if(!hash_equals((string)$licence['licence_policy_version'],$policy['policy_version']) ||
                     !hash_equals((string)$grant['policy_version'],$policy['policy_version'])) {
                     throw new \DomainException('This licence uses a stale consent policy and must be reissued.');
