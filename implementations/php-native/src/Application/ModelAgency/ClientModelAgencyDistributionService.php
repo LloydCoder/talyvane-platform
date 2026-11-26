@@ -146,7 +146,7 @@ final class ClientModelAgencyDistributionService
         $visible=[];
         foreach($rows as $row) {
             try { $this->assertCallPolicy($row); $visible[]=$row; }
-            catch(\\DomainException) { continue; }
+            catch(\DomainException) { continue; }
         }
         return $visible;
     }
@@ -282,7 +282,7 @@ final class ClientModelAgencyDistributionService
             throw new \DomainException('The client-authorized casting image is unavailable.');
         }
         if(!is_string($call['client_name']??null) || $call['client_name']==='' || !is_string($asset['licensee_name']??null) || $asset['licensee_name']==='') {
-            throw new \\DomainException('The casting client and active image licensee cannot be verified.');
+            throw new \DomainException('The casting client and active image licensee cannot be verified.');
         }
         $callClientName=$this->cipher->decrypt((string)$call['client_name'],'model-casting-call-v1:'.$call['id'].':client_name');
         $licenseeName=$this->cipher->decrypt((string)$asset['licensee_name'],'model-image-licence-v1:'.$asset['licence_id'].':licensee_name');
