@@ -31,7 +31,7 @@ final class CrmCommunicationDispatcher
             $query=$this->pdo->prepare(
                 'SELECT id,related_id,related_type,recipient_ciphertext,payload_ciphertext,attempts
                  FROM communication_outbox
-                 WHERE related_type IN ("crm_enquiry","model_licence") AND channel="email"
+                 WHERE related_type IN ("crm_enquiry","model_licence","model_assignment") AND channel="email"
                    AND (((status IN ("pending","failed")) AND available_at<=UTC_TIMESTAMP())
                      OR (status="processing" AND claimed_at<UTC_TIMESTAMP()-INTERVAL 10 MINUTE))
                    AND attempts<8
