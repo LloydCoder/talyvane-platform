@@ -54,7 +54,7 @@ final class AdminSafeguardingController
     public function governance(Request $request,string $error=''): Response
     {
         SessionManager::start();$actor=$this->authentication->currentPrincipal();if($actor===null)return Response::redirect('/admin/login');
-        try{return $this->page('governance',['items'=>$this->cases->governanceCases($actor),'backupPolicy'=>$this->backupPolicies->current(),'retentionPolicies'=>$this->retentionPolicies->all(),'restoreVerifications'=>$this->restoreVerification->recent()],$error);}
+        try{return $this->page('governance',['items'=>$this->cases->governanceCases($actor),'specialists'=>$this->cases->availableSpecialists($actor),'backupPolicy'=>$this->backupPolicies->current(),'retentionPolicies'=>$this->retentionPolicies->all(),'restoreVerifications'=>$this->restoreVerification->recent()],$error);}
         catch(DomainException){return $this->page('governance',['items'=>[]],'This metadata-only workspace is restricted to Owners and Super Admins.',403);}
     }
     public function hold(Request $request,array $params,bool $release=false): Response
@@ -66,6 +66,21 @@ final class AdminSafeguardingController
             else $this->cases->placeLegalHold($actor,(string)($params['id']??''),$this->field($request,'reason'),$request->requestId);
             return Response::redirect('/admin/safeguarding/governance');
         }catch(InvalidArgumentException|DomainException $error){return $this->governance($request,$error->getMessage());}
+    }
+    public function reassign(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->governance($request,'Your session expired. Refresh and retry.');
+        $actor=$this->authentication->currentPrincipal();if($actor===null)return Response::redirect('/admin/login');
+        try {
+            $this->cases->reassign($actor,(string)($params['id']??''),$this->field($request,'specialist_id'),
+                $this->field($request,'reason'),$request->requestId);
+            return Response::redirect('/admin/safeguarding/governance');
+        } catch(InvalidArgumentException|DomainException $error) {
+            return $this->governance($request,$error->getMessage());
+        } catch(\Throwable) {
+            return $this->governance($request,'Safeguarding reassignment could not be recorded securely.');
+        }
     }
     public function approveBackupPolicy(Request $request): Response
     {

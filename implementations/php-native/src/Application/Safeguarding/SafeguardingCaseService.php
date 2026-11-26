@@ -266,6 +266,61 @@ final class SafeguardingCaseService
         return $cases;
     }
 
+    /** Owner/Super Admin reassignment revokes the former specialist's access immediately. */
+    public function reassign(Principal $actor,string $caseId,string $specialistId,string $reason,string $requestId): void
+    {
+        $this->assertGovernance($actor);
+        $reason=trim($reason);
+        if(strlen($reason)<20 || strlen($reason)>1000 || !preg_match('/^[0-9a-f-]{36}$/iD',$specialistId)) {
+            throw new InvalidArgumentException('Choose an eligible specialist and provide a reassignment reason of 20 to 1,000 characters.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare(
+                'SELECT id,case_reference,assigned_specialist_id,category,severity,status,encrypted_case_key
+                 FROM safeguarding_cases WHERE id=:id FOR UPDATE'
+            );
+            $query->execute(['id'=>$caseId]);
+            $case=$query->fetch(PDO::FETCH_ASSOC);
+            if(!is_array($case)) throw new DomainException('Safeguarding case was not found.');
+            if($case['status']==='closed') throw new DomainException('Closed safeguarding cases cannot be reassigned.');
+            if(hash_equals((string)$case['assigned_specialist_id'],$specialistId)) {
+                throw new DomainException('Choose a different specialist for reassignment.');
+            }
+            $eligible=$this->pdo->prepare(
+                'SELECT u.id FROM users u
+                 JOIN user_roles r ON r.user_id=u.id AND r.role_key="safeguarding"
+                 JOIN admin_mfa_credentials m ON m.user_id=u.id AND m.enabled_at IS NOT NULL
+                 WHERE u.id=:id AND u.status="active" AND u.email_verified_at IS NOT NULL LIMIT 1 FOR UPDATE'
+            );
+            $eligible->execute(['id'=>$specialistId]);
+            if($eligible->fetchColumn()===false) throw new DomainException('The new assignee must be an active, email-verified safeguarding specialist with enrolled MFA.');
+            $eventId=self::uuid();
+            $caseKey=$this->crypto->unwrapCaseKey($caseId,is_string($case['encrypted_case_key'])?$case['encrypted_case_key']:null);
+            try {
+                $encryptedNote=$this->crypto->encryptEventNote($caseId,$eventId,$reason,$caseKey);
+            } finally {
+                if(function_exists('sodium_memzero')) sodium_memzero($caseKey);
+            }
+            $this->pdo->prepare(
+                'UPDATE safeguarding_cases SET assigned_specialist_id=:specialist,updated_at=UTC_TIMESTAMP()
+                 WHERE id=:id AND assigned_specialist_id=:previous'
+            )->execute(['specialist'=>$specialistId,'id'=>$caseId,'previous'=>$case['assigned_specialist_id']]);
+            $this->insertCaseEvent($caseId,$actor->id,'case.reassigned',(string)$case['status'],(string)$case['status'],$encryptedNote,$eventId);
+            $this->insertAccessEvent($caseId,$actor->id,'case_reassigned',$requestId);
+            $this->notifications?->enqueue($caseId,$specialistId,(string)$case['case_reference'],(string)$case['category'],(string)$case['severity'],'case.reassigned',$eventId);
+            $this->audit->record($actor->id,'safeguarding.case.reassigned','safeguarding_case',$caseId,
+                'Safeguarding case reassigned by privileged governance actor',
+                ['assigned_specialist_id'=>$case['assigned_specialist_id']],
+                ['assigned_specialist_id'=>$specialistId,'status'=>$case['status']],
+                $requestId,'safeguarding-case-v1');
+            $this->pdo->commit();
+        } catch(\Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
     public function placeLegalHold(Principal $actor,string $caseId,string $reason,string $requestId): void
     {
         $this->assertGovernance($actor);

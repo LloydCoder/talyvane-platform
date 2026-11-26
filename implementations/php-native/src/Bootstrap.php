@@ -468,6 +468,7 @@ final class Bootstrap
         $router->add('POST', '/admin/safeguarding/governance/backup-policy', static fn(Request $request): Response => $safeguardingController->approveBackupPolicy($request));
         $router->add('POST', '/admin/safeguarding/governance/retention-policy', static fn(Request $request): Response => $safeguardingController->saveRetentionPolicy($request));
         $router->add('POST', '/admin/safeguarding/governance/restore-verification', static fn(Request $request): Response => $safeguardingController->verifyRestore($request));
+        $router->add('POST', '/admin/safeguarding/governance/{id}/reassign', static fn(Request $request,array $params): Response => $safeguardingController->reassign($request,$params));
         $router->add('POST', '/admin/safeguarding/governance/{id}/hold', static fn(Request $request,array $params): Response => $safeguardingController->hold($request,$params,false));
         $router->add('POST', '/admin/safeguarding/governance/{id}/release', static fn(Request $request,array $params): Response => $safeguardingController->hold($request,$params,true));
         $router->add('GET', '/admin/clients', static fn(Request $request): Response => $adminClients->index($request));
