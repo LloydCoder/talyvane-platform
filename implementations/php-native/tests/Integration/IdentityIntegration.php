@@ -529,6 +529,17 @@ function runIdentityIntegration(PDO $pdo): int
     $exportAudit=$pdo->prepare('SELECT COUNT(*) FROM audit_events WHERE event_key="portal.privacy.exported" AND actor_user_id IN (:client,:companion)');
     $exportAudit->execute(['client'=>$clientPrincipal->id,'companion'=>$companionPrincipal->id]);
     $assert((int)$exportAudit->fetchColumn()===4,'each successful client/companion privacy export emits a correlated audit event');
+    $requestedCancellationStart=$localBookingStart->modify('+8 hours');
+    $requestedCancellationId=$bookingService->request($clientPrincipal,$profileId,
+        $requestedCancellationStart->setTimezone(new DateTimeZone('UTC')),
+        $requestedCancellationStart->modify('+60 minutes')->setTimezone(new DateTimeZone('UTC')),
+        null,'Request cancellation regression coverage',bin2hex(random_bytes(16)));
+    $bookingCommands->transition($clientPrincipal,$requestedCancellationId,'cancelled',
+        'Client cancelled a newly submitted booking request',bin2hex(random_bytes(16)));
+    $requestedCancellationState=$pdo->prepare('SELECT status FROM bookings WHERE id=:id');
+    $requestedCancellationState->execute(['id'=>$requestedCancellationId]);
+    $assert($requestedCancellationState->fetchColumn()==='cancelled',
+        'client can cancel a newly submitted requested booking before companion review even when confirmed cancellation is disabled');
 
 
     return $assertions;
