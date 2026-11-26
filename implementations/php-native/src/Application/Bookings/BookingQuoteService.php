@@ -129,7 +129,7 @@ final class BookingQuoteService
                 }
                 throw new \DomainException('Quote has already been accepted or consumed.');
             }
-            if($row['consumed_at']!==null || $row['expires_at']===null ||
+            if($row['consumed_at']!==null || $row['consumed_booking_id']!==null || $row['expires_at']===null ||
                 new DateTimeImmutable((string)$row['expires_at'],$utc)<=$now) {
                 throw new \DomainException('Quote is expired or no longer available.');
             }
@@ -169,7 +169,7 @@ final class BookingQuoteService
             $accepted=$quote->accept($now);
             $update=$this->pdo->prepare(
                 'UPDATE quote_snapshots SET accepted_at=:accepted,accepted_by=:actor
-                 WHERE id=:id AND accepted_at IS NULL AND consumed_at IS NULL AND expires_at>:now'
+                 WHERE id=:id AND accepted_at IS NULL AND consumed_at IS NULL AND consumed_booking_id IS NULL AND expires_at>:now'
             );
             $update->execute(['accepted'=>$accepted->acceptedAt?->format('Y-m-d H:i:s'),'actor'=>$client->id,'id'=>$quoteId,'now'=>$now->format('Y-m-d H:i:s')]);
             if($update->rowCount()!==1) throw new \DomainException('Quote changed concurrently; refresh and retry.');
@@ -190,7 +190,7 @@ final class BookingQuoteService
         if(!$client->hasRole('client')) throw new \DomainException('Client role is required.');
         $query=$this->pdo->prepare(
             'SELECT q.id,q.quote_reference,q.original_amount_minor,q.original_currency,q.fees_json,q.expires_at,
-                    q.accepted_at,q.consumed_at,p.slug AS profile_slug,p.display_name AS profile_name,c.minor_units AS currency_precision
+                    q.accepted_at,q.consumed_at,q.consumed_booking_id,p.slug AS profile_slug,p.display_name AS profile_name,c.minor_units AS currency_precision
              FROM quote_snapshots q JOIN companion_profiles p ON p.id=q.profile_id
              JOIN currencies c ON c.code=q.original_currency
              WHERE q.client_user_id=:client AND q.profile_id=:profile
