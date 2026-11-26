@@ -33,10 +33,10 @@ final class LocalDateTimeResolver
         $matches=[];
         foreach(array_keys($offsets) as $offset) {
             $timestamp=$wallTimestamp-(int)$offset;
-            $utc=(new DateTimeImmutable('@'.$timestamp))->setTimezone($zone);
-            if($utc->format('Y-m-d\TH:i')===$value) {
+            $instant=new DateTimeImmutable('@'.$timestamp);
+            if($instant->setTimezone($zone)->format('Y-m-d\TH:i')===$value) {
                 $matches[$timestamp]=[
-                    'utc'=>$utc,
+                    'utc'=>$instant,
                     'offset_seconds'=>(int)$offset,
                     'label'=>self::offsetLabel((int)$offset),
                 ];
