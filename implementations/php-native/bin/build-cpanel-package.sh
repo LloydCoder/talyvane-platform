@@ -30,7 +30,8 @@ return true;
 PHP
 find "$payload" -type d \( -name .git -o -name tests -o -name cache -o -name logs \) -prune -exec rm -rf {} +
 find "$payload" -type f \( -name '.env' -o -name '.env.*' -o -name '*.log' -o -name '*.sqlite' -o -name '*.db' \) -delete
-python3 "$source_dir/bin/generate-sbom.py" --root "$payload" --output "$work/customer/SBOM.spdx.json" --commit "$commit_sha"
+commit_date="$(git -C "$repo_root" show -s --format=%cI "$commit_sha")"
+python3 "$source_dir/bin/generate-sbom.py" --root "$payload" --output "$work/customer/SBOM.spdx.json" --commit "$commit_sha" --created "$commit_date"
 test -f "$payload/public/index.php"
 test -f "$payload/bootstrap.php"
 test -f "$payload/vendor/autoload.php"
