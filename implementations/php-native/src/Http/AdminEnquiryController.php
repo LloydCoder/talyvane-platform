@@ -53,15 +53,15 @@ final class AdminEnquiryController
         $principal=$this->principal();
         if ($principal instanceof Response) return $principal;
         if (!Csrf::verify($this->field($request,'_csrf'))) {
-            return $this->page('Your session expired. Refresh and try again.',419,false,$principal);
+            return $this->page('Your session expired. Refresh and try again.',419,false,$principal,$this->pageNumber($request));
         }
         try {
             $assignee=$this->field($request,'assignee_id');
             $this->enquiries->assign($principal,(string)($params['reference'] ?? ''),$assignee === '' ? null : $assignee,
                 $this->field($request,'reason'),$request->requestId);
-            return $this->page('',200,true,$principal);
+            return $this->page('',200,true,$principal,$this->pageNumber($request));
         } catch (InvalidArgumentException|DomainException $error) {
-            return $this->page($error->getMessage(),422,false,$principal);
+            return $this->page($error->getMessage(),422,false,$principal,$this->pageNumber($request));
         }
     }
 
@@ -70,14 +70,14 @@ final class AdminEnquiryController
         $principal=$this->principal();
         if($principal instanceof Response) return $principal;
         if(!Csrf::verify($this->field($request,'_csrf'))) {
-            return $this->page('Your session expired. Refresh and try again.',419,false,$principal);
+            return $this->page('Your session expired. Refresh and try again.',419,false,$principal,$this->pageNumber($request));
         }
         try {
             $this->enquiries->addInternalNote($principal,(string)($params['reference']??''),
                 $this->field($request,'note'),$request->requestId);
-            return $this->page('',200,true,$principal);
+            return $this->page('',200,true,$principal,$this->pageNumber($request));
         } catch (InvalidArgumentException|DomainException $error) {
-            return $this->page($error->getMessage(),422,false,$principal);
+            return $this->page($error->getMessage(),422,false,$principal,$this->pageNumber($request));
         }
     }
 
@@ -85,13 +85,13 @@ final class AdminEnquiryController
     {
         $principal=$this->principal();
         if($principal instanceof Response) return $principal;
-        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('Your session expired. Refresh and try again.',419,false,$principal);
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('Your session expired. Refresh and try again.',419,false,$principal,$this->pageNumber($request));
         try {
             $this->enquiries->scheduleReminder($principal,(string)($params['reference']??''),$this->field($request,'due_at'),
                 $this->field($request,'reason'),$request->requestId);
-            return $this->page('',200,true,$principal);
+            return $this->page('',200,true,$principal,$this->pageNumber($request));
         } catch(InvalidArgumentException|DomainException $error) {
-            return $this->page($error->getMessage(),422,false,$principal);
+            return $this->page($error->getMessage(),422,false,$principal,$this->pageNumber($request));
         }
     }
 
@@ -99,12 +99,12 @@ final class AdminEnquiryController
     {
         $principal=$this->principal();
         if($principal instanceof Response) return $principal;
-        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('Your session expired. Refresh and try again.',419,false,$principal);
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('Your session expired. Refresh and try again.',419,false,$principal,$this->pageNumber($request));
         try {
             $this->enquiries->completeReminder($principal,(string)($params['reminder']??''),$this->field($request,'reason'),$request->requestId);
-            return $this->page('',200,true,$principal);
+            return $this->page('',200,true,$principal,$this->pageNumber($request));
         } catch(InvalidArgumentException|DomainException $error) {
-            return $this->page($error->getMessage(),422,false,$principal);
+            return $this->page($error->getMessage(),422,false,$principal,$this->pageNumber($request));
         }
     }
 
