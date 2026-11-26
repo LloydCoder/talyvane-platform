@@ -169,7 +169,7 @@ final class AdminAuthController
         if ($principal === null) {
             return Response::redirect('/admin/login');
         }
-        if (!Authorization::allows($principal, 'dashboard.view')) {
+        if (!Authorization::allows($principal, 'dashboard.view') && !$principal->hasRole('finance')) {
             return $this->page('dashboard', ['error'=>'This account does not have permission to open the general dashboard.'], 403);
         }
         return $this->page('dashboard', ['roles'=>$principal->roles]);
