@@ -75,10 +75,10 @@ $escape=static fn(mixed $value):string=>htmlspecialchars((string)$value,ENT_QUOT
 <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
 <input type="hidden" name="request_id" value="<?= $escape($item['id']??'') ?>">
 <input type="hidden" name="system_key" value="<?= $escape($evidenceItem['system_key']) ?>">
-<label>Decision<select name="decision" required style="width:100%;padding:9px;border:1px solid var(--line);font:inherit"><option value="cleared">Cleared — evidence of deletion/expiry</option><option value="retained">Retained — legal basis and expiry required</option><option value="not_applicable">Not applicable — evidence required</option></select></label>
-<label>Evidence reference<input name="evidence_reference" minlength="8" maxlength="190" required placeholder="Vault ticket, backup job, provider case ID"></label>
-<label>Legal-basis reference (required for retained records)<input name="legal_basis_reference" maxlength="190"></label>
-<label>Retention expiry (required for retained records)<input type="date" name="retention_until"></label>
+<label>Decision<select name="decision" required style="width:100%;padding:9px;border:1px solid var(--line);font:inherit"><option value="cleared" <?= ($evidenceItem['decision']??'')==='cleared'?'selected':'' ?>>Cleared — evidence of deletion/expiry</option><option value="retained" <?= ($evidenceItem['decision']??'')==='retained'?'selected':'' ?>>Retained — legal basis and expiry required</option><option value="not_applicable" <?= ($evidenceItem['decision']??'')==='not_applicable'?'selected':'' ?>>Not applicable — evidence required</option></select></label>
+<label>Evidence reference<input name="evidence_reference" minlength="8" maxlength="190" required value="<?= $escape($evidenceItem['evidence_reference']??'') ?>" placeholder="Vault ticket, backup job, provider case ID"></label>
+<label>Legal-basis reference (required for retained records)<input name="legal_basis_reference" maxlength="190" value="<?= $escape($evidenceItem['legal_basis_reference']??'') ?>"></label>
+<label>Retention expiry (required for retained records)<input type="date" name="retention_until" value="<?= $escape(is_string($evidenceItem['retention_until']??null)?substr($evidenceItem['retention_until'],0,10):'') ?>"></label>
 <label>Review rationale<textarea name="reason" minlength="10" maxlength="500" required></textarea></label>
 <button class="button" type="submit">Record Owner attestation</button>
 </form>
