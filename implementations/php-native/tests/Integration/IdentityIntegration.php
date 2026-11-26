@@ -775,6 +775,70 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(is_array($erasureAuditRow) && $erasureAuditRow['event_key']==='portal.privacy.client.erasure.fulfilled',
         'client erasure records a metadata-only audit event for accountable fulfilment');
 
+    $eligibleCompanionId=(string)$pdo->query('SELECT UUID()')->fetchColumn();
+    $eligibleProfileId=(string)$pdo->query('SELECT UUID()')->fetchColumn();
+    $destinationQuery=$pdo->prepare('SELECT destination_id FROM companion_profiles WHERE id=:id');
+    $destinationQuery->execute(['id'=>$profileId]);
+    $eligibleDestinationId=(string)$destinationQuery->fetchColumn();
+    $pdo->prepare(
+        'INSERT INTO users (id,email,display_name,password_hash,status,email_verified_at,first_login_required,admin_session_version,created_at,updated_at)
+         VALUES (:id,:email,:name,:hash,"active",UTC_TIMESTAMP(),0,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+    )->execute([
+        'id'=>$eligibleCompanionId,'email'=>'eligible-erasure-companion@example.test','name'=>'Eligible Erasure Companion',
+        'hash'=>PasswordHasher::hash(str_repeat('F',24).'!'),
+    ]);
+    $pdo->prepare(
+        'INSERT INTO user_roles (user_id,role_key,granted_by,granted_at) VALUES (:id,"companion",NULL,UTC_TIMESTAMP())'
+    )->execute(['id'=>$eligibleCompanionId]);
+    $pdo->prepare(
+        'INSERT INTO companion_profiles
+         (id,user_id,destination_id,slug,display_name,biography,languages_json,experience_category,status,
+          adult_eligibility_status,adult_verified_at,adult_verified_by,verification_reference_hash,
+          publication_consent_version,publication_consent_at,publication_consent_withdrawn_at,
+          auto_booking_opt_in,created_at,updated_at)
+         VALUES (:id,:user,:destination,:slug,:name,:bio,:languages,"professional","published",
+          "verified",UTC_TIMESTAMP(),:verifier,:verification,"privacy-v1",UTC_TIMESTAMP(),NULL,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+    )->execute([
+        'id'=>$eligibleProfileId,'user'=>$eligibleCompanionId,'destination'=>$eligibleDestinationId,
+        'slug'=>'eligible-erasure-companion-'.str_replace('-','',$eligibleProfileId),
+        'name'=>'Eligible Erasure Companion','bio'=>'A temporary test profile for guarded erasure.',
+        'languages'=>json_encode(['en'],JSON_THROW_ON_ERROR),'verifier'=>$id,'verification'=>hash('sha256','eligible-companion-evidence'),
+    ]);
+    $eligibleCompanionPrincipal=new Principal($eligibleCompanionId,['companion'],false);
+    $eligibleCompanionErasureId=$portalRights->request($eligibleCompanionPrincipal,'erasure',null,'127.0.0.1',bin2hex(random_bytes(16)));
+    preg_match('/One-time verification code: ([0-9]{8})/',(string)$privacyRightsMailer->messages[5]['body'],$eligibleCompanionCodeMatch);
+    $eligibleCompanionCode=(string)($eligibleCompanionCodeMatch[1]??'');
+    $assert($eligibleCompanionCode!=='' && $portalRights->verify($eligibleCompanionPrincipal,$eligibleCompanionErasureId,$eligibleCompanionCode,'127.0.0.1',bin2hex(random_bytes(16))),
+        'eligible companion erasure requires independent email verification');
+    $portalRightsAdmin->fulfillCompanionErasure($superAdmin,$eligibleCompanionErasureId,
+        'Companion identity and retention review are complete; no bookings, private media, safeguarding or enquiry records remain.',bin2hex(random_bytes(16)));
+    $erasedCompanionQuery=$pdo->prepare('SELECT email,display_name,status,email_verified_at,admin_session_version FROM users WHERE id=:id');
+    $erasedCompanionQuery->execute(['id'=>$eligibleCompanionId]);
+    $erasedCompanion=$erasedCompanionQuery->fetch(PDO::FETCH_ASSOC);
+    $withdrawnProfileQuery=$pdo->prepare(
+        'SELECT slug,display_name,biography,languages_json,status,adult_eligibility_status,verification_reference_hash,
+                publication_consent_at,publication_consent_withdrawn_at,auto_booking_opt_in
+         FROM companion_profiles WHERE id=:id'
+    );
+    $withdrawnProfileQuery->execute(['id'=>$eligibleProfileId]);
+    $withdrawnProfile=$withdrawnProfileQuery->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($erasedCompanion) && $erasedCompanion['status']==='erased' &&
+        $erasedCompanion['email']==='erased+'.str_replace('-','',$eligibleCompanionId).'@privacy.invalid' &&
+        $erasedCompanion['display_name']===null && $erasedCompanion['email_verified_at']===null &&
+        (int)$erasedCompanion['admin_session_version']===2,
+        'companion account identity and credentials are pseudonymized and sessions revoked');
+    $assert(is_array($withdrawnProfile) && $withdrawnProfile['slug']==='former-'.str_replace('-','',$eligibleProfileId) &&
+        $withdrawnProfile['display_name']==='Former companion' && $withdrawnProfile['biography']===null &&
+        $withdrawnProfile['languages_json']===null && $withdrawnProfile['status']==='withdrawn' &&
+        $withdrawnProfile['adult_eligibility_status']==='unverified' && $withdrawnProfile['verification_reference_hash']===null &&
+        $withdrawnProfile['publication_consent_at']===null && $withdrawnProfile['publication_consent_withdrawn_at']!==null &&
+        (int)$withdrawnProfile['auto_booking_opt_in']===0,
+        'companion profile is withdrawn, identifying fields and verification evidence are cleared, and publication consent is withdrawn');
+    $companionErasureAudit=$pdo->prepare('SELECT event_key FROM audit_events WHERE event_key="portal.privacy.companion.erasure.fulfilled" AND target_id=:id');
+    $companionErasureAudit->execute(['id'=>$eligibleCompanionErasureId]);
+    $assert($companionErasureAudit->fetchColumn()==='portal.privacy.companion.erasure.fulfilled',
+        'companion erasure produces an accountable metadata-only audit event');
+
     // Restore the pre-existing published fixture for later profile-media integration tests.
     $pdo->prepare('UPDATE companion_profiles SET status="published" WHERE user_id=:user')->execute(['user'=>$companionPrincipal->id]);
     $assert(count($portalRightsAdmin->queue($superAdmin,bin2hex(random_bytes(16))))===0,
