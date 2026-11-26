@@ -21,7 +21,7 @@ A route, view, table, stub, static test or successful package build is not by it
 
 ## Current head and validation
 
-Latest runtime-affecting implementation head: `0fb9e36427a5ff364714fcf653f359eaf98cf806`. The immediately preceding implementation head `0fb9e364` passed PHP 8.3/8.4/8.5 native tests, MySQL 8.0 integration (38 migrations), Semgrep security analysis and native cPanel package verification. Single-ZIP packaging, installer browser E2E, Laravel feature suites and general CI were still running when this status was reconciled. These are repository-level results, not live-host acceptance. The runtime implementation head passed these required repository workflows:
+Latest runtime-affecting implementation commit for the email-change slice: `b53bab4c91da8fb491bd9ef7013da069a6e7fe71`; the validation/test head `0fb9e36427a5ff364714fcf653f359eaf98cf806` passed PHP 8.3/8.4/8.5 native tests, MySQL 8.0 integration (38 migrations), Semgrep security analysis and native cPanel package verification. Single-ZIP packaging, installer browser E2E, Laravel feature suites and general CI were still running when this status was reconciled. These are repository-level results, not live-host acceptance. The runtime implementation head passed these required repository workflows:
 
 | Check | Exact-head result |
 |---|---|
