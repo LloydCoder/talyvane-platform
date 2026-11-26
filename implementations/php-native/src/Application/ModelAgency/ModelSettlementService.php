@@ -41,8 +41,8 @@ final class ModelSettlementService
             $precision=$this->currencyPrecision($currency);
             $amountMinor=$this->decimalToMinor($amount,$precision);
             if($amountMinor<=0) throw new \InvalidArgumentException('Expense amount must be greater than zero.');
-            $sum=$this->pdo->prepare('SELECT COALESCE(SUM(amount_minor),0) FROM model_assignment_expenses WHERE assignment_id=:assignment AND status IN ("pending","approved") FOR UPDATE');
-            $sum->execute(['assignment'=>$assignmentId]);$existing=(int)$sum->fetchColumn();
+            $sum=$this->pdo->prepare('SELECT amount_minor FROM model_assignment_expenses WHERE assignment_id=:assignment AND status IN ("pending","approved") FOR UPDATE');
+            $sum->execute(['assignment'=>$assignmentId]);$existing=$this->sumRows($sum->fetchAll(PDO::FETCH_COLUMN));
             if($amountMinor>(int)$assignment['expense_cap_minor']-$existing) throw new \DomainException('Expense claim exceeds the remaining assignment expense cap.');
             $id=self::uuid();
             $this->pdo->prepare(
@@ -55,7 +55,7 @@ final class ModelSettlementService
                 'description'=>$this->encrypt($id,'description',$description),
                 'evidence'=>$this->encrypt($id,'private_evidence_key',$evidenceReference),'actor'=>$actor->id,
             ]);
-            $this->event($assignmentId,null,$id,$actor->id,'expense.submitted','Expense claim submitted for independent finance review.');
+            $this->event($assignmentId,null,$id,$actor->id,$this->actorRole($actor),'expense.submitted','Expense claim submitted for independent finance review.');
             $this->audit->record($actor->id,'model_expense.submitted','model_assignment_expense',$id,
                 'Submitted an assignment expense claim',null,
                 ['assignment_id'=>$assignmentId,'amount_minor'=>$amountMinor,'currency'=>$currency,'evidence_present'=>true],
@@ -84,8 +84,8 @@ final class ModelSettlementService
                 throw new \DomainException('Expense review is closed after assignment completion settlement has been drafted.');
             }
             if($decision==='approved') {
-                $sum=$this->pdo->prepare('SELECT COALESCE(SUM(amount_minor),0) FROM model_assignment_expenses WHERE assignment_id=:assignment AND status="approved" FOR UPDATE');
-                $sum->execute(['assignment'=>$assignment['id']]);$approved=(int)$sum->fetchColumn();
+                $sum=$this->pdo->prepare('SELECT amount_minor FROM model_assignment_expenses WHERE assignment_id=:assignment AND status="approved" FOR UPDATE');
+                $sum->execute(['assignment'=>$assignment['id']]);$approved=$this->sumRows($sum->fetchAll(PDO::FETCH_COLUMN));
                 if((int)$expense['amount_minor']>(int)$assignment['expense_cap_minor']-$approved) {
                     throw new \DomainException('Approved expenses would exceed the assignment cap.');
                 }
@@ -97,7 +97,7 @@ final class ModelSettlementService
                 'status'=>$decision,'actor'=>$actor->id,
                 'note'=>$this->encrypt($expenseId,'review_note',$note),'id'=>$expenseId,
             ]);
-            $this->event((string)$assignment['id'],null,$expenseId,$actor->id,'expense.'.$decision,'Expense claim '.$decision.' by independent finance review.');
+            $this->event((string)$assignment['id'],null,$expenseId,$actor->id,$this->actorRole($actor),'expense.'.$decision,'Expense claim '.$decision.' by independent finance review.');
             $this->audit->record($actor->id,'model_expense.'.$decision,'model_assignment_expense',$expenseId,
                 'Recorded an independent expense review',['status'=>'pending'],['status'=>$decision,'note_sha256'=>hash('sha256',$note)],
                 $requestId,'model-settlement-v1');
@@ -123,7 +123,7 @@ final class ModelSettlementService
             $pending->execute(['assignment'=>$assignmentId]);
             if((int)$pending->fetchColumn()>0) throw new \DomainException('All expense claims must be reviewed before settlement calculation.');
             $approved=$this->pdo->prepare('SELECT COALESCE(SUM(amount_minor),0) FROM model_assignment_expenses WHERE assignment_id=:assignment AND status="approved" FOR UPDATE');
-            $approved->execute(['assignment'=>$assignmentId]);$expenses=(int)$approved->fetchColumn();
+            $approved->execute(['assignment'=>$assignmentId]);$expenses=$this->sumRows($approved->fetchAll(PDO::FETCH_COLUMN));
             $precision=$this->currencyPrecision((string)$assignment['currency_code']);
             $policy=$this->approvedPolicy();
             $calculation=SettlementCalculator::calculate(
@@ -152,7 +152,7 @@ final class ModelSettlementService
             ]);
             $this->pdo->prepare('UPDATE model_assignment_expenses SET settlement_id=:settlement,updated_at=UTC_TIMESTAMP() WHERE assignment_id=:assignment AND status="approved"')
                 ->execute(['settlement'=>$id,'assignment'=>$assignmentId]);
-            $this->event($assignmentId,$id,null,$actor->id,'settlement.drafted','Settlement calculation snapshot created; no payment has been made.');
+            $this->event($assignmentId,$id,null,$actor->id,$this->actorRole($actor),'settlement.drafted','Settlement calculation snapshot created; no payment has been made.');
             $this->audit->record($actor->id,'model_settlement.created','model_settlement',$id,
                 'Created a settlement calculation draft',null,$snapshot,$requestId,'model-settlement-v1');
             $this->pdo->commit();return $id;
@@ -180,7 +180,7 @@ final class ModelSettlementService
             $precision=$this->currencyPrecision((string)$settlement['currency_code']);
             if($precision!==(int)$settlement['currency_precision']) throw new \DomainException('Currency precision changed; settlement must be recalculated.');
             $approved=$this->pdo->prepare('SELECT COALESCE(SUM(amount_minor),0) FROM model_assignment_expenses WHERE assignment_id=:assignment AND status="approved" FOR UPDATE');
-            $approved->execute(['assignment'=>$assignment['id']]);$expenses=(int)$approved->fetchColumn();
+            $approved->execute(['assignment'=>$assignment['id']]);$expenses=$this->sumRows($approved->fetchAll(PDO::FETCH_COLUMN));
             $calculation=SettlementCalculator::calculate((int)$assignment['compensation_minor'],(int)$assignment['expense_cap_minor'],
                 $expenses,(int)$assignment['commission_basis_points'],(string)$assignment['currency_code']);
             foreach(['gross_minor','approved_expenses_minor','commission_minor','model_net_minor'] as $field) {
@@ -189,7 +189,7 @@ final class ModelSettlementService
             SettlementStateMachine::transition('draft','approved',$this->actorRole($actor),(string)$settlement['created_by'],$actor->id);
             $this->pdo->prepare('UPDATE model_settlements SET status="approved",approved_by=:actor,approved_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE id=:id')
                 ->execute(['actor'=>$actor->id,'id'=>$settlementId]);
-            $this->event((string)$assignment['id'],$settlementId,null,$actor->id,'settlement.approved','Settlement independently approved after recalculation.');
+            $this->event((string)$assignment['id'],$settlementId,null,$actor->id,$this->actorRole($actor),'settlement.approved','Settlement independently approved after recalculation.');
             $this->audit->record($actor->id,'model_settlement.approved','model_settlement',$settlementId,
                 'Approved settlement after independent recalculation',['status'=>'draft'],['status'=>'approved','approved_by'=>$actor->id],
                 $requestId,'model-settlement-v1');
@@ -220,7 +220,7 @@ final class ModelSettlementService
                 'method'=>$method,'reference'=>$this->encrypt($settlementId,'payment_reference',$paymentReference),
                 'actor'=>$actor->id,'evidence'=>$this->encrypt($settlementId,'external_payment_evidence',$evidenceReference),'id'=>$settlementId,
             ]);
-            $this->event((string)$settlement['assignment_id'],$settlementId,null,$actor->id,'settlement.payment_attested',
+            $this->event((string)$settlement['assignment_id'],$settlementId,null,$actor->id,$this->actorRole($actor),'settlement.payment_attested',
                 'External payment evidence recorded; no transfer was initiated by this platform.');
             $this->audit->record($actor->id,'model_settlement.payment_attested','model_settlement',$settlementId,
                 'Recorded external payment attestation',['status'=>'approved'],['status'=>'paid','payment_method'=>$method,'evidence_present'=>true],
@@ -249,7 +249,7 @@ final class ModelSettlementService
                 'actor'=>$actor->id,'reason'=>$this->encrypt($settlementId,'reversal_reason',$reason),
                 'evidence'=>$this->encrypt($settlementId,'reversal_evidence',$evidenceReference),'id'=>$settlementId,
             ]);
-            $this->event((string)$settlement['assignment_id'],$settlementId,null,$actor->id,'settlement.reversed','External settlement reversal evidence recorded.');
+            $this->event((string)$settlement['assignment_id'],$settlementId,null,$actor->id,$this->actorRole($actor),'settlement.reversed','External settlement reversal evidence recorded.');
             $this->audit->record($actor->id,'model_settlement.reversed','model_settlement',$settlementId,
                 'Recorded external settlement reversal',['status'=>$settlement['status']],['status'=>'reversed','reason_sha256'=>hash('sha256',$reason)],
                 $requestId,'model-settlement-v1');
@@ -277,7 +277,7 @@ final class ModelSettlementService
                 'actor'=>$actor->id,'reason'=>$this->encrypt($settlementId,'dispute_reason',$reason),
                 'evidence'=>$this->encrypt($settlementId,'dispute_evidence',$evidenceReference),'id'=>$settlementId,
             ]);
-            $this->event((string)$settlement['assignment_id'],$settlementId,null,$actor->id,'settlement.disputed','Settlement dispute evidence recorded for independent resolution.');
+            $this->event((string)$settlement['assignment_id'],$settlementId,null,$actor->id,$this->actorRole($actor),'settlement.disputed','Settlement dispute evidence recorded for independent resolution.');
             $this->audit->record($actor->id,'model_settlement.disputed','model_settlement',$settlementId,
                 'Recorded a settlement dispute',['status'=>$settlement['status']],['status'=>'disputed','reason_sha256'=>hash('sha256',$reason)],
                 $requestId,'model-settlement-v1');
@@ -351,7 +351,7 @@ final class ModelSettlementService
         return ['policy_version'=>trim($policy['policy_version'])];
     }
 
-    private function event(string $assignmentId,?string $settlementId,?string $expenseId,string $actorId,string $type,string $reason): void
+    private function event(string $assignmentId,?string $settlementId,?string $expenseId,string $actorId,string $actorType,string $type,string $reason): void
     {
         $this->pdo->prepare(
             'INSERT INTO model_settlement_events
@@ -359,15 +359,21 @@ final class ModelSettlementService
              VALUES (:id,:assignment,:settlement,:expense,:actor,:actor_type,:event,:reason,UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
         )->execute([
             'id'=>self::uuid(),'assignment'=>$assignmentId,'settlement'=>$settlementId,'expense'=>$expenseId,
-            'actor'=>$actorId,'actor_type'=>$this->actorRoleFromId($actorId),'event'=>$type,
+            'actor'=>$actorId,'actor_type'=>$actorType,'event'=>$type,
             'reason'=>$this->cipher->encrypt($reason,'model-settlement-event-v1:'.$assignmentId.':'.$type),
         ]);
     }
 
-    private function actorRoleFromId(string $actorId): string
+    /** @param list<mixed> $values */
+    private function sumRows(array $values): int
     {
-        $query=$this->pdo->prepare('SELECT role FROM user_roles WHERE user_id=:id ORDER BY role LIMIT 1');$query->execute(['id'=>$actorId]);
-        $role=$query->fetchColumn();return is_string($role)?$role:'administrator';
+        $sum=0;
+        foreach($values as $value) {
+            $amount=(int)$value;
+            if($amount<0 || $amount>PHP_INT_MAX-$sum) throw new \DomainException('Expense total exceeds the supported integer range.');
+            $sum+=$amount;
+        }
+        return $sum;
     }
 
     private function lock(string $table,string $id): array
