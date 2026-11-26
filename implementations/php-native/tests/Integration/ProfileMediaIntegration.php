@@ -220,7 +220,7 @@ function runProfileMediaIntegration(PDO $pdo): int
         $bookingPolicies=new BookingPolicyRepository($pdo);
         $bookingQuotes=new BookingQuoteService($pdo,$audit,$bookingPolicies);
         $quoteExpires=(new DateTimeImmutable('now',new DateTimeZone('UTC')))->modify('+1 day');
-        $quoteId=$bookingQuotes->create($admin,$clientId,$profileId,12000,'GBP',['service_fee'=>1000],$quoteExpires,bin2hex(random_bytes(16)));
+        $quoteId=$bookingQuotes->createFromMajor($admin,$clientId,$profileId,'120.00','GBP',['service_fee'=>1000],$quoteExpires,bin2hex(random_bytes(16)));
         $quoteRows=$bookingQuotes->clientQuotes($companionClient,$profileId);
         $assert(count($quoteRows)===1 && $quoteRows[0]['id']===$quoteId && $quoteRows[0]['accepted_at']===null,
             'booking quotes are issued to one verified client and the exact companion profile');
