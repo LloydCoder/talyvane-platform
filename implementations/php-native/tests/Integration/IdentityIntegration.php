@@ -724,7 +724,7 @@ function runIdentityIntegration(PDO $pdo): int
         'client correction audit records the allowlisted field without copying personal values');
     // Restore the pre-existing published fixture for later profile-media integration tests.
     $pdo->prepare('UPDATE companion_profiles SET status="published" WHERE user_id=:user')->execute(['user'=>$companionPrincipal->id]);
-    $assert(count($portalRightsAdmin->queue($superAdmin,bin2hex(random_bytes(16))))===1,
+    $assert(count($portalRightsAdmin->queue($superAdmin,bin2hex(random_bytes(16))))===0,
         'fulfilled privacy requests leave the active review queue');
 
 
