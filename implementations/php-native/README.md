@@ -108,3 +108,22 @@ The browser success page displays the generated initial password and offline rec
 8. Automated parity/security tests, cPanel package, real-host acceptance, backup/restore and upgrade drills.
 
 See [PORTING-TRACKER.md](PORTING-TRACKER.md) for acceptance status. No module is complete until its success/failure states, role boundaries, audit events, accessibility, privacy and operations evidence are accepted.
+
+
+## Operational health check (CLI)
+
+The native runtime includes a read-only health check suitable for cPanel Terminal and cron. It verifies the PHP runtime/extensions, owner-only private configuration, configured private storage/log/backup directories, and a trivial MySQL query. It emits component-level status only; it does not disclose credentials, SQL errors, configuration values, or absolute filesystem paths.
+
+Run it as the cPanel account user (never as root):
+
+```sh
+TALYVANE_CONFIG=/absolute/private/path/config/app.php php /absolute/private/path/talyvane-native-app/bin/healthcheck.php
+```
+
+For machine-readable output:
+
+```sh
+TALYVANE_CONFIG=/absolute/private/path/config/app.php php /absolute/private/path/talyvane-native-app/bin/healthcheck.php --json
+```
+
+Exit status is `0` only when every check passes; otherwise it is `1`. A missing/unsafe configuration exits non-zero. Configure the command in cPanel Terminal or a protected cron entry after installation. Do not expose this output through a public HTTP route. A passing health check is an operational diagnostic, not evidence of a successful backup/restore drill, complete feature parity, or production readiness.
