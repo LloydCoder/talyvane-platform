@@ -191,6 +191,283 @@ final class ModelCastingWorkflowService
         return $rows;
     }
 
+    /** @return list<array<string,mixed>> */
+    public function submissionsForCall(Principal $actor,string $callId,int $limit=100): array
+    {
+        $this->authorize($actor);$limit=max(1,min(200,$limit));
+        $query=$this->pdo->prepare(
+            'SELECT s.id,s.submission_reference,s.status,s.submitted_at,s.decided_at,
+                    a.application_reference,asset.mime_type,asset.width,asset.height,lic.licence_reference
+             FROM model_casting_submissions s
+             JOIN model_talent_applications a ON a.id=s.application_id
+             JOIN model_portfolio_assets asset ON asset.id=s.portfolio_asset_id
+             JOIN model_image_licences lic ON lic.id=s.image_licence_id
+             WHERE s.casting_call_id=:call ORDER BY s.submitted_at DESC LIMIT :limit'
+        );
+        $query->bindValue(':call',$callId);$query->bindValue(':limit',$limit,PDO::PARAM_INT);$query->execute();
+        return $query->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** @return list<array<string,mixed>> */
+    public function eligibleCandidates(Principal $actor,string $callId,int $limit=100): array
+    {
+        $this->authorize($actor);
+        if(!(($this->castingFeatureEnabled)())) return [];
+        $call=$this->pdo->prepare('SELECT * FROM model_casting_calls WHERE id=:id LIMIT 1');
+        $call->execute(['id'=>$callId]);$row=$call->fetch(PDO::FETCH_ASSOC);
+        if(!is_array($row) || $row['status']!=='open') return [];
+        $now=new DateTimeImmutable('now',new DateTimeZone('UTC'));
+        if(new DateTimeImmutable((string)$row['opens_at'],new DateTimeZone('UTC'))>$now ||
+            new DateTimeImmutable((string)$row['closes_at'],new DateTimeZone('UTC'))<=$now) return [];
+        $castingPolicy=$this->approvedPolicy();
+        if(!hash_equals((string)$row['casting_policy_version'],$castingPolicy['policy_version'])) return [];
+        $portfolioPolicy=$this->approvedPolicySetting('model_agency.portfolio');
+        $licencePolicy=$this->approvedPolicySetting('model_agency.image_licence');
+        $this->assertMarketApproved((string)$row['country_code'],false);
+        $query=$this->pdo->prepare(
+            'SELECT a.id AS application_id,a.application_reference,asset.id AS asset_id,
+                    lic.id AS licence_id,lic.licence_reference
+             FROM model_talent_applications a
+             JOIN model_applicant_verifications v ON v.id=(
+                SELECT v2.id FROM model_applicant_verifications v2
+                WHERE v2.application_id=a.id ORDER BY v2.decision_order DESC LIMIT 1
+             )
+             JOIN model_portfolio_assets asset ON asset.application_id=a.id
+             JOIN consent_grants asset_consent ON asset_consent.id=asset.consent_grant_id
+             JOIN model_image_licences lic ON lic.portfolio_asset_id=asset.id AND lic.application_id=a.id
+             JOIN consent_grants licence_consent ON licence_consent.id=lic.consent_grant_id
+             JOIN model_representation_agreements agreement ON agreement.id=lic.agreement_id
+             WHERE a.status="accepted" AND a.legal_hold=0 AND a.anonymized_at IS NULL
+               AND v.outcome="verified" AND v.expires_at>UTC_TIMESTAMP()
+               AND asset.status="approved" AND asset.consent_withdrawn_at IS NULL
+               AND asset.private_storage_key IS NOT NULL AND asset.consent_policy_version=:portfolio_policy
+               AND asset_consent.granted=1 AND asset_consent.withdrawn_at IS NULL
+               AND lic.status="active" AND lic.purpose="casting_distribution"
+               AND lic.territory_code=:country AND JSON_CONTAINS(lic.channels,JSON_QUOTE("casting_platform"))
+               AND lic.starts_on<=DATE(:shoot_start) AND lic.ends_on>=DATE(:shoot_end)
+               AND lic.licence_policy_version=:licence_policy
+               AND licence_consent.granted=1 AND licence_consent.withdrawn_at IS NULL
+               AND agreement.status="executed" AND agreement.effective_until>=:shoot_end
+               AND JSON_CONTAINS(agreement.terms_snapshot,JSON_QUOTE("casting_submissions"),"$.service_scope")
+               AND NOT EXISTS (SELECT 1 FROM model_casting_submissions existing
+                               WHERE existing.casting_call_id=:call AND existing.application_id=a.id)
+             ORDER BY a.updated_at DESC LIMIT :limit'
+        );
+        $query->bindValue(':portfolio_policy',$portfolioPolicy['policy_version']);
+        $query->bindValue(':country',$row['country_code']);
+        $query->bindValue(':shoot_start',$row['shoot_starts_at']);
+        $query->bindValue(':shoot_end',$row['shoot_ends_at']);
+        $query->bindValue(':licence_policy',$licencePolicy['policy_version']);
+        $query->bindValue(':call',$callId);
+        $query->bindValue(':limit',max(1,min(100,$limit)),PDO::PARAM_INT);
+        $query->execute();
+        return $query->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function submit(Principal $actor,string $callId,string $applicationId,string $assetId,string $licenceId,string $requestId): string
+    {
+        $this->authorize($actor);$this->assertFeature();$this->assertRequestId($requestId);
+        $this->pdo->beginTransaction();
+        try {
+            $call=$this->lockCall($callId);
+            $application=$this->lockResource('model_talent_applications',$applicationId);
+            $asset=$this->lockResource('model_portfolio_assets',$assetId);
+            $licence=$this->lockResource('model_image_licences',$licenceId);
+            $agreement=$this->lockResource('model_representation_agreements',(string)$licence['agreement_id']);
+            $this->assertSubmissionEligible($call,$application,$asset,$licence,$agreement,true);
+            $duplicate=$this->pdo->prepare('SELECT id FROM model_casting_submissions WHERE casting_call_id=:call AND application_id=:application LIMIT 1 FOR UPDATE');
+            $duplicate->execute(['call'=>$callId,'application'=>$applicationId]);
+            if($duplicate->fetchColumn()!==false) throw new \DomainException('This model already has a submission for the private casting call.');
+            $count=$this->pdo->prepare('SELECT COUNT(*) FROM model_casting_submissions WHERE casting_call_id=:call AND status IN ("submitted","shortlisted","selected")');
+            $count->execute(['call'=>$callId]);
+            if((int)$count->fetchColumn()>=(int)$call['max_submissions']) throw new \DomainException('The casting call has reached its active submission limit.');
+            $id=self::uuid();$reference='MCS-'.gmdate('Y').'-'.strtoupper(bin2hex(random_bytes(6)));
+            $this->pdo->prepare(
+                'INSERT INTO model_casting_submissions
+                 (id,casting_call_id,application_id,portfolio_asset_id,image_licence_id,submission_reference,
+                  status,submitted_by,submitted_at,created_at,updated_at)
+                 VALUES (:id,:call,:application,:asset,:licence,:reference,"submitted",:actor,UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+            )->execute(['id'=>$id,'call'=>$callId,'application'=>$applicationId,'asset'=>$assetId,'licence'=>$licenceId,
+                'reference'=>$reference,'actor'=>$actor->id]);
+            $this->event($callId,$id,$actor->id,'administrator','casting.submission_created',
+                'An eligible model was submitted using an active, purpose-specific casting licence.');
+            $this->audit->record($actor->id,'model_casting.submission_created','model_casting_submission',$id,
+                'Submitted an eligible model to a private casting call',null,
+                ['call_id'=>$callId,'application_id'=>$applicationId,'asset_id'=>$assetId,'licence_id'=>$licenceId,'status'=>'submitted'],
+                $requestId,'model-casting-v1');
+            $this->pdo->commit();return $id;
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    public function decide(Principal $actor,string $submissionId,string $decision,string $note,string $requestId): void
+    {
+        $this->authorize($actor);$this->assertRequestId($requestId);$note=trim($note);
+        if(!in_array($decision,['shortlisted','selected','declined'],true) || strlen($note)<20 || strlen($note)>1500) {
+            throw new \InvalidArgumentException('Choose a valid manual casting decision and provide a note of 20 to 1500 characters.');
+        }
+        if(in_array($decision,['shortlisted','selected'],true)) $this->assertFeature();
+        $this->pdo->beginTransaction();
+        try {
+            $submission=$this->lockResource('model_casting_submissions',$submissionId);
+            $call=$this->lockCall((string)$submission['casting_call_id']);
+            $application=$this->lockResource('model_talent_applications',(string)$submission['application_id']);
+            $role=$this->actorRole($actor);
+            CastingStateMachine::submission((string)$submission['status'],$decision,$role);
+            if(in_array($decision,['shortlisted','selected'],true)) {
+                $asset=$this->lockResource('model_portfolio_assets',(string)$submission['portfolio_asset_id']);
+                $licence=$this->lockResource('model_image_licences',(string)$submission['image_licence_id']);
+                $agreement=$this->lockResource('model_representation_agreements',(string)$licence['agreement_id']);
+                $this->assertSubmissionEligible($call,$application,$asset,$licence,$agreement,false);
+            }
+            $this->pdo->prepare(
+                'UPDATE model_casting_submissions SET status=:status,decided_by=:actor,decided_at=UTC_TIMESTAMP(),
+                 decision_note=:note,updated_at=UTC_TIMESTAMP() WHERE id=:id'
+            )->execute(['status'=>$decision,'actor'=>$actor->id,'note'=>$this->cipher->encrypt($note,'model-casting-submission-v1:'.$submissionId.':decision_note'),'id'=>$submissionId]);
+            $this->event((string)$call['id'],$submissionId,$actor->id,'administrator','casting.submission_'.$decision,
+                'Manual agency casting decision recorded: '.$decision.'.');
+            $this->audit->record($actor->id,'model_casting.submission_'.$decision,'model_casting_submission',$submissionId,
+                'Recorded a manual casting decision', ['status'=>$submission['status']],['status'=>$decision,'note_sha256'=>hash('sha256',$note)],
+                $requestId,'model-casting-v1');
+            $this->pdo->commit();
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    public function withdraw(Principal $actor,string $submissionId,string $reason,string $evidenceReference,string $requestId): void
+    {
+        $this->authorize($actor);$this->assertRequestId($requestId);$reason=trim($reason);
+        if(strlen($reason)<20 || strlen($reason)>1500 || !$this->validEvidenceReference($evidenceReference,'private/model-consent/')) {
+            throw new \InvalidArgumentException('Submission withdrawal requires a reason and private model-consent evidence reference.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $submission=$this->lockResource('model_casting_submissions',$submissionId);
+            $call=$this->lockCall((string)$submission['casting_call_id']);
+            CastingStateMachine::submission((string)$submission['status'],'withdrawn',$this->actorRole($actor));
+            $this->pdo->prepare(
+                'UPDATE model_casting_submissions SET status="withdrawn",decided_by=:actor,decided_at=UTC_TIMESTAMP(),
+                 decision_note=:note,withdrawal_evidence_reference=:evidence,updated_at=UTC_TIMESTAMP() WHERE id=:id'
+            )->execute([
+                'actor'=>$actor->id,'note'=>$this->cipher->encrypt($reason,'model-casting-submission-v1:'.$submissionId.':decision_note'),
+                'evidence'=>$this->cipher->encrypt($evidenceReference,'model-casting-submission-v1:'.$submissionId.':withdrawal_evidence_reference'),
+                'id'=>$submissionId,
+            ]);
+            $this->event((string)$call['id'],$submissionId,$actor->id,'administrator','casting.submission_withdrawn',
+                'Model casting submission withdrawal recorded.');
+            $this->audit->record($actor->id,'model_casting.submission_withdrawn','model_casting_submission',$submissionId,
+                'Recorded a model casting submission withdrawal', ['status'=>$submission['status']],['status'=>'withdrawn','reason_sha256'=>hash('sha256',$reason)],
+                $requestId,'model-casting-v1');
+            $this->pdo->commit();
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    /** @param array<string,mixed> $call @param array<string,mixed> $application @param array<string,mixed> $asset @param array<string,mixed> $licence @param array<string,mixed> $agreement */
+    private function assertSubmissionEligible(array $call,array $application,array $asset,array $licence,array $agreement,bool $requireOpen): void
+    {
+        $now=new DateTimeImmutable('now',new DateTimeZone('UTC'));
+        $opens=new DateTimeImmutable((string)$call['opens_at'],new DateTimeZone('UTC'));
+        $closes=new DateTimeImmutable((string)$call['closes_at'],new DateTimeZone('UTC'));
+        if(($requireOpen && ($call['status']!=='open' || $opens>$now || $closes<=$now)) ||
+            $application['status']!=='accepted' || (int)$application['legal_hold']===1 || $application['anonymized_at']!==null ||
+            $asset['application_id']!==$application['id'] || $asset['status']!=='approved' || $asset['consent_withdrawn_at']!==null ||
+            !is_string($asset['private_storage_key']) || $asset['private_storage_key']==='' ||
+            $licence['application_id']!==$application['id'] || $licence['portfolio_asset_id']!==$asset['id'] ||
+            $licence['status']!=='active' || $licence['purpose']!=='casting_distribution' ||
+            $licence['territory_code']!==$call['country_code'] || $licence['model_consent_evidence_reference']===null ||
+            $agreement['application_id']!==$application['id'] || $agreement['status']!=='executed' ||
+            $agreement['effective_from']===null || $agreement['effective_until']===null) {
+            throw new \DomainException('Casting submission requires an open call, eligible verified model, approved private asset, active matching licence and executed representation agreement.');
+        }
+        $castingPolicy=$this->approvedPolicy();
+        if(!hash_equals((string)$call['casting_policy_version'],$castingPolicy['policy_version'])) throw new \DomainException('Casting policy changed; this call is no longer eligible.');
+        $portfolioPolicy=$this->approvedPolicySetting('model_agency.portfolio');
+        $licencePolicy=$this->approvedPolicySetting('model_agency.image_licence');
+        if(!hash_equals((string)$asset['consent_policy_version'],$portfolioPolicy['policy_version']) ||
+            !hash_equals((string)$licence['licence_policy_version'],$licencePolicy['policy_version'])) {
+            throw new \DomainException('Portfolio consent or image licence policy changed; submission is no longer eligible.');
+        }
+        $verification=$this->pdo->prepare('SELECT outcome,expires_at FROM model_applicant_verifications WHERE application_id=:application ORDER BY decision_order DESC LIMIT 1 FOR UPDATE');
+        $verification->execute(['application'=>$application['id']]);$v=$verification->fetch(PDO::FETCH_ASSOC);
+        if(!is_array($v) || $v['outcome']!=='verified' || $v['expires_at']===null ||
+            new DateTimeImmutable((string)$v['expires_at'],new DateTimeZone('UTC'))<=$now) {
+            throw new \DomainException('A current independent adult-eligibility verification is required.');
+        }
+        $this->assertMarketApproved((string)$call['country_code'],true);
+        $shootStart=substr((string)$call['shoot_starts_at'],0,10);$shootEnd=substr((string)$call['shoot_ends_at'],0,10);
+        if((string)$licence['starts_on']>$shootStart || (string)$licence['ends_on']<$shootEnd) {
+            throw new \DomainException('The image licence must cover the complete shoot window.');
+        }
+        $channels=json_decode((string)$licence['channels'],true);
+        if(!is_array($channels) || !in_array('casting_platform',$channels,true)) throw new \DomainException('Image licence does not permit private casting distribution.');
+        $agreementTerms=json_decode((string)$agreement['terms_snapshot'],true);
+        if(!is_array($agreementTerms) || !in_array('casting_submissions',$agreementTerms['service_scope']??[],true) ||
+            substr((string)$agreement['effective_from'],0,10)>$shootStart || substr((string)$agreement['effective_until'],0,10)<$shootEnd) {
+            throw new \DomainException('Executed representation terms do not cover this casting and shoot period.');
+        }
+        foreach([
+            ['id'=>$asset['consent_grant_id'],'subject_type'=>'model_portfolio_asset','subject_id'=>$asset['id'],'purpose'=>'portfolio_curation','audience'=>'agency_internal','version'=>$asset['consent_policy_version']],
+            ['id'=>$licence['consent_grant_id'],'subject_type'=>'model_image_licence','subject_id'=>$licence['id'],'purpose'=>'image_usage','audience'=>'agency_distribution','version'=>$licence['licence_policy_version']],
+        ] as $expected) {
+            $grant=$this->pdo->prepare(
+                'SELECT granted,withdrawn_at,policy_version FROM consent_grants WHERE id=:id AND subject_type=:type
+                 AND subject_id=:subject AND purpose=:purpose AND audience=:audience LIMIT 1 FOR UPDATE'
+            );
+            $grant->execute(['id'=>$expected['id'],'type'=>$expected['subject_type'],'subject'=>$expected['subject_id'],
+                'purpose'=>$expected['purpose'],'audience'=>$expected['audience']]);
+            $row=$grant->fetch(PDO::FETCH_ASSOC);
+            if(!is_array($row) || (int)$row['granted']!==1 || $row['withdrawn_at']!==null ||
+                !hash_equals((string)$expected['version'],(string)$row['policy_version'])) {
+                throw new \DomainException('Current portfolio and image-use consent grants are required.');
+            }
+        }
+        $bytes=$this->storage->read((string)$asset['private_storage_key'],8_388_608);
+        if(!hash_equals((string)$asset['sha256'],hash('sha256',$bytes))) throw new \DomainException('Private portfolio image failed integrity verification.');
+    }
+
+    /** @return array<string,mixed> */
+    private function lockResource(string $table,string $id): array
+    {
+        $allowed=['model_casting_submissions','model_talent_applications','model_portfolio_assets','model_image_licences','model_representation_agreements'];
+        if(!in_array($table,$allowed,true) || !self::isUuid($id)) throw new \InvalidArgumentException('Model casting resource identifier is invalid.');
+        $query=$this->pdo->prepare('SELECT * FROM '.$table.' WHERE id=:id LIMIT 1 FOR UPDATE');
+        $query->execute(['id'=>$id]);$row=$query->fetch(PDO::FETCH_ASSOC);
+        if(!is_array($row)) throw new \DomainException('Model casting resource does not exist.');
+        return $row;
+    }
+
+    /** @return array{policy_version:string} */
+    private function approvedPolicySetting(string $key): array
+    {
+        $query=$this->pdo->prepare('SELECT setting_json FROM deployment_settings WHERE setting_key=:key LIMIT 1');
+        $query->execute(['key'=>$key]);$raw=$query->fetchColumn();$policy=is_string($raw)?json_decode($raw,true):null;
+        if(!is_array($policy) || !($policy['enabled']??false) || !($policy['policy_approved']??false) ||
+            !is_string($policy['policy_version']??null) || trim($policy['policy_version'])==='') {
+            throw new \DomainException('A current, versioned model usage policy must be approved.');
+        }
+        return ['policy_version'=>trim($policy['policy_version'])];
+    }
+
+    private function actorRole(Principal $actor): string
+    {
+        foreach(['super_admin','owner','admin'] as $role) if($actor->hasRole($role)) return $role;
+        throw new \DomainException('Agency administrator role is required.');
+    }
+
+    private function validEvidenceReference(string $reference,string $prefix): bool
+    {
+        return strlen($reference)>=20 && strlen($reference)<=200 && str_starts_with($reference,$prefix) &&
+            preg_match('#^'.preg_quote($prefix,'#').'[A-Za-z0-9][A-Za-z0-9._/-]{10,180}$#D',$reference)===1 &&
+            !str_contains($reference,'..') && !str_contains($reference,'\\');
+    }
+
     /** @return array<string,mixed> */
     private function validateTerms(array $terms): array
     {
