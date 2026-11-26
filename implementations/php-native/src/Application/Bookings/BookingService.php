@@ -20,7 +20,8 @@ final class BookingService
     public function __construct(
         private PDO $pdo,
         private BookingPolicyRepository $policies,
-        private AuditLogger $audit
+        private AuditLogger $audit,
+        private ?BookingNotificationOutbox $notifications = null
     ) {}
 
     public function request(
@@ -59,7 +60,7 @@ final class BookingService
         $this->pdo->beginTransaction();
         try {
             $profileQuery = $this->pdo->prepare(
-                'SELECT p.id,p.status,p.adult_eligibility_status,p.adult_verified_at,p.adult_verified_by,
+                'SELECT p.id,p.user_id AS companion_user_id,p.status,p.adult_eligibility_status,p.adult_verified_at,p.adult_verified_by,
                         p.publication_consent_version,p.publication_consent_withdrawn_at,p.auto_booking_opt_in,
                         d.id AS destination_id,d.country_code,d.time_zone,d.status AS destination_status,
                         c.enabled AS country_enabled,m.enabled AS market_enabled,m.decision AS market_decision,
@@ -198,6 +199,9 @@ final class BookingService
                 $confirm = $this->pdo->prepare('UPDATE bookings SET status = "confirmed", updated_at = UTC_TIMESTAMP() WHERE id = :id AND status = "requested"');
                 $confirm->execute(['id'=>$bookingId]);
                 $this->recordEvent($bookingId,null,'system','requested','confirmed','Automatic rules and companion opt-in satisfied',$policy->version);
+            }
+            if ($this->notifications !== null) {
+                $this->notifications->enqueue($bookingId,(string)$profile['companion_user_id'],$autoEligible?'booking.confirmed':'booking.requested');
             }
             $this->audit->record($client->id,'booking.requested','booking',$bookingId,'Client booking request created',null,[
                 'status'=>$autoEligible ? 'confirmed' : 'requested',
