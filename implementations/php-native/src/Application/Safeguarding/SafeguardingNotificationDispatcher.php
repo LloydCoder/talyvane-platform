@@ -66,15 +66,16 @@ final class SafeguardingNotificationDispatcher
                 $payload=json_decode($payloadJson,true,16,JSON_THROW_ON_ERROR);
                 if (!filter_var($recipient,FILTER_VALIDATE_EMAIL) || !is_array($payload) ||
                     !is_string($payload['case_reference']??null) || !is_string($payload['category']??null) ||
-                    !is_string($payload['severity']??null) || ($row['event_key']??'')!=='case.created') {
+                    !is_string($payload['severity']??null) || !in_array((string)($row['event_key']??''),['case.created','case.reassigned'],true)) {
                     throw new RuntimeException('Safeguarding notification envelope failed validation.');
                 }
-                $body="A confidential safeguarding case has been assigned to your specialist queue.\n\n".
+                $reassigned=$row['event_key']==='case.reassigned';
+                $body=($reassigned?"A confidential safeguarding case has been reassigned to your specialist queue.":"A confidential safeguarding case has been assigned to your specialist queue.")."\n\n".
                     "Reference: ".$payload['case_reference']."\n".
                     "Category: ".$payload['category']."\n".
                     "Severity: ".$payload['severity']."\n\n".
                     "Sign in to Talyvane and open your assigned safeguarding cases. Do not forward this notification.";
-                $this->mailer->send($recipient,'Confidential safeguarding case assigned',$body);
+                $this->mailer->send($recipient,$reassigned?'Confidential safeguarding case reassigned':'Confidential safeguarding case assigned',$body);
                 $done=$this->pdo->prepare(
                     'UPDATE safeguarding_notification_outbox
                      SET status="delivered",delivered_at=UTC_TIMESTAMP(),claim_token=NULL,claimed_at=NULL,last_error_code=NULL
