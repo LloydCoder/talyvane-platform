@@ -178,6 +178,11 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $clientDistribution=new ClientModelAgencyDistributionService($pdo,$storage,new AuditLogger($pdo),$secretBox);
     $clientDistribution->linkCastingCall($admin,$callId,$clientId,bin2hex(random_bytes(16)));
     $clientPrincipal=new Principal($clientId,['client'],false);
+    $distributedCalls=$clientDistribution->castingCalls($clientPrincipal);
+    $assert(count($distributedCalls)===1 && $distributedCalls[0]['id']===$callId &&
+        str_contains($distributedCalls[0]['description'],'private editorial project brief') &&
+        str_contains($distributedCalls[0]['requirements'],'Adult eligibility verification'),
+        'client sees only its linked casting brief with encrypted project terms decrypted for the verified tenant');
 
     $candidates=$casting->eligibleCandidates($admin,$callId);
     $assert(count($candidates)===1 && $candidates[0]['application_id']===$applicationId,'eligible-candidate register requires current adult verification, portfolio consent, executed agreement and active casting licence');
