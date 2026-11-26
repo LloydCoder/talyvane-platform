@@ -264,6 +264,7 @@ final class ModelAssignmentService
         $query=$this->pdo->prepare(
             'SELECT id,assignment_reference,submission_id,application_id,country_code,project_purpose,client_name,
                     status,compensation_minor,currency_code,expense_cap_minor,commission_basis_points,
+                    CASE WHEN executed_document_reference IS NOT NULL AND executed_document_reference<>"" THEN 1 ELSE 0 END AS execution_evidence_ready,
                     shoot_starts_at,shoot_ends_at,created_at,offered_at,accepted_at,confirmed_at,started_at,completed_at
              FROM model_assignments ORDER BY created_at DESC LIMIT :limit'
         );
