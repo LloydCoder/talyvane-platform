@@ -239,7 +239,7 @@ final class Bootstrap
         $modelSettlements = new ModelSettlementService($pdo,$audit,$modelAgencyCipher,static fn():bool=>$castingAvailability->enabled('model-agency.settlements'));
         $adminModelSettlements = new AdminModelSettlementController($authentication,$modelSettlements,$views,$brandName);
         $adminModelPortfolio = new AdminModelPortfolioController($authentication,$modelPortfolio,$modelImageLicences,$views,$brandName);
-        $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views, $brandName, $modelPortfolio);
+        $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views, $brandName, $modelPortfolio, $modelCasting);
         $bookingPolicies = new BookingPolicyRepository($pdo);
         $bookingQuotes = new BookingQuoteService($pdo,$audit,$bookingPolicies);
         $adminBookingQuotes = new AdminBookingQuoteController($authentication,$bookingQuotes,$views,$brandName);
@@ -291,6 +291,7 @@ final class Bootstrap
         $router->add('GET', '/model-agency/portal', static fn(Request $request): Response => $publicModelAgencyRights->portal($request));
         $router->add('POST', '/model-agency/portal/profile', static fn(Request $request): Response => $publicModelAgencyRights->portalCorrect($request));
         $router->add('POST', '/model-agency/portal/portfolio', static fn(Request $request): Response => $publicModelAgencyRights->portalUpload($request));
+        $router->add('POST', '/model-agency/portal/casting', static fn(Request $request): Response => $publicModelAgencyRights->portalSubmitCasting($request));
         $router->add('GET', '/model-agency/portal/portfolio/{id}/preview', static fn(Request $request,array $params): Response => $publicModelAgencyRights->portalPreview($request,$params));
         $router->add('POST', '/model-agency/portal/portfolio/{id}/withdraw', static fn(Request $request,array $params): Response => $publicModelAgencyRights->portalWithdraw($request,$params));
         $router->add('POST', '/model-agency/portal/logout', static fn(Request $request): Response => $publicModelAgencyRights->portalLogout($request));

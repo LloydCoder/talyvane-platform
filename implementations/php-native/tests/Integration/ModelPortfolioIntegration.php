@@ -113,6 +113,8 @@ function runModelPortfolioIntegration(PDO $pdo): int
         $assert(true,'portfolio upload must require an explicit applicant attestation at the domain boundary');
     }
     $portalRecord=$rights->portalRead((string)$portalRightsId,bin2hex(random_bytes(16)));
+    $assert($rights->portalApplicationId((string)$portalRightsId)===$applicationId,
+        'casting applicant identity is resolved only from the live OTP-verified portal rights session');
     $assert($portalRecord['application_reference']===$applicationReference &&
         count($portalRecord['portfolio_assets'])===2 && $portalRecord['status']==='accepted',
         'OTP-authenticated model workspace exposes only the applicant own profile and portfolio inventory');
@@ -140,6 +142,12 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $portalSession->execute(['id'=>$portalRightsId]);
     $assert($portalSession->fetchColumn()==='completed',
         'model workspace logout revokes the verified portal session in the database');
+    try {
+        $rights->portalApplicationId((string)$portalRightsId);
+        $assert(false,'a revoked model workspace session cannot resolve a casting application identity');
+    } catch(DomainException) {
+        $assert(true,'a revoked model workspace session cannot resolve a casting application identity');
+    }
     try {
         $rights->portalRead((string)$portalRightsId,bin2hex(random_bytes(16)));
         $assert(false,'a revoked model workspace session cannot be reused');
@@ -229,6 +237,18 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'compensation_amount'=>null,'currency_code'=>null,'max_submissions'=>2,
     ],bin2hex(random_bytes(16)));
     $casting->publish($admin,$callId,bin2hex(random_bytes(16)));
+    // The earlier portal session was deliberately logged out. Start a fresh OTP session
+    // for the later casting self-service assertions rather than reusing revoked credentials.
+    $rights->request($applicationReference,'portfolio-applicant@example.test','portal_access','203.0.113.43',bin2hex(random_bytes(16)));
+    $latestPortalMessage=$rightsMailer->messages[array_key_last($rightsMailer->messages)];
+    preg_match('/one-time verification code is: ([0-9]{8})/',$latestPortalMessage['body'],$nextPortalCode);
+    $portalRightsId=$rights->verify($applicationReference,'portfolio-applicant@example.test',$nextPortalCode[1]??'','203.0.113.44',bin2hex(random_bytes(16)));
+    if(!is_string($portalRightsId)) throw new RuntimeException('A fresh OTP model workspace session is required for casting self-service integration.');
+    $applicantCastingPortal=$rights->portalRead((string)$portalRightsId,bin2hex(random_bytes(16)));
+    $opportunities=$applicantCastingPortal['available_casting_calls']??[];
+    $opportunity=array_values(array_filter($opportunities,static fn(array $item):bool=>($item['id']??null)===$callId));
+    $assert(count($opportunity)===1 && !array_key_exists('description',$opportunity[0]) && !array_key_exists('requirements',$opportunity[0]),
+        'applicant opportunity listing never exposes encrypted casting-brief ciphertext as display text');
     $clientId=(string)$pdo->query('SELECT UUID()')->fetchColumn();
     $pdo->prepare(
         'INSERT INTO users (id,email,password_hash,status,email_verified_at,first_login_required,created_at,updated_at)
@@ -248,7 +268,22 @@ function runModelPortfolioIntegration(PDO $pdo): int
 
     $candidates=$casting->eligibleCandidates($admin,$callId);
     $assert(count($candidates)===1 && $candidates[0]['application_id']===$applicationId,'eligible-candidate register requires current adult verification, portfolio consent, executed agreement and active casting licence');
-    $submissionId=$casting->submit($admin,$callId,$applicationId,$licensedAsset['id'],$licenceId,bin2hex(random_bytes(16)));
+    $submissionId=$casting->submitByApplicant($applicationId,$callId,$licensedAsset['id'],$licenceId,bin2hex(random_bytes(16)));
+    $applicantSubmission=$pdo->prepare('SELECT status,submitted_by FROM model_casting_submissions WHERE id=:id');
+    $applicantSubmission->execute(['id'=>$submissionId]);$applicantSubmissionRow=$applicantSubmission->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($applicantSubmissionRow) && $applicantSubmissionRow['status']==='submitted' && $applicantSubmissionRow['submitted_by']===null,
+        'verified applicant self-service submits without inventing a user account or administrator actor');
+    $applicantEvent=$pdo->prepare('SELECT actor_type,actor_id,reason FROM model_casting_events WHERE submission_id=:id AND event_type="casting.applicant_submitted"');
+    $applicantEvent->execute(['id'=>$submissionId]);$applicantEventRow=$applicantEvent->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($applicantEventRow) && $applicantEventRow['actor_type']==='applicant' && $applicantEventRow['actor_id']===null &&
+        str_contains((string)$applicantEventRow['reason'],'model-casting-voluntary-submission-v1'),
+        'applicant-originated casting submission records the voluntary attestation version and applicant-session attribution'); 
+    try {
+        $casting->submit($admin,$callId,$applicationId,$licensedAsset['id'],$licenceId,bin2hex(random_bytes(16)));
+        $assert(false,'duplicate submission is rejected regardless of whether it originated from applicant or agency');
+    } catch(DomainException) {
+        $assert(true,'duplicate submission is rejected regardless of whether it originated from applicant or agency');
+    }
     $casting->decide($admin,$submissionId,'shortlisted','Model shortlisted after human review of the private casting submission.',bin2hex(random_bytes(16)));
     $casting->decide($admin,$submissionId,'selected','Model selected after final human review and confirmation of the defined project scope.',bin2hex(random_bytes(16)));
     $submissionRows=$casting->submissionsForCall($admin,$callId);

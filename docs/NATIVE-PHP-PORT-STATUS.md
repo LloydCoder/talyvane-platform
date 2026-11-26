@@ -1,7 +1,7 @@
 # Native PHP port — reconciled implementation status
 
 **Repository:** `LloydCoder/talyvane-platform`  
-**Main baseline:** `e885851c6a8becb27f9163586b1f9e8fec2cf352`  
+**Main baseline:** `d58ebea85e04ee334a76743df098d168d2c3bbf3`  
 **Status:** substantial native implementation in progress; not complete, not a production release, and not approved for deployment.
 
 ## Authority and how to read this status
@@ -34,6 +34,12 @@ A route, view, table, stub, static test or successful package build is not by it
 Exact native parity head `0d836a9cf7c051ef31f9f42b7d6b2ad3a7662ac3` passed native PHP 8.3/8.4/8.5 tests, MySQL migration/integration, Semgrep, native package verification, single-ZIP cPanel package, native installer browser E2E, Laravel feature CI and standalone release-package smoke (workflow runs 45830668363, 45830668306, 45830668346, 45830668297, 45830668209, 45830668238 and 45830668285). The later private-installer diagnostics head `f6b14f37ebd8ea936e638de91189d8478fa683ab` passed PHP matrix, Semgrep, package, installer browser E2E and standalone package smoke (runs 45832598812, 45832599142, 45832599029 and 45832598827).
 
 These are repository-level checks only. They do not establish actual HostSailor cPanel/LiteSpeed acceptance, SMTP operation on the target host, external Vault/key custody, legal/provider approval, independent security certification or production readiness. Any later runtime change requires fresh exact-head validation.
+
+## Current in-progress phase — applicant casting self-service
+
+PR #100 adds applicant-originated casting submissions to the existing OTP-verified model workspace. The applicant application identity is resolved server-side from a live `portal_access` rights session; the endpoint accepts only a casting-call ID, an owned portfolio asset ID and an image-licence ID. The casting service repeats the agency's strict eligibility checks (open call, accepted application, no legal hold, current independent adult verification, approved private image and integrity hash, active purpose/territory/date/channel-specific licence, executed representation agreement, current consent grants and policy versions, and approved market), then enforces per-call duplicate and capacity controls transactionally. Applicant-originated events are attributed as `actor_type=applicant` with a null user actor; no synthetic user account is created. The exact voluntary-submission statement is versioned as `model-casting-voluntary-submission-v1` and persisted in the casting event and audit record. The workspace lists open opportunities in the applicant's country and requires the matching explicit attestation. Client distribution remains separate and does not expose non-selected submissions. PR #100 exact-head PHP/MySQL/Semgrep/package/browser/release validation is pending; a prior intermediate commit failed PHP lint because of a malformed exception name, which was corrected in the latest branch head. Do not treat the earlier failing runs as validation of the corrected head.
+
+Remaining model self-service work includes model decisions on purpose-specific licence/consent requests, assignment offer response with external execution evidence, availability/booking/calendar response, complete account recovery and browser acceptance. Independent adult-verification and legal/provider approvals remain release gates.
 
 ## Current implementation phase
 

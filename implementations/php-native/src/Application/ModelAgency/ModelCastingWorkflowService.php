@@ -308,6 +308,50 @@ final class ModelCastingWorkflowService
         }
     }
 
+    /**
+     * Submit an eligible model from the OTP-verified applicant workspace.
+     * The caller must resolve applicationId through ModelApplicantRightsService::portalApplicationId;
+     * no user identity is fabricated for applicant-originated records.
+     */
+    public function submitByApplicant(string $applicationId,string $callId,string $assetId,string $licenceId,string $requestId): string
+    {
+        $this->assertFeature();$this->assertRequestId($requestId);
+        if(!self::isUuid($applicationId)) throw new \InvalidArgumentException('Applicant identity is invalid.');
+        $this->pdo->beginTransaction();
+        try {
+            $call=$this->lockCall($callId);
+            $application=$this->lockResource('model_talent_applications',$applicationId);
+            $asset=$this->lockResource('model_portfolio_assets',$assetId);
+            $licence=$this->lockResource('model_image_licences',$licenceId);
+            $agreement=$this->lockResource('model_representation_agreements',(string)$licence['agreement_id']);
+            $this->assertSubmissionEligible($call,$application,$asset,$licence,$agreement,true);
+            $duplicate=$this->pdo->prepare('SELECT id FROM model_casting_submissions WHERE casting_call_id=:call AND application_id=:application LIMIT 1 FOR UPDATE');
+            $duplicate->execute(['call'=>$callId,'application'=>$applicationId]);
+            if($duplicate->fetchColumn()!==false) throw new \DomainException('You already have a submission for this private casting call.');
+            $count=$this->pdo->prepare('SELECT COUNT(*) FROM model_casting_submissions WHERE casting_call_id=:call AND status IN ("submitted","shortlisted","selected")');
+            $count->execute(['call'=>$callId]);
+            if((int)$count->fetchColumn()>=(int)$call['max_submissions']) throw new \DomainException('This casting call has reached its active submission limit.');
+            $id=self::uuid();$reference='MCS-'.gmdate('Y').'-'.strtoupper(bin2hex(random_bytes(6)));
+            $this->pdo->prepare(
+                'INSERT INTO model_casting_submissions
+                 (id,casting_call_id,application_id,portfolio_asset_id,image_licence_id,submission_reference,
+                  status,submitted_by,submitted_at,created_at,updated_at)
+                 VALUES (:id,:call,:application,:asset,:licence,:reference,"submitted",NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+            )->execute(['id'=>$id,'call'=>$callId,'application'=>$applicationId,'asset'=>$assetId,'licence'=>$licenceId,'reference'=>$reference]);
+            $this->event($callId,$id,'','applicant','casting.applicant_submitted',
+                'model-casting-voluntary-submission-v1: I confirm I am applying voluntarily and understand this submission uses only the selected image and existing licence scope.');
+            $this->audit->record(null,'model_casting.applicant_submitted','model_casting_submission',$id,
+                'Applicant submitted an eligible private casting application',null,
+                ['call_id'=>$callId,'asset_id'=>$assetId,'licence_id'=>$licenceId,'status'=>'submitted',
+                 'attestation_version'=>'model-casting-voluntary-submission-v1'],
+                $requestId,'model-casting-v1');
+            $this->pdo->commit();return $id;
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
     public function decide(Principal $actor,string $submissionId,string $decision,string $note,string $requestId): void
     {
         $this->authorize($actor);$this->assertRequestId($requestId);$note=trim($note);
@@ -567,7 +611,7 @@ final class ModelCastingWorkflowService
         $this->pdo->prepare(
             'INSERT INTO model_casting_events (id,call_id,submission_id,actor_id,actor_type,event_type,reason,occurred_at,created_at,updated_at)
              VALUES (:id,:call,:submission,:actor,:actor_type,:event,:reason,UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
-        )->execute(['id'=>$id,'call'=>$callId,'submission'=>$submissionId,'actor'=>$actorId,'actor_type'=>$actorType,'event'=>$type,'reason'=>$reason]);
+        )->execute(['id'=>$id,'call'=>$callId,'submission'=>$submissionId,'actor'=>$actorId===''?null:$actorId,'actor_type'=>$actorType,'event'=>$type,'reason'=>$reason]);
     }
 
     private function encryptField(string $callId,string $field,string $value): string

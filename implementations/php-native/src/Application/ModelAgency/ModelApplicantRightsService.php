@@ -246,6 +246,15 @@ final class ModelApplicantRightsService
                  ORDER BY s.submitted_at DESC LIMIT 100'
             );
             $castings->execute(['application'=>$application['id']]);
+            $availableCalls=$this->pdo->prepare(
+                'SELECT id,casting_reference,title,project_purpose,country_code,
+                        opens_at,closes_at,shoot_starts_at,shoot_ends_at,compensation_amount,currency_code
+                 FROM model_casting_calls
+                 WHERE status="open" AND country_code=:country
+                   AND opens_at<=UTC_TIMESTAMP() AND closes_at>UTC_TIMESTAMP()
+                 ORDER BY closes_at ASC LIMIT 50'
+            );
+            $availableCalls->execute(['country'=>$application['country_code']]);
             $assignments=$this->pdo->prepare(
                 'SELECT id,assignment_reference,status,project_purpose,country_code,
                         shoot_starts_at,shoot_ends_at,compensation_minor,currency_code,
@@ -265,6 +274,7 @@ final class ModelApplicantRightsService
                 'portfolio_assets'=>$assets->fetchAll(PDO::FETCH_ASSOC),
                 'image_licences'=>$licences->fetchAll(PDO::FETCH_ASSOC),
                 'casting_submissions'=>$castings->fetchAll(PDO::FETCH_ASSOC),
+                'available_casting_calls'=>$availableCalls->fetchAll(PDO::FETCH_ASSOC),
                 'assignments'=>$assignments->fetchAll(PDO::FETCH_ASSOC),
                 'legal_hold_restricts_mutations'=>(bool)$application['legal_hold'],
             ];
@@ -275,6 +285,24 @@ final class ModelApplicantRightsService
                  'assignment_count'=>count($result['assignments'])],$requestId,'model-applicant-portal-v1');
             $this->pdo->commit();
             return $result;
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    /** Resolve the applicant's own application only from a live OTP-verified portal session. */
+    public function portalApplicationId(string $rightsRequestId): string
+    {
+        $this->pdo->beginTransaction();
+        try {
+            [, $application]=$this->verifiedContext($rightsRequestId,'portal_access');
+            if($application['status']!=='accepted' || (bool)$application['legal_hold']) {
+                throw new \DomainException('This model application is not eligible for casting self-service.');
+            }
+            $id=(string)$application['id'];
+            $this->pdo->commit();
+            return $id;
         } catch(Throwable $error) {
             if($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $error;
