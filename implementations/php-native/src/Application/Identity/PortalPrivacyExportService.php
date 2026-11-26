@@ -21,7 +21,7 @@ final class PortalPrivacyExportService
         $isClient=$actor->hasRole('client') && count($actor->roles)===1;
         $isCompanion=$actor->hasRole('companion') && count($actor->roles)===1;
         if (!$isClient && !$isCompanion) throw new \DomainException('A client or companion portal account is required.');
-        Authorization::require($actor,$isClient?'client.booking.manage':'companion.self.view',false);
+        Authorization::require($actor,$isClient?'client.privacy.manage':'companion.privacy.manage',false);
         if (!$this->limiter->consume('portal.privacy.export',$actor->id,3,3600,3600)) {
             throw new PortalPrivacyExportRateLimitException('Privacy export is temporarily unavailable. Try again later.');
         }
