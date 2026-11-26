@@ -415,7 +415,7 @@ final class Bootstrap
         }
         $router->add('GET', '/admin/model-agency/assignments', static fn(Request $request): Response => $adminModelAssignments->index($request));
         $router->add('POST', '/admin/model-agency/assignments', static fn(Request $request): Response => $adminModelAssignments->create($request));
-        foreach (['offer','executionEvidence','accept','confirm','start','complete','decline','cancel','dispute'] as $assignmentAction) {
+        foreach (['offer','executionEvidence','confirm','start','complete','decline','cancel','dispute'] as $assignmentAction) {
             $router->add('POST', '/admin/model-agency/assignments/{id}/'.$assignmentAction,
                 static fn(Request $request,array $params): Response => $adminModelAssignments->{$assignmentAction}($request,$params));
         }
