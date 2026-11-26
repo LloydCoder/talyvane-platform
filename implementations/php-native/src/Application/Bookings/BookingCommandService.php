@@ -252,6 +252,15 @@ final class BookingCommandService
 
     private function actorRole(Principal $actor): string
     {
+        // Portal identities are mutually exclusive: a client/companion principal
+        // must never inherit an administrator's broader booking authority through
+        // a mixed-role session or stale role assignment.
+        if (($actor->hasRole('client') || $actor->hasRole('companion')) && count($actor->roles)!==1) {
+            throw new \DomainException('Portal booking actions require a single-purpose client or companion identity.');
+        }
+        if ($actor->hasRole('client') && $actor->hasRole('companion')) {
+            throw new \DomainException('A booking principal cannot be both client and companion.');
+        }
         foreach (['super_admin','owner','admin','companion','client'] as $role) {
             if ($actor->hasRole($role)) {
                 return $role;
