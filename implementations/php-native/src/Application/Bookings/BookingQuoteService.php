@@ -63,7 +63,7 @@ final class BookingQuoteService
         if($amountMinor<=0 || preg_match('/^[A-Z]{3}$/D',$currency)!==1) {
             throw new \InvalidArgumentException('Quote amount must be positive and use an ISO 4217 currency.');
         }
-        $this->validateFees($fees);
+        $this->validateFees($fees,$amountMinor);
         $utc=new DateTimeZone('UTC');$now=new DateTimeImmutable('now',$utc);$expiresAt=$expiresAt->setTimezone($utc);
         if($expiresAt<=$now->modify('+5 minutes') || $expiresAt>$now->modify('+30 days')) {
             throw new \InvalidArgumentException('Quote expiry must be between five minutes and thirty days from now.');
@@ -278,16 +278,20 @@ final class BookingQuoteService
         return $row;
     }
 
-    private function validateFees(array $fees): void
+    private function validateFees(array $fees,int $totalAmountMinor): void
     {
         if(count($fees)>20) throw new \InvalidArgumentException('A quote can contain no more than twenty fee components.');
+        $feeTotal=0;
         foreach($fees as $key=>$amount) {
             if(!is_string($key) || preg_match('/^[a-z][a-z0-9_.-]{1,63}$/D',$key)!==1 ||
                 (!is_int($amount) && !is_string($amount)) || !is_numeric($amount) ||
-                (int)$amount<0 || (string)(int)$amount!==(string)$amount) {
+                (int)$amount<0 || (string)(int)$amount!==(string)$amount ||
+                (int)$amount>PHP_INT_MAX-$feeTotal) {
                 throw new \InvalidArgumentException('Quote fee components must be named non-negative integer minor-unit amounts.');
             }
+            $feeTotal+=(int)$amount;
         }
+        if($feeTotal>$totalAmountMinor) throw new \InvalidArgumentException('Fee components cannot exceed the total quoted amount.');
     }
 
     private function authorizeAdministrator(Principal $actor): void
