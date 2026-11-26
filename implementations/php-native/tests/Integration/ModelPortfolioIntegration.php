@@ -11,6 +11,8 @@ use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
 use Talyvane\Security\Principal;
 use Talyvane\Security\SecretBox;
+use Talyvane\Application\ModelAgency\ModelApplicantRightsService;
+use Talyvane\Infrastructure\Security\RateLimiter;
 
 function runModelPortfolioIntegration(PDO $pdo): int
 {
