@@ -19,7 +19,7 @@ final class PortalPrivacyRightsAdminService
     public function queue(Principal $actor,string $requestId): array
     {
         Authorization::require($actor,'privacy.requests.review');
-        if(strlen($requestId)<16 || strlen($requestId)>64) throw new \\InvalidArgumentException('Privacy queue request reference is invalid.');
+        if(strlen($requestId)<16 || strlen($requestId)>64) throw new \InvalidArgumentException('Privacy queue request reference is invalid.');
         $query=$this->pdo->query(
             'SELECT r.id,r.user_id,r.account_type,r.request_type,r.status,r.payload_ciphertext,
                     r.verified_at,r.created_at,u.email
