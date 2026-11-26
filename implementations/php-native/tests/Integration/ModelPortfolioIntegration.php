@@ -248,7 +248,21 @@ function runModelPortfolioIntegration(PDO $pdo): int
 
     $candidates=$casting->eligibleCandidates($admin,$callId);
     $assert(count($candidates)===1 && $candidates[0]['application_id']===$applicationId,'eligible-candidate register requires current adult verification, portfolio consent, executed agreement and active casting licence');
-    $submissionId=$casting->submit($admin,$callId,$applicationId,$licensedAsset['id'],$licenceId,bin2hex(random_bytes(16)));
+    $submissionId=$casting->submitByApplicant($applicationId,$callId,$licensedAsset['id'],$licenceId,bin2hex(random_bytes(16)));
+    $applicantSubmission=$pdo->prepare('SELECT status,submitted_by FROM model_casting_submissions WHERE id=:id');
+    $applicantSubmission->execute(['id'=>$submissionId]);$applicantSubmissionRow=$applicantSubmission->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($applicantSubmissionRow) && $applicantSubmissionRow['status']==='submitted' && $applicantSubmissionRow['submitted_by']===null,
+        'verified applicant self-service submits without inventing a user account or administrator actor');
+    $applicantEvent=$pdo->prepare('SELECT actor_type,actor_id FROM model_casting_events WHERE submission_id=:id AND event_type="casting.applicant_submitted"');
+    $applicantEvent->execute(['id'=>$submissionId]);$applicantEventRow=$applicantEvent->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($applicantEventRow) && $applicantEventRow['actor_type']==='applicant' && $applicantEventRow['actor_id']===null,
+        'applicant-originated casting submission is explicitly attributed to applicant session rather than an admin'); 
+    try {
+        $casting->submit($admin,$callId,$applicationId,$licensedAsset['id'],$licenceId,bin2hex(random_bytes(16)));
+        $assert(false,'duplicate submission is rejected regardless of whether it originated from applicant or agency');
+    } catch(DomainException) {
+        $assert(true,'duplicate submission is rejected regardless of whether it originated from applicant or agency');
+    }
     $casting->decide($admin,$submissionId,'shortlisted','Model shortlisted after human review of the private casting submission.',bin2hex(random_bytes(16)));
     $casting->decide($admin,$submissionId,'selected','Model selected after final human review and confirmation of the defined project scope.',bin2hex(random_bytes(16)));
     $submissionRows=$casting->submissionsForCall($admin,$callId);
