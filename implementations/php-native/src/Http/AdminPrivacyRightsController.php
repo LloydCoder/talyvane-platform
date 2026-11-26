@@ -48,6 +48,22 @@ final class AdminPrivacyRightsController
                     $this->field($request,'client_name'),$this->field($request,'reason'),$request->requestId);
                 return $this->index($request,'Verified client account name correction applied. Contact email was not changed.');
             }
+            if ($this->field($request,'decision')==='fulfill_client_erasure') {
+                if ($this->field($request,'confirm_erasure')!=='yes') {
+                    throw new \InvalidArgumentException('Explicit erasure confirmation is required.');
+                }
+                $this->rights->fulfillClientErasure($actor,$this->field($request,'request_id'),
+                    $this->field($request,'reason'),$request->requestId);
+                return $this->index($request,'Client account anonymized after all automated dependency checks passed. Backup expiry and third-party propagation remain separate obligations.');
+            }
+            if ($this->field($request,'decision')==='fulfill_companion_erasure') {
+                if ($this->field($request,'confirm_erasure')!=='yes') {
+                    throw new \InvalidArgumentException('Explicit erasure confirmation is required.');
+                }
+                $this->rights->fulfillCompanionErasure($actor,$this->field($request,'request_id'),
+                    $this->field($request,'reason'),$request->requestId);
+                return $this->index($request,'Companion account anonymized and profile withdrawn after all automated dependency checks passed. Backup expiry and third-party propagation remain separate obligations.');
+            }
             if ($this->field($request,'decision')==='fulfill_companion_correction') {
                 $rawLanguages=$this->field($request,'languages');
                 $languages=array_values(array_filter(array_map('trim',explode(',',$rawLanguages)),static fn(string $value):bool=>$value!==''));
@@ -59,8 +75,12 @@ final class AdminPrivacyRightsController
             $this->rights->review($actor,$this->field($request,'request_id'),
                 $this->field($request,'decision'),$this->field($request,'reason'),$request->requestId);
             return $this->index($request,'Privacy request review decision recorded. No data was erased or corrected automatically.');
-        } catch(DomainException) {
-            return $this->index($request,'','The privacy request is no longer awaiting review or you lack permission.',403);
+        } catch(DomainException $error) {
+            $message=str_contains($error->getMessage(),'blocked by retained') || str_contains($error->getMessage(),'Only an active account') ||
+                str_contains($error->getMessage(),'profile is unavailable')
+                ? 'Erasure is blocked by retained records or unresolved account dependencies. No data was changed; complete a documented retention review.'
+                : 'The privacy request is no longer awaiting review or you lack permission.';
+            return $this->index($request,'',$message,403);
         } catch(\InvalidArgumentException) {
             return $this->index($request,'','Provide a valid review decision and a reason of at least 10 characters.',422);
         } catch(\Throwable) {
