@@ -391,7 +391,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
         $acceptanceRecord['applicant_response_version']==='model-assignment-applicant-response-v1' &&
         preg_match('/^[a-f0-9]{64}$/D',(string)$acceptanceRecord['applicant_response_terms_hash'])===1 &&
         $acceptanceRecord['applicant_response_reason']!=='I have reviewed the assignment terms and voluntarily request the external signature process; this is not an executed agreement.',
-        'model acceptance intent is versioned, bound to the exact offer snapshot and encrypted at rest while assignment remains offered');
+        'model acceptance intent is versioned, bound to the exact model-visible offer terms and encrypted at rest while assignment remains offered');
     $acceptanceEvent=$pdo->prepare('SELECT actor_user_id,actor_type,from_status,to_status,event_type FROM model_assignment_events WHERE assignment_id=:id AND event_type="assignment.applicant_acceptance_intent"');
     $acceptanceEvent->execute(['id'=>$assignmentId]);$acceptanceEventRow=$acceptanceEvent->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($acceptanceEventRow) && $acceptanceEventRow['actor_user_id']===null && $acceptanceEventRow['actor_type']==='applicant' &&
