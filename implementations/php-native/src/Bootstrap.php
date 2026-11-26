@@ -249,6 +249,8 @@ final class Bootstrap
         $router->add('POST', '/portal/favorites/{slug}/remove', static fn(Request $request, array $params): Response => $clientFavorites->remove($request, $params));
         $router->add('GET', '/portal/bookings/new', static fn(Request $request): Response => $portalBookings->newForm($request));
         $router->add('POST', '/portal/bookings', static fn(Request $request): Response => $portalBookings->store($request));
+        $router->add('GET', '/portal/bookings/{id}/reschedule', static fn(Request $request, array $params): Response => $portalBookings->rescheduleForm($request, $params));
+        $router->add('POST', '/portal/bookings/{id}/reschedule', static fn(Request $request, array $params): Response => $portalBookings->reschedule($request, $params));
         $router->add('POST', '/portal/bookings/{id}/cancel', static fn(Request $request, array $params): Response => $portalBookings->cancel($request, $params));
         $router->add('GET', '/portal/companion/bookings', static fn(Request $request): Response => $portalBookings->companionIndex($request));
         $router->add('GET', '/portal/companion/media', static fn(Request $request): Response => $companionMedia->index($request));
