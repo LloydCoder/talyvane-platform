@@ -190,7 +190,7 @@ final class ModelAssignmentService
             } elseif($application['anonymized_at']!==null) {
                 throw new \DomainException('An anonymized applicant record cannot respond to an assignment offer.');
             }
-            $termsHash=hash('sha256',(string)$assignment['terms_snapshot']);
+            $termsHash=$this->modelVisibleTermsHash($assignment);
             $version='model-assignment-applicant-response-v1';
             $statement=$decision==='accept'
                 ?'I have reviewed the assignment terms and voluntarily request the external signature process; this is not an executed agreement.'
@@ -359,7 +359,7 @@ final class ModelAssignmentService
                 if(($assignment['applicant_response_status']??null)!=='acceptance_pending_execution') {
                     throw new \DomainException('The model must record acceptance intent before external execution can be recorded.');
                 }
-                $currentTermsHash=hash('sha256',(string)$assignment['terms_snapshot']);
+                $currentTermsHash=$this->modelVisibleTermsHash($assignment);
                 if(!is_string($assignment['applicant_response_terms_hash']??null) ||
                     !hash_equals($currentTermsHash,(string)$assignment['applicant_response_terms_hash'])) {
                     throw new \DomainException('Assignment terms changed after the model response; a new offer is required.');
@@ -572,6 +572,27 @@ final class ModelAssignmentService
             new DateTimeImmutable((string)$row['expires_at'],new DateTimeZone('UTC'))<=new DateTimeImmutable('now',new DateTimeZone('UTC'))) {
             throw new \DomainException('Assignment requires a current approved market with evidence.');
         }
+    }
+
+    /** Hash only the terms actually disclosed to the model; internal agency commission and references are excluded. */
+    private function modelVisibleTermsHash(array $assignment): string
+    {
+        $id=(string)$assignment['id'];
+        $terms=[
+            'assignment_reference'=>(string)$assignment['assignment_reference'],
+            'project_purpose'=>(string)$assignment['project_purpose'],
+            'country_code'=>(string)$assignment['country_code'],
+            'client_name'=>$this->cipher->decrypt((string)$assignment['client_name'],'model-assignment-v1:'.$id.':client_name'),
+            'brief'=>$this->cipher->decrypt((string)$assignment['brief'],'model-assignment-v1:'.$id.':brief'),
+            'location_city'=>$this->cipher->decrypt((string)$assignment['location_city'],'model-assignment-v1:'.$id.':location_city'),
+            'shoot_starts_at'=>(string)$assignment['shoot_starts_at'],
+            'shoot_ends_at'=>(string)$assignment['shoot_ends_at'],
+            'deliverables'=>$this->cipher->decrypt((string)$assignment['deliverables'],'model-assignment-v1:'.$id.':deliverables'),
+            'compensation_minor'=>$assignment['compensation_minor']===null?null:(int)$assignment['compensation_minor'],
+            'currency_code'=>$assignment['currency_code']===null?null:(string)$assignment['currency_code'],
+            'expense_cap_minor'=>(int)$assignment['expense_cap_minor'],
+        ];
+        return hash('sha256',json_encode($terms,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));
     }
 
     private function minorToDecimal(int $minor,int $precision): string
