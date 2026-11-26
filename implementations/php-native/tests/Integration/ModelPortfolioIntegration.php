@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 use Talyvane\Application\ModelAgency\ModelPortfolioService;
 use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
+use Talyvane\Application\ModelAgency\ModelAgencyAgreementService;
+use Talyvane\Application\ModelAgency\ModelImageLicenceService;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
 use Talyvane\Security\Principal;
@@ -40,7 +42,8 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $publicRoot=$base.DIRECTORY_SEPARATOR.'public';$privateRoot=$base.DIRECTORY_SEPARATOR.'private';
     mkdir($publicRoot,0700,true);mkdir($privateRoot,0700,true);
     $storage=new PrivateMediaStorage($privateRoot,$publicRoot);
-    $service=new ModelPortfolioService($pdo,$storage,new AuditLogger($pdo),new SecretBox(str_repeat('P',32)),static fn():bool=>true);
+    $secretBox=new SecretBox(str_repeat('P',32));
+    $service=new ModelPortfolioService($pdo,$storage,new AuditLogger($pdo),$secretBox,static fn():bool=>true);
     $makeAsset=static function(string $suffix) use ($pdo,$adminId,$applicationId,$privateRoot): array {
         if(!function_exists('imagewebp')) throw new RuntimeException('Model portfolio integration requires GD WebP support.');
         $id=sprintf('%08x-%04x-4%03x-8%03x-%012x',random_int(0,0xffffffff),random_int(0,0xffff),random_int(0,0xfff),random_int(0,0xfff),random_int(0,0xffffffffffff));
@@ -94,7 +97,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert(is_array($rejectedRow) && $rejectedRow['status']==='rejected' && $rejectedRow['private_storage_key']===null,'rejected portfolio asset is no longer previewable and its storage pointer is cleared');
     $assert(!is_file($rejectedAsset['path']),'rejection deletes private portfolio image bytes');
 
-    $disabled=new ModelPortfolioService($pdo,$storage,new AuditLogger($pdo),new SecretBox(str_repeat('P',32)),static fn():bool=>false);
+    $disabled=new ModelPortfolioService($pdo,$storage,new AuditLogger($pdo),$secretBox,static fn():bool=>false);
     try {
         $disabled->store($admin,$applicationId,[],[
             'source_description'=>'A sufficiently long source description for a test upload.',
