@@ -81,6 +81,10 @@ function talyvane_log(string $event, array $context = []): void
     // permissive existing logs. Compare lstat/fstat inode data after opening
     // to detect path substitution between the checks and the open.
     $before = @lstat($path);
+    if ($before !== false && (int) ($before['size'] ?? 0) > 1048576) {
+        error_log('Talyvane installer diagnostic '.$record['diagnostic_id'].' (private log reached its size limit).');
+        return;
+    }
     if ($before !== false && (
         (($before['mode'] ?? 0) & 0170000) !== 0100000
         || ($before['uid'] ?? -1) !== ($directoryStat['uid'] ?? -2)
