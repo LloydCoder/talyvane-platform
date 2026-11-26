@@ -175,6 +175,28 @@ final class PortalPrivacyRightsAdminService
                  reviewed_at=UTC_TIMESTAMP(),decision_reason=:reason,payload_ciphertext=NULL,
                  completed_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE id=:id'
             )->execute(['reviewer'=>$actor->id,'reason'=>$reason,'id'=>$requestId]);
+            $recipientQuery=$this->pdo->prepare('SELECT email,status,email_verified_at FROM users WHERE id=:id FOR UPDATE');
+            $recipientQuery->execute(['id'=>$request['user_id']]);
+            $recipient=$recipientQuery->fetch(PDO::FETCH_ASSOC);
+            if ($this->outcomes!==null) {
+                if (!is_array($recipient) || $recipient['status']!=='active' ||
+                    $recipient['email_verified_at']===null || !is_string($recipient['email']) ||
+                    !filter_var($recipient['email'],FILTER_VALIDATE_EMAIL)) {
+                    throw new \\DomainException('The corrected client has no active verified notification destination.');
+                }
+                $this->outcomes->enqueueCorrectionFulfilled($requestId,(string)$recipient['email'],'client');
+            }
+            $recipientQuery=$this->pdo->prepare('SELECT email,status,email_verified_at FROM users WHERE id=:id FOR UPDATE');
+            $recipientQuery->execute(['id'=>$request['user_id']]);
+            $recipient=$recipientQuery->fetch(PDO::FETCH_ASSOC);
+            if ($this->outcomes!==null) {
+                if (!is_array($recipient) || $recipient['status']!=='active' ||
+                    $recipient['email_verified_at']===null || !is_string($recipient['email']) ||
+                    !filter_var($recipient['email'],FILTER_VALIDATE_EMAIL)) {
+                    throw new \\DomainException('The corrected companion has no active verified notification destination.');
+                }
+                $this->outcomes->enqueueCorrectionFulfilled($requestId,(string)$recipient['email'],'companion');
+            }
             $this->audit->record($actor->id,'portal.privacy.correction.fulfilled','portal_privacy_request',$requestId,
                 'Verified companion profile correction applied; profile returned to draft for independent republication review',
                 ['profile_status'=>$previous['status']??null],
