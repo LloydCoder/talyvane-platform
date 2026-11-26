@@ -51,6 +51,9 @@ return [
         INNER JOIN model_casting_calls c ON c.id=s.casting_call_id
         INNER JOIN model_image_licences l ON l.id=s.image_licence_id
         SET a.application_id=p.id,a.representation_agreement_id=l.agreement_id,a.country_code=c.country_code",
+    "ALTER TABLE model_assignments
+        MODIFY currency_code CHAR(3) NULL,
+        MODIFY compensation_minor BIGINT UNSIGNED NULL",
     "ALTER TABLE model_assignment_events
         MODIFY reason TEXT NULL,
         MODIFY evidence_reference TEXT NULL,
@@ -86,6 +89,9 @@ return [
     "UPDATE model_settlements s
         INNER JOIN model_assignments a ON a.id=s.assignment_id
         SET s.application_id=a.application_id,s.commission_basis_points=a.commission_basis_points",
+    "UPDATE model_settlements s
+        INNER JOIN currencies c ON c.code=s.currency_code
+        SET s.currency_precision=c.minor_units",
     "ALTER TABLE model_settlements
         MODIFY application_id CHAR(36) NOT NULL,
         ADD KEY model_settlement_application_status_idx (application_id,status),
