@@ -29,8 +29,7 @@ final class ModelAssignmentService
     /** @param array<string,mixed> $terms */
     public function createDraft(Principal $actor,string $submissionId,array $terms,string $requestId): string
     {
-        $this->authorize($actor);if($decision==='accept') $this->assertFeature();
-        $this->assertRequestId($requestId);$this->validateTerms($terms);
+        $this->authorize($actor);$this->assertFeature();$this->assertRequestId($requestId);$this->validateTerms($terms);
         $this->pdo->beginTransaction();
         try {
             $submission=$this->lock('model_casting_submissions',$submissionId);
@@ -157,7 +156,8 @@ final class ModelAssignmentService
         if($decision==='decline' && $reason!=='' && (strlen($reason)<20 || strlen($reason)>1500)) {
             throw new \InvalidArgumentException('Decline explanation must contain 20 to 1500 characters.');
         }
-        $this->assertFeature();$this->assertRequestId($requestId);
+        if($decision==='accept') $this->assertFeature();
+        $this->assertRequestId($requestId);
         $fingerprint=hash('sha256',$requestId);
         $this->pdo->beginTransaction();
         try {
