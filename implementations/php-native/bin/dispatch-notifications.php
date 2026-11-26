@@ -63,17 +63,17 @@ try {
     $booking = (new BookingNotificationDispatcher($pdo,$box,$mailer))->dispatchBatch((int)$limitValue);
     $safeguarding = (new SafeguardingNotificationDispatcher($pdo,$box,$mailer))->dispatchBatch((int)$limitValue);
     $privacy = (new PortalPrivacyNotificationDispatcher($pdo,$box,$mailer))->dispatchBatch((int)$limitValue);
-    $crm = (new CrmCommunicationDispatcher($pdo,$box,$mailer))->dispatchBatch((int)$limitValue);
+    $communications = (new CrmCommunicationDispatcher($pdo,$box,$mailer))->dispatchBatch((int)$limitValue);
     $result = [
         'status'=>'ok',
         'booking'=>$booking,
         'safeguarding'=>$safeguarding,
         'privacy'=>$privacy,
-        'crm'=>$crm,
-        'processed'=>$booking['claimed'] + $safeguarding['claimed'] + $privacy['claimed'] + $crm['claimed'],
-        'delivered'=>$booking['delivered'] + $safeguarding['delivered'] + $privacy['delivered'] + $crm['delivered'],
-        'retried'=>$booking['retried'] + $safeguarding['retried'] + $privacy['retried'] + $crm['retried'],
-        'dead_lettered'=>$booking['dead_lettered'] + $safeguarding['dead_lettered'] + $privacy['dead_lettered'] + $crm['dead_lettered'],
+        'communications'=>$communications,
+        'processed'=>$booking['claimed'] + $safeguarding['claimed'] + $privacy['claimed'] + $communications['claimed'],
+        'delivered'=>$booking['delivered'] + $safeguarding['delivered'] + $privacy['delivered'] + $communications['delivered'],
+        'retried'=>$booking['retried'] + $safeguarding['retried'] + $privacy['retried'] + $communications['retried'],
+        'dead_lettered'=>$booking['dead_lettered'] + $safeguarding['dead_lettered'] + $privacy['dead_lettered'] + $communications['dead_lettered'],
         'checked_at_utc'=>gmdate('Y-m-d\\TH:i:s\\Z'),
     ];
     if (array_key_exists('json',$options)) {

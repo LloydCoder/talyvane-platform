@@ -178,6 +178,7 @@ final class ModelImageLicenceService
                 'actor'=>$actor->id,'execution'=>$this->encrypt($licenceId,'execution_evidence_reference',$executionEvidenceReference),
                 'terms_hash'=>$termsHash,'id'=>$licenceId,
             ]);
+            $this->queueApplicantConsentOffer((string)$application['email'],$licenceId,$termsHash);
             $this->event((string)$application['id'],$actor->id,'application.image_licence_consent_offered',
                 'Externally executed image licence offered to the model for a separate consent decision.',$policy['policy_version']);
             $this->audit->record($actor->id,'model_licence.consent_offered','model_image_licence',$licenceId,
@@ -490,6 +491,32 @@ final class ModelImageLicenceService
             new DateTimeImmutable((string)$row['expires_at'],new DateTimeZone('UTC'))<=new DateTimeImmutable('now',new DateTimeZone('UTC'))) {
             throw new \DomainException('Image licensing requires a current approved market with evidence.');
         }
+    }
+
+    /** Queue a minimal, encrypted notice in the same transaction as the consent offer. */
+    private function queueApplicantConsentOffer(string $email,string $licenceId,string $termsHash): void
+    {
+        $email=strtolower(trim($email));
+        if(filter_var($email,FILTER_VALIDATE_EMAIL)===false) {
+            throw new \DomainException('The model application has no valid verified email destination for consent-offer notification.');
+        }
+        $id=self::uuid();
+        $payload=json_encode([
+            'subject'=>'An image-usage consent offer is waiting',
+            'body'=>"An image-usage consent offer is waiting in your model workspace. The licence is not active unless you grant consent. Sign in using the address you already verified. If you did not expect this notice, contact support through the website's official contact details.",
+        ],JSON_THROW_ON_ERROR);
+        $this->pdo->prepare(
+            'INSERT INTO communication_outbox
+             (id,idempotency_key,related_type,related_id,channel,recipient_ciphertext,payload_ciphertext,status,attempts,available_at,created_at)
+             VALUES (:id,:key,"model_licence",:related,"email",:recipient,:payload,"pending",0,UTC_TIMESTAMP(),UTC_TIMESTAMP())
+             ON DUPLICATE KEY UPDATE id=id'
+        )->execute([
+            'id'=>$id,
+            'key'=>'model-licence-consent-offer:'.$licenceId.':'.$termsHash,
+            'related'=>$licenceId,
+            'recipient'=>$this->cipher->encrypt($email,'communication-outbox-v1:recipient:'.$id),
+            'payload'=>$this->cipher->encrypt($payload,'communication-outbox-v1:payload:'.$id),
+        ]);
     }
 
     /** @return array<string,mixed> */
