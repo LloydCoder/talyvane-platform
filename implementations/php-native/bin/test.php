@@ -729,6 +729,10 @@ $configStore->create(['app_key'=>str_repeat('A',32),'database'=>['host'=>'127.0.
 $loadedConfig = $configStore->load();
 $cliConfig = PrivateCliConfig::load($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',$privatePaths['document_root']);
 $assert(($cliConfig['database']['database'] ?? '') === 'test', 'notification CLI loads installer-generated config using an explicit public document root');
+chmod($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',0644);
+try { PrivateCliConfig::load($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',$privatePaths['document_root']); $assert(false, 'notification CLI rejects group/world-readable private config'); }
+catch (RuntimeException) { $assert(true, 'notification CLI rejects group/world-readable private config'); }
+chmod($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',0600);
 try { PrivateCliConfig::load($privatePaths['config'] . DIRECTORY_SEPARATOR . 'app.php',$documentRoot . DIRECTORY_SEPARATOR . 'missing'); $assert(false, 'notification CLI rejects an unresolved public document root'); }
 catch (RuntimeException) { $assert(true, 'notification CLI rejects an unresolved public document root'); }
 $publicConfig = $documentRoot . DIRECTORY_SEPARATOR . 'public-app.php';
