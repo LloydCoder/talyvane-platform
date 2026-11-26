@@ -425,7 +425,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $secondCallEnd=$now->modify('+13 days')->format(DATE_ATOM);
     $secondCallId=$casting->createDraft($admin,[
         'title'=>'Second private editorial assignment response test','client_name'=>'Verified editorial commissioning client',
-        'client_reference'=>'client-ref-assignment-decline-test','project_purpose'=>'editorial',
+        'client_reference'=>'editorial-client-ref-001','project_purpose'=>'editorial',
         'description'=>'A separate private editorial opportunity for testing model-originated assignment decline.',
         'requirements'=>'The model must review and voluntarily accept or decline the assignment schedule.',
         'country_code'=>'GB','opens_at'=>$now->modify('-1 hour')->format(DATE_ATOM),
@@ -436,7 +436,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $secondSubmissionId=$casting->submitByApplicant($applicationId,$secondCallId,$licensedAsset['id'],$licenceId,bin2hex(random_bytes(16)));
     $casting->decide($admin,$secondSubmissionId,'selected','Selected for model assignment response decline integration test.',bin2hex(random_bytes(16)));
     $secondAssignmentId=$assignments->createDraft($admin,$secondSubmissionId,[
-        'project_purpose'=>'editorial','client_name'=>'Verified editorial commissioning client','client_reference'=>'editorial-client-ref-002',
+        'project_purpose'=>'editorial','client_name'=>'Verified editorial commissioning client','client_reference'=>'editorial-client-ref-001',
         'brief'=>'A separate editorial assignment used to verify the applicant decline path.',
         'location_city'=>'London','shoot_starts_at'=>$now->modify('+12 days')->format('Y-m-d H:i:s'),
         'shoot_ends_at'=>$now->modify('+13 days')->format('Y-m-d H:i:s'),
