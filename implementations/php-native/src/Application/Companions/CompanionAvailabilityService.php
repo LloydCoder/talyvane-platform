@@ -199,14 +199,15 @@ final class CompanionAvailabilityService
                 'SELECT p.id,p.status,p.adult_eligibility_status,p.publication_consent_version,
                         p.publication_consent_withdrawn_at,p.auto_booking_opt_in,d.country_code,
                         m.enabled AS market_enabled,m.decision AS market_decision,m.expires_at,m.reviewer_id,
-                        CASE WHEN reviewer.user_id IS NULL THEN 0 ELSE 1 END AS reviewer_mfa_valid
+                        CASE WHEN EXISTS (
+                            SELECT 1 FROM user_roles ur
+                            JOIN admin_mfa_credentials mfa ON mfa.user_id=ur.user_id
+                            WHERE ur.user_id=m.reviewer_id AND ur.role_key IN ("owner","admin","super_admin")
+                              AND mfa.enabled_at IS NOT NULL
+                        ) THEN 1 ELSE 0 END AS reviewer_mfa_valid
                  FROM companion_profiles p
                  JOIN destinations d ON d.id=p.destination_id
                  LEFT JOIN market_policies m ON m.country_code=d.country_code
-                 LEFT JOIN (SELECT ur.user_id FROM user_roles ur
-                            JOIN admin_mfa_credentials mfa ON mfa.user_id=ur.user_id
-                            WHERE ur.role_key IN ("owner","admin","super_admin") AND mfa.enabled_at IS NOT NULL
-                            GROUP BY ur.user_id) reviewer ON reviewer.user_id=m.reviewer_id
                  WHERE p.id=:profile AND p.user_id=:actor LIMIT 1 FOR UPDATE'
             );
             $query->execute(['profile'=>$profileId,'actor'=>$actor->id]);
