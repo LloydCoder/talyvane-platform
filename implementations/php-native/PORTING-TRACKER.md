@@ -12,7 +12,7 @@
 
 A screen, route, database table, stub, or passing unit test alone does not establish feature parity.
 
-**Current feature-branch validation:** branch head `1a37888f9299d753cb954caee9d0e3bf5c4b9d7e` passed all seven latest GitHub Actions workflows (run group created 2026-11-26 06:04 UTC): native PHP implementation, PHP 8.3/8.4/8.5 lint and unit tests, MySQL migration/integration smoke, security analysis, native and single-ZIP cPanel package checks, and installer browser E2E. MySQL run `45765715272` applied 31 ordered migrations and passed 17 installer-bootstrap, 30 membership, 18 safeguarding, 114 identity, 39 profile-media, 21 model-agency/privacy, 13 model-casting, 35 model-portfolio (including assignment and settlement), 12 CMS, 10 CRM/enquiry and 13 audit-query assertions. These are repository-level checks, not live HostSailor cPanel/LiteSpeed acceptance, complete product parity or production readiness.
+**Current feature-branch validation:** branch head `25ebd9e80688c3361682fe6e829037724729ab81` passed native PHP 8.3/8.4/8.5 suites, MySQL integration, Semgrep security analysis, native and single-ZIP cPanel package checks, and native installer browser E2E (workflow run group 45767683652–45767683774, 2026-11-26 06:22–06:24 UTC). MySQL run `45767683742` applied 31 ordered migrations and passed 326 integration assertions: 17 installer-bootstrap, 30 membership, 18 safeguarding, 114 identity, 39 profile-media, 21 model-agency/privacy, 13 model-casting, 39 model-portfolio (including assignment and settlement), 12 CMS, 10 CRM/enquiry and 13 audit-query assertions. The Laravel CI/release-package workflow `45767683668` passed. The separate existing Laravel installer browser workflow `45767683688` was still running at the last check and is not required evidence for native installer acceptance. These are repository-level checks, not live HostSailor cPanel/LiteSpeed acceptance, complete product parity or production readiness.
 
 ## 1. Runtime, installation and operations
 
@@ -185,7 +185,7 @@ The native branch now has 31 ordered PHP migrations and connected slices for ide
 
 ## 9. Non-functional and security verification
 
-The merged PR #90 code head passed PHP 8.3/8.4/8.5 native lint/unit tests, MySQL 8.0 integration (24 ordered migrations; current-head assertion count pending CI), Semgrep, native ZIP build/contract/archive checks, the existing Laravel feature suite, and native installer browser E2E (workflow run 80, ID 45671355809). Native upgrade/restore drills, release provenance, and actual HostSailor cPanel/LiteSpeed acceptance remain outstanding.
+The feature-branch code head above passed PHP 8.3/8.4/8.5 native tests, MySQL 8.0 integration (31 migrations; 326 assertions), Semgrep, native and single-ZIP package checks, Laravel PHP matrix/release-package smoke and native installer browser E2E. Native upgrade/restore drills, release provenance, independent legal/operational acceptance, and actual HostSailor cPanel/LiteSpeed acceptance remain outstanding.
 
 - [ ] Applicable OWASP ASVS 5.0 requirements mapped to controls, automated tests and manual review.
 - [ ] OWASP Top 10:2025 threat model covering public site, identity, admin, bookings, media, safeguarding, payments, integrations, exports, installer, backups and upgrades.
