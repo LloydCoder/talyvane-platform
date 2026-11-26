@@ -31,8 +31,8 @@ Latest runtime-affecting implementation head: `f62c6f314f468644e6b6ca7434001279f
 | Native cPanel package contract | Passed |
 | Single-ZIP cPanel package build | Passed |
 | Native installer browser E2E | Passed |
-| Laravel installer browser E2E | Passed |
-| General CI | Passed |
+| Laravel installer browser E2E | Running at documentation head `3f8a472`; not yet accepted |
+| General CI / Laravel release smoke | Running at documentation head `3f8a472`; not yet accepted |
 
 The PR remains open, draft and unmerged. These are repository-level results, not live-host acceptance. The current native branch has 37 ordered migrations. Any later runtime change requires fresh exact-head validation.
 ## Implemented native domains — partial vertical slices
