@@ -101,6 +101,7 @@ $escape=static fn(mixed $value):string=>htmlspecialchars((string)$value,ENT_QUOT
 <p class="error" role="status">Fulfilment is locked until every external evidence gate has been reviewed.</p>
 <?php endif;?>
 <?php endif;?>
+<?php endif;?>
 <div class="actions">
 <form method="post" action="/admin/privacy/requests/review">
 <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
