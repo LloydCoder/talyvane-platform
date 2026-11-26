@@ -33,7 +33,7 @@ final class AdminPrivacyRightsController
             }
             return Response::html($this->views->render('admin/privacy-rights',[
                 'items'=>$items,'notice'=>$notice,'error'=>$error,'externalEvidence'=>$externalEvidence,
-                'canAttestExternalEvidence'=>$actor->hasRole('owner')||$actor->hasRole('super_admin'),
+                'canAttestExternalEvidence'=>$actor->mfaVerified && ($actor->hasRole('owner')||$actor->hasRole('super_admin')),
                 'csrf'=>Csrf::issue(),'brandName'=>$this->brandName,
             ]),$status);
         } catch(DomainException) {
