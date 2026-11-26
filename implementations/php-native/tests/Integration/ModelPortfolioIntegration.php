@@ -188,13 +188,34 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $draft->execute(['id'=>$licenceId]);$draftRow=$draft->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($draftRow) && $draftRow['status']==='draft' && $draftRow['licence_policy_version']==='image-licence-policy-test-v1','image licence draft snapshots the current policy');
     $assert(is_array($draftRow) && $draftRow['licensee_name']!=='Verified editorial commissioning client','licensee identity is encrypted at rest');
-    $grant=$pdo->prepare('SELECT granted FROM consent_grants WHERE id=:id');$grant->execute(['id'=>$draftRow['consent_grant_id']]);
+    $grant=$pdo->prepare('SELECT granted,evidence_reference FROM consent_grants WHERE id=:id');$grant->execute(['id'=>$draftRow['consent_grant_id']]);
     $assert((int)$grant->fetchColumn()===0,'draft licence does not imply model consent');
-    $licences->activate($admin,$licenceId,'private/model-licences/execution-evidence-0001','private/model-consent/model-consent-evidence-0001',bin2hex(random_bytes(16)));
+    $applicantLicenceRows=$licences->applicantPortalLicences((string)$portalRightsId);
+    $applicantLicence=array_values(array_filter($applicantLicenceRows,static fn(array $row):bool=>$row['id']===$licenceId));
+    $assert(count($applicantLicence)===1 && $applicantLicence[0]['licensee_name']==='Verified editorial commissioning client' &&
+        str_contains($applicantLicence[0]['purpose_details'],'Private casting review') &&
+        $applicantLicence[0]['channels']===['casting_platform'],
+        'model workspace presents decrypted licensee, purpose and channel terms before consent');
+    $licences->recordApplicantDecision((string)$portalRightsId,$licenceId,'grant','',bin2hex(random_bytes(16)));
+    $grant->execute(['id'=>$draftRow['consent_grant_id']]);$grantedEvidence=$grant->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($grantedEvidence) && (int)$grantedEvidence['granted']===1 &&
+        $grantedEvidence['evidence_reference']!==null,
+        'model applicant affirmative portal consent creates a purpose-specific consent grant');
+    $licences->activate($admin,$licenceId,'private/model-licences/execution-evidence-0001','',bin2hex(random_bytes(16)));
     $active=$pdo->prepare('SELECT status,execution_evidence_reference FROM model_image_licences WHERE id=:id');$active->execute(['id'=>$licenceId]);$activeRow=$active->fetch(PDO::FETCH_ASSOC);
     $grant->execute(['id'=>$draftRow['consent_grant_id']]);
     $assert(is_array($activeRow) && $activeRow['status']==='active' && $activeRow['execution_evidence_reference']!=='','activation records external execution evidence');
     $assert((int)$grant->fetchColumn()===1,'activation records separate purpose-specific model consent');
+    $declineAsset=$makeAsset('licence-decline');
+    $service->review($admin,$declineAsset['id'],'approved','Rights and consent evidence reviewed before licence decline test.',bin2hex(random_bytes(16)));
+    $declineLicenceId=$licences->createDraft($admin,$declineAsset['id'],$agreementId,$licenceTerms,bin2hex(random_bytes(16)));
+    $licences->recordApplicantDecision((string)$portalRightsId,$declineLicenceId,'withdraw',
+        'Applicant declined this draft licence and did not grant permission for the proposed usage.',bin2hex(random_bytes(16)));
+    $declined=$pdo->prepare('SELECT l.status,cg.granted,cg.withdrawn_at FROM model_image_licences l INNER JOIN consent_grants cg ON cg.id=l.consent_grant_id WHERE l.id=:id');
+    $declined->execute(['id'=>$declineLicenceId]);$declinedRow=$declined->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($declinedRow) && $declinedRow['status']==='revoked' && (int)$declinedRow['granted']===0 &&
+        $declinedRow['withdrawn_at']!==null,
+        'applicant can decline a draft image licence and the consent grant is revoked');
     try {
         $licences->createDraft($admin,$licensedAsset['id'],$agreementId,$licenceTerms,bin2hex(random_bytes(16)));
         $assert(false,'overlapping active same-purpose licence is rejected');
