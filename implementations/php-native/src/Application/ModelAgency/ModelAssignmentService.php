@@ -152,8 +152,9 @@ final class ModelAssignmentService
             }
             $existingFingerprint=$assignment['applicant_response_request_fingerprint']??null;
             if(is_string($existingFingerprint) && $existingFingerprint!=='') {
-                $sameDecision=($decision==='accept' && $assignment['status']==='accepted') ||
-                    ($decision==='decline' && $assignment['status']==='declined');
+                $hasAcceptanceEvidence=is_string($assignment['model_acceptance_evidence_reference']??null) && $assignment['model_acceptance_evidence_reference']!=='';
+                $hasDeclineEvidence=is_string($assignment['model_decline_evidence_reference']??null) && $assignment['model_decline_evidence_reference']!=='';
+                $sameDecision=($decision==='accept' && $hasAcceptanceEvidence) || ($decision==='decline' && $hasDeclineEvidence);
                 if($sameDecision && hash_equals($existingFingerprint,$fingerprint)) {
                     $this->pdo->commit();return;
                 }
