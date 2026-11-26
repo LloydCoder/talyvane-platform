@@ -514,8 +514,9 @@ final class EnquiryService
                 'id'=>$outboxId,'key'=>$idempotency,'related'=>$enquiry['id'],
                 'recipient'=>$recipientCipher,'payload'=>$payloadCipher,
             ]);
+            // Queueing is not delivery: keep a new enquiry in progress until SMTP accepts the message.
             $this->pdo->prepare(
-                'UPDATE enquiries SET status="responded",responded_at=COALESCE(responded_at,UTC_TIMESTAMP()),
+                'UPDATE enquiries SET status=CASE WHEN status="new" THEN "in_progress" ELSE status END,
                  updated_at=UTC_TIMESTAMP() WHERE id=:id'
             )->execute(['id'=>$enquiry['id']]);
             $this->audit->record($actor->id,'crm.enquiry.response_queued','enquiry',(string)$enquiry['id'],
