@@ -73,7 +73,7 @@ $attribution = is_array($saved) ? json_decode((string) $saved['attribution_json'
     $assignment->execute(['reference'=>$reference]);
     $assert($assignment->fetchColumn()===null,'administrator can explicitly unassign an enquiry');
     try {
-        $service->assign($admin,$reference,$clientId='00000000-0000-4000-8000-000000000001','Assign to ineligible user',bin2hex(random_bytes(16)));
+        $service->assign($admin,$reference,$ineligibleId='00000000-0000-4000-8000-000000000001','Assign to ineligible user',bin2hex(random_bytes(16)));
         $assert(false,'assignment rejects users without an eligible admin role');
     } catch (InvalidArgumentException) {
         $assert(true,'assignment rejects users without an eligible admin role');
