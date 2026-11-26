@@ -176,14 +176,13 @@ final class PortalPrivacyRightsAdminService
                  completed_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE id=:id'
             )->execute(['reviewer'=>$actor->id,'reason'=>$reason,'id'=>$requestId]);
             if ($this->outcomes!==null) {
-                if ($this->outcomes!==null) {
                 $recipientQuery=$this->pdo->prepare('SELECT email,status,email_verified_at FROM users WHERE id=:id FOR UPDATE');
                 $recipientQuery->execute(['id'=>$request['user_id']]);
                 $recipient=$recipientQuery->fetch(PDO::FETCH_ASSOC);
                 if (!is_array($recipient) || $recipient['status']!=='active' ||
                     $recipient['email_verified_at']===null || !is_string($recipient['email']) ||
                     !filter_var($recipient['email'],FILTER_VALIDATE_EMAIL)) {
-                    throw new \\DomainException('The corrected companion has no active verified notification destination.');
+                    throw new \DomainException('The corrected companion has no active verified notification destination.');
                 }
                 $this->outcomes->enqueueCorrectionFulfilled($requestId,(string)$recipient['email'],'companion');
             }
@@ -247,7 +246,7 @@ final class PortalPrivacyRightsAdminService
                 if (!is_array($recipient) || $recipient['status']!=='active' ||
                     $recipient['email_verified_at']===null || !is_string($recipient['email']) ||
                     !filter_var($recipient['email'],FILTER_VALIDATE_EMAIL)) {
-                    throw new \\DomainException('The corrected client has no active verified notification destination.');
+                    throw new \DomainException('The corrected client has no active verified notification destination.');
                 }
                 $this->outcomes->enqueueCorrectionFulfilled($requestId,(string)$recipient['email'],'client');
             }
