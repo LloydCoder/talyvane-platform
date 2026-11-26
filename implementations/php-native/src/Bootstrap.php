@@ -229,7 +229,7 @@ final class Bootstrap
         $modelSettlements = new ModelSettlementService($pdo,$audit,$modelAgencyCipher,static fn():bool=>$castingAvailability->enabled('model-agency.settlements'));
         $adminModelSettlements = new AdminModelSettlementController($authentication,$modelSettlements,$views,$brandName);
         $adminModelPortfolio = new AdminModelPortfolioController($authentication,$modelPortfolio,$modelImageLicences,$views,$brandName);
-        $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views, $brandName);
+        $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views, $brandName, $modelPortfolio);
         $bookingPolicies = new BookingPolicyRepository($pdo);
         $bookingQuotes = new BookingQuoteService($pdo,$audit,$bookingPolicies);
         $adminBookingQuotes = new AdminBookingQuoteController($authentication,$bookingQuotes,$views,$brandName);
@@ -278,6 +278,7 @@ final class Bootstrap
         $router->add('POST', '/model-agency/privacy/correct', static fn(Request $request): Response => $publicModelAgencyRights->correct($request));
         $router->add('POST', '/model-agency/privacy/withdraw', static fn(Request $request): Response => $publicModelAgencyRights->withdraw($request));
         $router->add('POST', '/model-agency/privacy/erase', static fn(Request $request): Response => $publicModelAgencyRights->erase($request));
+        $router->add('POST', '/model-agency/privacy/withdraw-portfolio', static fn(Request $request): Response => $publicModelAgencyRights->withdrawPortfolio($request));
         $router->add('GET', '/destinations', static fn(Request $request): Response => $publicDiscovery->destinations($request));
         $router->add('GET', '/companions', static fn(Request $request): Response => $publicDiscovery->companions($request));
         $router->add('GET', '/companions/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->companion($request,$params));
