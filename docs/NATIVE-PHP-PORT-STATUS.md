@@ -21,7 +21,7 @@ A route, view, table, stub, static test or successful package build is not by it
 
 ## Current head and validation
 
-Latest runtime-affecting implementation head: `f62c6f314f468644e6b6ca7434001279f33ff26f`. The subsequent tracker-only reconciliation commit `3f8a472351f2e1059601c009489aa488b7e69cea` does not change runtime behavior. Exact-head native PHP 8.3/8.4/8.5 tests, MySQL 8.0 integration (37 migrations), native cPanel package verification, single-ZIP package verification, security analysis and native installer browser E2E have passed. The general CI/Laravel release smoke and Laravel installer browser E2E are still running at the latest documentation head; do not mark them passed until their exact-head runs complete. The runtime implementation head passed these required repository workflows:
+Latest runtime-affecting implementation head: `f62c6f314f468644e6b6ca7434001279f33ff26f`. Latest fully validated feature-branch head: `37a4c72ccc8590574c53d30b868d7952f8fd1f41` (subsequent commits in this PR are documentation-only). Exact-head GitHub Actions passed PHP 8.3/8.4/8.5 native tests, MySQL 8.0 integration (37 migrations), PHP 8.3/8.4/8.5 Laravel feature suites, security analysis, native cPanel package verification, single-ZIP package verification, standalone release package smoke, native installer browser E2E, Laravel installer browser E2E and general CI. These are repository-level results, not live-host acceptance. The runtime implementation head passed these required repository workflows:
 
 | Check | Exact-head result |
 |---|---|
@@ -31,8 +31,8 @@ Latest runtime-affecting implementation head: `f62c6f314f468644e6b6ca7434001279f
 | Native cPanel package contract | Passed |
 | Single-ZIP cPanel package build | Passed |
 | Native installer browser E2E | Passed |
-| Laravel installer browser E2E | Running at documentation head `3f8a472`; not yet accepted |
-| General CI / Laravel release smoke | Running at documentation head `3f8a472`; not yet accepted |
+| Laravel installer browser E2E | Passed at exact validated branch head `37a4c72` |
+| General CI / Laravel release smoke | Passed at exact validated branch head `37a4c72` |
 
 The PR remains open, draft and unmerged. These are repository-level results, not live-host acceptance. The current native branch has 37 ordered migrations. Any later runtime change requires fresh exact-head validation.
 ## Implemented native domains — partial vertical slices
