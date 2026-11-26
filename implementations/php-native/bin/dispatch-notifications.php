@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Explicit cPanel cron entry point for encrypted booking, safeguarding and privacy-outcome mail.
+ * Explicit cPanel cron entry point for encrypted booking, safeguarding, privacy-outcome and CRM response mail.
  * Example: php /path/to/private/implementations/php-native/bin/dispatch-notifications.php --limit=25
  * Requires TALYVANE_CONFIG and TALYVANE_PUBLIC_ROOT to identify the owner-only private config and canonical public document root.
  */
