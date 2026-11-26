@@ -13,6 +13,7 @@ use Talyvane\Features\FeatureAvailability;
 use Talyvane\Application\Features\FeatureManagementService;
 use Talyvane\Application\Globalization\GlobalizationSettingsService;
 use Talyvane\Application\Payments\PaymentSettingsService;
+use Talyvane\Application\Payments\PaymentMethodManagementService;
 use Talyvane\Infrastructure\Database\FeatureStateRepository;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Destinations\DestinationManagementService;
@@ -767,6 +768,28 @@ function runIdentityIntegration(PDO $pdo): int
     $paymentAudit=$pdo->prepare('SELECT COUNT(*) FROM audit_events WHERE actor_user_id=:actor AND event_key="payment.configuration.updated"');
     $paymentAudit->execute(['actor'=>$featureAdminId]);
     $assert((int)$paymentAudit->fetchColumn()===2,'payment capability configuration changes are append-only audited');
+
+    $methodService=new PaymentMethodManagementService($pdo,$audit,new FeatureAvailability([],static fn(string $dependency):bool=>false));
+    $paymentMethodId=$methodService->create($featureAdmin,'BTC','Bitcoin','bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',null,'booking',bin2hex(random_bytes(16)));
+    $methodService->review($featureAdmin,$paymentMethodId,'provider-approval-reference-001','legal-approval-reference-001',bin2hex(random_bytes(16)));
+    $paymentSettingsService->update($featureAdmin,[
+        'payments_enabled'=>true,'crypto_enabled'=>true,'cards_enabled'=>false,
+        'manual_enabled'=>false,'booking_payments_enabled'=>true,'membership_payments_enabled'=>false,
+    ],bin2hex(random_bytes(16)));
+    try {
+        $methodService->toggle($featureAdmin,$paymentMethodId,true,bin2hex(random_bytes(16)));
+        $assert(false,'crypto receiving method cannot be enabled without independent provider/legal feature gates');
+    } catch (DomainException) {
+        $assert(true,'crypto receiving method cannot be enabled without independent provider/legal feature gates');
+    }
+    $methodStatus=$pdo->prepare('SELECT status FROM payment_methods WHERE id=:id');
+    $methodStatus->execute(['id'=>$paymentMethodId]);
+    $assert($methodStatus->fetchColumn()==='reviewed','blocked receiving-method activation leaves the reviewed method disabled');
+    $paymentSettingsService->update($featureAdmin,[
+        'payments_enabled'=>false,'crypto_enabled'=>false,'cards_enabled'=>false,
+        'manual_enabled'=>false,'booking_payments_enabled'=>false,'membership_payments_enabled'=>false,
+    ],bin2hex(random_bytes(16)));
+
 
     $assert((int)$globalAudit->fetchColumn()>=4,'globalization default and currency changes are append-only audited');
 
