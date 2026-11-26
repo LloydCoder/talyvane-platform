@@ -661,7 +661,7 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(count($portalRights->history($companionPrincipal))===1 && count($portalRights->history($clientPrincipal))===2,
         'client and companion privacy request histories remain account-scoped');
     $privacyOutboxBox=new SecretBox(str_repeat('Q',32));
-    $portalRightsAdmin=new PortalPrivacyRightsAdminService($pdo,$privacyOutboxBox,$audit,new \\Talyvane\\Application\\Identity\\PortalPrivacyOutcomeOutbox($pdo,$privacyOutboxBox));
+    $portalRightsAdmin=new PortalPrivacyRightsAdminService($pdo,$privacyOutboxBox,$audit,new \Talyvane\Application\Identity\PortalPrivacyOutcomeOutbox($pdo,$privacyOutboxBox));
     $adminPrivacyQueue=$portalRightsAdmin->queue($superAdmin,bin2hex(random_bytes(16)));
     $assert(count($adminPrivacyQueue)===3 &&
         in_array($correctionSummary,array_column($adminPrivacyQueue,'correction_summary'),true),
