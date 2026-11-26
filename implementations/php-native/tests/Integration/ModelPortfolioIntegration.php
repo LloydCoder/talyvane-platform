@@ -372,6 +372,12 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert($acceptanceIntent==='acceptance_pending_execution','model acceptance is recorded as intent pending external signature, not as an executed assignment');
     $replayedAcceptance=$assignments->respondByApplicant($assignmentApplicationId,$assignmentId,'accept',true,null,$acceptanceRequestId);
     $assert($replayedAcceptance===$acceptanceIntent,'replayed model acceptance response is idempotent');
+    try {
+        $assignments->respondByApplicant($assignmentApplicationId,$assignmentId,'decline',true,'I decline this offer for scheduling reasons.',$acceptanceRequestId);
+        $assert(false,'an idempotency key cannot be reused for a different assignment decision');
+    } catch(DomainException) {
+        $assert(true,'an idempotency key cannot be reused for a different assignment decision');
+    }
     $acceptanceRow=$pdo->prepare('SELECT status,applicant_response_status,applicant_response_version,applicant_response_request_fingerprint,applicant_response_terms_hash,applicant_response_reason FROM model_assignments WHERE id=:id');
     $acceptanceRow->execute(['id'=>$assignmentId]);$acceptanceRecord=$acceptanceRow->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($acceptanceRecord) && $acceptanceRecord['status']==='offered' && $acceptanceRecord['applicant_response_status']==='acceptance_pending_execution' &&
