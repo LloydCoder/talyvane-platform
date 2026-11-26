@@ -343,12 +343,33 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assignments->offer($admin,$assignmentId,bin2hex(random_bytes(16)));
     try {
         $assignments->confirm($admin,$assignmentId,bin2hex(random_bytes(16)));
-        $assert(false,'assignment cannot be confirmed before external execution and model-acceptance evidence are recorded');
+        $assert(false,'assignment cannot be confirmed before external execution and model-consent evidence are recorded');
     } catch(DomainException) {
-        $assert(true,'assignment cannot be confirmed before external execution and model-acceptance evidence are recorded');
+        $assert(true,'assignment cannot be confirmed before external execution and model-consent evidence are recorded');
     }
-    $assignments->recordAcceptance($admin,$assignmentId,'private/model-assignments/executed-document-0001',
-        'private/model-consent/assignment-acceptance-0001',bin2hex(random_bytes(16)));
+    $applicantApplicationId=$rights->portalApplicationId((string)$portalRightsId);
+    try {
+        $assignments->respondByApplicant($applicantApplicationId,$assignmentId,'accept',
+            'I have reviewed the assignment terms, compensation, shoot schedule and image-use scope, and I voluntarily accept this assignment.',
+            bin2hex(random_bytes(16)));
+        $assert(false,'model cannot accept an assignment before external execution evidence is recorded');
+    } catch(DomainException) {
+        $assert(true,'model cannot accept an assignment before external execution evidence is recorded');
+    }
+    $assignments->recordExecutionEvidence($admin,$assignmentId,'private/model-assignments/executed-document-0001',bin2hex(random_bytes(16)));
+    $assignments->respondByApplicant($applicantApplicationId,$assignmentId,'accept',
+        'I have reviewed the assignment terms, compensation, shoot schedule and image-use scope, and I voluntarily accept this assignment.',
+        bin2hex(random_bytes(16)));
+    $acceptedAssignment=$pdo->prepare('SELECT status,acceptance_recorded_by,model_acceptance_evidence_reference FROM model_assignments WHERE id=:id');
+    $acceptedAssignment->execute(['id'=>$assignmentId]);$acceptedAssignmentRow=$acceptedAssignment->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($acceptedAssignmentRow) && $acceptedAssignmentRow['status']==='accepted' &&
+        $acceptedAssignmentRow['acceptance_recorded_by']===null &&
+        $acceptedAssignmentRow['model_acceptance_evidence_reference']!=='',
+        'OTP-verified model acceptance is recorded as an applicant actor with encrypted consent evidence, not an administrator attestation');
+    $applicantAssignmentEvent=$pdo->prepare('SELECT actor_type,actor_user_id FROM model_assignment_events WHERE assignment_id=:id AND event_type="assignment.applicant_accepted"');
+    $applicantAssignmentEvent->execute(['id'=>$assignmentId]);$applicantAssignmentEventRow=$applicantAssignmentEvent->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($applicantAssignmentEventRow) && $applicantAssignmentEventRow['actor_type']==='applicant' && $applicantAssignmentEventRow['actor_user_id']===null,
+        'model assignment response is attributed to the verified applicant session without a synthetic user account');
     $assignments->confirm($admin,$assignmentId,bin2hex(random_bytes(16)));
     $assignments->start($admin,$assignmentId,bin2hex(random_bytes(16)));
     $assignmentRow=$pdo->prepare('SELECT status,compensation_minor,expense_cap_minor,commission_basis_points,client_name FROM model_assignments WHERE id=:id');
