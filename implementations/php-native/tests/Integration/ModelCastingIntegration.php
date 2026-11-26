@@ -80,6 +80,28 @@ function runModelCastingIntegration(PDO $pdo): int
     $published->execute(['id'=>$callId]);$publishedRow=$published->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($publishedRow) && $publishedRow['status']==='open' && $publishedRow['published_by']===$adminId && $publishedRow['published_at']!==null,'approved draft can be opened with actor and timestamp provenance');
 
+    $clientId=(string)$pdo->query('SELECT id FROM users WHERE email="native-password-client@example.test"')->fetchColumn();
+    if($clientId==='') throw new RuntimeException('Model client distribution integration requires the verified client identity fixture.');
+    $distribution=new ClientModelAgencyDistributionService($pdo,$storage,new AuditLogger($pdo));
+    $eligibleClients=$distribution->eligibleClients($admin);
+    $assert(count(array_filter($eligibleClients,static fn(array $client):bool=>$client['id']===$clientId))===1,
+        'agency distribution picker contains only active verified client-only accounts');
+    $distribution->linkCastingCall($admin,$callId,$clientId,bin2hex(random_bytes(16)));
+    $clientPrincipal=new Principal($clientId,['client'],false);
+    $clientCalls=$distribution->castingCalls($clientPrincipal);
+    $assert(count($clientCalls)===1 && $clientCalls[0]['id']===$callId,
+        'client sees only the casting call explicitly linked to its verified account');
+    $clientCandidates=$distribution->candidates($clientPrincipal,$callId);
+    $assert($clientCandidates===[],
+        'client casting workspace does not expose unshortlisted applicants or personal data');
+    try {
+        $distribution->candidates(new Principal('00000000-0000-4000-8000-000000000001',['client'],false),$callId);
+        $assert(false,'a different client identity cannot enumerate another client casting call');
+    } catch(DomainException) {
+        $assert(true,'a different client identity cannot enumerate another client casting call');
+    }
+
+
     $service->close($admin,$callId,'Submission window closed by agency operations.',bin2hex(random_bytes(16)));
     $closed=$pdo->prepare('SELECT status,closed_by,closed_at FROM model_casting_calls WHERE id=:id');
     $closed->execute(['id'=>$callId]);$closedRow=$closed->fetch(PDO::FETCH_ASSOC);
