@@ -130,21 +130,36 @@ final class ModelAssignmentService
         }
     }
 
-    public function respondByApplicant(string $applicationId,string $assignmentId,string $decision,string $statement,string $requestId): void
+    public function respondByApplicant(string $applicationId,string $assignmentId,string $decision,bool $attested,string $statement,string $requestId): void
     {
         $this->assertRequestId($requestId);
         if($decision==='accept') $this->assertFeature();
         if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId) || !in_array($decision,['accept','decline'],true)) {
             throw new \InvalidArgumentException('Applicant assignment response is invalid.');
         }
+        if(!$attested) throw new \DomainException('Explicit applicant response attestation is required.');
         $statement=trim($statement);
         if(strlen($statement)<20 || strlen($statement)>2000) {
             throw new \InvalidArgumentException('A reasoned assignment response of 20 to 2000 characters is required.');
         }
+        $fingerprint=hash('sha256',$requestId);
+        $responseVersion='model-assignment-applicant-response-v1';
         $this->pdo->beginTransaction();
         try {
             $assignment=$this->lock('model_assignments',$assignmentId);
-            if(!hash_equals((string)$assignment['application_id'],$applicationId) || $assignment['status']!=='offered') {
+            if(!hash_equals((string)$assignment['application_id'],$applicationId)) {
+                throw new \DomainException('This assignment offer is not available to the verified applicant.');
+            }
+            $existingFingerprint=$assignment['applicant_response_request_fingerprint']??null;
+            if(is_string($existingFingerprint) && $existingFingerprint!=='') {
+                $sameDecision=($decision==='accept' && $assignment['status']==='accepted') ||
+                    ($decision==='decline' && $assignment['status']==='declined');
+                if($sameDecision && hash_equals($existingFingerprint,$fingerprint)) {
+                    $this->pdo->commit();return;
+                }
+                throw new \DomainException('A response has already been recorded for this assignment offer.');
+            }
+            if($assignment['status']!=='offered') {
                 throw new \DomainException('This assignment offer is not available to the verified applicant.');
             }
             $submission=$this->lock('model_casting_submissions',(string)$assignment['submission_id']);
@@ -155,38 +170,52 @@ final class ModelAssignmentService
             $agreement=$this->lock('model_representation_agreements',(string)$assignment['representation_agreement_id']);
             if($decision==='accept') $this->assertCurrentEligibility($assignment,$submission,$application,$asset,$licence,$call,$agreement);
             $policyVersion=$this->policyVersionOrLegacy($assignment);
+            $termsHash=$this->modelVisibleTermsHash($assignment);
             if($decision==='accept') {
                 $stored=$assignment['executed_document_reference']??null;
                 if(!is_string($stored) || $stored==='') throw new \DomainException('The executed assignment document must be recorded before the model can accept.');
                 $this->cipher->decrypt($stored,'model-assignment-v1:'.$assignmentId.':executed_document_reference');
-                $evidence='applicant-consent:'.hash('sha256',$statement."\0".$requestId);
+                $evidence='applicant-consent:'.hash('sha256',$statement."\\0".$requestId);
                 AssignmentStateMachine::transition('offered','accepted','applicant',$evidence);
-                $this->pdo->prepare(
+                $updated=$this->pdo->prepare(
                     'UPDATE model_assignments SET status="accepted",acceptance_recorded_by=NULL,accepted_at=UTC_TIMESTAMP(),
-                     model_acceptance_evidence_reference=:evidence,updated_at=UTC_TIMESTAMP() WHERE id=:id AND status="offered"'
-                )->execute(['evidence'=>$this->encryptField($assignmentId,'model_acceptance_evidence_reference',$statement),'id'=>$assignmentId]);
+                     model_acceptance_evidence_reference=:evidence,applicant_response_version=:version,
+                     applicant_response_request_fingerprint=:fingerprint,applicant_response_terms_hash=:terms_hash,
+                     updated_at=UTC_TIMESTAMP() WHERE id=:id AND status="offered" AND applicant_response_request_fingerprint IS NULL'
+                );
+                $updated->execute([
+                    'evidence'=>$this->encryptField($assignmentId,'model_acceptance_evidence_reference',$statement),
+                    'version'=>$responseVersion,'fingerprint'=>$fingerprint,'terms_hash'=>$termsHash,'id'=>$assignmentId,
+                ]);
+                if($updated->rowCount()!==1) throw new \DomainException('The assignment changed before the applicant response was recorded.');
                 $this->event($assignmentId,null,'assignment.applicant_accepted','offered','accepted',
                     'Applicant voluntarily accepted the offered assignment and recorded their consent.',$policyVersion,'applicant');
                 $this->audit->record(null,'model_assignment.applicant_accepted','model_assignment',$assignmentId,
-                    'Applicant accepted a private model assignment',['status'=>'offered'],['status'=>'accepted','consent_sha256'=>hash('sha256',$statement)],
-                    $requestId,'model-assignment-v1');
+                    'Applicant accepted a private model assignment',['status'=>'offered'],
+                    ['status'=>'accepted','consent_sha256'=>hash('sha256',$statement),'terms_sha256'=>$termsHash,'response_version'=>$responseVersion],
+                    $requestId,$responseVersion);
             } else {
                 AssignmentStateMachine::transition('offered','declined','applicant',null);
-                $evidence='applicant-decline:'.hash('sha256',$statement."\0".$requestId);
-                $this->pdo->prepare(
+                $evidence='applicant-decline:'.hash('sha256',$statement."\\0".$requestId);
+                $updated=$this->pdo->prepare(
                     'UPDATE model_assignments SET status="declined",declined_by=NULL,declined_at=UTC_TIMESTAMP(),
-                     decline_reason=:reason,model_decline_evidence_reference=:evidence,updated_at=UTC_TIMESTAMP()
-                     WHERE id=:id AND status="offered"'
-                )->execute([
+                     decline_reason=:reason,model_decline_evidence_reference=:evidence,
+                     applicant_response_version=:version,applicant_response_request_fingerprint=:fingerprint,
+                     applicant_response_terms_hash=:terms_hash,updated_at=UTC_TIMESTAMP()
+                     WHERE id=:id AND status="offered" AND applicant_response_request_fingerprint IS NULL'
+                );
+                $updated->execute([
                     'reason'=>$this->encryptField($assignmentId,'decline_reason',$statement),
                     'evidence'=>$this->encryptField($assignmentId,'model_decline_evidence_reference',$evidence),
-                    'id'=>$assignmentId,
+                    'version'=>$responseVersion,'fingerprint'=>$fingerprint,'terms_hash'=>$termsHash,'id'=>$assignmentId,
                 ]);
+                if($updated->rowCount()!==1) throw new \DomainException('The assignment changed before the applicant response was recorded.');
                 $this->event($assignmentId,null,'assignment.applicant_declined','offered','declined',
                     'Applicant declined the offered assignment.',$policyVersion,'applicant');
                 $this->audit->record(null,'model_assignment.applicant_declined','model_assignment',$assignmentId,
-                    'Applicant declined a private model assignment',['status'=>'offered'],['status'=>'declined','reason_sha256'=>hash('sha256',$statement)],
-                    $requestId,'model-assignment-v1');
+                    'Applicant declined a private model assignment',['status'=>'offered'],
+                    ['status'=>'declined','reason_sha256'=>hash('sha256',$statement),'terms_sha256'=>$termsHash,'response_version'=>$responseVersion],
+                    $requestId,$responseVersion);
             }
             $this->pdo->commit();
         } catch(Throwable $error) {
