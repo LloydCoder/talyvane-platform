@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Explicit cPanel cron entry point for encrypted booking and safeguarding mail.
+ * Explicit cPanel cron entry point for encrypted booking, safeguarding and privacy-outcome mail.
  * Example: php /path/to/private/implementations/php-native/bin/dispatch-notifications.php --limit=25
  * Requires TALYVANE_CONFIG to reference the installer-generated owner-only config.
  */
@@ -34,29 +34,15 @@ if (!is_string($limitValue) || !ctype_digit($limitValue) || (int)$limitValue < 1
 }
 
 $configPath = getenv('TALYVANE_CONFIG');
-if (!is_string($configPath) || $configPath === '' || is_link($configPath) ||
-    !is_file($configPath) || !is_readable($configPath)) {
-    fwrite(STDERR,"Private application configuration is unavailable.\n");
+$publicRoot = getenv('TALYVANE_PUBLIC_ROOT');
+if (!is_string($configPath) || $configPath === '' || !is_string($publicRoot) || $publicRoot === '') {
+    fwrite(STDERR,"Set TALYVANE_CONFIG and TALYVANE_PUBLIC_ROOT to the private config file and public document root.\\n");
     exit(2);
 }
-$realConfig = realpath($configPath);
-$mode = $realConfig === false ? false : fileperms($realConfig);
-if ($realConfig === false || $mode === false || ($mode & 0077) !== 0) {
-    fwrite(STDERR,"Private application configuration must be canonical and owner-only.\n");
-    exit(2);
-}
-$config = require $realConfig;
-if (!is_array($config) || !is_string($config['app_key'] ?? null) || strlen($config['app_key']) < 32 ||
-    !is_array($config['database'] ?? null)) {
-    fwrite(STDERR,"Private application configuration is invalid.\n");
-    exit(2);
-}
-$documentRootInput = $config['paths']['document_root'] ?? null;
-$documentRoot = is_string($documentRootInput) && $documentRootInput !== '' && !is_link($documentRootInput) && is_dir($documentRootInput)
-    ? realpath($documentRootInput)
-    : false;
-if ($documentRoot === false || str_starts_with($realConfig . DIRECTORY_SEPARATOR, rtrim($documentRoot,DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)) {
-    fwrite(STDERR,"Private configuration must be outside the public document root.\\n");
+try {
+    $config = PrivateCliConfig::load($configPath,$publicRoot);
+} catch (Throwable) {
+    fwrite(STDERR,"Private CLI configuration must be valid, owner-only and outside the public document root.\\n");
     exit(2);
 }
 
