@@ -142,7 +142,7 @@ final class BookingService
                 }
                 $quoteQuery = $this->pdo->prepare(
                     'SELECT client_user_id,profile_id,destination_id,country_code,expires_at,accepted_at,accepted_by,
-                            consumed_at,policy_version
+                            consumed_at,consumed_booking_id,policy_version
                      FROM quote_snapshots WHERE id = :id FOR UPDATE'
                 );
                 $quoteQuery->execute(['id'=>$quoteSnapshotId]);
@@ -150,7 +150,7 @@ final class BookingService
                 if (!is_array($quote) || $quote['client_user_id'] !== $client->id ||
                     $quote['profile_id'] !== $profileId || $quote['destination_id'] !== $profile['destination_id'] ||
                     $quote['country_code'] !== $profile['country_code'] || $quote['accepted_at'] === null ||
-                    $quote['accepted_by'] !== $client->id || $quote['consumed_at'] !== null ||
+                    $quote['accepted_by'] !== $client->id || $quote['consumed_at'] !== null || $quote['consumed_booking_id'] !== null ||
                     $quote['policy_version'] !== $policy->version ||
                     new DateTimeImmutable((string) $quote['expires_at'],$utc) <= $now) {
                     throw new \DomainException('Quote is missing, expired, unaccepted, consumed or not bound to this client, profile, market and policy.');
@@ -205,7 +205,7 @@ final class BookingService
                     'UPDATE quote_snapshots SET consumed_at=UTC_TIMESTAMP(),consumed_booking_id=:booking
                      WHERE id=:quote AND client_user_id=:client AND profile_id=:profile
                        AND accepted_by=:accepted_by AND accepted_at IS NOT NULL AND consumed_at IS NULL
-                       AND expires_at>UTC_TIMESTAMP()'
+                       AND consumed_booking_id IS NULL AND expires_at>UTC_TIMESTAMP()'
                 );
                 $consumeQuote->execute([
                     'booking'=>$bookingId,'quote'=>$quoteSnapshotId,'client'=>$client->id,
