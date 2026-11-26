@@ -106,6 +106,12 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $rights->request($applicationReference,'portfolio-applicant@example.test','portal_access','203.0.113.41',bin2hex(random_bytes(16)));
     preg_match('/one-time verification code is: ([0-9]{8})/',$rightsMailer->messages[0]['body'],$portalCode);
     $portalRightsId=$rights->verify($applicationReference,'portfolio-applicant@example.test',$portalCode[1]??'','203.0.113.42',bin2hex(random_bytes(16)));
+    try {
+        $service->storeByVerifiedApplicantPortal((string)$portalRightsId,[],[],false,bin2hex(random_bytes(16)));
+        $assert(false,'portfolio upload must require an explicit applicant attestation at the domain boundary');
+    } catch(DomainException) {
+        $assert(true,'portfolio upload must require an explicit applicant attestation at the domain boundary');
+    }
     $portalRecord=$rights->portalRead((string)$portalRightsId,bin2hex(random_bytes(16)));
     $assert($portalRecord['application_reference']===$applicationReference &&
         count($portalRecord['portfolio_assets'])===2 && $portalRecord['status']==='accepted',
