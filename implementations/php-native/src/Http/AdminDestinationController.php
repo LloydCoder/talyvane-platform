@@ -6,6 +6,7 @@ namespace Talyvane\Http;
 use DomainException;
 use InvalidArgumentException;
 use Talyvane\Application\Destinations\DestinationManagementService;
+use Talyvane\Application\Destinations\DestinationCoverService;
 use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\Principal;
@@ -16,6 +17,7 @@ final class AdminDestinationController
     public function __construct(
         private AuthenticationService $authentication,
         private DestinationManagementService $destinations,
+        private DestinationCoverService $covers,
         private ViewRenderer $views,
         private string $brandName
     ) {}
@@ -31,9 +33,9 @@ final class AdminDestinationController
             $items = $this->destinations->list($actor);
             $catalogs = $this->destinations->catalogs($actor);
             $notice = ($request->query['saved'] ?? '') === '1' ? 'Destination changes have been saved.' : '';
-            return $this->page($items,$catalogs['countries'],$catalogs['currencies'],$error,$notice,$status);
+            return $this->page($items,$catalogs['countries'],$catalogs['currencies'],$this->covers->pending($actor),$error,$notice,$status);
         } catch (DomainException) {
-            return $this->page([],[],[],'You do not have permission to manage destinations.','',403);
+            return $this->page([],[],[],[],'You do not have permission to manage destinations.','',403);
         }
     }
 
@@ -63,6 +65,61 @@ final class AdminDestinationController
         }
     }
 
+    /** @param array<string,string> $params */
+    public function uploadCover(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if (!Csrf::verify($this->field($request,'_csrf'))) return $this->index($request,'Your session expired. Refresh this page and try again.',419);
+        $actor=$this->administrator();
+        if ($actor===null) return Response::redirect('/admin/login');
+        $upload=$request->files['cover_image']??[];
+        if (!is_array($upload)) $upload=[];
+        try {
+            $this->covers->submit($actor,(string)($params['id']??''),$upload,
+                in_array($request->body['rights_confirmed']??null,[true,1,'1','on'],true),$request->requestId);
+            return Response::redirect('/admin/destinations?saved=1');
+        } catch (InvalidArgumentException|DomainException $error) {
+            return $this->index($request,$error->getMessage(),422);
+        } catch (\Throwable) {
+            return $this->index($request,'Destination cover could not be submitted. Please try again.',503);
+        }
+    }
+
+    /** @param array<string,string> $params */
+    public function reviewCover(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if (!Csrf::verify($this->field($request,'_csrf'))) return $this->index($request,'Your session expired. Refresh this page and try again.',419);
+        $actor=$this->administrator();
+        if ($actor===null) return Response::redirect('/admin/login');
+        try {
+            $this->covers->review($actor,(string)($params['id']??''),$this->field($request,'decision'),
+                $this->field($request,'reason'),$request->requestId);
+            return Response::redirect('/admin/destinations?saved=1');
+        } catch (InvalidArgumentException|DomainException $error) {
+            return $this->index($request,$error->getMessage(),422);
+        } catch (\Throwable) {
+            return $this->index($request,'Destination cover review could not be completed.',503);
+        }
+    }
+
+    /** @param array<string,string> $params */
+    public function withdrawCover(Request $request,array $params): Response
+    {
+        SessionManager::start();
+        if (!Csrf::verify($this->field($request,'_csrf'))) return $this->index($request,'Your session expired. Refresh this page and try again.',419);
+        $actor=$this->administrator();
+        if ($actor===null) return Response::redirect('/admin/login');
+        try {
+            $this->covers->withdraw($actor,(string)($params['id']??''),$this->field($request,'reason'),$request->requestId);
+            return Response::redirect('/admin/destinations?saved=1');
+        } catch (InvalidArgumentException|DomainException $error) {
+            return $this->index($request,$error->getMessage(),422);
+        } catch (\Throwable) {
+            return $this->index($request,'Destination cover could not be withdrawn.',503);
+        }
+    }
+
     private function administrator(): ?Principal
     {
         $principal = $this->authentication->currentPrincipal();
@@ -79,11 +136,11 @@ final class AdminDestinationController
     }
 
     /** @param list<array<string,mixed>> $items @param list<array<string,mixed>> $countries @param list<array<string,mixed>> $currencies */
-    private function page(array $items,array $countries,array $currencies,string $error,string $notice,int $status): Response
+    private function page(array $items,array $countries,array $currencies,array $pendingCovers,string $error,string $notice,int $status): Response
     {
         $html = $this->views->render('admin/destinations',[
             'brandName'=>$this->brandName,'items'=>$items,'countries'=>$countries,
-            'currencies'=>$currencies,'error'=>$error,'notice'=>$notice,'csrf'=>Csrf::issue(),
+            'currencies'=>$currencies,'pendingCovers'=>$pendingCovers,'error'=>$error,'notice'=>$notice,'csrf'=>Csrf::issue(),
         ]);
         return new Response($html,$status,[
             'content-type'=>'text/html; charset=utf-8',

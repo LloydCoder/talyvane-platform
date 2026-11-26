@@ -77,7 +77,7 @@ final class AdminProfileMediaController
                 $this->field($request,'adult_safety_confirmed')==='1',
                 $this->field($request,'rights_confirmed')==='1',
                 $this->field($request,'consent_confirmed')==='1',
-                $request->requestId
+                $request->requestId,$this->field($request,'media_scope')
             );
             return Response::redirect('/admin/profile-media?reviewed=1');
         } catch (InvalidArgumentException|DomainException $error) {

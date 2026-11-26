@@ -2,6 +2,10 @@
 declare(strict_types=1);
 
 use Talyvane\Application\Discovery\DiscoveryService;
+use Talyvane\Application\Clients\MembershipEntitlementService;
+use Talyvane\Application\Clients\MembershipEntitlementCatalog;
+use Talyvane\Application\Clients\MembershipGalleryPolicyReadiness;
+use Talyvane\Features\FeatureAvailability;
 use Talyvane\Application\Media\ProfileMediaService;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
@@ -160,6 +164,136 @@ function runProfileMediaIntegration(PDO $pdo): int
         $approvedAfterReview=$service->publicMedia($pendingId);
         $assert(hash_equals($pendingImage['sha256'],hash('sha256',$approvedAfterReview['bytes'])),
             'human approval changes pending media to public only after current eligibility and consent rechecks');
+
+        $membersOnlyImage=$makeImage();
+        $membersOnlyId=$uuid();
+        $insertMedia->execute([
+            'id'=>$membersOnlyId,'profile'=>$profileId,'actor'=>$companionId,'key'=>$membersOnlyImage['key'],
+            'size'=>$membersOnlyImage['size'],'hash'=>$membersOnlyImage['sha256'],'scope'=>'private','status'=>'pending',
+            'grant'=>$fixture['consent_grant_id'],'version'=>$fixture['publication_consent_version'],
+            'reviewer'=>null,'reviewed'=>null,
+        ]);
+        $recordUploaderAttestations($membersOnlyId);
+        $service->review($admin,$membersOnlyId,'approved','Image rights and private audience restrictions were reviewed and confirmed',true,true,true,$requestId,'members_only');
+        $membersOnlyState=$pdo->prepare('SELECT review_status,media_scope FROM profile_media WHERE id=:id');
+        $membersOnlyState->execute(['id'=>$membersOnlyId]);
+        $membersOnlyRow=$membersOnlyState->fetch();
+        $assert(is_array($membersOnlyRow) && $membersOnlyRow['review_status']==='approved' && $membersOnlyRow['media_scope']==='members_only',
+            'reviewers can approve an image for the members-only audience without publishing it publicly');
+        try {
+            $service->publicMedia($membersOnlyId);
+            $assert(false,'members-only media must never pass the public media delivery endpoint');
+        } catch (DomainException) {
+            $assert(true,'members-only media must never pass the public media delivery endpoint');
+        }
+        $publicProjection=$service->publicMediaForProfile($profileId);
+        $assert(count(array_filter($publicProjection,static fn(array $item): bool => $item['id']===$membersOnlyId))===0,
+            'members-only media is excluded from public profile media projections');
+
+        $clientId=$uuid();
+        $clientRole=$pdo->prepare(
+            'INSERT INTO users (id,email,password_hash,status,email_verified_at,first_login_required,admin_session_version,created_at,updated_at)
+             VALUES (:id,:email,:password,"active",UTC_TIMESTAMP(),0,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+        );
+        $clientRole->execute(['id'=>$clientId,'email'=>'private-gallery-'.$clientId.'@example.test','password'=>password_hash('not-used',PASSWORD_DEFAULT)]);
+        $pdo->prepare('INSERT INTO user_roles (user_id,role_key,granted_by,granted_at) VALUES (:id,"client",NULL,UTC_TIMESTAMP())')
+            ->execute(['id'=>$clientId]);
+        $membershipId=$uuid();
+        $pdo->prepare(
+            'INSERT INTO memberships (id,client_user_id,plan_key,status,starts_at,ends_at,created_at,updated_at)
+             VALUES (:id,:client,"gallery-test","active",DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 MINUTE),DATE_ADD(UTC_TIMESTAMP(),INTERVAL 1 DAY),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+        )->execute(['id'=>$membershipId,'client'=>$clientId]);
+        $pdo->prepare(
+            'INSERT INTO membership_grants (id,membership_id,entitlement_key,active,starts_at,ends_at,granted_by,created_at)
+             VALUES (:id,:membership,"media.private_gallery",1,DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 MINUTE),DATE_ADD(UTC_TIMESTAMP(),INTERVAL 1 DAY),:actor,UTC_TIMESTAMP())'
+        )->execute(['id'=>$uuid(),'membership'=>$membershipId,'actor'=>$reviewerId]);
+        $galleryFeatures=new FeatureAvailability(
+            ['memberships'=>true,'memberships.private_gallery'=>true],
+            static fn(string $dependency): bool => true
+        );
+        $galleryEntitlements=new MembershipEntitlementService($pdo,$galleryFeatures);
+        $galleryService=new ProfileMediaService($pdo,$storage,$discovery,$audit,$galleryEntitlements);
+        $companionClient=new Principal($clientId,['client'],false);
+        $assert(MembershipEntitlementCatalog::privateGalleryConsentStatement('Talyvane')===
+            'I separately agree that Talyvane may display this image only in its members-only gallery to eligible clients with a current agency-approved membership, as described in the current privacy notice. This permission is separate from public profile publication and may be withdrawn at any time.',
+            'native consent catalogue preserves the canonical Laravel members-only consent statement exactly');
+        $previousPolicyQuery=$pdo->prepare(
+            'SELECT enabled,config_json,updated_by FROM feature_states WHERE feature_key="memberships.private_gallery" LIMIT 1'
+        );
+        $previousPolicyQuery->execute();
+        $previousPolicy=$previousPolicyQuery->fetch(PDO::FETCH_ASSOC);
+        $savePolicy=$pdo->prepare(
+            'INSERT INTO feature_states (feature_key,enabled,config_json,updated_by,updated_at)
+             VALUES ("memberships.private_gallery",1,:config,:actor,UTC_TIMESTAMP())
+             ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),config_json=VALUES(config_json),
+                 updated_by=VALUES(updated_by),updated_at=UTC_TIMESTAMP()'
+        );
+        $savePolicy->execute(['config'=>json_encode([
+            'private_gallery_policy_approved'=>false,
+            'private_gallery_policy_version'=>MembershipEntitlementCatalog::PRIVATE_GALLERY_POLICY_VERSION,
+            'legal_approval_reference'=>'LEGAL-APPROVAL-TEST-001',
+            'private_gallery_statement_sha256'=>MembershipEntitlementCatalog::privateGalleryConsentStatementHash('Talyvane'),
+        ],JSON_THROW_ON_ERROR),'actor'=>$reviewerId]);
+        $assert(!MembershipGalleryPolicyReadiness::approved($pdo,'Talyvane'),
+            'private gallery activation fails closed without explicit deployment legal approval');
+        $savePolicy->execute(['config'=>json_encode([
+            'private_gallery_policy_approved'=>true,
+            'private_gallery_policy_version'=>MembershipEntitlementCatalog::PRIVATE_GALLERY_POLICY_VERSION,
+            'legal_approval_reference'=>'LEGAL-APPROVAL-TEST-001',
+            'private_gallery_statement_sha256'=>MembershipEntitlementCatalog::privateGalleryConsentStatementHash('Talyvane'),
+        ],JSON_THROW_ON_ERROR),'actor'=>$reviewerId]);
+        $assert(MembershipGalleryPolicyReadiness::approved($pdo,'Talyvane'),
+            'private gallery activation requires the approved current policy version and exact brand-bound statement hash');
+        $assert(!MembershipGalleryPolicyReadiness::approved($pdo,'Different Agency'),
+            'brand changes invalidate deployment policy approval until the exact statement hash is re-approved');
+        if (is_array($previousPolicy)) {
+            $pdo->prepare(
+                'UPDATE feature_states SET enabled=:enabled,config_json=:config,updated_by=:actor,updated_at=UTC_TIMESTAMP()
+                 WHERE feature_key="memberships.private_gallery"'
+            )->execute([
+                'enabled'=>$previousPolicy['enabled'],'config'=>$previousPolicy['config_json'],
+                'actor'=>$previousPolicy['updated_by'],
+            ]);
+        } else {
+            $pdo->exec('DELETE FROM feature_states WHERE feature_key="memberships.private_gallery"');
+        }
+        $service->grantMembersOnlyConsent($companion,$profileId,$membersOnlyId,true,'Talyvane',$requestId);
+        $gallery=$galleryService->privateGalleryForClient($companionClient,'Talyvane');
+        $assert(count(array_filter($gallery,static fn(array $item): bool => $item['id']===$membersOnlyId))===1,
+            'a client with a current membership entitlement can see separately consented members-only media');
+        $renamedBrandGallery=$galleryService->privateGalleryForClient($companionClient,'Different Agency');
+        $assert(count(array_filter($renamedBrandGallery,static fn(array $item): bool => $item['id']===$membersOnlyId))===0,
+            'changing the deployment brand invalidates the old exact members-only consent statement');
+        $privateDelivery=$galleryService->privateMediaForClient($companionClient,$membersOnlyId,'Talyvane');
+        $assert(hash_equals($membersOnlyImage['sha256'],hash('sha256',$privateDelivery['bytes'])) &&
+            $privateDelivery['mime']==='image/webp',
+            'private gallery delivery verifies media integrity after rechecking client entitlement and companion consent');
+        $renamedBrandDeliveryDenied=false;
+        try { $galleryService->privateMediaForClient($companionClient,$membersOnlyId,'Different Agency'); }
+        catch (DomainException) { $renamedBrandDeliveryDenied=true; }
+        $assert($renamedBrandDeliveryDenied,'changing the deployment brand invalidates final media delivery, not only the gallery listing');
+        $noEntitlementDenied=false;
+        try { $galleryService->privateMediaForClient(new Principal($reviewerId,['super_admin'],true),$membersOnlyId,'Talyvane'); }
+        catch (DomainException) { $noEntitlementDenied=true; }
+        $assert($noEntitlementDenied,'non-client principals cannot access the members-only gallery even when they have administrative MFA');
+        $pdo->prepare('UPDATE memberships SET status="suspended",updated_at=UTC_TIMESTAMP() WHERE id=:id')
+            ->execute(['id'=>$membershipId]);
+        $suspendedMembershipDenied=false;
+        try { $galleryService->privateMediaForClient($companionClient,$membersOnlyId,'Talyvane'); }
+        catch (DomainException) { $suspendedMembershipDenied=true; }
+        $assert($suspendedMembershipDenied,'suspending a membership immediately blocks final private media delivery');
+        $pdo->prepare('UPDATE memberships SET status="active",updated_at=UTC_TIMESTAMP() WHERE id=:id')
+            ->execute(['id'=>$membershipId]);
+        $service->withdrawMembersOnlyConsent($companion,$profileId,$membersOnlyId,'Talyvane',$requestId);
+        $withdrawnState=$pdo->prepare(
+            'SELECT review_status,media_scope,members_only_consent_withdrawn_at FROM profile_media WHERE id=:id'
+        );
+        $withdrawnState->execute(['id'=>$membersOnlyId]);
+        $withdrawn=$withdrawnState->fetch(PDO::FETCH_ASSOC);
+        $assert(is_array($withdrawn) && $withdrawn['review_status']==='withdrawn' &&
+            $withdrawn['media_scope']==='private' && $withdrawn['members_only_consent_withdrawn_at']!==null &&
+            !file_exists($membersOnlyImage['path']),
+            'companion withdrawal immediately makes the image non-deliverable and deletes its private bytes');
 
         $rejectedImage=$makeImage();
         $rejectedId=$uuid();

@@ -169,8 +169,13 @@ final class PortalBookingController
     {
         $parsed=DateTimeImmutable::createFromFormat('!Y-m-d\\TH:i',$value,$zone);
         $errors=DateTimeImmutable::getLastErrors();
-        if (!$parsed instanceof DateTimeImmutable || (is_array($errors) && ($errors['warning_count']>0 || $errors['error_count']>0))) {
-            throw new InvalidArgumentException('Enter a valid local start and end time.');
+        if (!$parsed instanceof DateTimeImmutable ||
+            (is_array($errors) && ($errors['warning_count']>0 || $errors['error_count']>0)) ||
+            $parsed->format('Y-m-d\\TH:i') !== $value) {
+            // PHP otherwise normalizes a wall-clock time inside a DST spring-forward
+            // gap (for example 02:30 becomes 03:30). Reject it instead of silently
+            // booking a different local time than the client explicitly selected.
+            throw new InvalidArgumentException('That local time does not exist in the destination time zone. Choose another time.');
         }
         return $parsed;
     }

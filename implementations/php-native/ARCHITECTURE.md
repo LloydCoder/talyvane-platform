@@ -51,6 +51,26 @@ The implementation must be threat-modelled against OWASP Top 10:2025 and tested 
 - maintain tamper-evident audit trails for privileged and safeguarding-sensitive actions;
 - separate ordinary application access from restricted safeguarding evidence access.
 
+## Private media and membership boundary
+
+Public profile media and members-only media are separate authorization paths. A `members_only` moderation decision does not itself grant gallery publication consent or client access.
+
+- Companion consent is a separate, versioned, per-image grant captured from the authenticated companion portal; only the linked companion account may grant or withdraw it.
+- Client gallery access requires a client-only principal, an active and in-date membership, and an active immutable `media.private_gallery` entitlement grant.
+- Every media-byte request rechecks the membership grant, profile discoverability and market eligibility, the exact current public publication grant/version, the separate members-only consent, human reviewer attestations, and the stored content hash.
+- Media and membership records are locked for the duration of authorization and byte retrieval so concurrent membership suspension or companion withdrawal serializes with delivery.
+- Withdrawal changes the media to a non-deliverable state, records consent/audit evidence, removes it from gallery projections, and deletes the private bytes after the transaction commits.
+- The global feature flag remains disabled by default. Activation requires an explicit deployment legal-approval reference, current policy version, exact brand-bound consent-statement hash and current market/public-consent prerequisites. A brand or policy-version change invalidates stored approval and existing per-image consent. Provider and safeguarding prerequisites remain fail-closed until independent evidence adapters exist.
+- Gallery pages and image responses are private, non-cacheable, non-indexable, and use opaque application routes rather than storage URLs.
+
 ## Quality gates
 
 No feature is accepted without requirement traceability, tests for success and failure states, authorization tests, audit coverage where applicable, accessibility checks, and operational documentation. Production release additionally requires a reproducible cPanel ZIP, clean-install test, upgrade test, backup/restore test, and staging acceptance on the actual target hosting configuration.
+
+## Destination cover media
+
+Destination covers use the shared private media storage pipeline and the `destination_cover_assets` governance ledger. Uploaders attest to a versioned rights statement; assets are re-encoded to WebP and remain private in `pending` state. A different MFA-authorized agency administrator must review with a reason. Approval verifies the stored bytes against SHA-256 and binds the exact private key to the destination. Public delivery requires an approved cover, published destination, enabled country, current approved market review by an MFA-backed administrator, and a matching destination pointer. Withdrawal is audited, clears the public pointer transactionally, and deletes private bytes. Storage keys are never rendered to users. This is an operator attestation and human-review workflow, not a rights-verification service or legal opinion.
+
+## Portal privacy export
+
+Client and companion accounts can request a self-service JSON export from their authenticated portal. The export service requires a single client or companion role and uses resource-scoped queries: clients receive their own account metadata, bookings, favorites, memberships and entitlement history; companions receive their own profile, availability, bookings and consent history. The export omits password hashes, MFA/recovery material, safeguarding narratives, payment credentials and third-party contact identifiers. The download response is private and non-cacheable, and a successful export appends an audit event with a request correlation ID. This is not yet a complete data-subject-rights implementation: verified correction, erasure/deactivation, legal-hold/retention reconciliation, backup-expiry handling, and an independently reviewed export inventory remain release gates.

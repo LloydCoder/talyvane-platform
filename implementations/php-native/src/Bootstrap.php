@@ -5,6 +5,7 @@ namespace Talyvane;
 
 use Talyvane\Application\Companions\CompanionProfilePublicationService;
 use Talyvane\Application\Destinations\DestinationManagementService;
+use Talyvane\Application\Destinations\DestinationCoverService;
 use Talyvane\Application\Globalization\MarketPolicyManagementService;
 use Talyvane\Application\Clients\ClientFavoriteService;
 use Talyvane\Application\Safeguarding\SafeguardingCaseService;
@@ -18,6 +19,8 @@ use Talyvane\Application\Safeguarding\SafeguardingRestoreVerificationService;
 use Talyvane\Security\SecretBox;
 use Talyvane\Http\AdminSafeguardingController;
 use Talyvane\Application\Clients\ClientMembershipService;
+use Talyvane\Application\Clients\MembershipEntitlementService;
+use Talyvane\Application\Clients\MembershipGalleryPolicyReadiness;
 use Talyvane\Features\FeatureAvailability;
 use Talyvane\Infrastructure\Database\FeatureStateRepository;
 use Talyvane\Http\AdminClientController;
@@ -36,11 +39,14 @@ use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Application\Identity\EmailVerificationService;
 use Talyvane\Application\Identity\MfaService;
 use Talyvane\Application\Identity\PasswordChangeService;
+use Talyvane\Application\Identity\PortalPrivacyExportService;
 use Talyvane\Application\Identity\UserRegistrationService;
 use Talyvane\Http\AdminCompanionController;
 use Talyvane\Http\AdminDestinationController;
+use Talyvane\Http\PublicDestinationCoverController;
 use Talyvane\Http\AdminMarketController;
 use Talyvane\Http\ClientFavoriteController;
+use Talyvane\Http\ClientPrivateGalleryController;
 use Talyvane\Http\CompanionMediaController;
 use Talyvane\Http\CompanionAvailabilityController;
 use Talyvane\Http\AdminAuthController;
@@ -52,6 +58,7 @@ use Talyvane\Http\AdminNavigationController;
 use Talyvane\Http\AdminEnquiryController;
 use Talyvane\Http\PortalAuthController;
 use Talyvane\Http\PortalSecurityController;
+use Talyvane\Http\PortalPrivacyController;
 use Talyvane\Http\PublicModelAgencyController;
 use Talyvane\Http\PublicProfileMediaController;
 use Talyvane\Http\PublicModelAgencyRightsController;
@@ -131,18 +138,30 @@ final class Bootstrap
 
         $public = new PublicSiteController($pdo, $views);
         $discovery = new DiscoveryService($pdo);
+        $contentManagement = new ContentManagementService($pdo, $audit);
+        $brandName = (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane');
+        $membershipEligibility = static function(string $dependency) use ($pdo,$brandName): bool {
+            if ($dependency==='market.policy') {
+                return MembershipGalleryPolicyReadiness::marketApproved($pdo);
+            }
+            if ($dependency==='consent.current') {
+                return MembershipGalleryPolicyReadiness::approved($pdo,$brandName);
+            }
+            // Provider, legal and safeguarding readiness require independent external evidence.
+            return false;
+        };
+        $membershipAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(),$membershipEligibility);
+        $membershipEntitlements = new MembershipEntitlementService($pdo,$membershipAvailability);
         $publicRoot = (string) ($config['paths']['document_root'] ?? ($_SERVER['DOCUMENT_ROOT'] ?? ''));
         $mediaStorage = new PrivateMediaStorage((string) ($config['paths']['storage'] ?? ''),$publicRoot);
-        $profileMedia = new ProfileMediaService($pdo,$mediaStorage,$discovery,$audit);
+        $profileMedia = new ProfileMediaService($pdo,$mediaStorage,$discovery,$audit,$membershipEntitlements);
         $publicDiscovery = new PublicDiscoveryController($discovery, $views, $authentication);
-        $contentManagement = new ContentManagementService($pdo, $audit);
         $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
         $adminAudit = new AdminAuditController($authentication, new AuditQueryService($pdo), $views, (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane'));
         $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
         $adminBrand = new AdminBrandController($authentication, $contentManagement, $views);
         $adminNavigation = new AdminNavigationController($pdo, $authentication, $contentManagement, $views);
         $enquiries = new EnquiryService($pdo, $rateLimiter, $audit);
-        $brandName = (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane');
         $companionMedia = new CompanionMediaController($authentication,$profileMedia,$views,$brandName);
         $adminProfileMedia = new AdminProfileMediaController($authentication,$profileMedia,$views,$brandName);
         $publicProfileMedia = new PublicProfileMediaController($profileMedia);
@@ -150,7 +169,9 @@ final class Bootstrap
         $adminEnquiries = new AdminEnquiryController($enquiries, $authentication, $views, $brandName);
         $companionPublication = new CompanionProfilePublicationService($pdo, $audit);
         $adminCompanions = new AdminCompanionController($authentication, $companionPublication, $views, $brandName);
-        $adminDestinations = new AdminDestinationController($authentication, new DestinationManagementService($pdo, $audit), $views, $brandName);
+        $destinationCovers = new DestinationCoverService($pdo,$mediaStorage,$audit);
+        $adminDestinations = new AdminDestinationController($authentication,new DestinationManagementService($pdo,$audit),$destinationCovers,$views,$brandName);
+        $publicDestinationCovers = new PublicDestinationCoverController($destinationCovers);
         $adminMarkets = new AdminMarketController($authentication, new MarketPolicyManagementService($pdo, $audit), $views, $brandName);
         $modelApplications = new ModelAgencyApplicationService($pdo, $audit);
         $publicModelAgency = new PublicModelAgencyController($pdo, $modelApplications, $contentManagement, $rateLimiter, $modelApplicantRights, $views);
@@ -162,11 +183,12 @@ final class Bootstrap
         $bookingQueries = new BookingQueryService($pdo);
         $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $discovery, $views, $brandName);
         $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit), $views, $brandName);
-        $membershipAvailability = new FeatureAvailability((new FeatureStateRepository($pdo))->enabledStates(), static fn(string $dependency): bool => false);
         $clientMemberships = new ClientMembershipService($pdo,$audit,$membershipAvailability);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery, $clientMemberships);
         $portalSecurity = new PortalSecurityController($authentication,$passwords,$views,$brandName);
+        $portalPrivacy = new PortalPrivacyController($authentication,new PortalPrivacyExportService($pdo,$audit,$rateLimiter));
         $clientFavorites = new ClientFavoriteController($authentication, new ClientFavoriteService($pdo, $audit, $discovery), $views, $brandName);
+        $clientPrivateGallery = new ClientPrivateGalleryController($authentication,$profileMedia,$views,$brandName);
         $adminClients = new AdminClientController($pdo,$authentication,$clientMemberships,$views,$brandName);
         $vaultConfig = $config['safeguarding']['vault'] ?? null;
         $caseKeyProvider = is_array($vaultConfig) && ($vaultConfig['enabled'] ?? false) === true
@@ -197,12 +219,14 @@ final class Bootstrap
         $router->add('GET', '/companions', static fn(Request $request): Response => $publicDiscovery->companions($request));
         $router->add('GET', '/companions/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->companion($request,$params));
         $router->add('GET', '/destinations/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->destination($request, $params));
+        $router->add('GET', '/destination-covers/{slug}', static fn(Request $request,array $params): Response => $publicDestinationCovers->show($request,$params));
         $router->add('GET', '/profiles/{slug}', static fn(Request $request, array $params): Response => $publicDiscovery->profile($request, $params));
         $router->add('GET', '/profile-media/{id}', static fn(Request $request, array $params): Response => $publicProfileMedia->show($request,$params));
         $router->add('GET', '/pages/{slug}', static fn(Request $request, array $params): Response => $public->page($request, $params));
         $router->add('GET', '/privacy', static fn(Request $request): Response => $public->page($request, ['slug'=>'privacy']));
         $router->add('GET', '/terms', static fn(Request $request): Response => $public->page($request, ['slug'=>'terms']));
 
+        $router->add('GET', '/portal/privacy/export', static fn(Request $request): Response => $portalPrivacy->export($request));
         $router->add('GET', '/portal/security', static fn(Request $request): Response => $portalSecurity->index($request));
         $router->add('POST', '/portal/security', static fn(Request $request): Response => $portalSecurity->changePassword($request));
         $router->add('GET', '/portal/register', static fn(Request $request): Response => $portalAuth->registerForm($request));
@@ -219,6 +243,8 @@ final class Bootstrap
         $router->add('POST', '/portal/logout', static fn(Request $request): Response => $portalAuth->logout($request));
         $router->add('GET', '/portal/bookings', static fn(Request $request): Response => $portalBookings->clientIndex($request));
         $router->add('GET', '/portal/favorites', static fn(Request $request): Response => $clientFavorites->index($request));
+        $router->add('GET', '/portal/gallery', static fn(Request $request): Response => $clientPrivateGallery->index($request));
+        $router->add('GET', '/portal/gallery/{id}', static fn(Request $request,array $params): Response => $clientPrivateGallery->show($request,$params));
         $router->add('POST', '/portal/favorites/{slug}', static fn(Request $request, array $params): Response => $clientFavorites->add($request, $params));
         $router->add('POST', '/portal/favorites/{slug}/remove', static fn(Request $request, array $params): Response => $clientFavorites->remove($request, $params));
         $router->add('GET', '/portal/bookings/new', static fn(Request $request): Response => $portalBookings->newForm($request));
@@ -228,6 +254,8 @@ final class Bootstrap
         $router->add('GET', '/portal/companion/media', static fn(Request $request): Response => $companionMedia->index($request));
         $router->add('POST', '/portal/companion/media', static fn(Request $request): Response => $companionMedia->submit($request));
         $router->add('POST', '/portal/companion/media/{id}/withdraw', static fn(Request $request,array $params): Response => $companionMedia->withdraw($request,$params));
+        $router->add('POST', '/portal/companion/media/{id}/members-only/consent', static fn(Request $request,array $params): Response => $companionMedia->grantMembersOnlyConsent($request,$params));
+        $router->add('POST', '/portal/companion/media/{id}/members-only/withdraw', static fn(Request $request,array $params): Response => $companionMedia->withdrawMembersOnlyConsent($request,$params));
         $router->add('POST', '/portal/companion/publication/withdraw', static fn(Request $request): Response => $companionMedia->withdrawPublicationConsent($request));
         $router->add('POST', '/portal/companion/publication/renew', static fn(Request $request): Response => $companionMedia->renewPublicationConsent($request));
         $router->add('GET', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->index($request));
@@ -264,6 +292,9 @@ final class Bootstrap
         $router->add('GET', '/admin/destinations', static fn(Request $request): Response => $adminDestinations->index($request));
         $router->add('POST', '/admin/destinations', static fn(Request $request): Response => $adminDestinations->save($request));
         $router->add('POST', '/admin/destinations/{id}', static fn(Request $request, array $params): Response => $adminDestinations->save($request, $params));
+        $router->add('POST', '/admin/destinations/{id}/cover', static fn(Request $request,array $params): Response => $adminDestinations->uploadCover($request,$params));
+        $router->add('POST', '/admin/destination-covers/{id}/review', static fn(Request $request,array $params): Response => $adminDestinations->reviewCover($request,$params));
+        $router->add('POST', '/admin/destination-covers/{id}/withdraw', static fn(Request $request,array $params): Response => $adminDestinations->withdrawCover($request,$params));
         $router->add('GET', '/admin/companions', static fn(Request $request): Response => $adminCompanions->index($request));
         $router->add('POST', '/admin/companions/{id}/publish', static fn(Request $request, array $params): Response => $adminCompanions->publish($request, $params));
         $router->add('GET', '/admin/safeguarding/reports', static fn(Request $request): Response => $safeguardingController->reportForm($request));

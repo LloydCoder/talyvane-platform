@@ -4,6 +4,7 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/bootstrap.php';
 
 use Talyvane\Domain\Money;
+use Talyvane\Application\Destinations\DestinationCoverService;
 use Talyvane\Domain\Money\Currency;
 use Talyvane\Domain\Money\QuoteSnapshot;
 use Talyvane\Domain\Payments\PaymentStateMachine;
@@ -154,6 +155,7 @@ $portalDashboardMarkup = $authViews->render('auth/portal', [
 $assert(str_contains($portalDashboardMarkup, 'Companion workspace'), 'companion portal is visibly separated from the client portal');
 $assert(str_contains($portalDashboardMarkup, 'action="/portal/logout"'), 'portal dashboard exposes CSRF-protected sign-out');
 $assert(str_contains($portalDashboardMarkup,'href="/portal/security"'),'client and companion dashboards expose account security');
+$assert(str_contains($portalDashboardMarkup,'href="/portal/privacy/export"'),'client and companion dashboards expose a self-service account data export');
 $clientMembershipMarkup = $authViews->render('auth/portal', [
     'screen'=>'dashboard',
     'csrf'=>'portal-client-membership-csrf',
@@ -720,6 +722,27 @@ $destinationMarkup = $authViews->render('admin/destinations',[
 ]);
 $assert(str_contains($destinationMarkup,'&lt;script&gt;alert(1)&lt;/script&gt;') && !str_contains($destinationMarkup,'<script>alert(1)</script>'), 'destination admin escapes database content before rendering');
 $assert(str_contains($destinationMarkup,'/admin/destinations/destination-1') && str_contains($destinationMarkup,'csrf-destination-token'), 'destination admin renders owner-scoped edit forms with CSRF protection');
+$assert(str_contains($destinationMarkup,'/admin/destinations/destination-1/cover') &&
+    str_contains($destinationMarkup,'name="rights_confirmed"') &&
+    str_contains($destinationMarkup,'Submit cover for independent review'),
+    'destination admin exposes a CSRF-protected rights-attested cover upload form');
+$pendingDestinationMarkup=$authViews->render('admin/destinations',[
+    'brandName'=>'Maison Example',
+    'items'=>[],
+    'countries'=>[],
+    'currencies'=>[],
+    'pendingCovers'=>[['id'=>'cover-1','destination_name'=>'London','created_at'=>'2026-11-25 12:00:00']],
+    'error'=>'','notice'=>'','csrf'=>'cover-review-csrf',
+]);
+$assert(str_contains($pendingDestinationMarkup,'/admin/destination-covers/cover-1/review') &&
+    str_contains($pendingDestinationMarkup,'name="decision"') &&
+    str_contains($pendingDestinationMarkup,'name="reason"'),
+    'destination cover review requires a reasoned independent approve/reject decision');
+$assert(DestinationCoverService::RIGHTS_VERSION==='destination-cover-rights-v1' &&
+    DestinationCoverService::RIGHTS_STATEMENT==='I confirm that I own or have the necessary rights and permissions to use this image as the destination cover, including all copyright, licence, property and identifiable-person likeness rights. I authorize its display on this destination page and understand that approval is required before publication.',
+    'destination cover rights declaration preserves its canonical versioned statement exactly');
+$assert(PrivateMediaStorage::validKey('destination-covers/0123456789abcdef0123456789abcdef.webp'),
+    'destination cover storage accepts only opaque sanitized private media keys');
 $marketMarkup = $authViews->render('admin/markets',[
     'brandName'=>'Maison Example',
     'items'=>[[
@@ -784,6 +807,20 @@ $assert(str_contains($adminMediaMarkup,'/admin/profile-media/media-1/preview') &
     str_contains($adminMediaMarkup,'name="decision"') && str_contains($adminMediaMarkup,'name="adult_safety_confirmed"') &&
     str_contains($adminMediaMarkup,'name="rights_confirmed"') && str_contains($adminMediaMarkup,'name="consent_confirmed"') && str_contains($adminMediaMarkup,'name="reason"'),
     'administrator media review workspace uses private preview and reasoned approve/reject controls');
+$destinationDiscoveryMarkup=$authViews->render('public/discovery',[
+    'mode'=>'destinations','brandName'=>'Talyvane',
+    'destinations'=>[['slug'=>'london','display_name'=>'London','country_code'=>'GB','time_zone'=>'Europe/London','cover_url'=>'/destination-covers/london']],
+]);
+$assert(str_contains($destinationDiscoveryMarkup,'src="/destination-covers/london"') &&
+    str_contains($destinationDiscoveryMarkup,'London destination cover'),
+    'public destination discovery renders only the approved opaque destination cover route');
+$destinationDetailMarkup=$authViews->render('public/discovery',[
+    'mode'=>'destination','brandName'=>'Talyvane',
+    'destination'=>['slug'=>'london','display_name'=>'London','cover_url'=>'/destination-covers/london'],
+    'profiles'=>[],
+]);
+$assert(str_contains($destinationDetailMarkup,'src="/destination-covers/london"'),
+    'public destination detail renders its approved cover image');
 $publicMediaMarkup = $authViews->render('public/discovery',[
     'mode'=>'profile','brandName'=>'Talyvane','canSaveFavorite'=>false,'csrf'=>'',
     'profile'=>['slug'=>'talent','display_name'=>'Talent Example','destination_slug'=>'london','destination_name'=>'London',
