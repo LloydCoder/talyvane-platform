@@ -58,7 +58,7 @@ final class AdminEnquiryController
         try {
             $assignee=$this->field($request,'assignee_id');
             $this->enquiries->assign($principal,(string)($params['reference'] ?? ''),$assignee === '' ? null : $assignee,
-                $this->field($request,'reason'),$this->field($request,'idempotency_key'));
+                $this->field($request,'reason'),$request->requestId);
             return $this->page('',200,true,$principal,$this->pageNumber($request));
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->page($error->getMessage(),422,false,$principal,$this->pageNumber($request));
@@ -75,7 +75,7 @@ final class AdminEnquiryController
         try {
             $version=$this->enquiries->saveResponseTemplate(
                 $principal,$this->field($request,'locale'),$this->field($request,'subject_template'),
-                $this->field($request,'body_template'),$this->field($request,'reason'),$request->requestId
+                $this->field($request,'body_template'),$this->field($request,'reason'),$this->field($request,'idempotency_key')
             );
             return $this->page('',200,true,$principal,$this->pageNumber($request));
         } catch (InvalidArgumentException|DomainException $error) {
