@@ -78,7 +78,7 @@ final class PortalPrivacyOutcomeOutbox
     {
         if(!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iD',$requestId) ||
             !filter_var($recipient,FILTER_VALIDATE_EMAIL) || !in_array($accountType,['client','companion'],true)) {
-            throw new \\InvalidArgumentException('Privacy correction notification details are invalid.');
+            throw new \InvalidArgumentException('Privacy correction notification details are invalid.');
         }
         $id=self::uuid();
         $body=$accountType==='companion'
