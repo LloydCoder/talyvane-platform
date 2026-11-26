@@ -7,11 +7,11 @@ declare(strict_types=1);
  * Requires TALYVANE_CONFIG to reference the installer-generated owner-only config.
  */
 
-use Talyvane\\Application\\Bookings\\BookingNotificationDispatcher;
-use Talyvane\\Application\\Safeguarding\\SafeguardingNotificationDispatcher;
-use Talyvane\\Infrastructure\\Database\\ConnectionFactory;
-use Talyvane\\Infrastructure\\Mail\\SmtpMailer;
-use Talyvane\\Security\\SecretBox;
+use Talyvane\Application\\Bookings\\BookingNotificationDispatcher;
+use Talyvane\Application\\Safeguarding\\SafeguardingNotificationDispatcher;
+use Talyvane\Infrastructure\\Database\\ConnectionFactory;
+use Talyvane\Infrastructure\\Mail\\SmtpMailer;
+use Talyvane\Security\\SecretBox;
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(404);
