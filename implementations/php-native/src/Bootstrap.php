@@ -118,9 +118,12 @@ final class Bootstrap
         $registration = null;
         $recovery = null;
         $modelApplicantRights = null;
-        if (isset($config['mail']['smtp']) && is_array($config['mail']['smtp'])) {
+        $mailConfig = is_array($config['mail']['smtp'] ?? null)
+            ? $config['mail']['smtp']
+            : (is_array($config['mail'] ?? null) ? $config['mail'] : null);
+        if (is_array($mailConfig)) {
             try {
-                $mailer = new SmtpMailer($config['mail']['smtp']);
+                $mailer = new SmtpMailer($mailConfig);
                 $emailVerification = new EmailVerificationService(
                     $pdo,
                     $mailer,
