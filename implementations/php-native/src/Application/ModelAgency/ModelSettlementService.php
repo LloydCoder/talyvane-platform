@@ -309,8 +309,9 @@ final class ModelSettlementService
         $query=$this->pdo->prepare(
             'SELECT a.id,a.assignment_reference,a.status,a.currency_code,a.compensation_minor,
                     a.expense_cap_minor,a.commission_basis_points,a.shoot_starts_at,a.shoot_ends_at,
-                    s.id AS settlement_id,s.status AS settlement_status
-             FROM model_assignments a LEFT JOIN model_settlements s ON s.assignment_id=a.id
+                    c.minor_units AS currency_precision,s.id AS settlement_id,s.status AS settlement_status
+             FROM model_assignments a LEFT JOIN currencies c ON c.code=a.currency_code
+             LEFT JOIN model_settlements s ON s.assignment_id=a.id
              WHERE a.status IN ("in_progress","completed")
              ORDER BY a.created_at DESC LIMIT :limit'
         );
