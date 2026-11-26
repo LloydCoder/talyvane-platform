@@ -331,7 +331,7 @@ final class ModelImageLicenceService
         $this->pdo->beginTransaction();
         try {
             $licence=$this->lockRow('model_image_licences',$licenceId);
-            if(!in_array($licence['status'],['draft','active'],true)) throw new \DomainException('Only a draft or active image licence can be revoked.');
+            if(!in_array($licence['status'],['draft','awaiting_model_consent','active'],true)) throw new \DomainException('Only a draft, offered or active image licence can be revoked.');
             $this->pdo->prepare(
                 'UPDATE model_image_licences SET status="revoked",revoked_by=:actor,revoked_at=UTC_TIMESTAMP(),
                  revocation_reason=:reason,updated_at=UTC_TIMESTAMP() WHERE id=:id'
