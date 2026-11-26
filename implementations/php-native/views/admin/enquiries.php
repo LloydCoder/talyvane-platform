@@ -6,6 +6,11 @@ $error = is_string($error ?? null) ? $error : '';
 $saved = ($saved ?? false) === true;
 $items = is_array($items ?? null) ? $items : [];
 $assignees = is_array($assignees ?? null) ? $assignees : [];
+$currentPage = max(1,(int)($currentPage ?? 1));
+$totalPages = max(1,(int)($totalPages ?? 1));
+$totalCount = max(0,(int)($totalCount ?? count($items)));
+$hasPrevious = ($hasPrevious ?? false) === true;
+$hasNext = ($hasNext ?? false) === true;
 $statuses = ['new'=>'New','in_progress'=>'In progress','responded'=>'Responded','closed'=>'Closed','spam'=>'Spam'];
 ?>
 <!doctype html>
@@ -15,7 +20,7 @@ $statuses = ['new'=>'New','in_progress'=>'In progress','responded'=>'Responded',
 </style></head>
 <body><header class="top"><div class="brand"><?= $escape($brandName) ?><span>.</span></div><a href="/admin">CONTROL ROOM</a></header>
 <main class="wrap"><a href="/admin" class="muted" style="display:inline-block;text-decoration:none;margin-bottom:20px">← Back to control room</a>
-<div class="heading"><div><div class="eyebrow">Customer relations / Inbox</div><h1>Enquiries</h1></div><div class="muted"><?= count($items) ?> most recent enquiries · Private administrative workspace</div></div>
+<div class="heading"><div><div class="eyebrow">Customer relations / Inbox</div><h1>Enquiries</h1></div><div class="muted"><?= $totalCount ?> enquiries · Page <?= $currentPage ?> of <?= $totalPages ?> · Private administrative workspace</div></div>
 <?php if ($error !== ''): ?><div class="error" role="alert"><?= $escape($error) ?></div><?php endif; ?>
 <?php if ($saved): ?><div class="success" role="status">Enquiry updated and audit event recorded.</div><?php endif; ?>
 <?php if ($items === []): ?><section class="panel empty"><strong>Your inbox is clear.</strong><p>New public enquiries will appear here.</p></section><?php else: ?>
@@ -27,6 +32,7 @@ $statuses = ['new'=>'New','in_progress'=>'In progress','responded'=>'Responded',
 <?= $escape($item['message'] ?? '') ?></div>
 </div><div><div class="field"><label>Pipeline status</label><form method="post" action="<?= $escape('/admin/enquiries/' . rawurlencode((string) ($item['reference'] ?? ''))) ?>">
 <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>">
+<input type="hidden" name="page" value="<?= $currentPage ?>">
 <select name="status"><?php foreach ($statuses as $key=>$label): ?><option value="<?= $escape($key) ?>" <?= ($item['status'] ?? '') === $key ? 'selected' : '' ?>><?= $escape($label) ?></option><?php endforeach; ?></select>
 <div class="field"><label>Change reason</label><input name="reason" minlength="8" maxlength="500" required placeholder="Reason for status change"></div>
 <button class="button" type="submit">Save status</button></form></div>
@@ -66,4 +72,9 @@ $statuses = ['new'=>'New','in_progress'=>'In progress','responded'=>'Responded',
 </section>
 <div class="muted" style="font-size:11px">Responded: <?= $escape($item['responded_at'] ?? '—') ?><br>Closed: <?= $escape($item['closed_at'] ?? '—') ?></div></div></div></section><?php endforeach; ?>
 <?php endif; ?>
+<?php if ($totalPages > 1): ?><nav aria-label="Enquiry pages" style="display:flex;justify-content:center;align-items:center;gap:14px;padding:18px 0 34px">
+<?php if ($hasPrevious): ?><a class="button" href="/admin/enquiries?page=<?= $currentPage - 1 ?>" style="text-decoration:none">Previous</a><?php endif; ?>
+<span class="muted">Page <?= $currentPage ?> of <?= $totalPages ?></span>
+<?php if ($hasNext): ?><a class="button" href="/admin/enquiries?page=<?= $currentPage + 1 ?>" style="text-decoration:none">Next</a><?php endif; ?>
+</nav><?php endif; ?>
 </main></body></html>
