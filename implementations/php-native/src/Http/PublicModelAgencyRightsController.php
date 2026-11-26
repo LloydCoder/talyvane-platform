@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Talyvane\Http;
 
 use Talyvane\Application\ModelAgency\ModelApplicantRightsService;
+use Talyvane\Application\ModelAgency\ModelPortfolioService;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\SessionManager;
 
