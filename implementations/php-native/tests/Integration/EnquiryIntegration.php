@@ -152,7 +152,7 @@ $attribution = is_array($saved) ? json_decode((string) $saved['attribution_json'
     $enquiryIdQuery->execute(['reference'=>$reference]);
     $enquiryId=(string)$enquiryIdQuery->fetchColumn();
     $outbox=$pdo->prepare('SELECT id,recipient_ciphertext,payload_ciphertext,status,related_type FROM communication_outbox WHERE related_type="crm_enquiry" AND idempotency_key=:key');
-    $outbox->execute(['key'=>'crm-enquiry-response-v1:'.hash('sha256',$enquiryId."\\0".$replyRequest)]);
+    $outbox->execute(['key'=>'crm-enquiry-response-v1:'.hash('sha256',$enquiryId."\0".$replyRequest)]);
     $outboxRow=$outbox->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($outboxRow) && $outboxRow['status']==='pending' &&
         !str_contains((string)$outboxRow['recipient_ciphertext'],'visitor@example.test') &&
