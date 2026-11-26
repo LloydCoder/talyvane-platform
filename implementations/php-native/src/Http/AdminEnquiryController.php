@@ -58,7 +58,7 @@ final class AdminEnquiryController
         try {
             $assignee=$this->field($request,'assignee_id');
             $this->enquiries->assign($principal,(string)($params['reference'] ?? ''),$assignee === '' ? null : $assignee,
-                $this->field($request,'reason'),$request->requestId);
+                $this->field($request,'reason'),$this->field($request,'idempotency_key'));
             return $this->page('',200,true,$principal,$this->pageNumber($request));
         } catch (InvalidArgumentException|DomainException $error) {
             return $this->page($error->getMessage(),422,false,$principal,$this->pageNumber($request));
@@ -93,7 +93,7 @@ final class AdminEnquiryController
         try {
             $queued=$this->enquiries->queueResponse(
                 $principal,(string)($params['reference']??''),$this->field($request,'reply_text'),
-                $this->field($request,'locale')?:'en',$this->brandName,$request->requestId
+                $this->field($request,'locale')?:'en',$this->brandName,$this->field($request,'idempotency_key')
             );
             return $this->page('',200,true,$principal,$this->pageNumber($request));
         } catch (InvalidArgumentException|DomainException $error) {
@@ -171,6 +171,9 @@ final class AdminEnquiryController
         $hasNext = count($items) > $pageSize;
         if ($hasNext) { $items = array_slice($items,0,$pageSize); }
         $assignees = $this->enquiries->eligibleAssignees($principal);
+        $replyTokens=[];
+        foreach($items as $item) { $replyTokens[(string)$item['reference']]=bin2hex(random_bytes(16)); }
+        $templateToken=bin2hex(random_bytes(16));
         $body = $this->views->render('admin/enquiries',[
             'brandName'=>$this->brandName,
             'csrf'=>Csrf::issue(),
@@ -179,6 +182,8 @@ final class AdminEnquiryController
             'items'=>$items,
             'assignees'=>$assignees,
             'templates'=>$this->enquiries->responseTemplates($principal),
+            'replyTokens'=>$replyTokens,
+            'templateToken'=>$templateToken,
             'currentPage'=>$page,
             'totalPages'=>$totalPages,
             'totalCount'=>$totalCount,
