@@ -89,7 +89,7 @@ final class PortalPrivacyExportService
             $profileRow=$profile->fetch(PDO::FETCH_ASSOC);
             $export['profile']=is_array($profileRow)?$profileRow:null;
             $availability=$this->pdo->prepare(
-                'SELECT weekday,local_start,local_end,time_zone,effective_from,effective_until,enabled,created_at
+                'SELECT weekday,local_start,local_end,time_zone,effective_from,effective_until,enabled,a.created_at
                  FROM companion_availability a JOIN companion_profiles p ON p.id=a.profile_id
                  WHERE p.user_id=:actor ORDER BY weekday,local_start'
             );
