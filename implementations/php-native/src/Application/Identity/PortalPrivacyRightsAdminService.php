@@ -300,7 +300,7 @@ final class PortalPrivacyRightsAdminService
 
             $pseudonym='erased+'.str_replace('-','',(string)$user['id']).'@privacy.invalid';
             $this->pdo->prepare(
-                'UPDATE users SET email=:email,password_hash=:password,status="erased",
+                'UPDATE users SET email=:email,display_name=NULL,password_hash=:password,status="erased",
                     email_verified_at=NULL,first_login_required=0,remember_token_hash=NULL,
                     admin_session_version=admin_session_version+1,updated_at=UTC_TIMESTAMP()
                  WHERE id=:id AND status="active"'
