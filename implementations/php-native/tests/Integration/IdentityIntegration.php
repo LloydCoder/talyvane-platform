@@ -670,6 +670,8 @@ function runIdentityIntegration(PDO $pdo): int
     $correctionAuditPayload=json_decode((string)$correctionAudit->fetchColumn(),true);
     $assert(is_array($correctionAuditPayload) && ($correctionAuditPayload['fields']??[])===['display_name','biography','languages'],
         'companion correction fulfilment records an auditable field-level event without copying corrected personal values into the audit log');
+    // Restore the pre-existing published fixture for later profile-media integration tests.
+    $pdo->prepare('UPDATE companion_profiles SET status="published" WHERE user_id=:user')->execute(['user'=>$companionPrincipal->id]);
     $assert(count($portalRightsAdmin->queue($superAdmin,bin2hex(random_bytes(16))))===1,
         'fulfilled privacy requests leave the active review queue');
 
