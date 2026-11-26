@@ -211,6 +211,16 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $grant=$pdo->prepare('SELECT granted FROM consent_grants WHERE id=:id');$grant->execute(['id'=>$draftRow['consent_grant_id']]);
     $assert((int)$grant->fetchColumn()===0,'draft licence does not imply model consent');
     $licences->offerForApplicantConsent($admin,$licenceId,'private/model-licences/execution-evidence-0001',bin2hex(random_bytes(16)));
+    $notice=$pdo->prepare('SELECT id,idempotency_key,status,recipient_ciphertext,payload_ciphertext FROM communication_outbox WHERE related_type="model_licence" AND related_id=:id');
+    $notice->execute(['id'=>$licenceId]);$noticeRow=$notice->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($noticeRow) && $noticeRow['status']==='pending' && str_starts_with((string)$noticeRow['idempotency_key'],'model-licence-consent-offer:'),
+        'model consent offer queues one idempotent encrypted notice in the same transaction');
+    $noticeRecipient=is_array($noticeRow)?$secretBox->decrypt((string)$noticeRow['recipient_ciphertext'],'communication-outbox-v1:recipient:'.$noticeRow['id']):'';
+    $noticePayload=is_array($noticeRow)?json_decode($secretBox->decrypt((string)$noticeRow['payload_ciphertext'],'communication-outbox-v1:payload:'.$noticeRow['id']),true,8,JSON_THROW_ON_ERROR):[];
+    $assert($noticeRecipient==='portfolio-applicant@example.test' && is_array($noticePayload) &&
+        !str_contains((string)($noticePayload['body']??''),'Verified editorial commissioning client') &&
+        !str_contains((string)($noticePayload['body']??''),'private/model-licences/'),
+        'model consent notice is encrypted at rest and omits licence terms and internal evidence references');
     $offered=$pdo->prepare('SELECT status,execution_evidence_reference,applicant_consent_terms_hash FROM model_image_licences WHERE id=:id');$offered->execute(['id'=>$licenceId]);$offeredRow=$offered->fetch(PDO::FETCH_ASSOC);
     $grant->execute(['id'=>$draftRow['consent_grant_id']]);
     $portalLicence=array_values(array_filter($licences->applicantPortalLicences($applicationId),static fn(array $item):bool=>$item['id']===$licenceId));
