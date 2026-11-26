@@ -18,6 +18,14 @@ final class EnquiryIntegrationMailer implements Mailer
     }
 }
 
+final class EnquiryIntegrationFailingMailer implements Mailer
+{
+    public function send(string $recipient,string $subject,string $textBody): void
+    {
+        throw new RuntimeException('Simulated SMTP outage.');
+    }
+}
+
 function runEnquiryIntegration(PDO $pdo): int
 {
     $assertions = 0;
@@ -178,6 +186,18 @@ $attribution = is_array($saved) ? json_decode((string) $saved['attribution_json'
     $duplicate=$service->queueResponse($admin,$reference,
         "Thank you for your enquiry. We can provide the details you requested.",'en','Talyvane',$replyRequest);
     $assert($duplicate===false,'CRM response idempotency key prevents duplicate outbound messages');
+    $failedDispatch=(new CrmCommunicationDispatcher($pdo,new SecretBox(str_repeat('E',32)),new EnquiryIntegrationFailingMailer()))->dispatchBatch(10);
+    $afterFailure=$pdo->prepare('SELECT status,attempts FROM communication_outbox WHERE id=:id');
+    $afterFailure->execute(['id'=>$outboxRow['id']]);
+    $failedRow=$afterFailure->fetch(PDO::FETCH_ASSOC);
+    $responseState=$pdo->prepare('SELECT status FROM enquiries WHERE reference=:reference');
+    $responseState->execute(['reference'=>$reference]);
+    $stateAfterFailure=$responseState->fetchColumn();
+    $assert($failedDispatch['claimed']===1 && $failedDispatch['retried']===1 &&
+        is_array($failedRow) && $failedRow['status']==='pending' && (int)$failedRow['attempts']===1 &&
+        $stateAfterFailure==='in_progress',
+        'SMTP failure schedules a bounded retry and does not falsely mark the enquiry responded');
+    $pdo->prepare('UPDATE communication_outbox SET available_at=UTC_TIMESTAMP() WHERE id=:id')->execute(['id'=>$outboxRow['id']]);
     $crmMailer=new EnquiryIntegrationMailer();
     $crmDispatch=(new CrmCommunicationDispatcher($pdo,new SecretBox(str_repeat('E',32)),$crmMailer))->dispatchBatch(10);
     $assert($crmDispatch['claimed']===1 && $crmDispatch['delivered']===1 && count($crmMailer->messages)===1 &&
