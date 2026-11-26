@@ -6,6 +6,7 @@ namespace Talyvane\Application\Identity;
 use PDO;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Security\Authorization;
+use Talyvane\Infrastructure\Security\RateLimiter;
 use Talyvane\Security\Principal;
 
 /** Allowlisted, principal-scoped privacy export; excludes credentials and third-party contact data. */
