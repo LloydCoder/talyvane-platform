@@ -218,7 +218,8 @@ final class Bootstrap
         $bookingCommands = new BookingCommandService($pdo, $bookingPolicies, $audit, $bookingNotifications);
         $bookingQueries = new BookingQueryService($pdo);
         $bookingCalendar = new \Talyvane\Application\Bookings\BookingCalendarService($pdo,hash_hmac('sha256','talyvane-calendar-uid-v1',$config['app_key'],true));
-        $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $bookingCalendar, $bookingQuotes, $discovery, $views, $brandName);
+        $calendarFeedTokens = new \Talyvane\Application\Bookings\CalendarFeedTokenService($pdo,$audit);
+        $portalBookings = new PortalBookingController($authentication, $bookingService, $bookingCommands, $bookingQueries, $bookingCalendar, $calendarFeedTokens, $bookingQuotes, $discovery, $views, $brandName);
         $companionAvailability = new CompanionAvailabilityController($authentication, new CompanionAvailabilityService($pdo, $audit), $views, $brandName);
         $clientMemberships = new ClientMembershipService($pdo,$audit,$membershipAvailability);
         $portalAuth = new PortalAuthController($pdo, $authentication, $contentManagement, $views, $registration, $emailVerification, $recovery, $clientMemberships);
@@ -289,6 +290,9 @@ final class Bootstrap
         $router->add('POST', '/portal/login', static fn(Request $request): Response => $portalAuth->login($request));
         $router->add('GET', '/portal', static fn(Request $request): Response => $portalAuth->dashboard($request));
         $router->add('POST', '/portal/logout', static fn(Request $request): Response => $portalAuth->logout($request));
+        $router->add('GET', '/portal/calendar/feed.ics', static fn(Request $request): Response => $portalBookings->calendarFeed($request));
+        $router->add('POST', '/portal/calendar/feed-tokens', static fn(Request $request): Response => $portalBookings->createCalendarFeedToken($request));
+        $router->add('POST', '/portal/calendar/feed-tokens/{id}/revoke', static fn(Request $request,array $params): Response => $portalBookings->revokeCalendarFeedToken($request,$params));
         $router->add('GET', '/portal/calendar', static fn(Request $request): Response => $portalBookings->clientCalendar($request));
         $router->add('GET', '/portal/calendar.ics', static fn(Request $request): Response => $portalBookings->clientCalendarIcs($request));
         $router->add('GET', '/portal/companion/calendar', static fn(Request $request): Response => $portalBookings->companionCalendar($request));
