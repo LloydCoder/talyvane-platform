@@ -135,7 +135,7 @@ final class PortalPrivacyRightsService
                 $this->pdo->prepare(
                     'UPDATE portal_privacy_requests SET status=:status,otp_hash="",completed_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP()
                      WHERE id=:id'
-                )->execute(['status'=>$attempts>=5?'locked':'delivery_failed','id'=>$requestId]);
+                )->execute(['status'=>$attempts>=5?'locked':'expired','id'=>$requestId]);
                 $this->pdo->commit();
                 return false;
             }
