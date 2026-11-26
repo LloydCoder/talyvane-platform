@@ -51,7 +51,7 @@ $record=is_array($record??null)?$record:[];
 <p><strong>Term:</strong> <?= $escape($licence['starts_on']??'') ?> – <?= $escape($licence['ends_on']??'') ?> · <strong>Exclusive:</strong> <?= !empty($licence['exclusivity'])?'Yes':'No' ?></p>
 <?php if($licence['compensation_amount']!==null):?><p><strong>Compensation:</strong> <?= $escape($licence['currency_code']??'') ?> <?= $escape($licence['compensation_amount']) ?></p><?php endif;?>
 <p><strong>Consent:</strong> <?= !empty($licence['model_consent_granted'])?'Granted':(!empty($licence['model_consent_recorded'])?'Recorded':'Not granted') ?> · <strong>External execution:</strong> <?= !empty($licence['execution_evidence_present'])?'Recorded':'Not recorded' ?></p>
-<?php if(($licence['status']??'')==='draft' && empty($licence['model_consent_granted']) && empty($licence['model_consent_recorded'])):?>
+<?php if(($licence['status']??'')==='draft' && !empty($licence['consent_action_available']) && empty($licence['model_consent_granted']) && empty($licence['model_consent_recorded'])):?>
 <form method="post" action="/model-agency/portal/licences/<?= $escape($licence['id']) ?>/consent"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><input type="hidden" name="decision" value="grant">
 <label><input type="checkbox" name="confirm_consent" value="yes" required> I affirmatively consent to this named licensee using this specific image for the stated purpose, channels, territory and term. I understand the licence remains inactive until external execution is verified and I can withdraw consent.</label>
 <p><button class="button" type="submit">Grant this specific consent</button></p></form>
@@ -61,6 +61,7 @@ $record=is_array($record??null)?$record:[];
 <div class="field"><label>Reason for withdrawing consent</label><textarea name="reason" minlength="20" maxlength="2000" required></textarea></div>
 <label><input type="checkbox" name="confirm_withdrawal" value="yes" required> I understand this will revoke the licence and invalidate dependent casting submissions.</label>
 <p><button class="button secondary" type="submit">Withdraw consent</button></p></form>
+<?php elseif(($licence['status']??'')==='draft' && empty($licence['consent_action_available'])):?><p class="hint">This draft is missing required licence terms and cannot receive consent. Ask the agency to correct it before deciding.</p>
 <?php elseif(($licence['status']??'')==='draft' && !empty($licence['model_consent_granted'])):?>
 <p class="hint">Your consent is recorded. The licence is not active until the agency verifies the external execution evidence. You may still withdraw before activation.</p>
 <form method="post" action="/model-agency/portal/licences/<?= $escape($licence['id']) ?>/consent"><input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><input type="hidden" name="decision" value="withdraw"><input type="hidden" name="reason" value="Applicant withdrew consent before external licence execution."><input type="hidden" name="confirm_withdrawal" value="yes"><button class="button secondary" type="submit">Withdraw draft consent</button></form>
