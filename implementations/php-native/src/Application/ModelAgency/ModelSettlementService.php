@@ -49,11 +49,12 @@ final class ModelSettlementService
                 'INSERT INTO model_assignment_expenses
                  (id,assignment_id,settlement_id,amount_minor,currency_code,description,private_evidence_key,status,
                   created_by,submitted_by,created_at,updated_at)
-                 VALUES (:id,:assignment,NULL,:amount,:currency,:description,:evidence,"pending",:actor,:actor,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+                 VALUES (:id,:assignment,NULL,:amount,:currency,:description,:evidence,"pending",:created_by,:submitted_by,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
             )->execute([
                 'id'=>$id,'assignment'=>$assignmentId,'amount'=>$amountMinor,'currency'=>$currency,
                 'description'=>$this->encrypt($id,'description',$description),
-                'evidence'=>$this->encrypt($id,'private_evidence_key',$evidenceReference),'actor'=>$actor->id,
+                'evidence'=>$this->encrypt($id,'private_evidence_key',$evidenceReference),
+                'created_by'=>$actor->id,'submitted_by'=>$actor->id,
             ]);
             $this->event($assignmentId,null,$id,$actor->id,$this->actorRole($actor),'expense.submitted','Expense claim submitted for independent finance review.');
             $this->audit->record($actor->id,'model_expense.submitted','model_assignment_expense',$id,
