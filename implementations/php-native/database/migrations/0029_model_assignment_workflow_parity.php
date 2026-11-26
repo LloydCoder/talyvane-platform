@@ -72,6 +72,8 @@ return [
         ADD COLUMN review_note TEXT NULL AFTER reviewed_at,
         ADD COLUMN updated_at DATETIME NULL AFTER created_at,
         MODIFY status VARCHAR(24) NOT NULL DEFAULT 'pending',
+        MODIFY description TEXT NOT NULL,
+        MODIFY private_evidence_key TEXT NULL,
         ADD KEY model_assignment_expense_settlement_idx (settlement_id,status),
         ADD CONSTRAINT model_assignment_expense_submitter_fk FOREIGN KEY (submitted_by) REFERENCES users(id),
         ADD CONSTRAINT model_assignment_expense_settlement_fk FOREIGN KEY (settlement_id) REFERENCES model_settlements(id)",
