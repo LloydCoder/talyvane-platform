@@ -302,22 +302,23 @@ final class ModelAssignmentService
     {
         if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId)) throw new \InvalidArgumentException('Applicant identity is invalid.');
         $query=$this->pdo->prepare(
-            'SELECT id,assignment_reference,status,project_purpose,country_code,
-                    client_name,brief,location_city,shoot_starts_at,shoot_ends_at,deliverables,
-                    compensation_minor,currency_code,expense_cap_minor,terms_snapshot,applicant_response_status,
-                    applicant_response_version,applicant_response_at,applicant_response_reason
-             FROM model_assignments
-             WHERE application_id=:application AND status<>"draft"
-             ORDER BY created_at DESC LIMIT 100'
+            'SELECT a.id,a.assignment_reference,a.status,a.project_purpose,a.country_code,
+                    a.client_name,a.brief,a.location_city,a.shoot_starts_at,a.shoot_ends_at,a.deliverables,
+                    a.compensation_minor,a.currency_code,a.expense_cap_minor,c.minor_units AS currency_precision,
+                    a.applicant_response_status,a.applicant_response_version,a.applicant_response_at,a.applicant_response_reason
+             FROM model_assignments a
+             LEFT JOIN currencies c ON c.code=a.currency_code
+             WHERE a.application_id=:application AND a.status<>"draft"
+             ORDER BY a.created_at DESC LIMIT 100'
         );
         $query->execute(['application'=>$applicationId]);$rows=$query->fetchAll(PDO::FETCH_ASSOC);
         foreach($rows as &$row) {
             $row['response_enabled']=($this->assignmentsEnabled)();
-            $snapshot=json_decode((string)$row['terms_snapshot'],true);
-            $precision=is_array($snapshot)?(int)($snapshot['currency_precision']??0):0;
+            if($row['currency_code']!==null && $row['currency_precision']===null) throw new \\DomainException('Assignment currency precision is unavailable.');
+            $precision=(int)($row['currency_precision']??0);
             $row['compensation_amount']=$row['compensation_minor']===null?null:$this->minorToDecimal((int)$row['compensation_minor'],$precision);
             $row['expense_cap_amount']=$this->minorToDecimal((int)$row['expense_cap_minor'],$precision);
-            unset($row['terms_snapshot'],$row['compensation_minor'],$row['expense_cap_minor']);
+            unset($row['currency_precision'],$row['compensation_minor'],$row['expense_cap_minor']);
             foreach(['client_name','brief','location_city','deliverables'] as $field) {
                 $row[$field]=is_string($row[$field]) && $row[$field]!==''?
                     $this->cipher->decrypt($row[$field],'model-assignment-v1:'.$row['id'].':'.$field):'';
@@ -578,6 +579,13 @@ final class ModelAssignmentService
     private function modelVisibleTermsHash(array $assignment): string
     {
         $id=(string)$assignment['id'];
+        $precision=0;
+        if(is_string($assignment['currency_code']??null) && $assignment['currency_code']!=='') {
+            $currency=$this->pdo->prepare('SELECT minor_units FROM currencies WHERE code=:code LIMIT 1');
+            $currency->execute(['code'=>$assignment['currency_code']]);$precisionValue=$currency->fetchColumn();
+            if($precisionValue===false) throw new \\DomainException('Assignment currency precision is unavailable.');
+            $precision=(int)$precisionValue;
+        }
         $terms=[
             'assignment_reference'=>(string)$assignment['assignment_reference'],
             'project_purpose'=>(string)$assignment['project_purpose'],
@@ -590,6 +598,7 @@ final class ModelAssignmentService
             'deliverables'=>$this->cipher->decrypt((string)$assignment['deliverables'],'model-assignment-v1:'.$id.':deliverables'),
             'compensation_minor'=>$assignment['compensation_minor']===null?null:(int)$assignment['compensation_minor'],
             'currency_code'=>$assignment['currency_code']===null?null:(string)$assignment['currency_code'],
+            'currency_precision'=>$precision,
             'expense_cap_minor'=>(int)$assignment['expense_cap_minor'],
         ];
         return hash('sha256',json_encode($terms,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));
