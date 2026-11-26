@@ -319,6 +319,7 @@ final class Bootstrap
         $router->add('POST', '/portal/companion/publication/renew', static fn(Request $request): Response => $companionMedia->renewPublicationConsent($request));
         $router->add('GET', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->index($request));
         $router->add('POST', '/portal/companion/availability', static fn(Request $request): Response => $companionAvailability->save($request));
+        $router->add('POST', '/portal/companion/automatic-booking', static fn(Request $request): Response => $companionAvailability->automaticBookingPreference($request));
         $router->add('POST', '/portal/companion/availability/{id}/delete', static fn(Request $request, array $params): Response => $companionAvailability->delete($request, $params));
         $router->add('POST', '/portal/companion/bookings/{id}/decision', static fn(Request $request, array $params): Response => $portalBookings->companionDecision($request, $params));
 
