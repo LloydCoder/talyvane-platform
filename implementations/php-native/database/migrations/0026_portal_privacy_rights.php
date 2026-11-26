@@ -27,6 +27,6 @@ return [
         CONSTRAINT portal_privacy_attempts_check CHECK (attempts <= 5),
         CONSTRAINT portal_privacy_account_type_check CHECK (account_type IN ('client','companion')),
         CONSTRAINT portal_privacy_request_type_check CHECK (request_type IN ('correction','erasure')),
-        CONSTRAINT portal_privacy_status_check CHECK (status IN ('pending','in_review','fulfilled','rejected','deferred','delivery_failed','superseded','locked'))
+        CONSTRAINT portal_privacy_status_check CHECK (status IN ('pending','in_review','fulfilled','rejected','deferred','delivery_failed','expired','superseded','locked'))
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
 ];
