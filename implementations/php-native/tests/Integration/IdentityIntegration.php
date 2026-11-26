@@ -585,12 +585,12 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(count($portalRights->history($companionPrincipal))===1 && count($portalRights->history($clientPrincipal))===2,
         'client and companion privacy request histories remain account-scoped');
     $portalRightsAdmin=new PortalPrivacyRightsAdminService($pdo,new SecretBox(str_repeat('Q',32)),$audit);
-    $adminPrivacyQueue=$portalRightsAdmin->queue($superAdmin);
+    $adminPrivacyQueue=$portalRightsAdmin->queue($superAdmin,bin2hex(random_bytes(16)));
     $assert(count($adminPrivacyQueue)===3 &&
         in_array($correctionSummary,array_column($adminPrivacyQueue,'correction_summary'),true),
         'MFA-authorized owner/admin review queue can decrypt correction details while preserving account ownership');
     $mfaPrivacyReviewDenied=false;
-    try { $portalRightsAdmin->queue(new Principal($id,['super_admin'],false)); }
+    try { $portalRightsAdmin->queue(new Principal($id,['super_admin'],false),bin2hex(random_bytes(16))); }
     catch (DomainException) { $mfaPrivacyReviewDenied=true; }
     $assert($mfaPrivacyReviewDenied,'privacy request review requires a verified administrator MFA session');
     $clientPrivacyReviewDenied=false;
@@ -607,7 +607,7 @@ function runIdentityIntegration(PDO $pdo): int
         'administrator can defer erasure with a mandatory auditable legal-retention reason');
     $portalRightsAdmin->review($superAdmin,$companionCorrectionId,'rejected',
         'The requested correction cannot be verified from the supplied details.',bin2hex(random_bytes(16)));
-    $assert(count($portalRightsAdmin->queue($superAdmin))===1,
+    $assert(count($portalRightsAdmin->queue($superAdmin,bin2hex(random_bytes(16))))===1,
         'reviewed privacy requests leave the active review queue without implying fulfilment');
 
 
