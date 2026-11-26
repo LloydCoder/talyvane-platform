@@ -12,13 +12,16 @@ final readonly class BookingPolicy
         public int $maximumAdvanceDays,
         public int $minimumDurationMinutes,
         public int $maximumDurationMinutes,
-        public string $version
+        public string $version,
+        public bool $clientCancellationEnabled = false,
+        public int $clientCancellationCutoffMinutes = 120
     ) {
         if ($minimumNoticeMinutes < 0 || $minimumNoticeMinutes > 43200 ||
             $maximumAdvanceDays < 1 || $maximumAdvanceDays > 730 ||
             $minimumDurationMinutes < 15 || $minimumDurationMinutes > 1440 ||
             $maximumDurationMinutes < $minimumDurationMinutes || $maximumDurationMinutes > 10080 ||
-            $version === '' || strlen($version) > 64) {
+            $version === '' || strlen($version) > 64 ||
+            $clientCancellationCutoffMinutes < 0 || $clientCancellationCutoffMinutes > 43200) {
             throw new \InvalidArgumentException('Booking policy configuration is invalid.');
         }
     }
@@ -33,7 +36,9 @@ final readonly class BookingPolicy
             (int) ($data['maximum_advance_days'] ?? 90),
             (int) ($data['minimum_duration_minutes'] ?? 60),
             (int) ($data['maximum_duration_minutes'] ?? 480),
-            $version
+            $version,
+            (bool) ($data['client_cancellation_enabled'] ?? false),
+            (int) ($data['client_cancellation_cutoff_minutes'] ?? 120)
         );
     }
 }
