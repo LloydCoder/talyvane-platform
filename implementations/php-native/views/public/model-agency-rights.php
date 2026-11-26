@@ -67,12 +67,14 @@ $record=is_array($record??null)?$record:[];
 <p><strong>Brief:</strong> <?= nl2br($escape($assignment['brief']??'')) ?></p>
 <p><strong>Deliverables:</strong> <?= nl2br($escape($assignment['deliverables']??'')) ?></p>
 <p><strong>Compensation:</strong> <?= ($assignment['compensation_amount']??null)===null?'Not specified':$escape($assignment['compensation_amount'].' '.($assignment['currency_code']??'')) ?> · <strong>Expense cap:</strong> <?= $escape(($assignment['expense_cap_amount']??'0').' '.($assignment['currency_code']??'')) ?></p>
-<?php if(($assignment['response_enabled']??false) && ($assignment['status']??'')==='offered' && empty($assignment['applicant_response_status'])):?>
+<?php if(($assignment['status']??'')==='offered' && empty($assignment['applicant_response_status'])):?>
+<?php if($assignment['response_enabled']??false):?>
 <form method="post" action="/model-agency/portal/assignments/<?= $escape($assignment['id']??'') ?>/respond">
 <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><input type="hidden" name="decision" value="accept">
 <label><input type="checkbox" name="assignment_attestation" value="yes" required> I have reviewed the assignment terms and voluntarily request the external signature process; this is not an executed agreement.</label>
 <button type="submit">Proceed to external signature</button>
 </form>
+<?php endif;?>
 <form method="post" action="/model-agency/portal/assignments/<?= $escape($assignment['id']??'') ?>/respond">
 <input type="hidden" name="_csrf" value="<?= $escape($csrf) ?>"><input type="hidden" name="decision" value="decline">
 <label><input type="checkbox" name="assignment_attestation" value="yes" required> I voluntarily decline this assignment offer.</label>
