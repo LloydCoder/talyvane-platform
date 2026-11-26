@@ -291,7 +291,7 @@ final class ModelAssignmentService
         $query=$this->pdo->prepare(
             'SELECT id,assignment_reference,application_id,status,project_purpose,country_code,
                     client_name,brief,location_city,shoot_starts_at,shoot_ends_at,deliverables,
-                    compensation_minor,currency_code,expense_cap_minor,applicant_response_status,
+                    compensation_minor,currency_code,expense_cap_minor,terms_snapshot,applicant_response_status,
                     applicant_response_version,applicant_response_at,applicant_response_reason,
                     applicant_response_terms_hash
              FROM model_assignments
@@ -300,6 +300,11 @@ final class ModelAssignmentService
         );
         $query->execute(['application'=>$applicationId]);$rows=$query->fetchAll(PDO::FETCH_ASSOC);
         foreach($rows as &$row) {
+            $snapshot=json_decode((string)$row['terms_snapshot'],true);
+            $precision=is_array($snapshot)?(int)($snapshot['currency_precision']??0):0;
+            $row['compensation_amount']=$row['compensation_minor']===null?null:$this->minorToDecimal((int)$row['compensation_minor'],$precision);
+            $row['expense_cap_amount']=$this->minorToDecimal((int)$row['expense_cap_minor'],$precision);
+            unset($row['terms_snapshot'],$row['compensation_minor'],$row['expense_cap_minor']);
             foreach(['client_name','brief','location_city','deliverables'] as $field) {
                 $row[$field]=$this->cipher->decrypt((string)$row[$field],'model-assignment-v1:'.$row['id'].':'.$field);
             }
@@ -546,6 +551,13 @@ final class ModelAssignmentService
             new DateTimeImmutable((string)$row['expires_at'],new DateTimeZone('UTC'))<=new DateTimeImmutable('now',new DateTimeZone('UTC'))) {
             throw new \DomainException('Assignment requires a current approved market with evidence.');
         }
+    }
+
+    private function minorToDecimal(int $minor,int $precision): string
+    {
+        if($minor<0 || $precision<0 || $precision>4) throw new \\DomainException('Assignment currency precision is unsupported.');
+        $scale=10**$precision;$whole=intdiv($minor,$scale);$fraction=$minor%$scale;
+        return $precision===0?(string)$whole:$whole.'.'.str_pad((string)$fraction,$precision,'0',STR_PAD_LEFT);
     }
 
     private function decimalToMinor(string $amount,int $precision): int
