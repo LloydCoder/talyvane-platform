@@ -169,6 +169,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
         $assert(true,'client cannot read private model portfolio review queue');
     }
 
+    $storage->delete($licensedAsset['key']);
     rmdir($privateRoot.DIRECTORY_SEPARATOR.'model-portfolio');rmdir($privateRoot);rmdir($publicRoot);rmdir($base);
     return $assertions;
 }
