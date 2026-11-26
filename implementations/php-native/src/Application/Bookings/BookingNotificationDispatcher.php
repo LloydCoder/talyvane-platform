@@ -78,11 +78,14 @@ final class BookingNotificationDispatcher
                          WHERE id=:id AND status="processing" AND claim_token=:token'
                     );
                     $done->execute(['id'=>$id,'token'=>$row['claim_token']]);
-                    if($done->rowCount()===1) {
+                    $wasDelivered=$done->rowCount()===1;
+                    if($wasDelivered) {
                         $this->attempt($attemptId,$id,'delivered',null);
-                        $result['delivered']++;
                     }
                     $this->pdo->commit();
+                    if($wasDelivered) {
+                        $result['delivered']++;
+                    }
                 } catch(Throwable $error) {
                     if($this->pdo->inTransaction()) $this->pdo->rollBack();
                     throw $error;
