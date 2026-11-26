@@ -34,14 +34,14 @@ Portal registration and email-based recovery use the flat SMTP configuration wri
 
 ### Notification dispatch cron
 
-The unified `bin/dispatch-notifications.php` command dispatches both encrypted booking and safeguarding notification outboxes through the configured authenticated SMTP transport. It supports bounded `--limit=1..100` batches and `--json` output, verifies the private configuration is owner-only and outside the document root, and emits only safe error classes. It is a CLI-only command and must never be exposed as a public HTTP route. Configure it as a cPanel Cron Job (for example, once per minute):
+The unified `bin/dispatch-notifications.php` command dispatches the encrypted booking, safeguarding and privacy-outcome notification outboxes through the configured authenticated SMTP transport. It supports bounded `--limit=1..100` batches and `--json` output, requires the explicit canonical public root through `TALYVANE_PUBLIC_ROOT`, verifies the private configuration is owner-only and outside that document root, and emits only safe error classes. It is a CLI-only command and must never be exposed as a public HTTP route. Configure it as a cPanel Cron Job (for example, once per minute):
 
 ```sh
 TALYVANE_CONFIG="/absolute/private/path/config/app.php" \
   /absolute/path/to/php /absolute/private/path/application/bin/dispatch-notifications.php --limit=25 --json
 ```
 
-The separate booking-only and safeguarding-only commands remain available for isolated scheduling. The unified dispatcher claims at most the selected batch size per outbox, uses SMTP settings from the installer's private `mail` configuration, and records bounded retry/dead-letter outcomes. Cron overlap supervision, real SMTP delivery, monitoring/alerting and dead-letter operations remain release acceptance tasks.
+The separate booking-only and safeguarding-only commands remain available for isolated scheduling. The unified dispatcher claims at most the selected batch size per outbox (booking, safeguarding and privacy outcome), uses SMTP settings from the installer's private `mail` configuration, and records bounded retry/dead-letter outcomes. Cron overlap supervision, real SMTP delivery, monitoring/alerting and dead-letter operations remain release acceptance tasks.
 
 The booking dispatcher is a private CLI entrypoint; it must never be exposed as a public HTTP route. Configure a cPanel Cron Job to run it periodically (for example, once per minute), using the account's actual private paths and PHP binary:
 
