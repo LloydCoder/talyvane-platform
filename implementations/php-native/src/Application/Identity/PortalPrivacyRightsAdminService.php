@@ -175,6 +175,58 @@ final class PortalPrivacyRightsAdminService
         }
     }
 
+    /** Fulfil the allowlisted client name correction; contact-email changes require a separate new-address verification flow. */
+    public function fulfillClientCorrection(
+        Principal $actor,string $requestId,string $name,string $reason,string $correlationId
+    ): void {
+        Authorization::require($actor,'privacy.requests.review');
+        $name=trim($name);
+        $reason=trim($reason);
+        if(!self::isUuid($requestId) || $name==='' || mb_strlen($name,'UTF-8')>120 ||
+            strlen($reason)<10 || strlen($reason)>500 ||
+            strlen($correlationId)<16 || strlen($correlationId)>64) {
+            throw new \InvalidArgumentException('Client correction details are invalid.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $query=$this->pdo->prepare(
+                'SELECT id,user_id,account_type,request_type,status
+                 FROM portal_privacy_requests WHERE id=:id FOR UPDATE'
+            );
+            $query->execute(['id'=>$requestId]);
+            $request=$query->fetch(PDO::FETCH_ASSOC);
+            if(!is_array($request) || $request['status']!=='in_review' ||
+                $request['request_type']!=='correction' || $request['account_type']!=='client') {
+                throw new \DomainException('Only a verified client correction request awaiting review can be fulfilled.');
+            }
+            $user=$this->pdo->prepare('SELECT id,status,name FROM users WHERE id=:id FOR UPDATE');
+            $user->execute(['id'=>$request['user_id']]);
+            $account=$user->fetch(PDO::FETCH_ASSOC);
+            $roles=$this->pdo->prepare('SELECT role_key FROM user_roles WHERE user_id=:id ORDER BY role_key');
+            $roles->execute(['id'=>$request['user_id']]);
+            $roleList=$roles->fetchAll(PDO::FETCH_COLUMN);
+            if(!is_array($account) || $account['status']!=='active' || $roleList!==['client']) {
+                throw new \DomainException('The client account is inactive or does not have an exclusive client role.');
+            }
+            $this->pdo->prepare('UPDATE users SET name=:name,updated_at=UTC_TIMESTAMP() WHERE id=:id')
+                ->execute(['name'=>$name,'id'=>$request['user_id']]);
+            $this->pdo->prepare(
+                'UPDATE portal_privacy_requests SET status="fulfilled",reviewed_by=:reviewer,
+                 reviewed_at=UTC_TIMESTAMP(),decision_reason=:reason,payload_ciphertext=NULL,
+                 completed_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE id=:id'
+            )->execute(['reviewer'=>$actor->id,'reason'=>$reason,'id'=>$requestId]);
+            $this->audit->record($actor->id,'portal.privacy.correction.fulfilled','portal_privacy_request',$requestId,
+                'Verified client account name correction applied; contact details were not changed.',
+                ['fields'=>['name']],
+                ['fields'=>['name'],'reason'=>$reason],
+                $correlationId,'portal-privacy-rights-v1');
+            $this->pdo->commit();
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
     private static function isUuid(string $value): bool
     {
         return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iD',$value)===1;
