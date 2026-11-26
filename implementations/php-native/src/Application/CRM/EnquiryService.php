@@ -218,15 +218,15 @@ final class EnquiryService
     {
         Authorization::require($actor,'enquiries.manage',true);
         $reason=trim($reason);
-        $due=\\DateTimeImmutable::createFromFormat('!Y-m-d H:i:s',$dueAt,new \\DateTimeZone('UTC'));
-        $errors=\\DateTimeImmutable::getLastErrors();
+        $due=\DateTimeImmutable::createFromFormat('!Y-m-d H:i:s',$dueAt,new \DateTimeZone('UTC'));
+        $errors=\DateTimeImmutable::getLastErrors();
         if(!preg_match('/^TV-[A-F0-9]{10}$/D',$reference) || $due===false ||
             ($errors!==false && ($errors['warning_count']>0 || $errors['error_count']>0)) ||
-            $due->format('Y-m-d H:i:s')!==$dueAt || $due<=new \\DateTimeImmutable('now',new \\DateTimeZone('UTC')) ||
-            $due>new \\DateTimeImmutable('+365 days',new \\DateTimeZone('UTC')) ||
+            $due->format('Y-m-d H:i:s')!==$dueAt || $due<=new \DateTimeImmutable('now',new \DateTimeZone('UTC')) ||
+            $due>new \DateTimeImmutable('+365 days',new \DateTimeZone('UTC')) ||
             mb_strlen($reason,'UTF-8')<8 || mb_strlen($reason,'UTF-8')>500 ||
             strlen($requestId)<16 || strlen($requestId)>190) {
-            throw new \\InvalidArgumentException('CRM reminder details are invalid.');
+            throw new \InvalidArgumentException('CRM reminder details are invalid.');
         }
         $this->pdo->beginTransaction();
         try {
@@ -234,7 +234,7 @@ final class EnquiryService
             $query->execute(['reference'=>$reference]);
             $enquiry=$query->fetch();
             if(!is_array($enquiry) || in_array($enquiry['status'],['closed','spam'],true)) {
-                throw new \\DomainException('A reminder requires an open enquiry.');
+                throw new \DomainException('A reminder requires an open enquiry.');
             }
             $id=self::uuid();
             $this->pdo->prepare('INSERT INTO crm_enquiry_reminders (id,enquiry_id,created_by,due_at,created_at) VALUES (:id,:enquiry,:actor,:due,UTC_TIMESTAMP())')
@@ -243,7 +243,7 @@ final class EnquiryService
                 null,['reminder_id'=>$id,'due_at'=>$dueAt],$requestId,'crm-enquiry-reminder-v1');
             $this->pdo->commit();
             return $id;
-        } catch(\\Throwable $error) {
+        } catch(\Throwable $error) {
             if($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $error;
         }
@@ -256,7 +256,7 @@ final class EnquiryService
         if(!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iD',$reminderId) ||
             mb_strlen($reason,'UTF-8')<8 || mb_strlen($reason,'UTF-8')>500 ||
             strlen($requestId)<16 || strlen($requestId)>190) {
-            throw new \\InvalidArgumentException('CRM reminder completion is invalid.');
+            throw new \InvalidArgumentException('CRM reminder completion is invalid.');
         }
         $this->pdo->beginTransaction();
         try {
@@ -264,14 +264,14 @@ final class EnquiryService
             $query->execute(['id'=>$reminderId]);
             $reminder=$query->fetch();
             if(!is_array($reminder) || $reminder['completed_at']!==null) {
-                throw new \\DomainException('Reminder does not exist or is already complete.');
+                throw new \DomainException('Reminder does not exist or is already complete.');
             }
             $this->pdo->prepare('UPDATE crm_enquiry_reminders SET completed_at=UTC_TIMESTAMP(),completed_by=:actor WHERE id=:id')
                 ->execute(['actor'=>$actor->id,'id'=>$reminderId]);
             $this->audit->record($actor->id,'crm.enquiry.reminder_completed','enquiry',(string)$reminder['enquiry_id'],$reason,
                 ['completed'=>false],['completed'=>true,'reminder_id'=>$reminderId],$requestId,'crm-enquiry-reminder-v1');
             $this->pdo->commit();
-        } catch(\\Throwable $error) {
+        } catch(\Throwable $error) {
             if($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $error;
         }
