@@ -243,7 +243,10 @@ final class ModelAssignmentService
 
     private function assertCurrentEligibility(array $assignment,array $submission,array $application,array $asset,array $licence,array $call,array $agreement): void
     {
-        if($submission['status']!=='selected') throw new \DomainException('Assignment requires a currently selected casting submission.');
+        if($submission['status']!=='selected' || $assignment['application_id']!==$application['id'] ||
+            $assignment['country_code']!==$application['country_code'] || $assignment['representation_agreement_id']!==$agreement['id']) {
+            throw new \DomainException('Assignment requires a currently selected submission within the same model, territory and executed agreement.');
+        }
         $terms=[
             'project_purpose'=>$assignment['project_purpose'],
             'client_name'=>$this->cipher->decrypt((string)$assignment['client_name'],'model-assignment-v1:'.$assignment['id'].':client_name'),
