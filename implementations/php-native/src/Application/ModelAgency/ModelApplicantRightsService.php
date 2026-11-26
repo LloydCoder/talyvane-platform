@@ -27,12 +27,14 @@ final class ModelApplicantRightsService
     }
 
     /** Always returns the same outcome to avoid disclosing whether an application exists. */
-    public function request(string $reference,string $email,string $requestType,string $ipAddress,string $requestId): void
+    public function request(string $reference,string $email,string $requestType,string $ipAddress,string $requestId,?string $assetId=null): void
     {
         $reference = strtoupper(trim($reference));
         $email = strtolower(trim($email));
         if (!preg_match('/^[A-Z0-9-]{6,32}$/D',$reference) || filter_var($email,FILTER_VALIDATE_EMAIL) === false ||
-            !in_array($requestType,['access','correction','withdrawal','erasure'],true) ||
+            !in_array($requestType,['access','correction','withdrawal','erasure','portfolio_withdrawal'],true) ||
+            ($requestType==='portfolio_withdrawal' && (!is_string($assetId) || !preg_match('/^[0-9a-f-]{36}$/iD',$assetId))) ||
+            ($requestType!=='portfolio_withdrawal' && $assetId!==null) ||
             $ipAddress === '' || strlen($ipAddress) > 64 || strlen($requestId) < 16 || strlen($requestId) > 64) {
             throw new \InvalidArgumentException('Applicant privacy request details are invalid.');
         }
@@ -47,6 +49,16 @@ final class ModelApplicantRightsService
             !hash_equals(strtolower((string) $application['email']),$email)) {
             return;
         }
+        if ($requestType==='portfolio_withdrawal') {
+            $asset=$this->pdo->prepare(
+                'SELECT a.id FROM model_portfolio_assets a
+                 WHERE a.id=:asset AND a.application_id=:application
+                   AND a.status IN ("pending_review","approved") AND a.consent_withdrawn_at IS NULL
+                 LIMIT 1'
+            );
+            $asset->execute(['asset'=>$assetId,'application'=>$application['id']]);
+            if ($asset->fetchColumn()===false) return;
+        }
         $rightsId = self::uuid();
         $code = str_pad((string) random_int(0,99999999),8,'0',STR_PAD_LEFT);
         $codeHash = hash_hmac('sha256',$rightsId . "\0" . $code,$this->otpPepper);
@@ -58,8 +70,8 @@ final class ModelApplicantRightsService
             )->execute(['application'=>$application['id']]);
             $this->pdo->prepare(
                 'INSERT INTO model_applicant_rights_requests
-                 (id,application_id,request_type,status,otp_hash,expires_at,attempts,verified_at,completed_at,created_at)
-                 VALUES (:id,:application,:type,"pending",:hash,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 10 MINUTE),0,NULL,NULL,UTC_TIMESTAMP())'
+                 (id,application_id,related_asset_id,request_type,status,otp_hash,expires_at,attempts,verified_at,completed_at,created_at)
+                 VALUES (:id,:application,:asset,:type,"pending",:hash,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 10 MINUTE),0,NULL,NULL,UTC_TIMESTAMP())'
             )->execute(['id'=>$rightsId,'application'=>$application['id'],'type'=>$requestType,'hash'=>$codeHash]);
             $this->pdo->prepare(
                 'INSERT INTO model_talent_application_events
