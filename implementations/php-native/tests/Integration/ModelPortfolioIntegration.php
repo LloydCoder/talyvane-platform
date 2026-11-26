@@ -364,6 +364,33 @@ function runModelPortfolioIntegration(PDO $pdo): int
         $assert(true,'client cannot read private model portfolio review queue');
     }
 
+    $rightsRequestId=sprintf('%08x-%04x-4%03x-8%03x-%012x',random_int(0,0xffffffff),random_int(0,0xffff),random_int(0,0xfff),random_int(0,0xfff),random_int(0,0xffffffffffff));
+    $pdo->prepare(
+        'INSERT INTO model_applicant_rights_requests
+         (id,application_id,related_asset_id,request_type,status,otp_hash,expires_at,attempts,verified_at,completed_at,created_at)
+         VALUES (:id,:application,:asset,"portfolio_withdrawal","verified","",DATE_ADD(UTC_TIMESTAMP(),INTERVAL 20 MINUTE),1,UTC_TIMESTAMP(),NULL,UTC_TIMESTAMP())'
+    )->execute(['id'=>$rightsRequestId,'application'=>$applicationId,'asset'=>$licensedAsset['id']]);
+    $service->withdrawByVerifiedApplicantRights($rightsRequestId,$licensedAsset['id'],bin2hex(random_bytes(16)));
+    $applicantWithdrawal=$pdo->prepare(
+        'SELECT status,private_storage_key,consent_withdrawn_at FROM model_portfolio_assets WHERE id=:id'
+    );
+    $applicantWithdrawal->execute(['id'=>$licensedAsset['id']]);$applicantWithdrawalRow=$applicantWithdrawal->fetch(PDO::FETCH_ASSOC);
+    $rightsState=$pdo->prepare('SELECT status,otp_hash,completed_at FROM model_applicant_rights_requests WHERE id=:id');
+    $rightsState->execute(['id'=>$rightsRequestId]);$rightsStateRow=$rightsState->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($applicantWithdrawalRow) && $applicantWithdrawalRow['status']==='withdrawn' &&
+        $applicantWithdrawalRow['private_storage_key']===null && $applicantWithdrawalRow['consent_withdrawn_at']!==null,
+        'OTP-verified applicant can withdraw only their bound portfolio asset and remove its private storage pointer');
+    $assert(!is_file($licensedAsset['path']),'applicant portfolio withdrawal deletes the private image bytes');
+    $assert(is_array($rightsStateRow) && $rightsStateRow['status']==='completed' &&
+        $rightsStateRow['otp_hash']==='' && $rightsStateRow['completed_at']!==null,
+        'applicant portfolio withdrawal consumes the verified one-time rights session');
+    try {
+        $service->withdrawByVerifiedApplicantRights($rightsRequestId,$licensedAsset['id'],bin2hex(random_bytes(16)));
+        $assert(false,'applicant portfolio withdrawal session cannot be replayed');
+    } catch(DomainException) {
+        $assert(true,'applicant portfolio withdrawal session cannot be replayed');
+    }
+
     $storage->delete($licensedAsset['key']);
     rmdir($privateRoot.DIRECTORY_SEPARATOR.'model-portfolio');rmdir($privateRoot);rmdir($publicRoot);rmdir($base);
     return $assertions;
