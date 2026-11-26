@@ -48,8 +48,8 @@ final class ModelSettlementService
             $this->pdo->prepare(
                 'INSERT INTO model_assignment_expenses
                  (id,assignment_id,settlement_id,amount_minor,currency_code,description,private_evidence_key,status,
-                  created_by,submitted_by,created_at,updated_at)
-                 VALUES (:id,:assignment,NULL,:amount,:currency,:description,:evidence,"pending",:created_by,:submitted_by,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+                  created_by,submitted_by,encryption_version,created_at,updated_at)
+                 VALUES (:id,:assignment,NULL,:amount,:currency,:description,:evidence,"pending",:created_by,:submitted_by,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
             )->execute([
                 'id'=>$id,'assignment'=>$assignmentId,'amount'=>$amountMinor,'currency'=>$currency,
                 'description'=>$this->encrypt($id,'description',$description),
@@ -323,17 +323,22 @@ final class ModelSettlementService
         $this->authorize($actor);
         $query=$this->pdo->prepare(
             'SELECT id,assignment_id,settlement_id,amount_minor,currency_code,description,private_evidence_key,
-                    status,created_by,submitted_by,reviewed_by,reviewed_at,review_note,created_at
+                    status,created_by,submitted_by,reviewed_by,reviewed_at,review_note,encryption_version,created_at
              FROM model_assignment_expenses WHERE assignment_id=:assignment ORDER BY created_at DESC'
         );
         $query->execute(['assignment'=>$assignmentId]);
         $rows=$query->fetchAll(PDO::FETCH_ASSOC);
         foreach($rows as &$row) {
-            $row['description']=$this->cipher->decrypt((string)$row['description'],'model-settlement-v1:'.$row['id'].':description');
-            $row['evidence_reference']=$this->cipher->decrypt((string)$row['private_evidence_key'],'model-settlement-v1:'.$row['id'].':private_evidence_key');
-            $row['review_note']=is_string($row['review_note']) && $row['review_note']!==''?
-                $this->cipher->decrypt($row['review_note'],'model-settlement-v1:'.$row['id'].':review_note'):null;
-            unset($row['private_evidence_key']);
+            if((int)$row['encryption_version']>=1) {
+                $row['description']=$this->cipher->decrypt((string)$row['description'],'model-settlement-v1:'.$row['id'].':description');
+                $row['evidence_reference']=is_string($row['private_evidence_key']) && $row['private_evidence_key']!==''?
+                    $this->cipher->decrypt($row['private_evidence_key'],'model-settlement-v1:'.$row['id'].':private_evidence_key'):null;
+                $row['review_note']=is_string($row['review_note']) && $row['review_note']!==''?
+                    $this->cipher->decrypt($row['review_note'],'model-settlement-v1:'.$row['id'].':review_note'):null;
+            } else {
+                $row['evidence_reference']=$row['private_evidence_key'];
+            }
+            unset($row['private_evidence_key'],$row['encryption_version']);
         }
         unset($row);return $rows;
     }
