@@ -48,6 +48,23 @@ final class AdminEnquiryController
         }
     }
 
+    public function assign(Request $request,?array $params = null): Response
+    {
+        $principal=$this->principal();
+        if ($principal instanceof Response) return $principal;
+        if (!Csrf::verify($this->field($request,'_csrf'))) {
+            return $this->page('Your session expired. Refresh and try again.',419,false,$principal);
+        }
+        try {
+            $assignee=$this->field($request,'assignee_id');
+            $this->enquiries->assign($principal,(string)($params['reference'] ?? ''),$assignee === '' ? null : $assignee,
+                $this->field($request,'reason'),$request->requestId);
+            return $this->page('',200,true,$principal);
+        } catch (InvalidArgumentException|DomainException $error) {
+            return $this->page($error->getMessage(),422,false,$principal);
+        }
+    }
+
     private function principal(): Principal|Response
     {
         SessionManager::start();
@@ -67,12 +84,14 @@ final class AdminEnquiryController
             return Response::html('Forbidden',403);
         }
         $items = $this->enquiries->list($principal,100,0);
+        $assignees = $this->enquiries->eligibleAssignees($principal);
         $body = $this->views->render('admin/enquiries',[
             'brandName'=>$this->brandName,
             'csrf'=>Csrf::issue(),
             'error'=>$error,
             'saved'=>$saved,
             'items'=>$items,
+            'assignees'=>$assignees,
         ]);
         return new Response($body,$status,[
             'content-type'=>'text/html; charset=utf-8',
