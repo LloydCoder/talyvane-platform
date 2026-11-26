@@ -239,7 +239,7 @@ final class Bootstrap
         $modelSettlements = new ModelSettlementService($pdo,$audit,$modelAgencyCipher,static fn():bool=>$castingAvailability->enabled('model-agency.settlements'));
         $adminModelSettlements = new AdminModelSettlementController($authentication,$modelSettlements,$views,$brandName);
         $adminModelPortfolio = new AdminModelPortfolioController($authentication,$modelPortfolio,$modelImageLicences,$views,$brandName);
-        $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views, $brandName, $modelPortfolio, $modelCasting);
+        $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views, $brandName, $modelPortfolio, $modelCasting, $modelAssignments);
         $bookingPolicies = new BookingPolicyRepository($pdo);
         $bookingQuotes = new BookingQuoteService($pdo,$audit,$bookingPolicies);
         $adminBookingQuotes = new AdminBookingQuoteController($authentication,$bookingQuotes,$views,$brandName);
@@ -292,6 +292,7 @@ final class Bootstrap
         $router->add('POST', '/model-agency/portal/profile', static fn(Request $request): Response => $publicModelAgencyRights->portalCorrect($request));
         $router->add('POST', '/model-agency/portal/portfolio', static fn(Request $request): Response => $publicModelAgencyRights->portalUpload($request));
         $router->add('POST', '/model-agency/portal/casting', static fn(Request $request): Response => $publicModelAgencyRights->portalSubmitCasting($request));
+        $router->add('POST', '/model-agency/portal/assignments/{id}/respond', static fn(Request $request,array $params): Response => $publicModelAgencyRights->portalRespondAssignment($request,$params));
         $router->add('GET', '/model-agency/portal/portfolio/{id}/preview', static fn(Request $request,array $params): Response => $publicModelAgencyRights->portalPreview($request,$params));
         $router->add('POST', '/model-agency/portal/portfolio/{id}/withdraw', static fn(Request $request,array $params): Response => $publicModelAgencyRights->portalWithdraw($request,$params));
         $router->add('POST', '/model-agency/portal/logout', static fn(Request $request): Response => $publicModelAgencyRights->portalLogout($request));
@@ -414,7 +415,7 @@ final class Bootstrap
         }
         $router->add('GET', '/admin/model-agency/assignments', static fn(Request $request): Response => $adminModelAssignments->index($request));
         $router->add('POST', '/admin/model-agency/assignments', static fn(Request $request): Response => $adminModelAssignments->create($request));
-        foreach (['offer','accept','confirm','start','complete','decline','cancel','dispute'] as $assignmentAction) {
+        foreach (['offer','executionEvidence','accept','confirm','start','complete','decline','cancel','dispute'] as $assignmentAction) {
             $router->add('POST', '/admin/model-agency/assignments/{id}/'.$assignmentAction,
                 static fn(Request $request,array $params): Response => $adminModelAssignments->{$assignmentAction}($request,$params));
         }
