@@ -108,3 +108,10 @@ Client and companion accounts can request a self-service JSON export from their 
 - Reply queueing locks the enquiry, rejects closed/spam records and invalid destinations, renders a selected locale template (with explicit English fallback), and inserts encrypted recipient/payload records into the shared transactional outbox with a request-bound idempotency key. Internal notes and unrelated enquiry data are not copied into the message.
 - Queueing is not delivery. New enquiries remain in progress until the private SMTP dispatcher receives transport acceptance, then the enquiry is marked responded. The dispatcher claims bounded batches, records attempts, retries with capped exponential backoff and is at-least-once: a crash after SMTP acceptance but before acknowledgement may cause a duplicate.
 - The cPanel CLI dispatcher requires owner-only configuration outside the public root and an explicit canonical public-root path. Provider-level bounce/complaint webhooks, delivery reconciliation, monitoring/alerting, localized template review and target-host SMTP/cron acceptance remain external operational work.
+
+## External privacy-erasure evidence gate
+
+- Before client or companion erasure, the service locks the privacy request and requires an Owner/Super Admin reviewed record for every configured external-system gate: encrypted database backups, private storage backups, SMTP/mailbox providers, payment processors, analytics integrations, external evidence repositories and safeguarding key custody.
+- A `retained` decision requires a legal-basis reference and future UTC expiry and is not sufficient to fulfil erasure. The operator must later record a `cleared` or `not_applicable` decision with an evidence reference.
+- The UI accepts opaque evidence references only. Never paste credentials, signed URLs, personal data or secret tokens.
+- These records are auditable human attestations, not cryptographic proof, provider API confirmation or automatic deletion. Production acceptance still requires independent provider/backup/Vault evidence and qualified legal review.
