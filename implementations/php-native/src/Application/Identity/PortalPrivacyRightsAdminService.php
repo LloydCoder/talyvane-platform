@@ -239,7 +239,6 @@ final class PortalPrivacyRightsAdminService
                  completed_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE id=:id'
             )->execute(['reviewer'=>$actor->id,'reason'=>$reason,'id'=>$requestId]);
             if ($this->outcomes!==null) {
-                if ($this->outcomes!==null) {
                 $recipientQuery=$this->pdo->prepare('SELECT email,status,email_verified_at FROM users WHERE id=:id FOR UPDATE');
                 $recipientQuery->execute(['id'=>$request['user_id']]);
                 $recipient=$recipientQuery->fetch(PDO::FETCH_ASSOC);
