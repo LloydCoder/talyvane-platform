@@ -349,6 +349,11 @@ function runModelPortfolioIntegration(PDO $pdo): int
         $assert(true,'agency cannot record assignment execution before the model explicitly responds to the offer');
     }
     $assignmentApplicationId=$rights->portalApplicationId((string)$portalRightsId);
+    $applicantAssignmentList=$assignments->applicantAssignments($assignmentApplicationId);
+    $assert(count($applicantAssignmentList)===1 && $applicantAssignmentList[0]['id']===$assignmentId &&
+        $applicantAssignmentList[0]['brief']==='A defined editorial assignment brief for the model and commissioning client.' &&
+        $applicantAssignmentList[0]['compensation_amount']==='800.00' && !array_key_exists('commission_basis_points',$applicantAssignmentList[0]),
+        'model sees only their own offered assignment with decrypted terms and currency-unit compensation, not internal commission');
     $acceptanceRequestId=bin2hex(random_bytes(16));
     $acceptanceIntent=$assignments->respondByApplicant($assignmentApplicationId,$assignmentId,'accept',true,null,$acceptanceRequestId);
     $assert($acceptanceIntent==='acceptance_pending_execution','model acceptance is recorded as intent pending external signature, not as an executed assignment');
