@@ -1,4 +1,5 @@
 name: Native PHP single-ZIP cPanel package
+run-name: Native PHP cPanel package verification
 
 on:
   pull_request:
