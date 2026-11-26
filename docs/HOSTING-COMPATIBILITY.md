@@ -1,5 +1,7 @@
 # Shared-hosting compatibility standard
 
+Hosting acceptance is implementation-specific. The Laravel compatibility matrix does not certify the separate native PHP runtime, and native package/browser CI does not certify a live provider. See [NATIVE-PHP-PORT-STATUS.md](NATIVE-PHP-PORT-STATUS.md) for native PHP exact-head evidence and remaining cPanel/LiteSpeed acceptance.
+
 - Status: Required product target; provider-by-provider certification pending.
 - Applies to: Laravel 13 standalone installations on cPanel-managed shared hosting.
 
