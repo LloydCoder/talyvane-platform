@@ -472,6 +472,12 @@ function runIdentityIntegration(PDO $pdo): int
     $clientHistory = $bookingQueries->clientHistory($clientPrincipal);
     $companionHistory = $bookingQueries->companionHistory($companionPrincipal);
     $adminBookingQueue = $bookingQueries->adminQueue($superAdmin);
+    try {
+        $bookingQueries->adminQueue(new Principal($companionId,['admin','companion'],true));
+        $assert(false,'mixed companion and administrator roles cannot enter the administrator booking queue');
+    } catch (DomainException) {
+        $assert(true,'mixed companion and administrator roles cannot enter the administrator booking queue');
+    }
     $assert(count($clientHistory) === 3 && count($companionHistory) === 3,'client and companion booking histories are scoped to their own identities');
     $assert(count($adminBookingQueue) === 3 && array_key_exists('client_user_id',$adminBookingQueue[0]),'MFA-authorized administrators can inspect the booking operations queue');
     $assert(!array_key_exists('client_user_id',$companionHistory[0]) && !array_key_exists('client_user_id',$clientHistory[0]),'client and companion booking read models omit internal account identifiers');
