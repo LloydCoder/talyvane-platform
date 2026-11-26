@@ -65,6 +65,43 @@ final class AdminEnquiryController
         }
     }
 
+    public function saveResponseTemplate(Request $request): Response
+    {
+        $principal=$this->principal();
+        if($principal instanceof Response) return $principal;
+        if(!Csrf::verify($this->field($request,'_csrf'))) {
+            return $this->page('Your session expired. Refresh and try again.',419,false,$principal,$this->pageNumber($request));
+        }
+        try {
+            $version=$this->enquiries->saveResponseTemplate(
+                $principal,$this->field($request,'locale'),$this->field($request,'subject_template'),
+                $this->field($request,'body_template'),$this->field($request,'reason'),$request->requestId
+            );
+            return $this->page('Response template version '.$version.' is active.',200,true,$principal,$this->pageNumber($request));
+        } catch (InvalidArgumentException|DomainException $error) {
+            return $this->page($error->getMessage(),422,false,$principal,$this->pageNumber($request));
+        }
+    }
+
+    public function reply(Request $request,?array $params = null): Response
+    {
+        $principal=$this->principal();
+        if($principal instanceof Response) return $principal;
+        if(!Csrf::verify($this->field($request,'_csrf'))) {
+            return $this->page('Your session expired. Refresh and try again.',419,false,$principal,$this->pageNumber($request));
+        }
+        try {
+            $queued=$this->enquiries->queueResponse(
+                $principal,(string)($params['reference']??''),$this->field($request,'reply_text'),
+                $this->field($request,'locale')?:'en',$this->brandName,$request->requestId
+            );
+            return $this->page($queued?'Customer response queued for private SMTP delivery.':'This response was already queued; no duplicate was created.',
+                200,true,$principal,$this->pageNumber($request));
+        } catch (InvalidArgumentException|DomainException $error) {
+            return $this->page($error->getMessage(),422,false,$principal,$this->pageNumber($request));
+        }
+    }
+
     public function addNote(Request $request,?array $params = null): Response
     {
         $principal=$this->principal();
@@ -142,6 +179,7 @@ final class AdminEnquiryController
             'saved'=>$saved,
             'items'=>$items,
             'assignees'=>$assignees,
+            'templates'=>$this->enquiries->responseTemplates($principal),
             'currentPage'=>$page,
             'totalPages'=>$totalPages,
             'totalCount'=>$totalCount,
