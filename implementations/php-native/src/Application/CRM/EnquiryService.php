@@ -371,7 +371,7 @@ final class EnquiryService
             'SELECT template_key,channel,locale,subject_template,body_template,version,active,updated_at
              FROM communication_templates
              WHERE template_key="crm.enquiry.response" AND channel="email"
-             ORDER BY locale ASC,version DESC'
+             ORDER BY locale ASC,version DESC LIMIT 100'
         );
         return $query->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -451,7 +451,7 @@ final class EnquiryService
     ): bool {
         Authorization::require($actor,'enquiries.manage',true);
         $replyText=trim(str_replace(["\r\n","\r"],"\n",$replyText));
-        $locale=trim($locale);
+        $locale=strtolower(trim($locale));
         $agencyName=trim($agencyName);
         if (!preg_match('/^TV-[A-F0-9]{10}$/D',$reference) ||
             mb_strlen($replyText,'UTF-8')<10 || mb_strlen($replyText,'UTF-8')>3000 ||
