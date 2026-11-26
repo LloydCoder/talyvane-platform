@@ -43,6 +43,11 @@ final class AdminPrivacyRightsController
         $actor=$this->authentication->currentPrincipal();
         if($actor===null) return Response::redirect('/admin/login');
         try {
+            if ($this->field($request,'decision')==='fulfill_client_correction') {
+                $this->rights->fulfillClientCorrection($actor,$this->field($request,'request_id'),
+                    $this->field($request,'client_name'),$this->field($request,'reason'),$request->requestId);
+                return $this->index($request,'Verified client account name correction applied. Contact email was not changed.');
+            }
             if ($this->field($request,'decision')==='fulfill_companion_correction') {
                 $rawLanguages=$this->field($request,'languages');
                 $languages=array_values(array_filter(array_map('trim',explode(',',$rawLanguages)),static fn(string $value):bool=>$value!==''));
