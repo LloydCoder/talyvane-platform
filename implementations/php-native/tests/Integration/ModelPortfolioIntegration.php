@@ -4,6 +4,7 @@ declare(strict_types=1);
 use Talyvane\Application\ModelAgency\ModelPortfolioService;
 use Talyvane\Application\ModelAgency\ModelAgencyAgreementService;
 use Talyvane\Application\ModelAgency\ModelImageLicenceService;
+use Talyvane\Application\ModelAgency\ModelCastingWorkflowService;
 use Talyvane\Infrastructure\Audit\AuditLogger;
 use Talyvane\Infrastructure\Storage\PrivateMediaStorage;
 use Talyvane\Security\Principal;
@@ -150,6 +151,37 @@ function runModelPortfolioIntegration(PDO $pdo): int
     } catch(DomainException) {
         $assert(true,'overlapping active same-purpose licence is rejected');
     }
+    $casting=new ModelCastingWorkflowService($pdo,new AuditLogger($pdo),$storage,$secretBox,static fn():bool=>true);
+    $now=new DateTimeImmutable('now',new DateTimeZone('UTC'));
+    $callId=$casting->createDraft($admin,[
+        'title'=>'Private editorial casting submission test',
+        'client_name'=>'Verified editorial commissioning client',
+        'client_reference'=>'client-ref-casting-test',
+        'project_purpose'=>'editorial',
+        'description'=>'A private editorial project brief for integration verification of casting eligibility and model usage rights.',
+        'requirements'=>'Adult eligibility verification, approved private portfolio and current casting distribution consent are mandatory.',
+        'country_code'=>'GB',
+        'opens_at'=>$now->modify('-1 hour')->format(DATE_ATOM),
+        'closes_at'=>$now->modify('+5 days')->format(DATE_ATOM),
+        'shoot_starts_at'=>$now->modify('+10 days')->format(DATE_ATOM),
+        'shoot_ends_at'=>$now->modify('+11 days')->format(DATE_ATOM),
+        'compensation_amount'=>null,'currency_code'=>null,'max_submissions'=>2,
+    ],bin2hex(random_bytes(16)));
+    $casting->publish($admin,$callId,bin2hex(random_bytes(16)));
+    $candidates=$casting->eligibleCandidates($admin,$callId);
+    $assert(count($candidates)===1 && $candidates[0]['application_id']===$applicationId,'eligible-candidate register requires current adult verification, portfolio consent, executed agreement and active casting licence');
+    $submissionId=$casting->submit($admin,$callId,$applicationId,$licensedAsset['id'],$licenceId,bin2hex(random_bytes(16)));
+    $casting->decide($admin,$submissionId,'shortlisted','Model shortlisted after human review of the private casting submission.',bin2hex(random_bytes(16)));
+    $casting->decide($admin,$submissionId,'selected','Model selected after final human review and confirmation of the defined project scope.',bin2hex(random_bytes(16)));
+    $submissionRows=$casting->submissionsForCall($admin,$callId);
+    $assert(count($submissionRows)===1 && $submissionRows[0]['status']==='selected','private casting submission supports audited shortlist and selection decisions');
+    try {
+        $casting->submit($admin,$callId,$applicationId,$licensedAsset['id'],$licenceId,bin2hex(random_bytes(16)));
+        $assert(false,'duplicate application submission to one casting call is rejected');
+    } catch(DomainException) {
+        $assert(true,'duplicate application submission to one casting call is rejected');
+    }
+
     $pdo->prepare('UPDATE deployment_settings SET setting_json=:settings,version=version+1,updated_by=:actor,updated_at=UTC_TIMESTAMP() WHERE setting_key="model_agency.image_licence"')
         ->execute(['settings'=>json_encode(['enabled'=>false,'policy_approved'=>false,'policy_version'=>''],JSON_THROW_ON_ERROR),'actor'=>$adminId]);
     $licences->revoke($admin,$licenceId,'Consent withdrawn for this defined image use and territory.',bin2hex(random_bytes(16)));
@@ -157,6 +189,8 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $grant->execute(['id'=>$draftRow['consent_grant_id']]);
     $assert(is_array($revokedRow) && $revokedRow['status']==='revoked' && $revokedRow['revocation_reason']!=='Consent withdrawn for this defined image use and territory.','revocation reason is encrypted at rest');
     $assert((int)$grant->fetchColumn()===0,'revocation withdraws model consent even when new licences are disabled');
+    $submissionState=$pdo->prepare('SELECT status,invalidation_reason FROM model_casting_submissions WHERE id=:id');$submissionState->execute(['id'=>$submissionId]);$submissionStateRow=$submissionState->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($submissionStateRow) && $submissionStateRow['status']==='invalidated' && $submissionStateRow['invalidation_reason']!=='Underlying image licence was revoked or expired.','licence revocation invalidates selected casting submissions and encrypts the reason');
 
     $disabled=new ModelPortfolioService($pdo,$storage,new AuditLogger($pdo),$secretBox,static fn():bool=>false);
     try {
