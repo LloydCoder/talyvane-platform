@@ -722,6 +722,59 @@ function runIdentityIntegration(PDO $pdo): int
     $clientCorrectionAuditPayload=json_decode((string)$clientCorrectionAudit->fetchColumn(),true);
     $assert(is_array($clientCorrectionAuditPayload) && ($clientCorrectionAuditPayload['fields']??[])===['display_name'],
         'client correction audit records the allowlisted field without copying personal values');
+    $blockedErasureId=$portalRights->request($clientPrincipal,'erasure',null,'127.0.0.1',bin2hex(random_bytes(16)));
+    preg_match('/One-time verification code: ([0-9]{8})/',(string)$privacyRightsMailer->messages[3]['body'],$blockedErasureCodeMatch);
+    $blockedErasureCode=(string)($blockedErasureCodeMatch[1]??'');
+    $assert($blockedErasureCode!=='' && $portalRights->verify($clientPrincipal,$blockedErasureId,$blockedErasureCode,'127.0.0.1',bin2hex(random_bytes(16))),
+        'client erasure with retained service history reaches the verified review queue');
+    $blockedErasure=false;
+    try {
+        $portalRightsAdmin->fulfillClientErasure($superAdmin,$blockedErasureId,
+            'Retained booking and financial records require documented retention review before anonymization.',bin2hex(random_bytes(16)));
+    } catch (DomainException) { $blockedErasure=true; }
+    $assert($blockedErasure,'client anonymization fails closed while booking, membership or financial records remain');
+    $eligibleClientId=(string)$pdo->query('SELECT UUID()')->fetchColumn();
+    $pdo->prepare(
+        'INSERT INTO users (id,email,display_name,password_hash,status,email_verified_at,first_login_required,admin_session_version,created_at,updated_at)
+         VALUES (:id,:email,:name,:hash,"active",UTC_TIMESTAMP(),0,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+    )->execute([
+        'id'=>$eligibleClientId,'email'=>'eligible-erasure-client@example.test','name'=>'Eligible Erasure Client',
+        'hash'=>PasswordHasher::hash(str_repeat('E',24).'!'),
+    ]);
+    $pdo->prepare(
+        'INSERT INTO user_roles (user_id,role_key,granted_by,granted_at) VALUES (:id,"client",NULL,UTC_TIMESTAMP())'
+    )->execute(['id'=>$eligibleClientId]);
+    $eligiblePrincipal=new Principal($eligibleClientId,['client'],false);
+    $eligibleErasureId=$portalRights->request($eligiblePrincipal,'erasure',null,'127.0.0.1',bin2hex(random_bytes(16)));
+    preg_match('/One-time verification code: ([0-9]{8})/',(string)$privacyRightsMailer->messages[4]['body'],$eligibleErasureCodeMatch);
+    $eligibleErasureCode=(string)($eligibleErasureCodeMatch[1]??'');
+    $assert($eligibleErasureCode!=='' && $portalRights->verify($eligiblePrincipal,$eligibleErasureId,$eligibleErasureCode,'127.0.0.1',bin2hex(random_bytes(16))),
+        'eligible client erasure requires and completes independent email verification');
+    $portalRightsAdmin->fulfillClientErasure($superAdmin,$eligibleErasureId,
+        'Identity verification and dependency review are complete; no retained service records require the original account identity.',bin2hex(random_bytes(16)));
+    $erasedAccountQuery=$pdo->prepare('SELECT email,display_name,status,email_verified_at,remember_token_hash,admin_session_version FROM users WHERE id=:id');
+    $erasedAccountQuery->execute(['id'=>$eligibleClientId]);
+    $erasedAccount=$erasedAccountQuery->fetch(PDO::FETCH_ASSOC);
+    $erasedRolesQuery=$pdo->prepare('SELECT COUNT(*) FROM user_roles WHERE user_id=:id');
+    $erasedRolesQuery->execute(['id'=>$eligibleClientId]);
+    $erasedRequestQuery=$pdo->prepare('SELECT status,payload_ciphertext,otp_hash FROM portal_privacy_requests WHERE id=:id');
+    $erasedRequestQuery->execute(['id'=>$eligibleErasureId]);
+    $erasedRequest=$erasedRequestQuery->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($erasedAccount) && $erasedAccount['status']==='erased' &&
+        $erasedAccount['email']==='erased+'.str_replace('-','',$eligibleClientId).'@privacy.invalid' &&
+        $erasedAccount['display_name']===null && $erasedAccount['email_verified_at']===null &&
+        $erasedAccount['remember_token_hash']===null && (int)$erasedAccount['admin_session_version']===2 &&
+        (int)$erasedRolesQuery->fetchColumn()===0,
+        'eligible client account is pseudonymized, credentials and roles revoked, and personal display data cleared');
+    $assert(is_array($erasedRequest) && $erasedRequest['status']==='fulfilled' &&
+        $erasedRequest['payload_ciphertext']===null && $erasedRequest['otp_hash']==='',
+        'fulfilled client erasure clears request payload and one-time verification material');
+    $erasureAudit=$pdo->prepare('SELECT event_key,after_json FROM audit_events WHERE event_key="portal.privacy.client.erasure.fulfilled" AND target_id=:id');
+    $erasureAudit->execute(['id'=>$eligibleErasureId]);
+    $erasureAuditRow=$erasureAudit->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($erasureAuditRow) && $erasureAuditRow['event_key']==='portal.privacy.client.erasure.fulfilled',
+        'client erasure records a metadata-only audit event for accountable fulfilment');
+
     // Restore the pre-existing published fixture for later profile-media integration tests.
     $pdo->prepare('UPDATE companion_profiles SET status="published" WHERE user_id=:user')->execute(['user'=>$companionPrincipal->id]);
     $assert(count($portalRightsAdmin->queue($superAdmin,bin2hex(random_bytes(16))))===0,
