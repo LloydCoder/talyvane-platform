@@ -230,7 +230,7 @@ final class ClientModelAgencyDistributionService
     }
 
     /** @return array{bytes:string,mime:string} */
-    public function candidateImage(Principal $client,string $callId,string $submissionId): array
+    public function candidateImage(Principal $client,string $callId,string $submissionId,string $requestId): array
     {
         $this->assertClient($client);
         $call=$this->clientCall($client,$callId);
