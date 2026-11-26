@@ -5,6 +5,7 @@ namespace Talyvane\Application\ModelAgency;
 
 use Closure;
 use PDO;
+use PDOException;
 use Throwable;
 use Talyvane\Domain\ModelAgency\SettlementCalculator;
 use Talyvane\Domain\ModelAgency\SettlementStateMachine;
@@ -73,6 +74,15 @@ final class ModelSettlementService
                 ['assignment_id'=>$assignmentId,'amount_minor'=>$amountMinor,'currency'=>$currency,'evidence_present'=>true],
                 $requestId,'model-settlement-v1');
             $this->pdo->commit();return $id;
+        } catch(PDOException $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            if($error->getCode()==='23000') {
+                $replay=$this->pdo->prepare('SELECT id,assignment_id,submitted_by FROM model_assignment_expenses WHERE request_fingerprint=:fingerprint LIMIT 1');
+                $replay->execute(['fingerprint'=>$requestFingerprint]);
+                $replayed=$replay->fetch(PDO::FETCH_ASSOC);
+                if(is_array($replayed) && $replayed['assignment_id']===$assignmentId && $replayed['submitted_by']===$actor->id) return (string)$replayed['id'];
+            }
+            throw $error;
         } catch(Throwable $error) {
             if($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $error;
