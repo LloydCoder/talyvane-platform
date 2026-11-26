@@ -237,6 +237,12 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert(is_array($applicantLicenceWithdrawalRow) && $applicantLicenceWithdrawalRow['status']==='revoked' &&
         (int)$applicantLicenceWithdrawalRow['granted']===0 && $applicantLicenceWithdrawalRow['withdrawn_at']!==null,
         'model applicant can withdraw consent from an active image licence without administrator mediation');
+    $adminRevokeAsset=$makeAsset('admin-revoke');
+    $service->review($admin,$adminRevokeAsset['id'],'approved','Asset approved for administrator revocation regression test.',bin2hex(random_bytes(16)));
+    $adminRevokeLicence=$licences->createDraft($admin,$adminRevokeAsset['id'],$agreementId,$licenceTerms,bin2hex(random_bytes(16)));
+    $licences->activate($admin,$adminRevokeLicence,'private/model-licences/admin-revoke-execution-0003',
+        'private/model-consent/admin-revoke-consent-0003',bin2hex(random_bytes(16)));
+
     $casting=new ModelCastingWorkflowService($pdo,new AuditLogger($pdo),$storage,$secretBox,static fn():bool=>true);
     $now=new DateTimeImmutable('now',new DateTimeZone('UTC'));
     $callId=$casting->createDraft($admin,[
