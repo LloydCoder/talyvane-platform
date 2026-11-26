@@ -112,7 +112,7 @@ See [PORTING-TRACKER.md](PORTING-TRACKER.md) for acceptance status. No module is
 
 ## Operational health check (CLI)
 
-The native runtime includes a read-only health check suitable for cPanel Terminal and cron. It verifies the PHP runtime/extensions, owner-only private configuration, a real configured document root, private storage/log/backup directories with owner-write and no group/world permissions, and a trivial MySQL query. It fails closed when the public/private boundary cannot be proven. It emits component-level status only; it does not disclose credentials, SQL errors, configuration values, or absolute filesystem paths.
+The native runtime includes a read-only health check suitable for cPanel Terminal and cron. It verifies the PHP runtime/extensions, owner-only private configuration outside a real configured document root, private storage/log/backup directories with owner-write and no group/world permissions, and a trivial MySQL query. It fails closed when the public/private boundary cannot be proven. It emits component-level status only; it does not disclose credentials, SQL errors, configuration values, or absolute filesystem paths.
 
 Run it as the cPanel account user (never as root):
 
