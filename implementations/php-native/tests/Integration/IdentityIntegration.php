@@ -139,6 +139,14 @@ function runIdentityIntegration(PDO $pdo): int
     $assert(is_array($emailChallenge) && $emailCode!=='' && is_array($beforeEmailVerifyRow) &&
         $beforeEmailVerifyRow['email']==='native-password-client@example.test',
         'new contact address is not applied before one-time verification');
+    $wrongEmailCode=$emailCode==='000000'?'000001':'000000';
+    $wrongEmailRejected=false;
+    try { $emailChanges->verify($clientPrincipalForEmail,$wrongEmailCode,bin2hex(random_bytes(16))); }
+    catch (DomainException) { $wrongEmailRejected=true; }
+    $stillOldEmail=$pdo->prepare('SELECT email FROM users WHERE id=:id');
+    $stillOldEmail->execute(['id'=>$clientId]);
+    $assert($wrongEmailRejected && $stillOldEmail->fetchColumn()==='native-password-client@example.test',
+        'incorrect new-address verification code cannot change the account contact email');
     $emailVersion=$emailChanges->verify($clientPrincipalForEmail,$emailCode,bin2hex(random_bytes(16)));
     $afterEmailVerify=$pdo->prepare('SELECT email,email_verified_at,admin_session_version FROM users WHERE id=:id');
     $afterEmailVerify->execute(['id'=>$clientId]);
