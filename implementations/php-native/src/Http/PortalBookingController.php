@@ -82,9 +82,13 @@ final class PortalBookingController
             );
             return Response::redirect('/portal/bookings?created=1');
         } catch (InvalidArgumentException|DomainException $error) {
-            return $this->page('client-new',[],$error->getMessage(),422,['profile'=>$profile,'profiles'=>[]]);
+            $retry=new Request($request->method,$request->path,$request->headers,
+                ['profile'=>(string)$profile['slug']],$request->body,$request->ipAddress,$request->requestId,$request->files);
+            return $this->newForm($retry,$error->getMessage(),422);
         } catch (\Throwable) {
-            return $this->page('client-new',[],'The booking request could not be submitted. Please try again.',503,['profile'=>$profile,'profiles'=>[]]);
+            $retry=new Request($request->method,$request->path,$request->headers,
+                ['profile'=>(string)$profile['slug']],$request->body,$request->ipAddress,$request->requestId,$request->files);
+            return $this->newForm($retry,'The booking request could not be submitted. Please try again.',503);
         }
     }
 
