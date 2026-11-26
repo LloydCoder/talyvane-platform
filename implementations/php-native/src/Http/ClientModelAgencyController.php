@@ -54,7 +54,7 @@ final class ClientModelAgencyController
         $client=$this->client();
         if($client===null) return Response::redirect('/portal/login');
         try {
-            $image=$this->distribution->candidateImage($client,(string)($params['call']??''),(string)($params['submission']??''));
+            $image=$this->distribution->candidateImage($client,(string)($params['call']??''),(string)($params['submission']??''),$request->requestId);
             return new Response($image['bytes'],200,[
                 'content-type'=>$image['mime'],
                 'content-disposition'=>'inline; filename="casting-portfolio-preview.webp"',
