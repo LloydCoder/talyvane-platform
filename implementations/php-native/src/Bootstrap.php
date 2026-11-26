@@ -36,6 +36,7 @@ use Talyvane\Application\ModelAgency\ModelCastingWorkflowService;
 use Talyvane\Application\ModelAgency\ModelPortfolioService;
 use Talyvane\Application\ModelAgency\ModelImageLicenceService;
 use Talyvane\Application\ModelAgency\ModelAssignmentService;
+use Talyvane\Application\ModelAgency\ModelSettlementService;
 use Talyvane\Application\ModelAgency\ModelApplicantRightsService;
 use Talyvane\Application\CRM\EnquiryService;
 use Talyvane\Application\Identity\AccountRecoveryService;
@@ -59,6 +60,7 @@ use Talyvane\Http\AdminAuditController;
 use Talyvane\Http\AdminModelAgencyController;
 use Talyvane\Http\AdminModelCastingController;
 use Talyvane\Http\AdminModelAssignmentController;
+use Talyvane\Http\AdminModelSettlementController;
 use Talyvane\Http\AdminModelPortfolioController;
 use Talyvane\Http\AdminProfileMediaController;
 use Talyvane\Http\AdminNavigationController;
@@ -202,6 +204,8 @@ final class Bootstrap
         $adminModelCasting = new AdminModelCastingController($authentication,$modelCasting,$views,$brandName);
         $modelAssignments = new ModelAssignmentService($pdo,$audit,$modelAgencyCipher,$mediaStorage,static fn():bool=>$castingAvailability->enabled('model-agency.assignments'));
         $adminModelAssignments = new AdminModelAssignmentController($authentication,$modelAssignments,$views,$brandName);
+        $modelSettlements = new ModelSettlementService($pdo,$audit,$modelAgencyCipher,static fn():bool=>$castingAvailability->enabled('model-agency.settlements'));
+        $adminModelSettlements = new AdminModelSettlementController($authentication,$modelSettlements,$views,$brandName);
         $adminModelPortfolio = new AdminModelPortfolioController($authentication,$modelPortfolio,$modelImageLicences,$views,$brandName);
         $publicModelAgencyRights = new PublicModelAgencyRightsController($modelApplicantRights, $views, $brandName);
         $bookingPolicies = new BookingPolicyRepository($pdo);
@@ -341,6 +345,19 @@ final class Bootstrap
         $router->add('POST', '/admin/model-agency/portfolio/licences', static fn(Request $request): Response => $adminModelPortfolio->createLicence($request));
         $router->add('POST', '/admin/model-agency/portfolio/licences/{id}/activate', static fn(Request $request,array $params): Response => $adminModelPortfolio->activateLicence($request,$params));
         $router->add('POST', '/admin/model-agency/portfolio/licences/{id}/revoke', static fn(Request $request,array $params): Response => $adminModelPortfolio->revokeLicence($request,$params));
+        $router->add('GET', '/admin/model-agency/settlements', static fn(Request $request): Response => $adminModelSettlements->index($request));
+        $router->add('POST', '/admin/model-agency/settlements/assignments/{id}/expenses', static fn(Request $request,array $params): Response => $adminModelSettlements->addExpense($request,$params));
+        $router->add('POST', '/admin/model-agency/settlements/assignments/{id}/draft', static fn(Request $request,array $params): Response => $adminModelSettlements->createDraft($request,$params));
+        $router->add('POST', '/admin/model-agency/settlements/expenses/{id}/review', static fn(Request $request,array $params): Response => $adminModelSettlements->reviewExpense($request,$params));
+        foreach (['approve','payment','reverse','dispute'] as $settlementAction) {
+            $router->add('POST', '/admin/model-agency/settlements/{id}/'.$settlementAction,
+                static fn(Request $request,array $params): Response => match($settlementAction) {
+                    'approve'=>$adminModelSettlements->approve($request,$params),
+                    'payment'=>$adminModelSettlements->recordPayment($request,$params),
+                    'reverse'=>$adminModelSettlements->reverse($request,$params),
+                    'dispute'=>$adminModelSettlements->dispute($request,$params),
+                });
+        }
         $router->add('GET', '/admin/model-agency/assignments', static fn(Request $request): Response => $adminModelAssignments->index($request));
         $router->add('POST', '/admin/model-agency/assignments', static fn(Request $request): Response => $adminModelAssignments->create($request));
         foreach (['offer','accept','confirm','start','complete','decline','cancel','dispute'] as $assignmentAction) {
