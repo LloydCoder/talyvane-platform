@@ -111,7 +111,7 @@ final class PublicModelAgencyRightsController
             $assetId=$this->portfolio->storeByVerifiedApplicantPortal($id,$upload,[
                 'source_description'=>$this->field($request,'source_description'),
                 'consent_scope'=>$this->field($request,'consent_scope'),
-            ],$request->requestId);
+            ],true,$request->requestId);
             return $this->showPortal($id,$request->requestId,'Your image was uploaded privately and is awaiting human review.');
         } catch(\Throwable) {
             return $this->showPortal($id,$request->requestId,'The portfolio image could not be uploaded. Check the image and consent details.',422);
