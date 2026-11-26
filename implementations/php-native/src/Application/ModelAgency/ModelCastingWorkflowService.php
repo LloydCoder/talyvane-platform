@@ -316,7 +316,7 @@ final class ModelCastingWorkflowService
     public function submitByApplicant(string $applicationId,string $callId,string $assetId,string $licenceId,string $requestId): string
     {
         $this->assertFeature();$this->assertRequestId($requestId);
-        if(!self::isUuid($applicationId)) throw new \\InvalidArgumentException('Applicant identity is invalid.');
+        if(!self::isUuid($applicationId)) throw new \InvalidArgumentException('Applicant identity is invalid.');
         $this->pdo->beginTransaction();
         try {
             $call=$this->lockCall($callId);
@@ -327,10 +327,10 @@ final class ModelCastingWorkflowService
             $this->assertSubmissionEligible($call,$application,$asset,$licence,$agreement,true);
             $duplicate=$this->pdo->prepare('SELECT id FROM model_casting_submissions WHERE casting_call_id=:call AND application_id=:application LIMIT 1 FOR UPDATE');
             $duplicate->execute(['call'=>$callId,'application'=>$applicationId]);
-            if($duplicate->fetchColumn()!==false) throw new \\DomainException('You already have a submission for this private casting call.');
+            if($duplicate->fetchColumn()!==false) throw new \DomainException('You already have a submission for this private casting call.');
             $count=$this->pdo->prepare('SELECT COUNT(*) FROM model_casting_submissions WHERE casting_call_id=:call AND status IN ("submitted","shortlisted","selected")');
             $count->execute(['call'=>$callId]);
-            if((int)$count->fetchColumn()>=(int)$call['max_submissions']) throw new \\DomainException('This casting call has reached its active submission limit.');
+            if((int)$count->fetchColumn()>=(int)$call['max_submissions']) throw new \DomainException('This casting call has reached its active submission limit.');
             $id=self::uuid();$reference='MCS-'.gmdate('Y').'-'.strtoupper(bin2hex(random_bytes(6)));
             $this->pdo->prepare(
                 'INSERT INTO model_casting_submissions
