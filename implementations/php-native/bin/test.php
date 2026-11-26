@@ -107,7 +107,7 @@ $calendarEvents = [[
 ]];
 $clientCalendar = $calendar->toIcalendar(new Principal('client-calendar-id',['client'],false),$calendarEvents,$calendarNow);
 $assert(str_contains($clientCalendar,'BEGIN:VCALENDAR') && str_contains($clientCalendar,'DTSTART:20261201T120000Z'), 'calendar export emits RFC5545 UTC event times');
-$assert(str_contains($clientCalendar,'SUMMARY:Booking with Alex\\, Example\\nVIP — London\\; United Kingdom') && !str_contains($clientCalendar,'PRIVATE NOTE') && !str_contains($clientCalendar,'client-secret-id'), 'client calendar escapes text and excludes notes and account identifiers');
+$assert(str_contains($clientCalendar,'SUMMARY:Booking with Alex\\, Example\nVIP — London\\; United Kingdom') && !str_contains($clientCalendar,'PRIVATE NOTE') && !str_contains($clientCalendar,'client-secret-id'), 'client calendar escapes text and excludes notes and account identifiers');
 $companionCalendar = $calendar->toIcalendar(new Principal('companion-calendar-id',['companion'],false),$calendarEvents,$calendarNow);
 $assert(str_contains($companionCalendar,'SUMMARY:Appointment — London\\; United Kingdom') && !str_contains($companionCalendar,'Alex'), 'companion calendar projection excludes client-facing profile identity details');
 $cancelledCalendar = $calendar->toIcalendar(new Principal('client-calendar-id',['client'],false),[array_merge($calendarEvents[0],['status'=>'cancelled'])],$calendarNow);
@@ -921,11 +921,11 @@ foreach ([$healthConfigDir,$healthStorage,$healthLogs,$healthBackups] as $direct
     mkdir($directory,0700,true);
 }
 $healthConfig = $healthConfigDir . DIRECTORY_SEPARATOR . 'app.php';
-file_put_contents($healthConfig, "<?php\\nreturn " . var_export([
+file_put_contents($healthConfig, "<?php\nreturn " . var_export([
     'app_key'=>str_repeat('K',32),
     'database'=>['password'=>'HEALTHCHECK_SECRET_MUST_NOT_LEAK'],
     'paths'=>['storage'=>$healthStorage,'logs'=>$healthLogs,'backups'=>$healthBackups],
-],true) . ";\\n");
+],true) . ";\n");
 chmod($healthConfig,0600);
 $healthCommand = [PHP_BINARY,dirname(__DIR__) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'healthcheck.php','--json'];
 $healthProcess = proc_open($healthCommand,[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$healthPipes,null,['TALYVANE_CONFIG'=>$healthConfig]);
@@ -956,7 +956,7 @@ foreach ([$healthStorage,$healthLogs,$healthBackups] as $directory) {
     chmod($directory,0755);
 }
 $worldReadableConfig = $healthConfigDir . DIRECTORY_SEPARATOR . 'world-readable-private-paths.php';
-file_put_contents($worldReadableConfig, "<?php\\nreturn " . var_export([
+file_put_contents($worldReadableConfig, "<?php\nreturn " . var_export([
     'app_key'=>str_repeat('W',32),
     'database'=>[],
     'paths'=>[
@@ -965,7 +965,7 @@ file_put_contents($worldReadableConfig, "<?php\\nreturn " . var_export([
         'logs'=>$healthLogs,
         'backups'=>$healthBackups,
     ],
-],true) . ";\\n");
+],true) . ";\n");
 chmod($worldReadableConfig,0600);
 $permissionProcess = proc_open($healthCommand,[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$permissionPipes,null,['TALYVANE_CONFIG'=>$worldReadableConfig]);
 if (!is_resource($permissionProcess)) {
