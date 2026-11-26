@@ -410,6 +410,7 @@ final class Bootstrap
         $router->add('POST', '/admin/memberships/{id}/suspend', static fn(Request $request,array $params): Response => $adminClients->suspend($request,$params));
         $router->add('GET', '/admin/enquiries', static fn(Request $request): Response => $adminEnquiries->index($request));
         $router->add('POST', '/admin/enquiries/{reference}', static fn(Request $request, array $params): Response => $adminEnquiries->update($request, $params));
+        $router->add('POST', '/admin/enquiries/{reference}/assign', static fn(Request $request, array $params): Response => $adminEnquiries->assign($request, $params));
         $router->add('GET', '/admin/navigation', static fn(Request $request): Response => $adminNavigation->index($request));
         $router->add('POST', '/admin/navigation', static fn(Request $request, array $params): Response => $adminNavigation->save($request));
         $router->add('POST', '/admin/navigation/{id}', static fn(Request $request, array $params): Response => $adminNavigation->save($request, $params));
