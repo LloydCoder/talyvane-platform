@@ -237,6 +237,13 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'compensation_amount'=>null,'currency_code'=>null,'max_submissions'=>2,
     ],bin2hex(random_bytes(16)));
     $casting->publish($admin,$callId,bin2hex(random_bytes(16)));
+    // The earlier portal session was deliberately logged out. Start a fresh OTP session
+    // for the later casting self-service assertions rather than reusing revoked credentials.
+    $rights->request($applicationReference,'portfolio-applicant@example.test','portal_access','203.0.113.43',bin2hex(random_bytes(16)));
+    $latestPortalMessage=$rightsMailer->messages[array_key_last($rightsMailer->messages)];
+    preg_match('/one-time verification code is: ([0-9]{8})/',$latestPortalMessage['body'],$nextPortalCode);
+    $portalRightsId=$rights->verify($applicationReference,'portfolio-applicant@example.test',$nextPortalCode[1]??'','203.0.113.44',bin2hex(random_bytes(16)));
+    if(!is_string($portalRightsId)) throw new RuntimeException('A fresh OTP model workspace session is required for casting self-service integration.');
     $applicantCastingPortal=$rights->portalRead((string)$portalRightsId,bin2hex(random_bytes(16)));
     $opportunities=$applicantCastingPortal['available_casting_calls']??[];
     $opportunity=array_values(array_filter($opportunities,static fn(array $item):bool=>($item['id']??null)===$callId));
