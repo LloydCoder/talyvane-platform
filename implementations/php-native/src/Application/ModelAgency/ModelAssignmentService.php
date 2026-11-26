@@ -133,7 +133,6 @@ final class ModelAssignmentService
     public function respondByApplicant(string $applicationId,string $assignmentId,string $decision,bool $attested,string $statement,string $requestId): void
     {
         $this->assertRequestId($requestId);
-        if($decision==='accept') $this->assertFeature();
         if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId) || !in_array($decision,['accept','decline'],true)) {
             throw new \InvalidArgumentException('Applicant assignment response is invalid.');
         }
@@ -160,6 +159,7 @@ final class ModelAssignmentService
                 }
                 throw new \DomainException('A response has already been recorded for this assignment offer.');
             }
+            if($decision==='accept') $this->assertFeature();
             if($assignment['status']!=='offered') {
                 throw new \DomainException('This assignment offer is not available to the verified applicant.');
             }
