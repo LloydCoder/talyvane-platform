@@ -122,7 +122,7 @@ final class ModelSettlementService
             $pending=$this->pdo->prepare('SELECT COUNT(*) FROM model_assignment_expenses WHERE assignment_id=:assignment AND status="pending"');
             $pending->execute(['assignment'=>$assignmentId]);
             if((int)$pending->fetchColumn()>0) throw new \DomainException('All expense claims must be reviewed before settlement calculation.');
-            $approved=$this->pdo->prepare('SELECT COALESCE(SUM(amount_minor),0) FROM model_assignment_expenses WHERE assignment_id=:assignment AND status="approved" FOR UPDATE');
+            $approved=$this->pdo->prepare('SELECT amount_minor FROM model_assignment_expenses WHERE assignment_id=:assignment AND status="approved" FOR UPDATE');
             $approved->execute(['assignment'=>$assignmentId]);$expenses=$this->sumRows($approved->fetchAll(PDO::FETCH_COLUMN));
             $precision=$this->currencyPrecision((string)$assignment['currency_code']);
             $policy=$this->approvedPolicy();
