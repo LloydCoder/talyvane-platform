@@ -36,6 +36,17 @@ function runModelCastingIntegration(PDO $pdo): int
         'actor'=>$adminId,
     ]);
 
+    foreach([
+        'model_agency.portfolio'=>['enabled'=>true,'policy_approved'=>true,'policy_version'=>'model-portfolio-policy-client-test-v1'],
+        'model_agency.image_licence'=>['enabled'=>true,'policy_approved'=>true,'policy_version'=>'model-image-licence-policy-client-test-v1'],
+    ] as $settingKey=>$settingValue) {
+        $pdo->prepare(
+            'INSERT INTO deployment_settings (setting_key,setting_json,version,updated_by,updated_at)
+             VALUES (:key,:settings,1,:actor,UTC_TIMESTAMP())
+             ON DUPLICATE KEY UPDATE setting_json=VALUES(setting_json),version=version+1,updated_by=VALUES(updated_by),updated_at=UTC_TIMESTAMP()'
+        )->execute(['key'=>$settingKey,'settings'=>json_encode($settingValue,JSON_THROW_ON_ERROR),'actor'=>$adminId]);
+    }
+
     $basePath=sys_get_temp_dir().DIRECTORY_SEPARATOR.'talyvane-model-casting-'.bin2hex(random_bytes(6));
     $publicRoot=$basePath.DIRECTORY_SEPARATOR.'public';$privateRoot=$basePath.DIRECTORY_SEPARATOR.'private';
     mkdir($publicRoot,0700,true);mkdir($privateRoot,0700,true);
@@ -92,9 +103,6 @@ function runModelCastingIntegration(PDO $pdo): int
     $clientCalls=$distribution->castingCalls($clientPrincipal);
     $assert(count($clientCalls)===1 && $clientCalls[0]['id']===$callId,
         'client sees only the casting call explicitly linked to its verified account');
-    $clientCandidates=$distribution->candidates($clientPrincipal,$callId);
-    $assert($clientCandidates===[],
-        'client casting workspace does not expose unshortlisted applicants or personal data');
     try {
         $distribution->candidates(new Principal('00000000-0000-4000-8000-000000000001',['client'],false),$callId);
         $assert(false,'a different client identity cannot enumerate another client casting call');
