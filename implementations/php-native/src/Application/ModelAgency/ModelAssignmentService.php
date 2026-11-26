@@ -148,13 +148,13 @@ final class ModelAssignmentService
         string $applicationId,string $assignmentId,string $decision,bool $attested,?string $reason,string $requestId
     ): string {
         if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId) || !preg_match('/^[0-9a-f-]{36}$/iD',$assignmentId)) {
-            throw new \\InvalidArgumentException('Assignment identity is invalid.');
+            throw new \InvalidArgumentException('Assignment identity is invalid.');
         }
-        if(!in_array($decision,['accept','decline'],true)) throw new \\InvalidArgumentException('Assignment response is invalid.');
-        if(!$attested) throw new \\DomainException('Explicit assignment response attestation is required.');
+        if(!in_array($decision,['accept','decline'],true)) throw new \InvalidArgumentException('Assignment response is invalid.');
+        if(!$attested) throw new \DomainException('Explicit assignment response attestation is required.');
         $reason=trim((string)$reason);
         if($decision==='decline' && $reason!=='' && (strlen($reason)<20 || strlen($reason)>1500)) {
-            throw new \\InvalidArgumentException('Decline explanation must contain 20 to 1500 characters.');
+            throw new \InvalidArgumentException('Decline explanation must contain 20 to 1500 characters.');
         }
         $this->assertFeature();$this->assertRequestId($requestId);
         $fingerprint=hash('sha256',$requestId);
@@ -162,7 +162,7 @@ final class ModelAssignmentService
         try {
             $assignment=$this->lock('model_assignments',$assignmentId);
             if(!hash_equals((string)$assignment['application_id'],$applicationId)) {
-                throw new \\DomainException('Assignment does not belong to this verified model.');
+                throw new \DomainException('Assignment does not belong to this verified model.');
             }
             $existingStatus=$assignment['applicant_response_status']??null;
             if(is_string($existingStatus) && $existingStatus!=='') {
@@ -172,9 +172,9 @@ final class ModelAssignmentService
                     hash_equals((string)$assignment['applicant_response_request_fingerprint'],$fingerprint)) {
                     $this->pdo->commit();return $existingStatus;
                 }
-                throw new \\DomainException('A response has already been recorded for this assignment offer.');
+                throw new \DomainException('A response has already been recorded for this assignment offer.');
             }
-            if($assignment['status']!=='offered') throw new \\DomainException('Only a current offered assignment can receive a model response.');
+            if($assignment['status']!=='offered') throw new \DomainException('Only a current offered assignment can receive a model response.');
             $submission=$this->lock('model_casting_submissions',(string)$assignment['submission_id']);
             $application=$this->lock('model_talent_applications',(string)$assignment['application_id']);
             if($decision==='accept') {
@@ -184,7 +184,7 @@ final class ModelAssignmentService
                 $agreement=$this->lock('model_representation_agreements',(string)$assignment['representation_agreement_id']);
                 $this->assertCurrentEligibility($assignment,$submission,$application,$asset,$licence,$call,$agreement);
             } elseif($application['anonymized_at']!==null) {
-                throw new \\DomainException('An anonymized applicant record cannot respond to an assignment offer.');
+                throw new \DomainException('An anonymized applicant record cannot respond to an assignment offer.');
             }
             $termsHash=hash('sha256',(string)$assignment['terms_snapshot']);
             $version='model-assignment-applicant-response-v1';
@@ -291,7 +291,7 @@ final class ModelAssignmentService
     /** @return list<array<string,mixed>> */
     public function applicantAssignments(string $applicationId): array
     {
-        if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId)) throw new \\InvalidArgumentException('Applicant identity is invalid.');
+        if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId)) throw new \InvalidArgumentException('Applicant identity is invalid.');
         $query=$this->pdo->prepare(
             'SELECT id,assignment_reference,application_id,status,project_purpose,country_code,
                     client_name,brief,location_city,shoot_starts_at,shoot_ends_at,deliverables,
@@ -347,7 +347,7 @@ final class ModelAssignmentService
             }
             $from=(string)$assignment['status'];
             if($toStatus==='accepted' && ($assignment['applicant_response_status']??null)!=='acceptance_pending_execution') {
-                throw new \\DomainException('The model must record acceptance intent before external execution can be recorded.');
+                throw new \DomainException('The model must record acceptance intent before external execution can be recorded.');
             }
             if($toStatus==='confirmed') {
                 foreach(['executed_document_reference','model_acceptance_evidence_reference'] as $evidenceField) {
@@ -560,7 +560,7 @@ final class ModelAssignmentService
 
     private function minorToDecimal(int $minor,int $precision): string
     {
-        if($minor<0 || $precision<0 || $precision>4) throw new \\DomainException('Assignment currency precision is unsupported.');
+        if($minor<0 || $precision<0 || $precision>4) throw new \DomainException('Assignment currency precision is unsupported.');
         $scale=10**$precision;$whole=intdiv($minor,$scale);$fraction=$minor%$scale;
         return $precision===0?(string)$whole:$whole.'.'.str_pad((string)$fraction,$precision,'0',STR_PAD_LEFT);
     }
@@ -580,7 +580,7 @@ final class ModelAssignmentService
 
     private function event(string $assignmentId,?string $actorId,string $type,string $fromStatus,string $toStatus,string $reason,string $policyVersion,string $actorType='administrator'): void
     {
-        if(!in_array($actorType,['administrator','applicant'],true)) throw new \\InvalidArgumentException('Assignment event actor type is invalid.');
+        if(!in_array($actorType,['administrator','applicant'],true)) throw new \InvalidArgumentException('Assignment event actor type is invalid.');
         $this->pdo->prepare(
             'INSERT INTO model_assignment_events (id,assignment_id,actor_user_id,actor_type,from_status,to_status,event_type,reason,evidence_reference,occurred_at,created_at,updated_at)
              VALUES (:id,:assignment,:actor,:actor_type,:from_status,:to_status,:event,:reason,NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
