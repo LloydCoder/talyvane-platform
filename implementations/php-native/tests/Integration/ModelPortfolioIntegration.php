@@ -97,6 +97,59 @@ function runModelPortfolioIntegration(PDO $pdo): int
     $assert(is_array($rejectedRow) && $rejectedRow['status']==='rejected' && $rejectedRow['private_storage_key']===null,'rejected portfolio asset is no longer previewable and its storage pointer is cleared');
     $assert(!is_file($rejectedAsset['path']),'rejection deletes private portfolio image bytes');
 
+    $pdo->prepare('UPDATE deployment_settings SET setting_json=:settings,version=version+1,updated_by=:actor,updated_at=UTC_TIMESTAMP() WHERE setting_key="model_agency.portfolio"')
+        ->execute(['settings'=>json_encode(['enabled'=>true,'policy_approved'=>true,'policy_version'=>'model-portfolio-policy-test-v1'],JSON_THROW_ON_ERROR),'actor'=>$adminId]);
+    $licensedAsset=$makeAsset('licensed');
+    $service->review($admin,$licensedAsset['id'],'approved','Asset rights and model consent evidence reviewed for private usage licensing.',bin2hex(random_bytes(16)));
+    $agreementService=new ModelAgencyAgreementService($pdo,new AuditLogger($pdo));
+    $agreementId=$agreementService->createDraft($admin,$applicationId,[
+        'service_scope'=>['portfolio_development','casting_submissions'],
+        'commission_basis_points'=>1200,'term_months'=>12,'exclusivity'=>false,'termination_notice_days'=>30,
+    ],1200,bin2hex(random_bytes(16)));
+    $agreementService->transition($admin,$agreementId,'offered','Agreement offered for external execution review.',null,null,null,bin2hex(random_bytes(16)));
+    $agreementService->transition($admin,$agreementId,'executed','External agreement execution confirmed.','private/model-agreements/execution-reference-0001',
+        new DateTimeImmutable('now',new DateTimeZone('UTC')),new DateTimeImmutable('+12 months',new DateTimeZone('UTC')),bin2hex(random_bytes(16)));
+    $pdo->prepare(
+        'INSERT INTO deployment_settings (setting_key,setting_json,version,updated_by,updated_at)
+         VALUES ("model_agency.image_licence",:settings,1,:actor,UTC_TIMESTAMP())
+         ON DUPLICATE KEY UPDATE setting_json=VALUES(setting_json),version=version+1,updated_by=VALUES(updated_by),updated_at=UTC_TIMESTAMP()'
+    )->execute(['settings'=>json_encode(['enabled'=>true,'policy_approved'=>true,'policy_version'=>'image-licence-policy-test-v1'],JSON_THROW_ON_ERROR),'actor'=>$adminId]);
+    $licences=new ModelImageLicenceService($pdo,new AuditLogger($pdo),$secretBox,$storage,static fn():bool=>true);
+    $licenceTerms=[
+        'licensee_name'=>'Verified editorial commissioning client',
+        'purpose'=>'casting_distribution','channels'=>['casting_platform'],
+        'purpose_details'=>'Private casting review for a defined editorial project and territory only.',
+        'country_code'=>'GB',
+        'starts_on'=>(new DateTimeImmutable('+1 day',new DateTimeZone('UTC')))->format('Y-m-d'),
+        'ends_on'=>(new DateTimeImmutable('+14 days',new DateTimeZone('UTC')))->format('Y-m-d'),
+        'exclusivity'=>false,'compensation_amount'=>null,'currency_code'=>null,
+    ];
+    $licenceId=$licences->createDraft($admin,$licensedAsset['id'],$agreementId,$licenceTerms,bin2hex(random_bytes(16)));
+    $draft=$pdo->prepare('SELECT status,licensee_name,licence_policy_version,consent_grant_id FROM model_image_licences WHERE id=:id');
+    $draft->execute(['id'=>$licenceId]);$draftRow=$draft->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($draftRow) && $draftRow['status']==='draft' && $draftRow['licence_policy_version']==='image-licence-policy-test-v1','image licence draft snapshots the current policy');
+    $assert(is_array($draftRow) && $draftRow['licensee_name']!=='Verified editorial commissioning client','licensee identity is encrypted at rest');
+    $grant=$pdo->prepare('SELECT granted FROM consent_grants WHERE id=:id');$grant->execute(['id'=>$draftRow['consent_grant_id']]);
+    $assert((int)$grant->fetchColumn()===0,'draft licence does not imply model consent');
+    $licences->activate($admin,$licenceId,'private/model-licences/execution-evidence-0001','private/model-consent/model-consent-evidence-0001',bin2hex(random_bytes(16)));
+    $active=$pdo->prepare('SELECT status,execution_evidence_reference FROM model_image_licences WHERE id=:id');$active->execute(['id'=>$licenceId]);$activeRow=$active->fetch(PDO::FETCH_ASSOC);
+    $grant->execute(['id'=>$draftRow['consent_grant_id']]);
+    $assert(is_array($activeRow) && $activeRow['status']==='active' && $activeRow['execution_evidence_reference']!=='','activation records external execution evidence');
+    $assert((int)$grant->fetchColumn()===1,'activation records separate purpose-specific model consent');
+    try {
+        $licences->createDraft($admin,$licensedAsset['id'],$agreementId,$licenceTerms,bin2hex(random_bytes(16)));
+        $assert(false,'overlapping active same-purpose licence is rejected');
+    } catch(DomainException) {
+        $assert(true,'overlapping active same-purpose licence is rejected');
+    }
+    $pdo->prepare('UPDATE deployment_settings SET setting_json=:settings,version=version+1,updated_by=:actor,updated_at=UTC_TIMESTAMP() WHERE setting_key="model_agency.image_licence"')
+        ->execute(['settings'=>json_encode(['enabled'=>false,'policy_approved'=>false,'policy_version'=>''],JSON_THROW_ON_ERROR),'actor'=>$adminId]);
+    $licences->revoke($admin,$licenceId,'Consent withdrawn for this defined image use and territory.',bin2hex(random_bytes(16)));
+    $revoked=$pdo->prepare('SELECT status,revocation_reason FROM model_image_licences WHERE id=:id');$revoked->execute(['id'=>$licenceId]);$revokedRow=$revoked->fetch(PDO::FETCH_ASSOC);
+    $grant->execute(['id'=>$draftRow['consent_grant_id']]);
+    $assert(is_array($revokedRow) && $revokedRow['status']==='revoked' && $revokedRow['revocation_reason']!=='Consent withdrawn for this defined image use and territory.','revocation reason is encrypted at rest');
+    $assert((int)$grant->fetchColumn()===0,'revocation withdraws model consent even when new licences are disabled');
+
     $disabled=new ModelPortfolioService($pdo,$storage,new AuditLogger($pdo),$secretBox,static fn():bool=>false);
     try {
         $disabled->store($admin,$applicationId,[],[
