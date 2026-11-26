@@ -217,13 +217,10 @@ final class ModelAssignmentService
             $completionEvidenceReference,$requestId);
     }
 
+    /** @deprecated Only the model may decline through the OTP-verified applicant portal. */
     public function decline(Principal $actor,string $assignmentId,string $reason,string $modelEvidenceReference,string $requestId): void
     {
-        $reason=trim($reason);
-        if(strlen($reason)<20 || strlen($reason)>1500) throw new \InvalidArgumentException('Model decline requires a reason of 20 to 1500 characters.');
-        $this->assertEvidenceReference($modelEvidenceReference,'private/model-consent/');
-        $this->transition($actor,$assignmentId,'declined',['decline_reason'=>$reason,'model_decline_evidence_reference'=>$modelEvidenceReference],
-            $modelEvidenceReference,$requestId);
+        throw new \DomainException('Agency staff cannot attest a model decline. The model must respond in the OTP-verified portal; agency staff may cancel an offer with a documented reason.');
     }
 
     public function cancel(Principal $actor,string $assignmentId,string $reason,string $requestId): void
