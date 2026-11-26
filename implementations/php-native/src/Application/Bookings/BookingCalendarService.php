@@ -112,8 +112,8 @@ final class BookingCalendarService
 
     private static function escapeText(string $value): string
     {
-        $value=str_replace(["\r\n","\r","\n"],'\\n',$value);
-        return str_replace(['\\',';',','],['\\\\','\\;','\\,'],$value);
+        $value=str_replace(['\\',';',','],['\\\\','\\;','\\,'],$value);
+        return str_replace(["\r\n","\r","\n"],'\\n',$value);
     }
 
     private static function foldLine(string $line): string
