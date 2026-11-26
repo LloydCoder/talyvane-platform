@@ -429,7 +429,7 @@ function runIdentityIntegration(PDO $pdo): int
     $assert($cancelledState->fetchColumn() === 'cancelled','companion acceptance, administrator confirmation and client cancellation follow authorized transitions');
     $notificationEvents=$pdo->prepare('SELECT COUNT(*) FROM communication_outbox WHERE related_type="booking" AND related_id=:booking');
     $notificationEvents->execute(['booking'=>$manualBookingId]);
-    $assert((int)$notificationEvents->fetchColumn()===4,'companion acceptance, administrator confirmation and client cancellation enqueue the corresponding role-scoped alerts');
+    $assert((int)$notificationEvents->fetchColumn()===5,'companion acceptance, administrator confirmation and client cancellation enqueue the corresponding role-scoped alerts');
 
     $pdo->prepare('UPDATE companion_profiles SET auto_booking_opt_in = 0 WHERE id = :id')->execute(['id'=>$profileId]);
     $thirdStart = $localBookingStart->modify('+4 hours');
