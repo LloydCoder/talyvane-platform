@@ -9,6 +9,7 @@ use Talyvane\Domain\Money\Currency;
 use Talyvane\Domain\Money\QuoteSnapshot;
 use Talyvane\Domain\Payments\PaymentStateMachine;
 use Talyvane\Domain\Booking\BookingStateMachine;
+use Talyvane\Domain\Booking\BookingCancellationPolicy;
 use Talyvane\Domain\Consent\ConsentGrant;
 use Talyvane\Domain\Market\MarketPolicy;
 use Talyvane\Domain\Membership\MembershipAccess;
