@@ -81,6 +81,33 @@ final class AdminEnquiryController
         }
     }
 
+    public function scheduleReminder(Request $request,?array $params=null): Response
+    {
+        $principal=$this->principal();
+        if($principal instanceof Response) return $principal;
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('Your session expired. Refresh and try again.',419,false,$principal);
+        try {
+            $this->enquiries->scheduleReminder($principal,(string)($params['reference']??''),$this->field($request,'due_at'),
+                $this->field($request,'reason'),$request->requestId);
+            return $this->page('',200,true,$principal);
+        } catch(InvalidArgumentException|DomainException $error) {
+            return $this->page($error->getMessage(),422,false,$principal);
+        }
+    }
+
+    public function completeReminder(Request $request,?array $params=null): Response
+    {
+        $principal=$this->principal();
+        if($principal instanceof Response) return $principal;
+        if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('Your session expired. Refresh and try again.',419,false,$principal);
+        try {
+            $this->enquiries->completeReminder($principal,(string)($params['reminder']??''),$this->field($request,'reason'),$request->requestId);
+            return $this->page('',200,true,$principal);
+        } catch(InvalidArgumentException|DomainException $error) {
+            return $this->page($error->getMessage(),422,false,$principal);
+        }
+    }
+
     private function principal(): Principal|Response
     {
         SessionManager::start();
