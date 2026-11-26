@@ -340,6 +340,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'deliverables'=>'One editorial shoot with the agreed image selection and usage scope.',
         'compensation_amount'=>'800.00','currency_code'=>'GBP','expense_cap_amount'=>'75.00',
     ],bin2hex(random_bytes(16)));
+    $assert($assignments->applicantAssignments($applicationId)===[],'unoffered assignment drafts are never exposed in the applicant workspace');
     $assignments->offer($admin,$assignmentId,bin2hex(random_bytes(16)));
     $modelAssignmentTerms=$assignments->applicantAssignments($applicationId);
     $modelAssignmentTerm=array_values(array_filter($modelAssignmentTerms,static fn(array $item):bool=>$item['id']===$assignmentId));
