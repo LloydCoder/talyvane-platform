@@ -12,6 +12,7 @@ use Talyvane\Application\Companions\CompanionAvailabilityService;
 use Talyvane\Features\FeatureAvailability;
 use Talyvane\Application\Features\FeatureManagementService;
 use Talyvane\Application\Globalization\GlobalizationSettingsService;
+use Talyvane\Application\Payments\PaymentSettingsService;
 use Talyvane\Infrastructure\Database\FeatureStateRepository;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Destinations\DestinationManagementService;
@@ -749,6 +750,24 @@ function runIdentityIntegration(PDO $pdo): int
         'Disable the temporary ISO currency after the globalization integration test.',bin2hex(random_bytes(16)));
     $globalAudit=$pdo->prepare('SELECT COUNT(*) FROM audit_events WHERE actor_user_id=:actor AND event_key IN ("globalization.defaults.updated","globalization.currency.availability_changed")');
     $globalAudit->execute(['actor'=>$featureAdminId]);
+
+    $paymentSettingsService=new PaymentSettingsService($pdo,$audit);
+    $paymentSettingsService->update($featureAdmin,[
+        'payments_enabled'=>true,'crypto_enabled'=>false,'cards_enabled'=>true,
+        'manual_enabled'=>false,'booking_payments_enabled'=>true,'membership_payments_enabled'=>false,
+    ],bin2hex(random_bytes(16)));
+    $paymentState=$paymentSettingsService->current($featureAdmin);
+    $assert($paymentState['payments_enabled']===true && $paymentState['cards_enabled']===true &&
+        $paymentState['booking_payments_enabled']===true && $paymentState['crypto_enabled']===false,
+        'Super Admin payment capability settings persist independently from provider and settlement activation');
+    $paymentSettingsService->update($featureAdmin,[
+        'payments_enabled'=>false,'crypto_enabled'=>false,'cards_enabled'=>false,
+        'manual_enabled'=>false,'booking_payments_enabled'=>false,'membership_payments_enabled'=>false,
+    ],bin2hex(random_bytes(16)));
+    $paymentAudit=$pdo->prepare('SELECT COUNT(*) FROM audit_events WHERE actor_user_id=:actor AND event_key="payment.configuration.updated"');
+    $paymentAudit->execute(['actor'=>$featureAdminId]);
+    $assert((int)$paymentAudit->fetchColumn()===2,'payment capability configuration changes are append-only audited');
+
     $assert((int)$globalAudit->fetchColumn()>=4,'globalization default and currency changes are append-only audited');
 
 
