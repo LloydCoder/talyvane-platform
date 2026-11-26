@@ -156,6 +156,10 @@ final class PublicModelAgencyRightsController
     {
         SessionManager::start();
         if(!Csrf::verify($this->field($request,'_csrf'))) return $this->page('portal',['error'=>'Your session expired. Refresh this page and try again.'],419);
+        $id=$this->rightsId();
+        if($id!==null && $this->rights!==null) {
+            try { $this->rights->logoutPortal($id,$request->requestId); } catch(\Throwable) { /* Session is still cleared locally. */ }
+        }
         $this->clearContext();
         return Response::redirect('/model-agency/privacy');
     }
@@ -268,6 +272,7 @@ final class PublicModelAgencyRightsController
     private function clearContext(): void
     {
         unset($_SESSION['model_rights_id'],$_SESSION['model_rights_context']);
+        SessionManager::rotateAfterAuthentication();
         Csrf::rotate();
     }
 
