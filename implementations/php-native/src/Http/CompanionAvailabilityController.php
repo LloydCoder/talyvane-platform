@@ -88,7 +88,7 @@ final class CompanionAvailabilityController
             return Response::redirect('/portal/companion/availability?preference=saved');
         } catch (DomainException|InvalidArgumentException $error) {
             return $this->index($request,$error->getMessage(),422);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return $this->index($request,'Your automatic-booking preference could not be updated. Please try again.',503);
         }
     }
