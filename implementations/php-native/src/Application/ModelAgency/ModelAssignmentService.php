@@ -275,6 +275,7 @@ final class ModelAssignmentService
         $query=$this->pdo->prepare(
             'SELECT id,assignment_reference,submission_id,application_id,country_code,project_purpose,client_name,
                     status,compensation_minor,currency_code,expense_cap_minor,commission_basis_points,
+                    applicant_response_status,applicant_response_version,applicant_response_at,applicant_response_reason,
                     shoot_starts_at,shoot_ends_at,created_at,offered_at,accepted_at,confirmed_at,started_at,completed_at
              FROM model_assignments ORDER BY created_at DESC LIMIT :limit'
         );
@@ -283,11 +284,13 @@ final class ModelAssignmentService
             $stored=$row['client_name']??null;
             $row['client_name']=is_string($stored) && $stored!==''?
                 $this->cipher->decrypt($stored,'model-assignment-v1:'.$row['id'].':client_name'):'Legacy assignment';
+            $responseReason=$row['applicant_response_reason']??null;
+            $row['applicant_response_reason']=is_string($responseReason) && $responseReason!==''?
+                $this->cipher->decrypt($responseReason,'model-assignment-applicant-response-v1:'.$row['id'].':reason'):null;
         }
         unset($row);return $rows;
     }
 
-    /** @return list<array<string,mixed>> */
     /** @return list<array<string,mixed>> */
     public function applicantAssignments(string $applicationId): array
     {
