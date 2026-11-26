@@ -51,6 +51,18 @@ $assert = static function (bool $condition, string $message) use (&$tests): void
     }
 };
 
+$cancelPolicy = new BookingCancellationPolicy(true, 120);
+$cancelPolicy->assertAllowed('client','confirmed',new DateTimeImmutable('2026-12-01T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00'));
+$assert(true, 'client may cancel a confirmed booking outside the configured cutoff');
+try { $cancelPolicy->assertAllowed('client','confirmed',new DateTimeImmutable('2026-12-01T09:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'client cancellation inside cutoff is rejected'); }
+catch (DomainException) { $assert(true, 'client cancellation inside cutoff is rejected'); }
+try { (new BookingCancellationPolicy(false,120))->assertAllowed('client','confirmed',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'disabled client cancellation is rejected'); }
+catch (DomainException) { $assert(true, 'disabled client cancellation is rejected'); }
+try { $cancelPolicy->assertAllowed('client','accepted',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'unsupported client cancellation state is rejected'); }
+catch (DomainException) { $assert(true, 'unsupported client cancellation state is rejected'); }
+try { $cancelPolicy->assertAllowed('companion','confirmed',new DateTimeImmutable('2026-12-02T12:00:00+00:00'),new DateTimeImmutable('2026-12-01T08:00:00+00:00')); $assert(false, 'companion cannot use client cancellation policy'); }
+catch (DomainException) { $assert(true, 'companion cannot use client cancellation policy'); }
+
 $assert(Money::fromDecimal('123.45', 'USD', 2)->minorUnits === 12345, 'two-decimal money uses integer minor units');
 $assert(Money::fromDecimal('120', 'JPY', 0)->toDecimal() === '120', 'zero-decimal currency formats correctly');
 $assert(Money::fromDecimal('1.234', 'KWD', 3)->toDecimal() === '1.234', 'three-decimal currency formats correctly');
