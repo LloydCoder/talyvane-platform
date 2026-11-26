@@ -950,6 +950,45 @@ $assert($healthError==='' && is_array($healthResult) && ($healthResult['status']
     !str_contains((string)$healthOutput,'HEALTHCHECK_SECRET_MUST_NOT_LEAK'),
     'CLI health check emits machine-readable degraded status without diagnostic leakage or configuration secrets');
 
+$healthPublic = $healthRoot . DIRECTORY_SEPARATOR . 'public';
+mkdir($healthPublic,0755,true);
+foreach ([$healthStorage,$healthLogs,$healthBackups] as $directory) {
+    chmod($directory,0755);
+}
+$worldReadableConfig = $healthConfigDir . DIRECTORY_SEPARATOR . 'world-readable-private-paths.php';
+file_put_contents($worldReadableConfig, "<?php\\nreturn " . var_export([
+    'app_key'=>str_repeat('W',32),
+    'database'=>[],
+    'paths'=>[
+        'document_root'=>$healthPublic,
+        'storage'=>$healthStorage,
+        'logs'=>$healthLogs,
+        'backups'=>$healthBackups,
+    ],
+],true) . ";\\n");
+chmod($worldReadableConfig,0600);
+$permissionProcess = proc_open($healthCommand,[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$permissionPipes,null,['TALYVANE_CONFIG'=>$worldReadableConfig]);
+if (!is_resource($permissionProcess)) {
+    throw new RuntimeException('Could not start native health-check permissions regression test process.');
+}
+fclose($permissionPipes[0]);
+$permissionOutput = stream_get_contents($permissionPipes[1]);
+$permissionError = stream_get_contents($permissionPipes[2]);
+fclose($permissionPipes[1]);
+fclose($permissionPipes[2]);
+$permissionExit = proc_close($permissionProcess);
+$permissionResult = json_decode((string)$permissionOutput,true);
+$permissionStatuses = [];
+foreach (($permissionResult['checks'] ?? []) as $permissionCheck) {
+    $permissionStatuses[$permissionCheck['check']] = $permissionCheck['status'];
+}
+$assert($permissionExit===1 && ($permissionStatuses['private_storage']??null)==='failed' &&
+    ($permissionStatuses['private_logs']??null)==='failed' && ($permissionStatuses['private_backups']??null)==='failed',
+    'CLI health check rejects group/world-accessible private data directories');
+$assert($permissionError==='' && ($permissionStatuses['document_root']??null)==='ok',
+    'CLI health check distinguishes a valid document root from unsafe private-directory permissions');
+
+
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tempRoot, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($iterator as $entry) {
     $entry->isDir() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
