@@ -83,7 +83,7 @@ final class CompanionAvailabilityController
         }
         try {
             $this->availability->setAutomaticBookingPreference(
-                $actor,$this->field($request,'profile_id'),$enabled==='1',$request->requestId
+                $actor,$this->field($request,'profile_id'),$enabled==='1',($this->field($request,'consent_confirmed')==='1'),$request->requestId
             );
             return Response::redirect('/portal/companion/availability?preference=saved');
         } catch (DomainException|InvalidArgumentException $error) {
