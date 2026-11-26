@@ -136,7 +136,7 @@ final class ClientModelAgencyDistributionService
         $query=$this->pdo->prepare(
             'SELECT id,casting_reference,title,project_purpose,country_code,opens_at,closes_at,
                     shoot_starts_at,shoot_ends_at,compensation_amount,currency_code,
-                    description,requirements,status,published_at
+                    description,requirements,casting_policy_version,status,published_at
              FROM model_casting_calls
              WHERE client_user_id=:client AND status IN ("open","closed")
                AND published_at IS NOT NULL
