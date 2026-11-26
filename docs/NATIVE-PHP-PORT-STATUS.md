@@ -17,7 +17,9 @@ Use the following order when determining native parity:
 4. `implementations/php-native/PORTING-TRACKER.md` for the feature-by-feature execution ledger.
 5. This document for a concise cross-domain status and current release gates.
 
-A route, view, table, stub, static test or successful package build is not by itself feature parity. A feature is verified only when positive and negative behavior, authorization, audit, data handling, integration and operational acceptance are evidenced.
+A route, view, table, stub, static test or successful package build is not by itself feature parity.
+
+**Latest runtime change (2026-11-26):** fulfilled client-name and companion-profile corrections enqueue encrypted generic completion notices; notices exclude corrected personal values and companion profiles remain draft for independent republication review. Validation at head `04fb5593bed4786f053e1c014c725faa76a8bd77` is pending; prior results do not validate this change. A feature is verified only when positive and negative behavior, authorization, audit, data handling, integration and operational acceptance are evidenced.
 
 ## Current head and validation
 
