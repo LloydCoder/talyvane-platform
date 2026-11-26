@@ -91,3 +91,10 @@ Client and companion accounts can request a self-service JSON export from their 
 - iCalendar exports use UTC DTSTART/DTEND, opaque HMAC-derived stable UIDs, escaped RFC5545 text, UTF-8-safe 75-octet line folding, LAST-MODIFIED and timestamp-based SEQUENCE values.
 - Recent cancellations are emitted as STATUS:CANCELLED events using the same stable UID so downstream import/synchronization clients can reconcile previously exported events. Only accepted, confirmed and recently changed cancelled bookings are exported.
 - The current implementation is an authenticated download, not a public subscription feed. Calendar tokens, revocation, provider OAuth/webhooks, outbound synchronization, retry queues, pagination beyond the bounded export query and cross-provider reconciliation remain unimplemented. No provider connection or external calendar mutation is implied.
+
+## Client and companion privacy-rights request handling
+
+- Signed-in client and companion accounts can initiate correction or erasure requests. The service requires an active, email-verified account, role-scoped permission, per-account/IP rate limiting and an eight-digit one-time code with a ten-minute expiry and five-attempt lockout.
+- Correction explanations are encrypted with the application SecretBox and a request-specific context string. OTPs are stored only as keyed HMAC digests. The user-facing history exposes request metadata and decisions, never the encrypted explanation.
+- Verification moves the request into the restricted in_review queue. Owner/admin review requires an MFA-verified principal and the dedicated privacy.requests.review permission. Reviewers can defer or reject with a mandatory reason and an audit event.
+- This workflow intentionally does not claim fulfilment. A verified erasure request never automatically disables or deletes an account. Active bookings, financial records, safeguarding duties, legal holds, retention periods and backup expiry must be evaluated before an approved erasure/anonymization workflow is implemented. Correction fulfilment, user notifications on review decisions and retention/backup expiry proof remain outstanding.
