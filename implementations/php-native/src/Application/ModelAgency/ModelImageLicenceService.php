@@ -178,7 +178,7 @@ final class ModelImageLicenceService
                 'actor'=>$actor->id,'execution'=>$this->encrypt($licenceId,'execution_evidence_reference',$executionEvidenceReference),
                 'terms_hash'=>$termsHash,'id'=>$licenceId,
             ]);
-            $this->queueApplicantConsentOffer((string)$application['id'],(string)$application['email'],(string)$licence['licence_reference'],$licenceId,$termsHash);
+            $this->queueApplicantConsentOffer((string)$application['email'],$licenceId,$termsHash);
             $this->event((string)$application['id'],$actor->id,'application.image_licence_consent_offered',
                 'Externally executed image licence offered to the model for a separate consent decision.',$policy['policy_version']);
             $this->audit->record($actor->id,'model_licence.consent_offered','model_image_licence',$licenceId,
@@ -494,7 +494,7 @@ final class ModelImageLicenceService
     }
 
     /** Queue a minimal, encrypted notice in the same transaction as the consent offer. */
-    private function queueApplicantConsentOffer(string $applicationId,string $email,string $licenceReference,string $licenceId,string $termsHash): void
+    private function queueApplicantConsentOffer(string $email,string $licenceId,string $termsHash): void
     {
         $email=strtolower(trim($email));
         if(filter_var($email,FILTER_VALIDATE_EMAIL)===false) {
