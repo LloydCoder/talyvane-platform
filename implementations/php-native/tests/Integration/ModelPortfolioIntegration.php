@@ -173,7 +173,7 @@ function runModelPortfolioIntegration(PDO $pdo): int
         'compensation_amount'=>null,'currency_code'=>null,'max_submissions'=>2,
     ],bin2hex(random_bytes(16)));
     $casting->publish($admin,$callId,bin2hex(random_bytes(16)));
-    $clientId=(string)$pdo->query('SELECT id FROM users WHERE email="native-password-client@example.test"')->fetchColumn();
+    $clientId=(string)$pdo->query('SELECT id FROM users WHERE email="native-password-client-new@example.test"')->fetchColumn();
     if($clientId==='') throw new RuntimeException('Model portfolio distribution test requires the verified client fixture.');
     $clientDistribution=new ClientModelAgencyDistributionService($pdo,$storage,new AuditLogger($pdo),$secretBox);
     $clientDistribution->linkCastingCall($admin,$callId,$clientId,bin2hex(random_bytes(16)));
