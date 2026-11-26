@@ -175,7 +175,7 @@ final class ModelAssignmentService
                 $stored=$assignment['executed_document_reference']??null;
                 if(!is_string($stored) || $stored==='') throw new \DomainException('The executed assignment document must be recorded before the model can accept.');
                 $this->cipher->decrypt($stored,'model-assignment-v1:'.$assignmentId.':executed_document_reference');
-                $evidence='applicant-consent:'.hash('sha256',$statement."\\0".$requestId);
+                $evidence='applicant-consent:'.hash('sha256',$statement."\0".$requestId);
                 AssignmentStateMachine::transition('offered','accepted','applicant',$evidence);
                 $updated=$this->pdo->prepare(
                     'UPDATE model_assignments SET status="accepted",acceptance_recorded_by=NULL,accepted_at=UTC_TIMESTAMP(),
@@ -196,7 +196,7 @@ final class ModelAssignmentService
                     $requestId,$responseVersion);
             } else {
                 AssignmentStateMachine::transition('offered','declined','applicant',null);
-                $evidence='applicant-decline:'.hash('sha256',$statement."\\0".$requestId);
+                $evidence='applicant-decline:'.hash('sha256',$statement."\0".$requestId);
                 $updated=$this->pdo->prepare(
                     'UPDATE model_assignments SET status="declined",declined_by=NULL,declined_at=UTC_TIMESTAMP(),
                      decline_reason=:reason,model_decline_evidence_reference=:evidence,
