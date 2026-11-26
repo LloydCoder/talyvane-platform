@@ -534,12 +534,12 @@ final class ModelCastingWorkflowService
 
     private function assertMarketApproved(string $countryCode,bool $lock): void
     {
-        $sql='SELECT c.enabled,m.enabled AS market_enabled,m.decision,m.expires_at
+        $sql='SELECT c.enabled,m.enabled AS market_enabled,m.decision,m.expires_at,m.evidence_reference
               FROM countries c LEFT JOIN market_policies m ON m.country_code=c.alpha2
               WHERE c.alpha2=:country LIMIT 1'.($lock?' FOR UPDATE':'');
         $query=$this->pdo->prepare($sql);$query->execute(['country'=>$countryCode]);$row=$query->fetch(PDO::FETCH_ASSOC);
         if(!is_array($row) || (int)$row['enabled']!==1 || (int)($row['market_enabled']??0)!==1 ||
-            $row['decision']!=='approved' || $row['expires_at']===null ||
+            $row['decision']!=='approved' || $row['expires_at']===null || $row['evidence_reference']===null ||
             new DateTimeImmutable((string)$row['expires_at'],new DateTimeZone('UTC'))<=new DateTimeImmutable('now',new DateTimeZone('UTC'))) {
             throw new \DomainException('Casting calls require an enabled market with current compliance approval and evidence.');
         }
