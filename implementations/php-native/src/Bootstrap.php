@@ -191,9 +191,10 @@ final class Bootstrap
         $publicDestinationCovers = new PublicDestinationCoverController($destinationCovers);
         $adminMarkets = new AdminMarketController($authentication, new MarketPolicyManagementService($pdo, $audit), $views, $brandName);
         $modelApplications = new ModelAgencyApplicationService($pdo, $audit);
-        $modelCasting = new ModelCastingWorkflowService($pdo,$audit,static fn():bool=>$castingAvailability->enabled('model-agency.casting'));
-        $modelPortfolio = new ModelPortfolioService($pdo,$mediaStorage,$audit,new SecretBox($config['app_key']),static fn():bool=>$castingAvailability->enabled('model-agency.usage-rights'));
-        $modelImageLicences = new ModelImageLicenceService($pdo,$audit,new SecretBox($config['app_key']),$mediaStorage,static fn():bool=>$castingAvailability->enabled('model-agency.usage-rights'));
+        $modelAgencyCipher = new SecretBox($config['app_key']);
+        $modelCasting = new ModelCastingWorkflowService($pdo,$audit,$mediaStorage,$modelAgencyCipher,static fn():bool=>$castingAvailability->enabled('model-agency.casting'));
+        $modelPortfolio = new ModelPortfolioService($pdo,$mediaStorage,$audit,$modelAgencyCipher,static fn():bool=>$castingAvailability->enabled('model-agency.usage-rights'));
+        $modelImageLicences = new ModelImageLicenceService($pdo,$audit,$modelAgencyCipher,$mediaStorage,static fn():bool=>$castingAvailability->enabled('model-agency.usage-rights'));
         $publicModelAgency = new PublicModelAgencyController($pdo, $modelApplications, $contentManagement, $rateLimiter, $modelApplicantRights, $views);
         $adminModelAgency = new AdminModelAgencyController($authentication, $modelApplications, $views, $brandName);
         $adminModelCasting = new AdminModelCastingController($authentication,$modelCasting,$views,$brandName);
