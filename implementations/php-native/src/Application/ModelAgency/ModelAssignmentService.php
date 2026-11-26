@@ -104,6 +104,96 @@ final class ModelAssignmentService
         $this->transition($actor,$assignmentId,'offered',null,null,$requestId);
     }
 
+    public function recordExecutionEvidence(Principal $actor,string $assignmentId,string $executedDocumentReference,string $requestId): void
+    {
+        $this->authorize($actor);$this->assertRequestId($requestId);
+        $this->assertEvidenceReference($executedDocumentReference,'private/model-assignments/');
+        $this->pdo->beginTransaction();
+        try {
+            $assignment=$this->lock('model_assignments',$assignmentId);
+            if($assignment['status']!=='offered' || !empty($assignment['executed_document_reference'])) {
+                throw new \DomainException('External execution evidence can only be recorded once for an offered assignment.');
+            }
+            $this->pdo->prepare(
+                'UPDATE model_assignments SET executed_document_reference=:evidence,acceptance_recorded_by=:actor,updated_at=UTC_TIMESTAMP() WHERE id=:id'
+            )->execute(['evidence'=>$this->encryptField($assignmentId,'executed_document_reference',$executedDocumentReference),
+                'actor'=>$actor->id,'id'=>$assignmentId]);
+            $this->event($assignmentId,$actor->id,'assignment.execution_evidence_recorded','offered','offered',
+                'External assignment execution evidence was recorded before applicant response.',$this->policyVersionOrLegacy($assignment)['assignment_policy_version']);
+            $this->audit->record($actor->id,'model_assignment.execution_evidence_recorded','model_assignment',$assignmentId,
+                'Recorded external assignment execution evidence',null,['evidence_sha256'=>hash('sha256',$executedDocumentReference)],
+                $requestId,'model-assignment-v1');
+            $this->pdo->commit();
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    public function respondByApplicant(string $applicationId,string $assignmentId,string $decision,string $statement,string $requestId): void
+    {
+        $this->assertRequestId($requestId);
+        if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId) || !in_array($decision,['accept','decline'],true)) {
+            throw new \InvalidArgumentException('Applicant assignment response is invalid.');
+        }
+        $statement=trim($statement);
+        if(strlen($statement)<20 || strlen($statement)>2000) {
+            throw new \InvalidArgumentException('A reasoned assignment response of 20 to 2000 characters is required.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $assignment=$this->lock('model_assignments',$assignmentId);
+            if(!hash_equals((string)$assignment['application_id'],$applicationId) || $assignment['status']!=='offered') {
+                throw new \DomainException('This assignment offer is not available to the verified applicant.');
+            }
+            $submission=$this->lock('model_casting_submissions',(string)$assignment['submission_id']);
+            $application=$this->lock('model_talent_applications',$applicationId);
+            $asset=$this->lock('model_portfolio_assets',(string)$submission['portfolio_asset_id']);
+            $licence=$this->lock('model_image_licences',(string)$submission['image_licence_id']);
+            $call=$this->lock('model_casting_calls',(string)$submission['casting_call_id']);
+            $agreement=$this->lock('model_representation_agreements',(string)$assignment['representation_agreement_id']);
+            $this->assertCurrentEligibility($assignment,$submission,$application,$asset,$licence,$call,$agreement);
+            $policyVersion=$this->policyVersionOrLegacy($assignment)['assignment_policy_version'];
+            if($decision==='accept') {
+                $stored=$assignment['executed_document_reference']??null;
+                if(!is_string($stored) || $stored==='') throw new \DomainException('The executed assignment document must be recorded before the model can accept.');
+                $this->cipher->decrypt($stored,'model-assignment-v1:'.$assignmentId.':executed_document_reference');
+                $evidence='applicant-consent:'.hash('sha256',$statement."\0".$requestId);
+                AssignmentStateMachine::transition('offered','accepted','applicant',$evidence);
+                $this->pdo->prepare(
+                    'UPDATE model_assignments SET status="accepted",acceptance_recorded_by=NULL,accepted_at=UTC_TIMESTAMP(),
+                     model_acceptance_evidence_reference=:evidence,updated_at=UTC_TIMESTAMP() WHERE id=:id AND status="offered"'
+                )->execute(['evidence'=>$this->encryptField($assignmentId,'model_acceptance_evidence_reference',$statement),'id'=>$assignmentId]);
+                $this->event($assignmentId,null,'assignment.applicant_accepted','offered','accepted',
+                    'Applicant voluntarily accepted the offered assignment and recorded their consent.',$policyVersion,'applicant');
+                $this->audit->record(null,'model_assignment.applicant_accepted','model_assignment',$assignmentId,
+                    'Applicant accepted a private model assignment',['status'=>'offered'],['status'=>'accepted','consent_sha256'=>hash('sha256',$statement)],
+                    $requestId,'model-assignment-v1');
+            } else {
+                AssignmentStateMachine::transition('offered','declined','applicant',null);
+                $evidence='applicant-decline:'.hash('sha256',$statement."\0".$requestId);
+                $this->pdo->prepare(
+                    'UPDATE model_assignments SET status="declined",declined_by=NULL,declined_at=UTC_TIMESTAMP(),
+                     decline_reason=:reason,model_decline_evidence_reference=:evidence,updated_at=UTC_TIMESTAMP()
+                     WHERE id=:id AND status="offered"'
+                )->execute([
+                    'reason'=>$this->encryptField($assignmentId,'decline_reason',$statement),
+                    'evidence'=>$this->encryptField($assignmentId,'model_decline_evidence_reference',$evidence),
+                    'id'=>$assignmentId,
+                ]);
+                $this->event($assignmentId,null,'assignment.applicant_declined','offered','declined',
+                    'Applicant declined the offered assignment.',$policyVersion,'applicant');
+                $this->audit->record(null,'model_assignment.applicant_declined','model_assignment',$assignmentId,
+                    'Applicant declined a private model assignment',['status'=>'offered'],['status'=>'declined','reason_sha256'=>hash('sha256',$statement)],
+                    $requestId,'model-assignment-v1');
+            }
+            $this->pdo->commit();
+        } catch(Throwable $error) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $error;
+        }
+    }
+
     public function recordAcceptance(Principal $actor,string $assignmentId,string $executedDocumentReference,string $modelConsentEvidenceReference,string $requestId): void
     {
         $this->assertEvidenceReference($executedDocumentReference,'private/model-assignments/');
@@ -440,12 +530,12 @@ final class ModelAssignmentService
         return $minor;
     }
 
-    private function event(string $assignmentId,string $actorId,string $type,string $fromStatus,string $toStatus,string $reason,string $policyVersion): void
+    private function event(string $assignmentId,?string $actorId,string $type,string $fromStatus,string $toStatus,string $reason,string $policyVersion,string $actorType='administrator'): void
     {
         $this->pdo->prepare(
             'INSERT INTO model_assignment_events (id,assignment_id,actor_user_id,actor_type,from_status,to_status,event_type,reason,evidence_reference,occurred_at,created_at,updated_at)
-             VALUES (:id,:assignment,:actor,"administrator",:from_status,:to_status,:event,:reason,NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
-        )->execute(['id'=>self::uuid(),'assignment'=>$assignmentId,'actor'=>$actorId,'from_status'=>$fromStatus,'to_status'=>$toStatus,'event'=>$type,
+             VALUES (:id,:assignment,:actor,:actor_type,:from_status,:to_status,:event,:reason,NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+        )->execute(['id'=>self::uuid(),'assignment'=>$assignmentId,'actor'=>$actorId,'actor_type'=>$actorType,'from_status'=>$fromStatus,'to_status'=>$toStatus,'event'=>$type,
             'reason'=>$this->cipher->encrypt($reason,'model-assignment-event-v1:'.$assignmentId.':'.$type)]);
     }
 
