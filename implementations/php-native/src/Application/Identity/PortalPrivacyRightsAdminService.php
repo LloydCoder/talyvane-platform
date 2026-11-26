@@ -58,7 +58,7 @@ final class PortalPrivacyRightsAdminService
         $this->pdo->beginTransaction();
         try {
             $query=$this->pdo->prepare(
-                'SELECT id,user_id,request_type,status FROM portal_privacy_requests
+                'SELECT id,user_id,account_type,request_type,status FROM portal_privacy_requests
                  WHERE id=:id FOR UPDATE'
             );
             $query->execute(['id'=>$requestId]);
@@ -72,6 +72,19 @@ final class PortalPrivacyRightsAdminService
                      decision_reason=:reason,completed_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP()
                  WHERE id=:id'
             )->execute(['status'=>$decision,'reviewer'=>$actor->id,'reason'=>$reason,'id'=>$requestId]);
+            if ($this->outcomes!==null) {
+                $recipientQuery=$this->pdo->prepare('SELECT email,status FROM users WHERE id=:id FOR UPDATE');
+                $recipientQuery->execute(['id'=>$request['user_id']]);
+                $recipient=$recipientQuery->fetch(PDO::FETCH_ASSOC);
+                if (!is_array($recipient) || $recipient['status']!=='active' ||
+                    !is_string($recipient['email']) || !filter_var($recipient['email'],FILTER_VALIDATE_EMAIL)) {
+                    throw new \\DomainException('The privacy request account has no active verified notification destination.');
+                }
+                $this->outcomes->enqueueReviewDecision(
+                    $requestId,(string)$recipient['email'],(string)$request['account_type'],
+                    (string)$request['request_type'],$decision
+                );
+            }
             $this->audit->record($actor->id,'portal.privacy.reviewed','portal_privacy_request',$requestId,
                 'Administrator recorded a privacy-rights review decision',
                 ['status'=>'in_review'],['status'=>$decision,'reason'=>$reason,'request_type'=>$request['request_type']],
