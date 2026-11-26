@@ -33,7 +33,7 @@ final class BookingCommandService
         $this->pdo->beginTransaction();
         try {
             $query = $this->pdo->prepare(
-                'SELECT b.id,b.client_user_id,b.profile_id,b.status,b.deposit_status,p.user_id AS companion_user_id
+                'SELECT b.id,b.client_user_id,b.profile_id,b.status,b.deposit_status,b.starts_at_utc,p.user_id AS companion_user_id
                  FROM bookings b JOIN companion_profiles p ON p.id = b.profile_id
                  WHERE b.id = :id FOR UPDATE'
             );
@@ -44,6 +44,19 @@ final class BookingCommandService
             }
             $this->assertBookingOwnership($actor,$actorRole,$booking);
             $fromState = (string) $booking['status'];
+            if ($actorRole === 'client' && $toState === 'cancelled') {
+                $policy = $this->policies->current();
+                $cancellation = new \\Talyvane\\Domain\\Booking\\BookingCancellationPolicy(
+                    $policy->clientCancellationEnabled,
+                    $policy->clientCancellationCutoffMinutes
+                );
+                $cancellation->assertAllowed(
+                    'client',
+                    $fromState,
+                    new DateTimeImmutable((string) $booking['starts_at_utc'],new DateTimeZone('UTC')),
+                    new DateTimeImmutable('now',new DateTimeZone('UTC'))
+                );
+            }
             $newState = BookingStateMachine::transition($fromState,$toState,$actorRole);
             if ($toState === 'confirmed' && !in_array($booking['deposit_status'],['paid','not_required'],true)) {
                 throw new \DomainException('Booking cannot be confirmed until the required deposit is verified.');
