@@ -283,20 +283,29 @@ final class ModelAssignmentService
     {
         if(!preg_match('/^[0-9a-f-]{36}$/iD',$applicationId)) throw new \InvalidArgumentException('Applicant identity is invalid.');
         $query=$this->pdo->prepare(
-            'SELECT id,assignment_reference,status,project_purpose,country_code,client_name,client_reference,brief,
-                    location_city,shoot_starts_at,shoot_ends_at,deliverables,compensation_minor,currency_code,
-                    expense_cap_minor,
-                    CASE WHEN executed_document_reference IS NOT NULL AND executed_document_reference<>"" THEN 1 ELSE 0 END AS execution_evidence_ready,
-                    offered_at,accepted_at,confirmed_at,started_at,completed_at
-             FROM model_assignments WHERE application_id=:application
-             ORDER BY created_at DESC LIMIT 100'
+            'SELECT a.id,a.assignment_reference,a.status,a.project_purpose,a.country_code,a.client_name,a.brief,
+                    a.location_city,a.shoot_starts_at,a.shoot_ends_at,a.deliverables,a.compensation_minor,a.currency_code,
+                    a.expense_cap_minor,c.minor_units AS currency_precision,
+                    CASE WHEN a.executed_document_reference IS NOT NULL AND a.executed_document_reference<>"" THEN 1 ELSE 0 END AS execution_evidence_ready,
+                    a.offered_at,a.accepted_at,a.confirmed_at,a.started_at,a.completed_at
+             FROM model_assignments a LEFT JOIN currencies c ON c.code=a.currency_code
+             WHERE a.application_id=:application
+             ORDER BY a.created_at DESC LIMIT 100'
         );
         $query->execute(['application'=>$applicationId]);$rows=$query->fetchAll(PDO::FETCH_ASSOC);
         foreach($rows as &$row) {
-            foreach(['client_name','client_reference','brief','location_city','deliverables'] as $field) {
+            $row['response_enabled']=($this->assignmentsEnabled)();
+            if($row['currency_code']!==null && $row['currency_precision']===null) {
+                throw new \DomainException('Assignment currency precision is unavailable.');
+            }
+            $precision=(int)($row['currency_precision']??0);
+            $row['compensation_amount']=$row['compensation_minor']===null?null:$this->minorToDecimal((int)$row['compensation_minor'],$precision);
+            $row['expense_cap_amount']=$this->minorToDecimal((int)$row['expense_cap_minor'],$precision);
+            unset($row['currency_precision'],$row['compensation_minor'],$row['expense_cap_minor']);
+            foreach(['client_name','brief','location_city','deliverables'] as $field) {
                 $stored=$row[$field]??null;
                 $row[$field]=is_string($stored) && $stored!==''?
-                    $this->cipher->decrypt($stored,'model-assignment-v1:'.$row['id'].':'.$field):null;
+                    $this->cipher->decrypt($stored,'model-assignment-v1:'.$row['id'].':'.$field):'';
             }
         }
         unset($row);
@@ -535,6 +544,40 @@ final class ModelAssignmentService
             new DateTimeImmutable((string)$row['expires_at'],new DateTimeZone('UTC'))<=new DateTimeImmutable('now',new DateTimeZone('UTC'))) {
             throw new \DomainException('Assignment requires a current approved market with evidence.');
         }
+    }
+
+    private function minorToDecimal(int $minor,int $precision): string
+    {
+        if($minor<0 || $precision<0 || $precision>4) throw new \DomainException('Assignment currency precision is unsupported.');
+        $scale=10**$precision;$whole=intdiv($minor,$scale);$fraction=$minor%$scale;
+        return $precision===0?(string)$whole:$whole.'.'.str_pad((string)$fraction,$precision,'0',STR_PAD_LEFT);
+    }
+
+    private function modelVisibleTermsHash(array $assignment): string
+    {
+        $id=(string)$assignment['id'];$precision=0;
+        if(is_string($assignment['currency_code']??null) && $assignment['currency_code']!=='') {
+            $currency=$this->pdo->prepare('SELECT minor_units FROM currencies WHERE code=:code LIMIT 1');
+            $currency->execute(['code'=>$assignment['currency_code']]);$value=$currency->fetchColumn();
+            if($value===false) throw new \DomainException('Assignment currency precision is unavailable.');
+            $precision=(int)$value;
+        }
+        $terms=[
+            'assignment_reference'=>(string)$assignment['assignment_reference'],
+            'project_purpose'=>(string)$assignment['project_purpose'],
+            'country_code'=>(string)$assignment['country_code'],
+            'client_name'=>$this->cipher->decrypt((string)$assignment['client_name'],'model-assignment-v1:'.$id.':client_name'),
+            'brief'=>$this->cipher->decrypt((string)$assignment['brief'],'model-assignment-v1:'.$id.':brief'),
+            'location_city'=>$this->cipher->decrypt((string)$assignment['location_city'],'model-assignment-v1:'.$id.':location_city'),
+            'shoot_starts_at'=>(string)$assignment['shoot_starts_at'],
+            'shoot_ends_at'=>(string)$assignment['shoot_ends_at'],
+            'deliverables'=>$this->cipher->decrypt((string)$assignment['deliverables'],'model-assignment-v1:'.$id.':deliverables'),
+            'compensation_minor'=>$assignment['compensation_minor']===null?null:(int)$assignment['compensation_minor'],
+            'currency_code'=>$assignment['currency_code']===null?null:(string)$assignment['currency_code'],
+            'currency_precision'=>$precision,
+            'expense_cap_minor'=>(int)$assignment['expense_cap_minor'],
+        ];
+        return hash('sha256',json_encode($terms,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));
     }
 
     private function decimalToMinor(string $amount,int $precision): int
