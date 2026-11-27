@@ -1106,4 +1106,6 @@ foreach ($iterator as $entry) {
 }
 rmdir($tempRoot);
 
+PublicSitemapDocumentTest::run($assert);
+
 fwrite(STDOUT, sprintf("Native PHP foundation: %d assertions passed.\n", $tests));
