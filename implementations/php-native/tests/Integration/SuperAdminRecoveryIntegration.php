@@ -128,6 +128,9 @@ function runSuperAdminRecoveryIntegration(PDO $pdo): int
         'notification failure rolls back recovery-key rotation and session invalidation');
     $assert((int)$pdo->query('SELECT COUNT(*) FROM admin_mfa_credentials WHERE user_id='.$pdo->quote($userId))->fetchColumn()===1,
         'notification failure leaves the current MFA credential intact');
+    $failedEvent=$pdo->query('SELECT event_key,notification_status FROM super_admin_recovery_events WHERE actor_user_id='.$pdo->quote($userId).' ORDER BY created_at DESC LIMIT 1')->fetch();
+    $assert(is_array($failedEvent) && $failedEvent['event_key']==='recovery_notification_failed' && $failedEvent['notification_status']==='failed',
+        'failed notification delivery is recorded without committing recovery state');
 
     return $assertions;
 }
