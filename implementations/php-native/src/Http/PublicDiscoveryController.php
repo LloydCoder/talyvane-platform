@@ -5,6 +5,7 @@ namespace Talyvane\Http;
 
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Identity\AuthenticationService;
+use Talyvane\Application\SEO\PublicSitemapService;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\Principal;
 use Talyvane\Security\SessionManager;
