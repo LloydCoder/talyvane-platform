@@ -208,7 +208,7 @@ final class Bootstrap
         $companionMedia = new CompanionMediaController($authentication,$profileMedia,$views,$brandName);
         $adminProfileMedia = new AdminProfileMediaController($authentication,$profileMedia,$views,$brandName);
         $publicProfileMedia = new PublicProfileMediaController($profileMedia);
-        $publicEnquiries = new PublicEnquiryController($enquiries, $contentManagement, $views, $brandName);
+        $publicEnquiries = new PublicEnquiryController($enquiries,$contentManagement,$views,$brandName,$sitemap);
         $adminEnquiries = new AdminEnquiryController($enquiries, $authentication, $views, $brandName);
         $companionPublication = new CompanionProfilePublicationService($pdo, $audit);
         $adminCompanions = new AdminCompanionController($authentication, $companionPublication, $views, $brandName);
