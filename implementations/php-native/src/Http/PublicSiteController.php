@@ -51,6 +51,7 @@ final class PublicSiteController
         return Response::html($this->views->render('public/home', [
             'brand' => $brand,
             'sections' => $items,
+            'testimonials' => $this->editorial->publicTestimonials('en'),
             'navigation' => $this->publicNavigation('header','en'),
             'footerNavigation' => $this->publicNavigation('footer','en'),
             'requestId' => $request->requestId,
