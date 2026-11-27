@@ -4,11 +4,21 @@ declare(strict_types=1);
 namespace Talyvane\Http;
 
 use PDO;
+use Talyvane\Application\SEO\PublicSitemapService;
 
 /** Public CMS endpoints. Content is emitted as text, never trusted HTML. */
 final class PublicSiteController
 {
-    public function __construct(private PDO $pdo, private ViewRenderer $views) {}
+    public function __construct(private PDO $pdo, private ViewRenderer $views, private PublicSitemapService $sitemap) {}
+
+    public function sitemap(Request $request): Response
+    {
+        $xml = $this->sitemap->xml();
+        return Response::html($xml)->withHeaders([
+            'content-type'=>'application/xml; charset=utf-8',
+            'cache-control'=>'public, max-age=3600',
+        ]);
+    }
 
     public function home(Request $request): Response
     {
