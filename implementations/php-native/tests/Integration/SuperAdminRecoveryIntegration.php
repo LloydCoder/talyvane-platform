@@ -93,7 +93,7 @@ function runSuperAdminRecoveryIntegration(PDO $pdo): int
         array_column($mailer->messages,'recipient')===[$primary,$recoveryEmail] &&
         !str_contains($mailer->messages[0]['body'],$newKey) && !str_contains($mailer->messages[1]['body'],$newKey),
         'both verified administrator addresses receive notices without receiving the new offline key');
-    $event=$pdo->query('SELECT event_key,notification_status,session_version_before,session_version_after FROM super_admin_recovery_events WHERE actor_user_id='.$pdo->quote($userId).' AND event_key="recovery_notification_failed" ORDER BY created_at DESC LIMIT 1')->fetch();
+    $event=$pdo->query('SELECT event_key,notification_status,session_version_before,session_version_after FROM super_admin_recovery_events WHERE actor_user_id='.$pdo->quote($userId).' AND event_key="mfa_recovered" ORDER BY created_at DESC LIMIT 1')->fetch();
     $assert(is_array($event) && $event['event_key']==='mfa_recovered' && $event['notification_status']==='sent' &&
         (int)$event['session_version_before']===7 && (int)$event['session_version_after']===8,
         'successful recovery records an attributable event and session-version transition: '.json_encode($event));
@@ -121,7 +121,7 @@ function runSuperAdminRecoveryIntegration(PDO $pdo): int
         'notification failure rolls back recovery-key rotation and session invalidation');
     $assert((int)$pdo->query('SELECT COUNT(*) FROM admin_mfa_credentials WHERE user_id='.$pdo->quote($userId))->fetchColumn()===1,
         'notification failure leaves the current MFA credential intact');
-    $failedEvent=$pdo->query('SELECT event_key,notification_status FROM super_admin_recovery_events WHERE actor_user_id='.$pdo->quote($userId).' ORDER BY created_at DESC LIMIT 1')->fetch();
+    $failedEvent=$pdo->query('SELECT event_key,notification_status FROM super_admin_recovery_events WHERE actor_user_id='.$pdo->quote($userId).' AND event_key="recovery_notification_failed" ORDER BY created_at DESC LIMIT 1')->fetch();
     $assert(is_array($failedEvent) && $failedEvent['event_key']==='recovery_notification_failed' && $failedEvent['notification_status']==='failed',
         'failed notification delivery is recorded without committing recovery state');
 
