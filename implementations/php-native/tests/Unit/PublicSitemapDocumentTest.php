@@ -15,6 +15,14 @@ final class PublicSitemapDocumentTest
         $assert(str_contains($xml, '<loc>https://example.test/</loc>'), 'sitemap emits an absolute canonical homepage URL');
         $assert(str_contains($xml, '<loc>https://example.test/pages/privacy</loc>'), 'sitemap emits published page paths on the configured origin');
         $assert(str_contains($xml, 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'), 'sitemap uses the standard sitemap namespace');
+        $assert(SitemapDocument::url('https://EXAMPLE.test:443/', '/profiles/alex-example') === 'https://example.test/profiles/alex-example', 'canonical URL generation normalizes the configured HTTPS origin and omits default port');
+
+        try {
+            SitemapDocument::url('https://example.test', '//attacker.test');
+            $assert(false, 'canonical URL generation rejects protocol-relative destinations');
+        } catch (InvalidArgumentException) {
+            $assert(true, 'canonical URL generation rejects protocol-relative destinations');
+        }
 
         foreach ([
             'http://example.test',
