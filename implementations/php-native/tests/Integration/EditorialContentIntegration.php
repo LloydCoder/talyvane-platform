@@ -92,6 +92,16 @@ function runEditorialContentIntegration(PDO $pdo): int
     );
     $assert($service->publicTestimonials('en')===[],'draft testimonials are not public');
     $service->publishTestimonial($admin,$testimonialId,'Approve consented testimonial',bin2hex(random_bytes(16)));
+    $legacyNoConsentId=sprintf('%08x-%04x-4%03x-8%03x-%012x',random_int(1,0xffffffff),random_int(0,0xffff),random_int(0,0xfff),random_int(0,0xfff),random_int(0,0xffffffffffff));
+    $legacyNoConsentVersion=sprintf('%08x-%04x-4%03x-8%03x-%012x',random_int(1,0xffffffff),random_int(0,0xffff),random_int(0,0xfff),random_int(0,0xfff),random_int(0,0xffffffffffff));
+    $pdo->prepare(
+        'INSERT INTO testimonials (id,display_name,quote_text,locale,status,consent_reference,sort_order,created_by,created_at,updated_at,version,published_version,updated_by)
+         VALUES (:id,"Legacy no-consent","Must not be public","en","published","",0,:actor,UTC_TIMESTAMP(),UTC_TIMESTAMP(),1,1,:updated_by)'
+    )->execute(['id'=>$legacyNoConsentId,'actor'=>$adminId,'updated_by'=>$adminId]);
+    $pdo->prepare(
+        'INSERT INTO testimonial_versions (id,testimonial_id,version,display_name,quote_text,locale,consent_reference,sort_order,changed_by,change_reason,created_at)
+         VALUES (:id,:testimonial,1,"Legacy no-consent","Must not be public","en","",0,:actor,"Legacy test row",UTC_TIMESTAMP())'
+    )->execute(['id'=>$legacyNoConsentVersion,'testimonial'=>$legacyNoConsentId,'actor'=>$adminId]);
     $publicTestimonials=$service->publicTestimonials('en');
     $assert(count($publicTestimonials)===1 && $publicTestimonials[0]['display_name']==='A verified client' &&
         !array_key_exists('consent_reference',$publicTestimonials[0]),
