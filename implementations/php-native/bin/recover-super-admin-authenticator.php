@@ -15,24 +15,43 @@ if (PHP_SAPI!=='cli') {
 
 require dirname(__DIR__).'/bootstrap.php';
 
+function runStty(array $arguments): ?array
+{
+    if (!function_exists('proc_open')) return null;
+    $process=proc_open(array_merge(['stty'],$arguments),[
+        0=>STDIN,
+        1=>['pipe','w'],
+        2=>['pipe','w'],
+    ],$pipes);
+    if (!is_resource($process)) return null;
+    $output=stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    $error=stream_get_contents($pipes[2]);
+    fclose($pipes[2]);
+    $status=proc_close($process);
+    if (!is_string($output) || !is_string($error)) return null;
+    return ['status'=>$status,'output'=>trim($output)];
+}
+
 function recoveryPrompt(string $label): string
 {
     fwrite(STDOUT,$label);
-    $stateOutput=shell_exec('stty -g 2>/dev/null');
-    $state=is_string($stateOutput)?trim($stateOutput):'';
-    if ($state==='' || preg_match('/^[0-9a-fA-F:;]+$/D',$state)!==1) {
+    $stateResult=runStty(['-g']);
+    $state=is_array($stateResult)?$stateResult['output']:'';
+    if (!is_array($stateResult) || $stateResult['status']!==0 ||
+        $state==='' || preg_match('/^[0-9a-fA-F:;]+$/D',$state)!==1) {
         throw new RuntimeException('A real interactive terminal is required for hidden credential input.');
     }
-    $disabled=shell_exec('stty -echo 2>/dev/null && printf "__TALYVANE_STTY_OK__"');
-    if (!is_string($disabled) || !str_contains($disabled,'__TALYVANE_STTY_OK__')) {
+    $disabled=runStty(['-echo']);
+    if (!is_array($disabled) || $disabled['status']!==0) {
         throw new RuntimeException('Terminal input could not be protected from echo.');
     }
     try {
         $value=fgets(STDIN);
     } finally {
-        $restored=shell_exec('stty '.escapeshellarg($state).' 2>/dev/null && printf "__TALYVANE_STTY_OK__"');
+        $restored=runStty([$state]);
         fwrite(STDOUT,PHP_EOL);
-        if (!is_string($restored) || !str_contains($restored,'__TALYVANE_STTY_OK__')) {
+        if (!is_array($restored) || $restored['status']!==0) {
             throw new RuntimeException('Terminal echo could not be restored safely.');
         }
     }
