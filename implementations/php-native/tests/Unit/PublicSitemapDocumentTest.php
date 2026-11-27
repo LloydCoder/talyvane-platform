@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use Talyvane\\Application\\SEO\\SitemapDocument;
+use Talyvane\Application\SEO\SitemapDocument;
 
 final class PublicSitemapDocumentTest
 {
@@ -38,7 +38,7 @@ final class PublicSitemapDocumentTest
             '/pages/../admin',
             '/pages/privacy?preview=1',
             '/pages/privacy#fragment',
-            '/pages/unsafe\\path',
+            '/pages/unsafe\path',
             '/pages/UPPERCASE',
         ] as $invalidPath) {
             try {
