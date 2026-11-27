@@ -20,7 +20,7 @@ $server->exec('CREATE DATABASE IF NOT EXISTS talyvane_native_test CHARACTER SET 
 $pdo = ConnectionFactory::mysql(['host'=>$host,'port'=>$port,'database'=>$name,'username'=>$user,'password'=>$password]);
 $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
 $applied = $runner->migrate();
-if (count($applied) !== 46 || $runner->migrate() !== []) {
+if (count($applied) !== 47 || $runner->migrate() !== []) {
     throw new RuntimeException('Native PHP migrations failed or are not idempotent.');
 }
 $referenceImporter = new ReferenceDataImporter($pdo);
