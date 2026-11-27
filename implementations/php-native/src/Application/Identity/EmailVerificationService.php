@@ -77,7 +77,7 @@ final class EmailVerificationService
         $hash = hash_hmac('sha256', $code, $this->pepper);
         $this->pdo->beginTransaction();
         try {
-            $consume = $this->pdo->prepare('UPDATE email_verification_challenges SET consumed_at = UTC_TIMESTAMP() WHERE user_id = :user AND purpose = :purpose AND consumed_at IS NULL');
+            $consume = $this->pdo->prepare('UPDATE email_verification_challenges SET superseded_at=UTC_TIMESTAMP(),consumed_at=UTC_TIMESTAMP() WHERE user_id=:user AND purpose=:purpose AND superseded_at IS NULL');
             $consume->execute(['user'=>$userId,'purpose'=>$purpose]);
             $insert = $this->pdo->prepare(
                 'INSERT INTO email_verification_challenges (id,user_id,email_address,purpose,code_hash,expires_at,attempts,verified_at,consumed_at,created_at)
@@ -115,7 +115,7 @@ final class EmailVerificationService
             $query = $this->pdo->prepare(
                 'SELECT id,code_hash,expires_at,attempts FROM email_verification_challenges
                  WHERE user_id = :user AND email_address = :email AND purpose = :purpose
-                 AND consumed_at IS NULL AND verified_at IS NULL
+                 AND consumed_at IS NULL AND verified_at IS NULL AND superseded_at IS NULL
                  ORDER BY created_at DESC LIMIT 1 FOR UPDATE'
             );
             $query->execute(['user'=>$userId,'email'=>$email,'purpose'=>$purpose]);
@@ -141,11 +141,16 @@ final class EmailVerificationService
                     throw new \DomainException('Pending account email changed or was already activated.');
                 }
             } elseif ($purpose === 'admin_primary') {
-                $userUpdate = $this->pdo->prepare('UPDATE users SET email_verified_at = UTC_TIMESTAMP(), updated_at = UTC_TIMESTAMP() WHERE id = :user AND LOWER(email) = :email AND status = "pending"');
-                $userUpdate->execute(['user'=>$userId,'email'=>$email]);
-                if ($userUpdate->rowCount() !== 1) {
-                    throw new \DomainException('Pending administrator email changed or was already activated.');
+                $userCheck=$this->pdo->prepare('SELECT 1 FROM users WHERE id=:user AND LOWER(email)=:email AND status IN ("pending","active") FOR UPDATE');
+                $userCheck->execute(['user'=>$userId,'email'=>$email]);
+                if ($userCheck->fetchColumn()===false) {
+                    throw new \DomainException('Administrator primary email does not match the account.');
                 }
+                $userUpdate=$this->pdo->prepare(
+                    'UPDATE users SET email_verified_at=COALESCE(email_verified_at,UTC_TIMESTAMP()),updated_at=UTC_TIMESTAMP()
+                     WHERE id=:user AND LOWER(email)=:email AND status IN ("pending","active")'
+                );
+                $userUpdate->execute(['user'=>$userId,'email'=>$email]);
             }
             $this->pdo->commit();
             return true;
