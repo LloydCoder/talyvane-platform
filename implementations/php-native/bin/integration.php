@@ -20,7 +20,7 @@ $server->exec('CREATE DATABASE IF NOT EXISTS talyvane_native_test CHARACTER SET 
 $pdo = ConnectionFactory::mysql(['host'=>$host,'port'=>$port,'database'=>$name,'username'=>$user,'password'=>$password]);
 $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
 $applied = $runner->migrate();
-if (count($applied) !== 44 || $runner->migrate() !== []) {
+if (count($applied) !== 45 || $runner->migrate() !== []) {
     throw new RuntimeException('Native PHP migrations failed or are not idempotent.');
 }
 $referenceImporter = new ReferenceDataImporter($pdo);
@@ -67,6 +67,7 @@ require __DIR__ . '/../tests/Integration/ModelAgencyIntegration.php';
 require __DIR__ . '/../tests/Integration/ModelCastingIntegration.php';
 require __DIR__ . '/../tests/Integration/ModelPortfolioIntegration.php';
 require __DIR__ . '/../tests/Integration/ContentManagementIntegration.php';
+require __DIR__ . '/../tests/Integration/EditorialContentIntegration.php';
 require __DIR__ . '/../tests/Integration/EnquiryIntegration.php';
 require __DIR__ . '/../tests/Integration/AuditQueryIntegration.php';
 $installerAssertions = runInstallerBootstrapIntegration($pdo);
@@ -78,6 +79,7 @@ $modelAgencyAssertions = runModelAgencyIntegration($pdo);
 $modelCastingAssertions = runModelCastingIntegration($pdo);
 $modelPortfolioAssertions = runModelPortfolioIntegration($pdo);
 $contentAssertions = runContentManagementIntegration($pdo);
+$editorialAssertions = runEditorialContentIntegration($pdo);
 $enquiryAssertions = runEnquiryIntegration($pdo);
 $auditAssertions = runAuditQueryIntegration($pdo);
 fwrite(STDOUT, sprintf("Native PHP MySQL integration: %d migrations, %d installer-bootstrap assertions, %d membership assertions, %d safeguarding assertions, %d identity assertions, %d profile-media assertions, %d model-agency/privacy assertions, %d model-casting assertions, %d model-portfolio assertions, %d content-management assertions, %d enquiry/CRM assertions and %d audit-query assertions passed.\n", count($applied), $installerAssertions, $membershipAssertions, $safeguardingAssertions, $identityAssertions, $mediaAssertions, $modelAgencyAssertions, $modelCastingAssertions, $modelPortfolioAssertions, $contentAssertions, $enquiryAssertions, $auditAssertions));
