@@ -35,6 +35,7 @@ use Talyvane\Application\Bookings\BookingQuoteService;
 use Talyvane\Application\Bookings\BookingQueryService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Content\ContentManagementService;
+use Talyvane\Application\Content\EditorialContentService;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\SEO\PublicSitemapService;
 use Talyvane\Application\Media\ProfileMediaService;
@@ -91,6 +92,7 @@ use Talyvane\Http\PublicModelAgencyRightsController;
 use Talyvane\Http\PublicDiscoveryController;
 use Talyvane\Http\PublicEnquiryController;
 use Talyvane\Http\AdminContentController;
+use Talyvane\Http\AdminFaqController;
 use Talyvane\Http\PortalBookingController;
 use Talyvane\Http\PublicSiteController;
 use Talyvane\Http\Request;
@@ -173,7 +175,8 @@ final class Bootstrap
 
         $discovery = new DiscoveryService($pdo);
         $sitemap = new PublicSitemapService($pdo,$discovery,(string) ($config['app_url'] ?? ''));
-        $public = new PublicSiteController($pdo,$views,$sitemap);
+        $editorialContent = new EditorialContentService($pdo,$audit);
+        $public = new PublicSiteController($pdo,$views,$sitemap,$editorialContent);
         $contentManagement = new ContentManagementService($pdo, $audit);
         $brandName = (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane');
         $membershipEligibility = static function(string $dependency) use ($pdo,$brandName): bool {
@@ -202,6 +205,7 @@ final class Bootstrap
         $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
         $adminAudit = new AdminAuditController($authentication, new AuditQueryService($pdo), $views, (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane'));
         $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
+        $adminFaqs = new AdminFaqController($authentication,$editorialContent,$views,$brandName);
         $adminBrand = new AdminBrandController($authentication, $contentManagement, $views);
         $adminNavigation = new AdminNavigationController($pdo, $authentication, $contentManagement, $views);
         $enquiries = new EnquiryService($pdo, $rateLimiter, $audit, new SecretBox($config['app_key']));
@@ -280,6 +284,7 @@ final class Bootstrap
         $router = new Router();
 
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
+        $router->add('GET', '/faqs', static fn(Request $request): Response => $public->faqs($request));
         $router->add('GET', '/sitemap.xml', static fn(Request $request): Response => $public->sitemap($request));
         $router->add('GET', '/contact', static fn(Request $request): Response => $publicEnquiries->create($request));
         $router->add('POST', '/enquiries', static fn(Request $request): Response => $publicEnquiries->store($request));
@@ -489,6 +494,12 @@ final class Bootstrap
         $router->add('GET', '/admin/navigation', static fn(Request $request): Response => $adminNavigation->index($request));
         $router->add('POST', '/admin/navigation', static fn(Request $request, array $params): Response => $adminNavigation->save($request));
         $router->add('POST', '/admin/navigation/{id}', static fn(Request $request, array $params): Response => $adminNavigation->save($request, $params));
+        $router->add('GET', '/admin/faqs', static fn(Request $request): Response => $adminFaqs->index($request));
+        $router->add('GET', '/admin/faqs/new', static fn(Request $request): Response => $adminFaqs->create($request));
+        $router->add('GET', '/admin/faqs/{id}', static fn(Request $request,array $params): Response => $adminFaqs->edit($request,$params));
+        $router->add('POST', '/admin/faqs', static fn(Request $request): Response => $adminFaqs->save($request));
+        $router->add('POST', '/admin/faqs/{id}', static fn(Request $request,array $params): Response => $adminFaqs->save($request,$params));
+        $router->add('POST', '/admin/faqs/{id}/publish', static fn(Request $request,array $params): Response => $adminFaqs->publish($request,$params));
         $router->add('GET', '/admin/content', static fn(Request $request): Response => $adminContent->index($request));
         $router->add('GET', '/admin/content/new', static fn(Request $request): Response => $adminContent->create($request));
         $router->add('POST', '/admin/content', static fn(Request $request, array $params): Response => $adminContent->save($request));
