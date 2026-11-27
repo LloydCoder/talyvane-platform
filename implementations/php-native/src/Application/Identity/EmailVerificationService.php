@@ -60,6 +60,13 @@ final class EmailVerificationService
                 $existing = $this->pdo->prepare('SELECT 1 FROM super_admin_recovery WHERE super_admin_user_id = :user AND recovery_email = :email');
                 $existing->execute(['user'=>$userId,'email'=>$email]);
                 $existingRecovery = $existing->fetchColumn() !== false;
+                if (!$existingRecovery) {
+                    $usedAddress=$this->pdo->prepare('SELECT 1 FROM users WHERE LOWER(email)=:email AND id<>:user LIMIT 1');
+                    $usedAddress->execute(['email'=>$email,'user'=>$userId]);
+                    if ($usedAddress->fetchColumn()!==false) {
+                        throw new \DomainException('Super Admin recovery email must not be assigned to another platform account.');
+                    }
+                }
             }
             $activeSuperAdmin = $this->pdo->prepare(
                 'SELECT 1 FROM users u
