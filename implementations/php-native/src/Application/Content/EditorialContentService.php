@@ -42,10 +42,10 @@ final class EditorialContentService
                 $this->pdo->prepare(
                     'INSERT INTO site_faqs
                      (id,question,answer,locale,category_key,sort_order,status,version,published_version,created_by,updated_by,created_at,updated_at)
-                     VALUES (:id,:question,:answer,:locale,:category,:sort,"draft",1,NULL,:actor,:actor,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+                     VALUES (:id,:question,:answer,:locale,:category,:sort,"draft",1,NULL,:created_by,:updated_by,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
                 )->execute([
                     'id'=>$id,'question'=>$question,'answer'=>$answer,'locale'=>$locale,
-                    'category'=>$categoryKey,'sort'=>$sortOrder,'actor'=>$actor->id,
+                    'category'=>$categoryKey,'sort'=>$sortOrder,'created_by'=>$actor->id,'updated_by'=>$actor->id,
                 ]);
             } else {
                 $id=$faqId;
