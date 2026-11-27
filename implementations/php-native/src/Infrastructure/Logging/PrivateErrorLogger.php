@@ -32,6 +32,9 @@ final class PrivateErrorLogger
                 'reference'=>$reference,
                 'exception_class'=>$error::class,
                 'exception_code'=>(string) $error->getCode(),
+                // Basename and line identify a failing call site without exposing host paths or exception/request data.
+                'exception_file'=>basename($error->getFile()),
+                'exception_line'=>$error->getLine(),
             ];
             if ($error instanceof \PDOException && is_array($error->errorInfo ?? null)) {
                 $sqlState = $error->errorInfo[0] ?? null;
