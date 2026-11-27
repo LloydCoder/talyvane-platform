@@ -77,7 +77,9 @@ final class SuperAdminRecoveryService
                 password_verify($password,(string)$user['password_hash']) &&
                 password_verify($offlineRecoveryKey,(string)$recovery['offline_recovery_key_hash']);
             if (!$valid) throw new SuperAdminRecoveryRejected();
-            if ($sessionVersion>=PHP_INT_MAX) throw new \RuntimeException('Administrator session version cannot be advanced.');
+            if ($sessionVersion>=PHP_INT_MAX || (int)$recovery['recovery_version']>=PHP_INT_MAX) {
+                throw new \RuntimeException('Recovery version cannot be advanced.');
+            }
 
             $newKey=self::newOfflineKey();
             $newKeyHash=password_hash($newKey,PASSWORD_DEFAULT);
@@ -98,8 +100,8 @@ final class SuperAdminRecoveryService
             )->execute(['hash'=>$newKeyHash,'version'=>$recoveryVersion]);
 
             $subject='Super Admin recovery completed';
-            $body="A Super Admin offline recovery was completed for your Talyvane installation.\n\n".
-                "The authenticator factor and prior MFA recovery codes were revoked. All existing administrator sessions and pending step-up challenges were invalidated. A new offline recovery key was generated and displayed only in the terminal session that initiated the recovery.\n\n".
+            $body="A Super Admin offline recovery attempt was initiated for your Talyvane installation.\n\n".
+                "The system completes the key rotation and session invalidation only after both verified administrator addresses receive this notice. If this message arrives without a matching notice at the other address, treat the recovery as not completed; do not use a replacement key.\n\n".
                 "If you did not authorise this action, immediately secure the administrator account and contact your platform operator.\n\n".
                 "Event reference: ".$requestId;
             try {
