@@ -92,6 +92,29 @@ If SMTP delivery fails, the transaction is rolled back and the recovery is not c
 
 Authenticated admin sessions and pending MFA challenges carry the current `admin_session_version`. Recovery, recovery enrollment/contact rotation and administrator password changes increment this value and rotate `remember_token`. The middleware rejects sessions whose stored version is missing or stale, including file-based sessions; pending MFA challenges are also discarded if the version changes between password verification and MFA completion.
 
+## Native PHP deployment — lost-authenticator recovery
+
+The native PHP implementation provides the lost-authenticator operation through a private CLI script. Run it from the cPanel Terminal as the private application owner, not through a browser or public URL:
+
+```bash
+php /home/CPANEL_USER/talyvane-app/bin/recover-super-admin-authenticator.php
+```
+
+If the account has more than one Talyvane installation, set `TALYVANE_CONFIG` to that installation's private `config/app.php` path. The script validates that the file is under the account's private `.talyvane/talyvane/` directory and has owner-only permissions.
+
+The native command:
+- Prompts for the current Super Admin password and 43-character offline key without echoing either value; it uses argument-array `proc_open` to run `stty` and fails closed if a real interactive terminal or safe echo suppression is unavailable.
+- Requires a 20–500 character reason. Do not include secrets or unnecessary personal information.
+- Requires the current password, the stored offline key hash, an active Super Admin, two distinct verified administrator notification addresses and an enabled MFA credential.
+- Applies a five-attempt rolling 15-minute throttle.
+- Rotates the offline key, revokes the MFA credential and old MFA recovery codes, invalidates administrator sessions, remember tokens, pending step-up challenges and pending authentication challenges.
+- Sends a security notice to both verified administrator addresses before committing. If either send fails, database changes roll back and a failed-notification event is recorded.
+- Stores only the replacement key's password hash and displays the 43-character base64url key once in the initiating terminal. The key contains 256 bits of random entropy; keep it offline and separate from the server.
+
+After recovery, sign in with the password and complete MFA enrollment again. All previous administrator sessions must be rejected.
+
+**Native parity boundary:** this CLI currently ports lost-authenticator recovery only. Native first-time recovery enrollment, recovery-contact rotation, and two-owner break-glass configuration/recovery remain open parity work. The Laravel Artisan commands described in the sections below are not available in the native PHP implementation.
+
 ## Two-owner break-glass recovery
 
 Configure this before production, while the designated Super Admin still has the current password, MFA and offline recovery key:
