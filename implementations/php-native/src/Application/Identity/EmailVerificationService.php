@@ -333,7 +333,7 @@ final class EmailVerificationService
     {
         $statement = $this->pdo->prepare(
             'SELECT verified_at FROM email_verification_challenges
-             WHERE user_id=:user AND email_address=:email AND purpose=:purpose
+             WHERE user_id=:user AND email_address=:email AND purpose=:purpose AND superseded_at IS NULL
              ORDER BY created_at DESC LIMIT 1'
         );
         $statement->execute(['user'=>$userId,'email'=>strtolower($email),'purpose'=>$purpose]);
