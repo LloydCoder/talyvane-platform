@@ -34,34 +34,27 @@ function runSuperAdminRecoveryIntegration(PDO $pdo): int
         $hex=bin2hex($bytes);
         return substr($hex,0,8).'-'.substr($hex,8,4).'-'.substr($hex,12,4).'-'.substr($hex,16,4).'-'.substr($hex,20);
     };
-    $userId=$uuid();
-    $primary='super-admin-recovery@example.test';
-    $recoveryEmail='super-admin-recovery-contact@example.test';
+    $recoverySeed=$pdo->query('SELECT super_admin_user_id,recovery_email FROM super_admin_recovery WHERE singleton_id=1')->fetch();
+    if (!is_array($recoverySeed)) throw new RuntimeException('Identity integration must bootstrap the singleton Super Admin recovery record first.');
+    $userId=(string)$recoverySeed['super_admin_user_id'];
+    $primary=(string)$pdo->query('SELECT email FROM users WHERE id='.$pdo->quote($userId))->fetchColumn();
+    $recoveryEmail=(string)$recoverySeed['recovery_email'];
+    if ($primary==='' || $recoveryEmail==='' ||
+        (int)$pdo->query('SELECT COUNT(*) FROM admin_mfa_credentials WHERE user_id='.$pdo->quote($userId).' AND enabled_at IS NOT NULL')->fetchColumn()!==1) {
+        throw new RuntimeException('Identity integration must provide a verified Super Admin with enabled MFA before recovery tests.');
+    }
     $password='current-super-admin-password';
     $offlineKey=str_repeat('A',43);
-    $now=gmdate('Y-m-d H:i:s');
     $pdo->prepare(
-        'INSERT INTO users (id,email,password_hash,status,email_verified_at,first_login_required,admin_session_version,remember_token_hash,created_at,updated_at)
-         VALUES (:id,:email,:password,"active",UTC_TIMESTAMP(),0,7,:remember,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
+        'UPDATE users SET password_hash=:password,admin_session_version=7,remember_token_hash=:remember,updated_at=UTC_TIMESTAMP() WHERE id=:id'
     )->execute([
-        'id'=>$userId,'email'=>$primary,'password'=>password_hash($password,PASSWORD_DEFAULT),
+        'id'=>$userId,'password'=>password_hash($password,PASSWORD_DEFAULT),
         'remember'=>hash('sha256','pre-recovery-remember-token'),
     ]);
-    $pdo->prepare('INSERT INTO user_roles (user_id,role_key,granted_by,granted_at) VALUES (:user,"super_admin",NULL,UTC_TIMESTAMP())')
-        ->execute(['user'=>$userId]);
     $pdo->prepare(
-        'INSERT INTO super_admin_recovery (singleton_id,super_admin_user_id,recovery_email,offline_recovery_key_hash,recovery_version,enrolled_at,updated_at)
-         VALUES (1,:user,:email,:key_hash,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
-    )->execute(['user'=>$userId,'email'=>$recoveryEmail,'key_hash'=>password_hash($offlineKey,PASSWORD_DEFAULT)]);
-    $pdo->prepare(
-        'INSERT INTO admin_mfa_credentials (user_id,encrypted_totp_secret,encryption_key_version,enabled_at,last_accepted_counter,created_at,updated_at)
-         VALUES (:user,"test-encrypted-secret","test-key-version",UTC_TIMESTAMP(),-1,UTC_TIMESTAMP(),UTC_TIMESTAMP())'
-    )->execute(['user'=>$userId]);
-    $pdo->prepare(
-        'INSERT INTO admin_mfa_recovery_codes (id,user_id,code_hash,used_at,created_at)
-         VALUES (:id,:user,:hash,NULL,UTC_TIMESTAMP())'
-    )->execute(['id'=>$uuid(),'user'=>$userId,'hash'=>password_hash('old-mfa-recovery-code',PASSWORD_DEFAULT)]);
-
+        'UPDATE super_admin_recovery SET offline_recovery_key_hash=:key_hash,recovery_version=1,updated_at=UTC_TIMESTAMP() WHERE singleton_id=1'
+    )->execute(['key_hash'=>password_hash($offlineKey,PASSWORD_DEFAULT)]);
+    $pdo->exec('DELETE FROM super_admin_recovery_events');
     $mailer=new SuperAdminRecoveryTestMailer();
     $service=new SuperAdminRecoveryService($pdo,$mailer,new AuditLogger($pdo));
     $reason='Lost authenticator recovery after device replacement';
