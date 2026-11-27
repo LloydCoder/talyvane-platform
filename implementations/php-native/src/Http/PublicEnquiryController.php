@@ -7,12 +7,13 @@ use InvalidArgumentException;
 use DomainException;
 use Talyvane\Application\CRM\EnquiryService;
 use Talyvane\Application\Content\ContentManagementService;
+use Talyvane\Application\SEO\PublicSitemapService;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\SessionManager;
 
 final class PublicEnquiryController
 {
-    public function __construct(private EnquiryService $enquiries,private ContentManagementService $content,private ViewRenderer $views,private string $brandName) {}
+    public function __construct(private EnquiryService $enquiries,private ContentManagementService $content,private ViewRenderer $views,private string $brandName,private PublicSitemapService $sitemap) {}
 
     public function create(Request $request): Response
     {
@@ -51,6 +52,7 @@ final class PublicEnquiryController
             'sent'=>$sent,
             'values'=>$values,
             'privacyAvailable'=>$this->privacyPage() !== null,
+            'canonicalUrl'=>$this->sitemap->canonicalUrl('/contact'),
         ]);
         return new Response($body,$status,[
             'content-type'=>'text/html; charset=utf-8',
