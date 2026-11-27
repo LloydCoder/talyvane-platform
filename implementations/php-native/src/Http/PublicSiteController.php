@@ -43,6 +43,7 @@ final class PublicSiteController
             'navigation' => $this->publicNavigation('header','en'),
             'footerNavigation' => $this->publicNavigation('footer','en'),
             'requestId' => $request->requestId,
+            'canonicalUrl' => $this->sitemap->canonicalUrl('/'),
         ]));
     }
 
@@ -94,6 +95,7 @@ final class PublicSiteController
             'metaTitle' => $metaTitle,
             'metaDescription' => $metaDescription,
             'robots' => $robots,
+            'canonicalUrl' => $this->sitemap->canonicalUrl('/pages/' . $slug),
             'navigation' => $this->publicNavigation('header','en'),
             'footerNavigation' => $this->publicNavigation('footer','en'),
         ]));
