@@ -284,6 +284,10 @@ final class SuperAdminRecoveryService
                 $requestId,'super-admin-recovery-v1');
             $this->pdo->commit();
             return $newKey;
+        } catch (SuperAdminRecoveryRateLimited) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            $this->recordFailure($userId,'recovery_rate_limited',$requestId);
+            throw new \DomainException('Recovery enrollment is temporarily unavailable. Wait before trying again.');
         } catch (SuperAdminRecoveryRejected) {
             if ($this->pdo->inTransaction()) $this->pdo->rollBack();
             $this->recordFailure($userId,'recovery_enrollment_rejected',$requestId);
@@ -393,6 +397,10 @@ final class SuperAdminRecoveryService
                 $requestId,'super-admin-recovery-v1');
             $this->pdo->commit();
             return $newKey;
+        } catch (SuperAdminRecoveryRateLimited) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            $this->recordFailure($userId,'recovery_rate_limited',$requestId);
+            throw new \DomainException('Recovery contact rotation is temporarily unavailable. Wait before trying again.');
         } catch (SuperAdminRecoveryRejected) {
             if ($this->pdo->inTransaction()) $this->pdo->rollBack();
             $this->recordFailure($userId,'recovery_contacts_rotation_rejected',$requestId);
