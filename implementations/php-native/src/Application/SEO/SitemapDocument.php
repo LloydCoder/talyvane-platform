@@ -10,9 +10,7 @@ namespace Talyvane\Application\SEO;
  */
 final class SitemapDocument
 {
-    /**
-     * @param list<string> $paths
-     */
+    /** @param list<string> $paths */
     public static function render(string $canonicalOrigin, array $paths): string
     {
         $origin = self::canonicalOrigin($canonicalOrigin);
@@ -22,9 +20,7 @@ final class SitemapDocument
 
         $urls = [];
         foreach ($paths as $path) {
-            if (!is_string($path) || preg_match('~^/(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*)?$~D', $path) !== 1) {
-                throw new \InvalidArgumentException('Sitemap paths must be safe, canonical local paths.');
-            }
+            self::assertPath($path);
             $urls[$path] = $origin . $path;
         }
 
@@ -35,6 +31,19 @@ final class SitemapDocument
         }
         $xml .= "</urlset>\n";
         return $xml;
+    }
+
+    public static function url(string $canonicalOrigin, string $path): string
+    {
+        self::assertPath($path);
+        return self::canonicalOrigin($canonicalOrigin) . $path;
+    }
+
+    private static function assertPath(string $path): void
+    {
+        if (preg_match('~^/(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*)?$~D', $path) !== 1) {
+            throw new \InvalidArgumentException('Sitemap paths must be safe, canonical local paths.');
+        }
     }
 
     private static function canonicalOrigin(string $origin): string
