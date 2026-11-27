@@ -228,12 +228,12 @@ try {
   await page.locator('[name="sort_order"]').fill('10');
   await page.locator('[name="reason"]').fill('Create the first reviewed public FAQ');
   await page.getByRole('button', { name: /Save draft/i }).click();
-  await page.waitForURL(/\\/admin\\/faqs\\/[0-9a-f-]+$/i);
+  await page.waitForURL(/\/admin\/faqs\/[0-9a-f-]+$/i);
   await page.locator('#publish-reason').fill('Approve initial FAQ publication');
   await page.getByRole('button', { name: /Publish version 1/i }).click();
   await page.waitForLoadState('networkidle');
   await page.goto(baseUrl + '/faqs', { waitUntil: 'networkidle' });
-  assert.match(await page.locator('body').innerText(), /How are enquiries reviewed\\?[\\s\\S]*A designated authorised team member reviews each enquiry/i,
+  assert.match(await page.locator('body').innerText(), /How are enquiries reviewed\?[\s\S]*A designated authorised team member reviews each enquiry/i,
     'The published FAQ snapshot is rendered publicly as escaped text.');
   assert.equal(await page.locator('link[rel="canonical"]').getAttribute('href'), baseUrl + '/faqs',
     'The FAQ page declares its canonical URL.');
