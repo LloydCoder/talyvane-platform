@@ -198,7 +198,7 @@ final class Bootstrap
         $publicRoot = (string) ($config['paths']['document_root'] ?? ($_SERVER['DOCUMENT_ROOT'] ?? ''));
         $mediaStorage = new PrivateMediaStorage((string) ($config['paths']['storage'] ?? ''),$publicRoot);
         $profileMedia = new ProfileMediaService($pdo,$mediaStorage,$discovery,$audit,$membershipEntitlements);
-        $publicDiscovery = new PublicDiscoveryController($discovery, $views, $authentication);
+        $publicDiscovery = new PublicDiscoveryController($discovery,$views,$authentication,$sitemap);
         $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
         $adminAudit = new AdminAuditController($authentication, new AuditQueryService($pdo), $views, (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane'));
         $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
