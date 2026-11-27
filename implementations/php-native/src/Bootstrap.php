@@ -170,8 +170,9 @@ final class Bootstrap
             }
         }
 
-        $public = new PublicSiteController($pdo, $views);
         $discovery = new DiscoveryService($pdo);
+        $sitemap = new PublicSitemapService($pdo,$discovery,(string) ($config['app_url'] ?? ''));
+        $public = new PublicSiteController($pdo,$views,$sitemap);
         $contentManagement = new ContentManagementService($pdo, $audit);
         $brandName = (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane');
         $membershipEligibility = static function(string $dependency) use ($pdo,$brandName): bool {
@@ -278,6 +279,7 @@ final class Bootstrap
         $router = new Router();
 
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
+        $router->add('GET', '/sitemap.xml', static fn(Request $request): Response => $public->sitemap($request));
         $router->add('GET', '/contact', static fn(Request $request): Response => $publicEnquiries->create($request));
         $router->add('POST', '/enquiries', static fn(Request $request): Response => $publicEnquiries->store($request));
         $router->add('GET', '/model-agency/apply', static fn(Request $request): Response => $publicModelAgency->form($request));
