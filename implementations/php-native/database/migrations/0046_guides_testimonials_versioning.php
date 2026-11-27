@@ -60,5 +60,5 @@ return [
     (id,testimonial_id,version,display_name,quote_text,locale,consent_reference,sort_order,changed_by,change_reason,created_at)
  SELECT UUID(),id,1,display_name,quote_text,locale,consent_reference,sort_order,created_by,'Migrated existing testimonial',UTC_TIMESTAMP()
  FROM testimonials",
-"UPDATE testimonials SET published_version=1 WHERE status='published'"
+"UPDATE testimonials SET published_version=1 WHERE status='published' AND TRIM(consent_reference)<>''"
 ];
