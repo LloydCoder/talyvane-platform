@@ -147,6 +147,43 @@ final class DiscoveryService
         return $profile;
     }
 
+    /** @return list<string> Slugs whose profiles satisfy the same public discovery gates. */
+    public function publicProfileSlugs(int $limit = 50000): array
+    {
+        $limit = max(1, min(50000, $limit));
+        $query = $this->pdo->prepare(
+            'SELECT p.slug,d.country_code,m.enabled AS market_enabled,m.decision AS market_decision,
+                    m.reviewer_id,m.reviewed_at,m.expires_at,m.evidence_reference,m.review_summary
+             FROM companion_profiles p
+             JOIN destinations d ON d.id=p.destination_id
+             JOIN countries c ON c.alpha2=d.country_code
+             JOIN market_policies m ON m.country_code=d.country_code
+             WHERE d.status="published" AND c.enabled=1
+               AND p.status="published" AND p.adult_eligibility_status="verified"
+               AND p.adult_verified_at IS NOT NULL AND p.adult_verified_by IS NOT NULL
+               AND p.publication_consent_version IS NOT NULL AND p.publication_consent_withdrawn_at IS NULL
+               AND EXISTS (
+                   SELECT 1 FROM consent_grants cg
+                   WHERE cg.subject_type="companion_profile" AND cg.subject_id=p.id
+                     AND cg.purpose="profile.publication" AND cg.audience="public"
+                     AND cg.policy_version=p.publication_consent_version
+                     AND cg.granted=1 AND cg.withdrawn_at IS NULL
+               )
+               AND m.enabled=1 AND m.decision="approved"
+             ORDER BY p.slug LIMIT :limit'
+        );
+        $query->bindValue(':limit',$limit,PDO::PARAM_INT);
+        $query->execute();
+        $slugs = [];
+        foreach ($query->fetchAll() as $row) {
+            if (self::marketIsOperational($row) && is_string($row['slug'] ?? null) &&
+                preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/D',$row['slug']) === 1) {
+                $slugs[] = $row['slug'];
+            }
+        }
+        return $slugs;
+    }
+
     /** @return list<array{id:string,url:string}> */
     private function publicMediaForProfile(string $profileId): array
     {
