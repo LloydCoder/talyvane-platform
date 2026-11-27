@@ -22,7 +22,7 @@ final class PublicSitemapService
 
     public function xml(): string
     {
-        $paths = ['/', '/destinations', '/companions', '/contact', '/model-agency/apply'];
+        $paths = ['/', '/destinations', '/companions', '/contact'];
         $pages = $this->pdo->query(
             'SELECT slug FROM site_pages
              WHERE locale="en" AND status="published" AND published_version IS NOT NULL
