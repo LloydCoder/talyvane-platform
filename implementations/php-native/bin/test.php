@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
+require dirname(__DIR__) . '/tests/Unit/PublicSitemapDocumentTest.php';
 
 use Talyvane\Domain\Money;
 use Talyvane\Application\Destinations\DestinationCoverService;
