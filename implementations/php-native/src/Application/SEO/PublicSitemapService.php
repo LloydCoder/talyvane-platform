@@ -15,6 +15,11 @@ final class PublicSitemapService
         private string $canonicalOrigin
     ) {}
 
+    public function canonicalUrl(string $path): string
+    {
+        return SitemapDocument::url($this->canonicalOrigin,$path);
+    }
+
     public function xml(): string
     {
         $paths = ['/', '/destinations', '/companions', '/contact', '/model-agency/apply'];
