@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/bootstrap.php';
+require dirname(__DIR__) . '/tests/Unit/PublicSitemapDocumentTest.php';
 
 use Talyvane\Domain\Money;
 use Talyvane\Application\Destinations\DestinationCoverService;
@@ -981,6 +982,11 @@ $currentLog = (string) file_get_contents($logFile);
 $assert(is_file($rotatedLog) && strlen($currentLog) < 1024 && !str_contains($currentLog,'sensitive exception message') &&
     (fileperms($logFile) & 0777) === 0600,
     'private error logging rotates at five MiB, keeps owner-only permissions and excludes exception messages');
+$diagnostic = json_decode(trim($currentLog),true);
+$assert(is_array($diagnostic) && ($diagnostic['exception_file']??null)==='test.php' &&
+    is_int($diagnostic['exception_line']??null) && $diagnostic['exception_line']>0 &&
+    !isset($diagnostic['message'],$diagnostic['trace'],$diagnostic['request']),
+    'private error diagnostics identify a basename and line without leaking exception text, stack traces or request data');
 $assert(is_file($logRoot . DIRECTORY_SEPARATOR . '.application-error.lock') &&
     (fileperms($logRoot . DIRECTORY_SEPARATOR . '.application-error.lock') & 0777) === 0600,
     'private error logging serializes concurrent writers with a private stable lock');
@@ -1104,5 +1110,7 @@ foreach ($iterator as $entry) {
     $entry->isDir() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
 }
 rmdir($tempRoot);
+
+PublicSitemapDocumentTest::run($assert);
 
 fwrite(STDOUT, sprintf("Native PHP foundation: %d assertions passed.\n", $tests));

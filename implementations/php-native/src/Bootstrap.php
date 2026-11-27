@@ -36,6 +36,7 @@ use Talyvane\Application\Bookings\BookingQueryService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\Discovery\DiscoveryService;
+use Talyvane\Application\SEO\PublicSitemapService;
 use Talyvane\Application\Media\ProfileMediaService;
 use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
 use Talyvane\Application\ModelAgency\ClientModelAgencyDistributionService;
@@ -170,8 +171,9 @@ final class Bootstrap
             }
         }
 
-        $public = new PublicSiteController($pdo, $views);
         $discovery = new DiscoveryService($pdo);
+        $sitemap = new PublicSitemapService($pdo,$discovery,(string) ($config['app_url'] ?? ''));
+        $public = new PublicSiteController($pdo,$views,$sitemap);
         $contentManagement = new ContentManagementService($pdo, $audit);
         $brandName = (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane');
         $membershipEligibility = static function(string $dependency) use ($pdo,$brandName): bool {
@@ -196,7 +198,7 @@ final class Bootstrap
         $publicRoot = (string) ($config['paths']['document_root'] ?? ($_SERVER['DOCUMENT_ROOT'] ?? ''));
         $mediaStorage = new PrivateMediaStorage((string) ($config['paths']['storage'] ?? ''),$publicRoot);
         $profileMedia = new ProfileMediaService($pdo,$mediaStorage,$discovery,$audit,$membershipEntitlements);
-        $publicDiscovery = new PublicDiscoveryController($discovery, $views, $authentication);
+        $publicDiscovery = new PublicDiscoveryController($discovery,$views,$authentication,$sitemap);
         $adminAuth = new AdminAuthController($authentication, $passwords, $contentManagement, $views);
         $adminAudit = new AdminAuditController($authentication, new AuditQueryService($pdo), $views, (string) ($contentManagement->publicBrand()['brand_name'] ?? 'Talyvane'));
         $adminContent = new AdminContentController($pdo, $authentication, $contentManagement, $views);
@@ -206,7 +208,7 @@ final class Bootstrap
         $companionMedia = new CompanionMediaController($authentication,$profileMedia,$views,$brandName);
         $adminProfileMedia = new AdminProfileMediaController($authentication,$profileMedia,$views,$brandName);
         $publicProfileMedia = new PublicProfileMediaController($profileMedia);
-        $publicEnquiries = new PublicEnquiryController($enquiries, $contentManagement, $views, $brandName);
+        $publicEnquiries = new PublicEnquiryController($enquiries,$contentManagement,$views,$brandName,$sitemap);
         $adminEnquiries = new AdminEnquiryController($enquiries, $authentication, $views, $brandName);
         $companionPublication = new CompanionProfilePublicationService($pdo, $audit);
         $adminCompanions = new AdminCompanionController($authentication, $companionPublication, $views, $brandName);
@@ -278,6 +280,7 @@ final class Bootstrap
         $router = new Router();
 
         $router->add('GET', '/', static fn(Request $request): Response => $public->home($request));
+        $router->add('GET', '/sitemap.xml', static fn(Request $request): Response => $public->sitemap($request));
         $router->add('GET', '/contact', static fn(Request $request): Response => $publicEnquiries->create($request));
         $router->add('POST', '/enquiries', static fn(Request $request): Response => $publicEnquiries->store($request));
         $router->add('GET', '/model-agency/apply', static fn(Request $request): Response => $publicModelAgency->form($request));

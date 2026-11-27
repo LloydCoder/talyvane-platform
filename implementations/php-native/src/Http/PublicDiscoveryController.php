@@ -5,13 +5,14 @@ namespace Talyvane\Http;
 
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Identity\AuthenticationService;
+use Talyvane\Application\SEO\PublicSitemapService;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\Principal;
 use Talyvane\Security\SessionManager;
 
 final class PublicDiscoveryController
 {
-    public function __construct(private DiscoveryService $discovery, private ViewRenderer $views, private AuthenticationService $authentication) {}
+    public function __construct(private DiscoveryService $discovery, private ViewRenderer $views, private AuthenticationService $authentication, private PublicSitemapService $sitemap) {}
 
     public function destinations(Request $request): Response
     {
@@ -64,6 +65,7 @@ final class PublicDiscoveryController
         $html = $this->views->render('public/discovery',[
             'mode'=>'profile','profile'=>$profile,'canSaveFavorite'=>$canSaveFavorite,
             'csrf'=>$canSaveFavorite ? Csrf::issue() : '','brandName'=>'Talyvane',
+            'canonicalUrl'=>$this->sitemap->canonicalUrl('/profiles/' . (string) $profile['slug']),
         ]);
         if ($canSaveFavorite) {
             $headers = Response::html($html)->headers;
@@ -77,7 +79,16 @@ final class PublicDiscoveryController
     /** @param array<string,mixed> $data */
     private function render(array $data): Response
     {
-        $html = $this->views->render('public/discovery',$data + ['brandName'=>'Talyvane']);
+        $mode = (string) ($data['mode'] ?? 'destinations');
+        $canonicalPath = match ($mode) {
+            'companions' => '/companions',
+            'destination' => '/destinations/' . (string) ($data['destination']['slug'] ?? ''),
+            default => '/destinations',
+        };
+        $html = $this->views->render('public/discovery',$data + [
+            'brandName'=>'Talyvane',
+            'canonicalUrl'=>$this->sitemap->canonicalUrl($canonicalPath),
+        ]);
         return Response::html($html);
     }
 }
