@@ -36,6 +36,7 @@ use Talyvane\Application\Bookings\BookingQueryService;
 use Talyvane\Application\Bookings\BookingService;
 use Talyvane\Application\Content\ContentManagementService;
 use Talyvane\Application\Discovery\DiscoveryService;
+use Talyvane\Application\SEO\PublicSitemapService;
 use Talyvane\Application\Media\ProfileMediaService;
 use Talyvane\Application\ModelAgency\ModelAgencyApplicationService;
 use Talyvane\Application\ModelAgency\ClientModelAgencyDistributionService;
