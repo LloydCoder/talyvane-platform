@@ -6,13 +6,14 @@ namespace Talyvane\Http;
 use Talyvane\Application\Discovery\DiscoveryService;
 use Talyvane\Application\Identity\AuthenticationService;
 use Talyvane\Application\SEO\PublicSitemapService;
+use Talyvane\Application\Content\EditorialContentService;
 use Talyvane\Security\Csrf;
 use Talyvane\Security\Principal;
 use Talyvane\Security\SessionManager;
 
 final class PublicDiscoveryController
 {
-    public function __construct(private DiscoveryService $discovery, private ViewRenderer $views, private AuthenticationService $authentication, private PublicSitemapService $sitemap) {}
+    public function __construct(private DiscoveryService $discovery, private ViewRenderer $views, private AuthenticationService $authentication, private PublicSitemapService $sitemap, private EditorialContentService $editorial) {}
 
     public function destinations(Request $request): Response
     {
@@ -49,6 +50,7 @@ final class PublicDiscoveryController
             'mode'=>'destination',
             'destination'=>$destination,
             'profiles'=>$this->discovery->profiles((string) $destination['slug']),
+            'guide'=>$this->editorial->publicDestinationGuide((string)$destination['id'],'en'),
         ]);
     }
 

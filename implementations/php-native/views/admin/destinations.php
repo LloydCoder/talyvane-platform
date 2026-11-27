@@ -21,7 +21,7 @@ $csrf = is_string($csrf ?? null) ? $csrf : '';
 </style>
 </head>
 <body>
-<header class="shell top"><a class="brand" href="/admin"><?= $escape($brandName) ?></a><nav class="nav"><a href="/admin">Control room</a><a href="/admin/content">Content</a><a href="/admin/audit">Audit trail</a></nav></header>
+<header class="shell top"><a class="brand" href="/admin"><?= $escape($brandName) ?></a><nav class="nav"><a href="/admin">Control room</a><a href="/admin/content">Content</a><a href="/admin/destination-guides">Destination guides</a><a href="/admin/audit">Audit trail</a></nav></header>
 <main class="shell">
 <section class="intro"><div class="eyebrow">Administration · Global discovery</div><h1>Destination management</h1><p class="muted">Maintain city and market metadata. Publishing is blocked unless the country and currency datasets are enabled and the market has a current, MFA-reviewed approval. Draft destinations remain private.</p></section>
 <?php if ($error !== ''): ?><p class="error" role="alert"><?= $escape($error) ?></p><?php endif; ?>
