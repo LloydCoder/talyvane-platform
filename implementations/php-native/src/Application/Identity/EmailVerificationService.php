@@ -61,7 +61,14 @@ final class EmailVerificationService
                 $existing->execute(['user'=>$userId,'email'=>$email]);
                 $existingRecovery = $existing->fetchColumn() !== false;
             }
-            if (!$bootstrapPending && !$existingRecovery) {
+            $activeSuperAdmin = $this->pdo->prepare(
+                'SELECT 1 FROM users u
+                 INNER JOIN user_roles r ON r.user_id=u.id AND r.role_key="super_admin"
+                 INNER JOIN admin_mfa_credentials m ON m.user_id=u.id AND m.enabled_at IS NOT NULL
+                 WHERE u.id=:user AND u.status="active" AND u.email_verified_at IS NOT NULL LIMIT 1'
+            );
+            $activeSuperAdmin->execute(['user'=>$userId]);
+            if (!$bootstrapPending && !$existingRecovery && $activeSuperAdmin->fetchColumn()===false) {
                 throw new \DomainException('Administrative email verification requires an active Super Admin bootstrap or recovery record.');
             }
         }
@@ -324,9 +331,14 @@ final class EmailVerificationService
 
     private function isVerified(string $userId, string $email, string $purpose): bool
     {
-        $statement = $this->pdo->prepare('SELECT 1 FROM email_verification_challenges WHERE user_id = :user AND email_address = :email AND purpose = :purpose AND verified_at IS NOT NULL ORDER BY verified_at DESC LIMIT 1');
+        $statement = $this->pdo->prepare(
+            'SELECT verified_at FROM email_verification_challenges
+             WHERE user_id=:user AND email_address=:email AND purpose=:purpose
+             ORDER BY created_at DESC LIMIT 1'
+        );
         $statement->execute(['user'=>$userId,'email'=>strtolower($email),'purpose'=>$purpose]);
-        return $statement->fetchColumn() !== false;
+        $row=$statement->fetch();
+        return is_array($row) && $row['verified_at']!==null;
     }
 
     private static function uuid(): string
