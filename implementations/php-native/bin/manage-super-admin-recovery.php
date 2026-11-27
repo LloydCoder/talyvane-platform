@@ -113,7 +113,6 @@ try {
     fwrite(STDOUT,"Talyvane — Super Admin recovery ".$action."\n");
     fwrite(STDOUT,"This operation requires fresh verification of both administrator email addresses, the current password and a current authenticator code.\n");
     $password=manageRecoveryHidden("Current Super Admin password (hidden): ");
-    $totp=manageRecoveryHidden("Current six-digit authenticator code (hidden): ");
     $startedAt=time();
     $newRecoveryEmail=$action==='enroll'
         ?manageRecoveryVisible("New recovery email address: ")
@@ -137,6 +136,7 @@ try {
     }
 
     $reason=manageRecoveryVisible("Reason (visible, minimum 20 characters): ");
+    $totp=manageRecoveryHidden("Current six-digit authenticator code (hidden): ");
     $requestId=bin2hex(random_bytes(16));
     $newKey=$action==='enroll'
         ?$service->enrollRecovery($password,$totp,$newRecoveryEmail,$reason,$requestId)
