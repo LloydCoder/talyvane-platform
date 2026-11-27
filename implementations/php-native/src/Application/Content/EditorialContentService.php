@@ -452,7 +452,7 @@ final class EditorialContentService
             'SELECT v.display_name,v.quote_text,v.locale,v.sort_order,v.version
              FROM testimonials t
              INNER JOIN testimonial_versions v ON v.testimonial_id=t.id AND v.version=t.published_version
-             WHERE t.status="published" AND t.published_version IS NOT NULL AND v.locale=:locale
+             WHERE t.status="published" AND t.published_version IS NOT NULL AND TRIM(v.consent_reference)<>"" AND v.locale=:locale
              ORDER BY v.sort_order,v.display_name LIMIT 100'
         );
         $query->execute(['locale'=>$locale]);
