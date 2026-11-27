@@ -183,6 +183,19 @@ try {
   const replay = await context.request.get(`${baseUrl}/install/success`);
   assert.equal(replay.status(), 410, 'One-time credentials must not be retrievable twice.');
 
+  const sitemapResponse = await context.request.get(`${baseUrl}/sitemap.xml`);
+  assert.equal(sitemapResponse.status(), 200, 'The public sitemap is available after installation.');
+  const sitemapXml = await sitemapResponse.text();
+  assert.match(sitemapXml, /https:\/\/localhost:8443\//, 'Sitemap URLs use the configured canonical origin.');
+  assert.match(sitemapXml, /https:\/\/localhost:8443\/contact/, 'The public contact page is included in the sitemap.');
+  assert.doesNotMatch(sitemapXml, /\/model-agency\/apply/, 'Noindex model application intake is excluded from the sitemap.');
+  await page.goto(`${baseUrl}/contact`, { waitUntil: 'networkidle' });
+  assert.equal(await page.locator('link[rel="canonical"]').getAttribute('href'), `${baseUrl}/contact`,
+    'The public contact page declares the same canonical URL that appears in the sitemap.');
+  await page.goto(`${baseUrl}/model-agency/apply`, { waitUntil: 'networkidle' });
+  assert.equal(await page.locator('meta[name="robots"]').getAttribute('content'), 'noindex,nofollow',
+    'The model application intake remains explicitly non-indexable.');
+
   await page.goto(`${baseUrl}/admin/login`, { waitUntil: 'networkidle' });
   await page.locator('[name="email"]').fill(adminEmail);
   await page.locator('[name="password"]').fill(initialPassword);
