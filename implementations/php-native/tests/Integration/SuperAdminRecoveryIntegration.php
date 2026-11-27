@@ -96,7 +96,7 @@ function runSuperAdminRecoveryIntegration(PDO $pdo): int
     $event=$pdo->query('SELECT event_key,notification_status,session_version_before,session_version_after FROM super_admin_recovery_events WHERE actor_user_id='.$pdo->quote($userId).' AND event_key="recovery_notification_failed" ORDER BY created_at DESC LIMIT 1')->fetch();
     $assert(is_array($event) && $event['event_key']==='mfa_recovered' && $event['notification_status']==='sent' &&
         (int)$event['session_version_before']===7 && (int)$event['session_version_after']===8,
-        'successful recovery records an attributable event and session-version transition');
+        'successful recovery records an attributable event and session-version transition: '.json_encode($event));
 
     $pdo->prepare(
         'INSERT INTO admin_mfa_credentials (user_id,encrypted_totp_secret,encryption_key_version,enabled_at,last_accepted_counter,created_at,updated_at)
