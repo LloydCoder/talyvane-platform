@@ -237,6 +237,34 @@ try {
     'The published FAQ snapshot is rendered publicly as escaped text.');
   assert.equal(await page.locator('link[rel="canonical"]').getAttribute('href'), baseUrl + '/faqs',
     'The FAQ page declares its canonical URL.');
+  await page.goto(baseUrl + '/admin/destinations', { waitUntil: 'networkidle' });
+  await page.locator('#new_display_name').fill('E2E Guide City');
+  await page.locator('#new_slug').fill('e2e-guide-city');
+  await page.locator('#new_city_name').fill('Lagos');
+  await page.locator('#new_country_code').selectOption('NG');
+  await page.locator('#new_currency_code').selectOption('NGN');
+  await page.locator('#new_locale').fill('en');
+  await page.locator('#new_time_zone').fill('Africa/Lagos');
+  await page.locator('#new_status').selectOption('draft');
+  await page.getByRole('button', { name: /Create destination/i }).click();
+  await page.waitForURL('**/admin/destinations?saved=1');
+
+  await page.goto(baseUrl + '/admin/destination-guides', { waitUntil: 'networkidle' });
+  await page.getByRole('link', { name: /Create guide/i }).click();
+  await page.waitForURL('**/admin/destination-guides/new');
+  await page.locator('[name="destination_id"]').selectOption({ label: 'E2E Guide City · draft' });
+  await page.locator('[name="title"]').fill('A thoughtful guide to Lagos');
+  await page.locator('[name="content"]').fill('A reviewed guide to the city, its districts and practical local context.');
+  await page.locator('[name="locale"]').fill('en');
+  await page.locator('[name="meta_title"]').fill('Lagos destination guide');
+  await page.locator('[name="meta_description"]').fill('A practical and carefully reviewed guide to Lagos.');
+  await page.locator('[name="reason"]').fill('Create the first destination guide');
+  await page.getByRole('button', { name: /Save draft/i }).click();
+  await page.waitForURL(/\/admin\/destination-guides\/[0-9a-f-]+$/i);
+  await page.locator('#publish-reason').fill('Approve the Lagos destination guide');
+  await page.getByRole('button', { name: /Publish version 1/i }).click();
+  await page.waitForLoadState('networkidle');
+
   async function registerAndLogin(email, accountType) {
     const portalPassword = 'Native-Portal-E2E-Password-2026!';
     await page.goto(baseUrl + '/portal/register', { waitUntil: 'networkidle' });
