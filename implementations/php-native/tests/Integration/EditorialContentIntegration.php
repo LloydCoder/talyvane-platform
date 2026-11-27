@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-use Talyvane\\Application\\Content\\EditorialContentService;
-use Talyvane\\Infrastructure\\Audit\\AuditLogger;
-use Talyvane\\Security\\Principal;
+use Talyvane\Application\Content\EditorialContentService;
+use Talyvane\Infrastructure\Audit\AuditLogger;
+use Talyvane\Security\Principal;
 
 function runEditorialContentIntegration(PDO $pdo): int
 {
