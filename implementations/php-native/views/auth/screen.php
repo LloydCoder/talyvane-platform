@@ -96,6 +96,7 @@ main{display:grid;place-items:center;padding:clamp(24px,6vw,88px)}.panel{width:m
   <?php if (array_intersect($roles, ['finance','owner','super_admin']) !== []): ?><a class="button" href="/admin/model-agency/settlements" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open finance &amp; settlement workspace</a><?php endif; ?>
   <?php if (array_intersect($roles, ['super_admin','owner','admin']) !== []): ?>
   <a class="button" href="/admin/content" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open content workspace</a>
+  <a class="button" href="/admin/faqs" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage public FAQs</a>
   <a class="button" href="/admin/destinations" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage destinations</a>
   <a class="button" href="/admin/navigation" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Manage navigation</a>
   <a class="button" href="/admin/enquiries" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">Open enquiry inbox</a>

@@ -188,6 +188,7 @@ try {
   const sitemapXml = await sitemapResponse.text();
   assert.match(sitemapXml, /https:\/\/localhost:8443\//, 'Sitemap URLs use the configured canonical origin.');
   assert.match(sitemapXml, /https:\/\/localhost:8443\/contact/, 'The public contact page is included in the sitemap.');
+  assert.match(sitemapXml, /https:\/\/localhost:8443\/faqs/, 'The public FAQ page is included in the sitemap.');
   assert.doesNotMatch(sitemapXml, /\/model-agency\/apply/, 'Noindex model application intake is excluded from the sitemap.');
   await page.goto(`${baseUrl}/contact`, { waitUntil: 'networkidle' });
   assert.equal(await page.locator('link[rel="canonical"]').getAttribute('href'), `${baseUrl}/contact`,
@@ -216,6 +217,26 @@ try {
   await page.getByRole('link', { name: /Continue to control room/i }).click();
   await page.waitForURL('**/admin');
   assert.match(await page.locator('body').innerText(), /Control room/i);
+  await page.getByRole('link', { name: /Manage public FAQs/i }).click();
+  await page.waitForURL('**/admin/faqs');
+  await page.getByRole('link', { name: /Create FAQ/i }).click();
+  await page.waitForURL('**/admin/faqs/new');
+  await page.locator('[name="question"]').fill('How are enquiries reviewed?');
+  await page.locator('[name="answer"]').fill('A designated authorised team member reviews each enquiry.');
+  await page.locator('[name="locale"]').fill('en');
+  await page.locator('[name="category_key"]').fill('general');
+  await page.locator('[name="sort_order"]').fill('10');
+  await page.locator('[name="reason"]').fill('Create the first reviewed public FAQ');
+  await page.getByRole('button', { name: /Save draft/i }).click();
+  await page.waitForURL(/\/admin\/faqs\/[0-9a-f-]+$/i);
+  await page.locator('#publish-reason').fill('Approve initial FAQ publication');
+  await page.getByRole('button', { name: /Publish version 1/i }).click();
+  await page.waitForLoadState('networkidle');
+  await page.goto(baseUrl + '/faqs', { waitUntil: 'networkidle' });
+  assert.match(await page.locator('body').innerText(), /How are enquiries reviewed\?[\s\S]*A designated authorised team member reviews each enquiry/i,
+    'The published FAQ snapshot is rendered publicly as escaped text.');
+  assert.equal(await page.locator('link[rel="canonical"]').getAttribute('href'), baseUrl + '/faqs',
+    'The FAQ page declares its canonical URL.');
   async function registerAndLogin(email, accountType) {
     const portalPassword = 'Native-Portal-E2E-Password-2026!';
     await page.goto(baseUrl + '/portal/register', { waitUntil: 'networkidle' });

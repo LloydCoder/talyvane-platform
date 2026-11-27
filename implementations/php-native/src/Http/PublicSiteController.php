@@ -5,11 +5,12 @@ namespace Talyvane\Http;
 
 use PDO;
 use Talyvane\Application\SEO\PublicSitemapService;
+use Talyvane\Application\Content\EditorialContentService;
 
 /** Public CMS endpoints. Content is emitted as text, never trusted HTML. */
 final class PublicSiteController
 {
-    public function __construct(private PDO $pdo, private ViewRenderer $views, private PublicSitemapService $sitemap) {}
+    public function __construct(private PDO $pdo, private ViewRenderer $views, private PublicSitemapService $sitemap, private EditorialContentService $editorial) {}
 
     public function sitemap(Request $request): Response
     {
@@ -18,6 +19,16 @@ final class PublicSiteController
             'content-type'=>'application/xml; charset=utf-8',
             'cache-control'=>'public, max-age=3600',
         ]);
+    }
+
+    public function faqs(Request $request): Response
+    {
+        $brand=$this->publicBrand();
+        return Response::html($this->views->render('public/faqs',[
+            'brandName'=>$brand['brand_name'],
+            'faqs'=>$this->editorial->publicFaqs('en'),
+            'canonicalUrl'=>$this->sitemap->canonicalUrl('/faqs'),
+        ]));
     }
 
     public function home(Request $request): Response
