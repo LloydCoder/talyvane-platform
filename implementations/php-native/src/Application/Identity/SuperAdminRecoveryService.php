@@ -62,7 +62,7 @@ final class SuperAdminRecoveryService
             $sessionVersion=(int)$user['admin_session_version'];
             $attemptQuery=$this->pdo->query(
                 'SELECT COUNT(*) FROM super_admin_recovery_events
-                 WHERE event_key IN ("recovery_rejected","recovery_rate_limited")
+                 WHERE event_key IN ("recovery_rejected","recovery_rate_limited","recovery_enrollment_rejected","recovery_contacts_rotation_rejected")
                    AND created_at >= DATE_SUB(UTC_TIMESTAMP(),INTERVAL 15 MINUTE)'
             );
             if ((int)$attemptQuery->fetchColumn()>=5) throw new SuperAdminRecoveryRateLimited();
@@ -234,6 +234,7 @@ final class SuperAdminRecoveryService
             $counter=Totp::verify($secret,$totpCode,time(),(int)$mfa['last_accepted_counter']);
             if ($counter===null) throw new SuperAdminRecoveryRejected();
 
+            $this->assertRecoveryOperationRateLimit();
             $sessionBefore=(int)$user['admin_session_version'];
             if ($sessionBefore>=PHP_INT_MAX || (is_array($recovery)&&(int)$recovery['recovery_version']>=PHP_INT_MAX)) {
                 throw new \RuntimeException('Recovery version cannot be advanced.');
@@ -250,6 +251,8 @@ final class SuperAdminRecoveryService
             $this->pdo->prepare(
                 'UPDATE admin_mfa_credentials SET last_accepted_counter=:counter,updated_at=UTC_TIMESTAMP() WHERE user_id=:user'
             )->execute(['counter'=>$counter,'user'=>$userId]);
+            $this->pdo->prepare('DELETE FROM admin_step_up_challenges WHERE user_id=:user')->execute(['user'=>$userId]);
+            $this->pdo->prepare('DELETE FROM auth_challenges WHERE user_id=:user')->execute(['user'=>$userId]);
             if (is_array($recovery)) {
                 $this->pdo->prepare(
                     'UPDATE super_admin_recovery SET recovery_email=:email,offline_recovery_key_hash=:hash,
@@ -347,6 +350,7 @@ final class SuperAdminRecoveryService
             $counter=Totp::verify($secret,$totpCode,time(),(int)$mfa['last_accepted_counter']);
             if ($counter===null) throw new SuperAdminRecoveryRejected();
 
+            $this->assertRecoveryOperationRateLimit();
             $sessionBefore=(int)$user['admin_session_version'];
             $recoveryVersion=(int)$recovery['recovery_version'];
             if ($sessionBefore>=PHP_INT_MAX || $recoveryVersion>=PHP_INT_MAX) {
@@ -364,6 +368,8 @@ final class SuperAdminRecoveryService
             $this->pdo->prepare(
                 'UPDATE admin_mfa_credentials SET last_accepted_counter=:counter,updated_at=UTC_TIMESTAMP() WHERE user_id=:user'
             )->execute(['counter'=>$counter,'user'=>$userId]);
+            $this->pdo->prepare('DELETE FROM admin_step_up_challenges WHERE user_id=:user')->execute(['user'=>$userId]);
+            $this->pdo->prepare('DELETE FROM auth_challenges WHERE user_id=:user')->execute(['user'=>$userId]);
             $this->pdo->prepare(
                 'UPDATE super_admin_recovery SET recovery_email=:email,offline_recovery_key_hash=:hash,
                  recovery_version=:version,updated_at=UTC_TIMESTAMP() WHERE singleton_id=1'
@@ -382,8 +388,8 @@ final class SuperAdminRecoveryService
             $this->insertEvent($userId,'recovery_contacts_rotated',$reason,'sent',$sessionBefore,$sessionAfter,$requestId);
             $this->insertEvent($userId,'notification_sent',null,'sent',$sessionBefore,$sessionAfter,$requestId);
             $this->audit->record($userId,'super_admin.recovery.contacts_rotated','super_admin_recovery','1',$reason,
-                ['recovery_email'=>$oldRecoveryEmail,'recovery_version'=>$recoveryVersion,'session_version'=>$sessionBefore],
-                ['recovery_email'=>$newRecoveryEmail,'recovery_version'=>$newVersion,'session_version'=>$sessionAfter,'notifications'=>3],
+                ['recovery_contact_present'=>true,'recovery_version'=>$recoveryVersion,'session_version'=>$sessionBefore],
+                ['recovery_contact_rotated'=>true,'recovery_version'=>$newVersion,'session_version'=>$sessionAfter,'notifications'=>3],
                 $requestId,'super-admin-recovery-v1');
             $this->pdo->commit();
             return $newKey;
@@ -399,6 +405,16 @@ final class SuperAdminRecoveryService
             if ($this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $error;
         }
+    }
+
+    private function assertRecoveryOperationRateLimit(): void
+    {
+        $query=$this->pdo->query(
+            'SELECT COUNT(*) FROM super_admin_recovery_events
+             WHERE event_key IN ("recovery_rejected","recovery_rate_limited","recovery_enrollment_rejected","recovery_contacts_rotation_rejected")
+               AND created_at>=DATE_SUB(UTC_TIMESTAMP(),INTERVAL 15 MINUTE)'
+        );
+        if ((int)$query->fetchColumn()>=5) throw new SuperAdminRecoveryRateLimited();
     }
 
     private function assertRecoveryDependencies(): void
